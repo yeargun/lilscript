@@ -373,10 +373,7 @@ impl ProjectConfig {
             // back-reference. Off by default -- it is a raw regression by
             // construction, so a port turns it on only after measuring its own
             // artifact.
-            rematerialize_member_reads: self
-                .javascript
-                .rematerialize_member_reads
-                .unwrap_or(false),
+            rematerialize_member_reads: self.javascript.rematerialize_member_reads.unwrap_or(false),
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -1165,6 +1162,40 @@ impl CompressionDecision {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JavaScriptSourceMapMode {
+    /// Emit a separate map without adding a sourceMappingURL to JavaScript.
+    /// This is the zero-JavaScript-overhead production mode.
+    #[default]
+    Hidden,
+    /// Emit a separate map and append a sourceMappingURL comment at write time.
+    Linked,
+    /// Append the complete map as a data URL at write time.
+    Inline,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct JavaScriptSourceMapConfig {
+    /// Source-map work is entirely skipped when this is false.
+    pub enabled: bool,
+    pub mode: JavaScriptSourceMapMode,
+    /// Embed exact `.lil` source text so debuggers and error services can show
+    /// the authored program without needing access to the source tree.
+    pub include_sources_content: bool,
+}
+
+impl Default for JavaScriptSourceMapConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            mode: JavaScriptSourceMapMode::Hidden,
+            include_sources_content: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptConfig {
@@ -1267,6 +1298,10 @@ pub struct JavaScriptConfig {
     /// builds do not ship `console.log`. Test oracles set false. Does not strip
     /// `console.warn` (observable library behavior).
     pub strip_console: bool,
+    /// Optional Source Map v3 output. Disabled by default. Hidden maps leave
+    /// the selected JavaScript byte-for-byte unchanged; linked and inline
+    /// modes only affect how the CLI publishes the already-built map.
+    pub source_map: JavaScriptSourceMapConfig,
     pub startup: StartupCostConfig,
     pub performance: JavaScriptPerformanceConfig,
 }
@@ -1319,6 +1354,7 @@ impl Default for JavaScriptConfig {
             assume_pristine_builtins: false,
             assume_pure_property_reads: false,
             strip_console: true,
+            source_map: JavaScriptSourceMapConfig::default(),
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),
         }
@@ -2279,6 +2315,38 @@ shared_min_imports = 3
             toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
         assert!(!disabled.javascript.strip_console);
         assert!(ProjectConfig::default().javascript.strip_console);
+    }
+
+    #[test]
+    fn source_maps_are_opt_in_and_parse_publication_modes() {
+        let defaults = ProjectConfig::default();
+        assert!(!defaults.javascript.source_map.enabled);
+        assert_eq!(
+            defaults.javascript.source_map.mode,
+            JavaScriptSourceMapMode::Hidden
+        );
+        assert!(defaults.javascript.source_map.include_sources_content);
+
+        let configured: ProjectConfig = toml::from_str(
+            r#"
+[javascript.source_map]
+enabled = true
+mode = "linked"
+include_sources_content = false
+"#,
+        )
+        .unwrap();
+        assert!(configured.javascript.source_map.enabled);
+        assert_eq!(
+            configured.javascript.source_map.mode,
+            JavaScriptSourceMapMode::Linked
+        );
+        assert!(!configured.javascript.source_map.include_sources_content);
+
+        assert!(toml::from_str::<ProjectConfig>(
+            "[javascript.source_map]\nenabled=true\nmode='sidecar'\n"
+        )
+        .is_err());
     }
 
     #[test]

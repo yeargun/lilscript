@@ -365,7 +365,10 @@ fn function_scope_at(
         // of the name; the member still begins at the delimiter before them.
         let mut head = name_start;
         while let Some(previous) = head.checked_sub(1) {
-            if matches!(tokens[previous].text, "static" | "get" | "set" | "async" | "*") {
+            if matches!(
+                tokens[previous].text,
+                "static" | "get" | "set" | "async" | "*"
+            ) {
                 head = previous;
             } else {
                 break;

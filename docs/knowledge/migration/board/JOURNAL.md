@@ -6,6 +6,76 @@ recorded verdict. This is cold storage: read it when you are about to redo somet
 Format: `## YYYY-MM-DD — <task id> — <one line>` then two or three lines of what
 changed, what the gate said, and the commit if there is one.
 
+## 2026-08-29 — phase2-01 — one admitted codec boundary
+
+Generated text now becomes `AdmittedGeneratedJavaScript` before internal exact
+scoring. Budgeted, unbudgeted, declaration, and entropy routes share that gate;
+the public arbitrary-byte codec API remains intentionally separate.
+
+## 2026-08-29 — gate-04 — implementation complete, G2 deferred
+
+V-01 now covers syntax floors, bindings and external names, static/dynamic
+properties with provenance, module edges, export/callable ABI, live bindings,
+field order/descriptors, templates, and lowering obligations. Rust release was
+green at 1,627 tests; the external G2 remains explicitly deferred.
+
+## 2026-08-29 — emit-01 — control transfer cannot enter a conditional expression
+
+The branch fold already requires `ExpressionParser::parse_complete` for both
+arms. A direct regression now covers `break`, `continue`, `return`, and `throw`
+in either arm; all are refused, so no production rewrite was required.
+
+## 2026-08-29 — gate-04 — dynamic member ranges
+
+Final property reporting now covers computed members as explicit dynamic ranges
+in addition to static owner/slot mappings. Focused dynamic-range and serialized
+witness tests pass.
+
+## 2026-08-29 — gate-04 — binding byte ranges
+
+The final-artifact witness now records every visible identifier byte range as
+bound, free, or unresolved, and bound uses point to their declaration ranges.
+New unresolved names fail closed; focused range and rejection tests pass.
+
+## 2026-08-29 — gate-04 — serialized final-artifact witness
+
+Explained compilation now exposes syntax floor, exports, static imports, free
+identifiers, template hashes, obligation counts, and exact property byte ranges
+with owner/slot provenance candidates. The focused report test and all-target
+type check pass.
+
+## 2026-08-29 — gate-04 — artifact-set scoring admission
+
+Generated bundle chunks now pass syntax/binding admission before gzip/Brotli
+measurement instead of reaching the raw codec helper directly. Three focused
+bundle and scorer tests pass.
+
+## 2026-08-29 — gate-04 — property ranges resolve to typed provenance
+
+Typed emission records owner/slot/source/emitted/category/stability for properties.
+Every final static-property byte range must resolve to that set; unowned direct
+properties remain explicitly classified. Focused provenance and rejection tests
+plus the Marked gzip 660-case canary pass.
+
+## 2026-08-29 — gate-04 — property and template provenance
+
+The typed property allocator now records owner, slot, source/emitted spelling,
+external/owned/unowned category, and stability. Final static properties and
+opaque templates must be represented by direct emission. Focused tests and the
+Marked gzip 660-case canary pass; final byte-range identity mapping remains.
+
+## 2026-08-29 — gate-04 — undeclared external rejection
+
+Final free identifiers must occur in the selected direct typed emission; text
+contraction cannot introduce a new ambient or host name. Focused free-name and
+syntax-floor rejection tests pass.
+
+## 2026-08-29 — gate-04 — syntax-floor admission
+
+Candidate and final admission reject optional chaining, nullish/logical
+assignment, optional catch binding, selected built-ins, and class fields above
+the configured ECMAScript floor. Focused floor and ABI tests pass.
+
 ## 2026-08-29 — gate-04 — late candidates retain admission
 
 The typed artifact admission contract now travels with terminal candidates.

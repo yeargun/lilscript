@@ -10,10 +10,13 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use crate::codegen_ir_js::{
-    emit_optimized_ir_js, emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
+    emit_optimized_ir_js, emit_optimized_ir_js_chunks_source_traces_with_options,
+    emit_optimized_ir_js_chunks_with_options, emit_optimized_ir_js_module,
     emit_optimized_ir_js_module_with_options_and_analysis,
+    emit_optimized_ir_js_source_trace_with_options_and_analysis,
     emit_optimized_ir_js_with_options_and_analysis, has_inlineable_fresh_empty_array_factory,
-    ir_function_can_move_to_chunk, IrJsChunk, IrJsChunkPlan, IrJsChunkSpec,
+    ir_function_can_move_to_chunk, ir_js_property_provenance_with_options_and_analysis, IrJsChunk,
+    IrJsChunkPlan, IrJsChunkSpec, IrJsPropertyCategory, IrJsPropertyProvenance, IrJsSourceTrace,
 };
 use crate::codegen_js::{compile_to_js, CompileError};
 use crate::codegen_native::{compile_to_c, emit_native_c, emit_native_c_with_options};
@@ -30,12 +33,14 @@ use crate::js_peephole::{
     fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns,
     fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
     function_leading_declaration_variant, function_local_binding_swap_variants,
-    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, identifier_name_is_clear_binding,
-    inline_single_use_functions, late_generated_javascript_cleanup,
-    late_generated_javascript_cleanup_local_variants, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript_assuming,
+    generated_javascript_binding_occurrences, generated_javascript_bit_or_zero_count,
+    generated_javascript_dynamic_property_occurrences, generated_javascript_export_names,
+    generated_javascript_export_witnesses, generated_javascript_free_identifiers,
+    generated_javascript_static_imports, generated_javascript_static_property_names,
+    generated_javascript_static_property_occurrences, generated_javascript_template_literals,
+    identifier_name_is_clear_binding, inline_single_use_functions,
+    late_generated_javascript_cleanup, late_generated_javascript_cleanup_local_variants,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions_assuming, remap_identifier,
     remap_single_character_identifiers, repair_fused_keyword_identifiers,
     single_character_identifier_use_counts, single_character_identifiers,
@@ -60,12 +65,16 @@ use crate::profile::{
     JavaScriptPerformanceMetrics, OptimizationProfile,
 };
 use crate::semantic::analyze;
+use crate::source_map::{
+    build_javascript_source_map, build_javascript_source_map_from_trace, JavaScriptSourceMap,
+};
 use crate::span::Span;
 use crate::value_analysis::{analyze_integer_values, IntegerValueAnalysis};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompilationArtifacts {
     pub javascript: String,
+    pub source_map: Option<JavaScriptSourceMap>,
     pub c: String,
     pub optimization_reports: Vec<OptimizationReport>,
 }
@@ -102,9 +111,58 @@ fn configured_module_lowering_count() -> usize {
 #[derive(Debug, Clone, PartialEq)]
 pub struct JavaScriptCompilation {
     pub javascript: String,
+    pub source_map: Option<JavaScriptSourceMap>,
     pub optimization_reports: Vec<OptimizationReport>,
     pub selection_metrics: JavaScriptSelectionMetrics,
     pub abi_manifest: crate::compilation_contract::JavaScriptAbiManifest,
+    pub artifact_witness: JavaScriptArtifactWitness,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptArtifactWitness {
+    pub syntax_floor: String,
+    pub exports: Vec<String>,
+    pub foreign_imports: Vec<JavaScriptModuleEdgeWitness>,
+    pub free_identifiers: Vec<String>,
+    pub template_sha256: Vec<String>,
+    pub expected_bit_or_zero: usize,
+    pub observed_bit_or_zero: usize,
+    pub properties: Vec<JavaScriptPropertyOccurrenceWitness>,
+    pub bindings: Vec<JavaScriptBindingOccurrenceWitness>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptModuleEdgeWitness {
+    pub source: String,
+    pub imported: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptPropertyOccurrenceWitness {
+    pub start: usize,
+    pub end: usize,
+    pub emitted: String,
+    pub category: String,
+    pub identities: Vec<JavaScriptPropertyIdentityWitness>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptPropertyIdentityWitness {
+    pub owner: Option<String>,
+    pub slot: Option<usize>,
+    pub source: String,
+    pub category: String,
+    pub stable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JavaScriptBindingOccurrenceWitness {
+    pub start: usize,
+    pub end: usize,
+    pub name: String,
+    pub resolution: String,
+    pub declaration_start: Option<usize>,
+    pub declaration_end: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -191,6 +249,7 @@ pub struct JavaScriptBundle {
 pub struct JavaScriptBundleFile {
     pub file_name: String,
     pub code: String,
+    pub source_map: Option<JavaScriptSourceMap>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -311,6 +370,7 @@ pub fn compile_source_all(source: &str) -> Result<CompilationArtifacts, SourceCo
     let c = emit_native_c(&ir).map_err(CompileError::from)?;
     Ok(CompilationArtifacts {
         javascript,
+        source_map: None,
         c,
         optimization_reports,
     })
@@ -353,7 +413,7 @@ fn compile_path_explained_inner(
         .map_err(|error| module_compile_error(&modules, CompileError::Lower(error)))?;
     let contract = config.javascript_compilation_contract(module_output);
     let abi_manifest = contract.abi_manifest(&ir);
-    let selected = optimize_and_select_javascript(ir, config, module_output)
+    let selected = optimize_and_select_javascript_with_source_trace(ir, config, module_output)
         .map_err(|error| module_compile_error(&modules, error))?;
     if selected.abi_manifest != abi_manifest {
         return Err(module_compile_error(
@@ -364,11 +424,53 @@ fn compile_path_explained_inner(
             )),
         ));
     }
+    let source_map = build_selected_source_map(
+        &selected,
+        &modules,
+        config.config_dir.as_deref().or_else(|| path.parent()),
+        config,
+    )
+    .map_err(|error| module_compile_error(&modules, error))?;
     Ok(JavaScriptCompilation {
         javascript: selected.javascript,
+        source_map,
         optimization_reports: selected.optimization_reports,
         selection_metrics: selected.selection_metrics,
         abi_manifest: selected.abi_manifest,
+        artifact_witness: selected.artifact_witness,
+    })
+}
+
+fn build_selected_source_map(
+    selected: &OptimizedJavascriptCandidate,
+    modules: &ModuleSet,
+    source_base: Option<&Path>,
+    config: &ProjectConfig,
+) -> Result<Option<JavaScriptSourceMap>, CompileError> {
+    if !config.javascript.source_map.enabled {
+        return Ok(None);
+    }
+    let trace = selected.source_trace.as_ref().ok_or_else(|| {
+        crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            "selected JavaScript is missing its source provenance trace",
+        )
+    })?;
+    build_javascript_source_map(
+        &selected.javascript,
+        trace,
+        &selected.artifact_witness,
+        modules,
+        source_base,
+        config.javascript.source_map.include_sources_content,
+    )
+    .map(Some)
+    .map_err(|error| {
+        crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!("failed to build JavaScript source map: {error}"),
+        )
+        .into()
     })
 }
 
@@ -538,9 +640,14 @@ fn compile_javascript_bundle_from_ir<'src>(
             })
             .collect(),
     };
-    let mut emitted = emit_optimized_ir_js_chunks_with_options(&ir, &selected_plan.options, &plan)
-        .map_err(CompileError::from)
-        .map_err(|error| module_compile_error(&modules, error))?;
+    let (mut emitted, source_traces) = if config.javascript.source_map.enabled {
+        emit_optimized_ir_js_chunks_source_traces_with_options(&ir, &selected_plan.options, &plan)
+    } else {
+        emit_optimized_ir_js_chunks_with_options(&ir, &selected_plan.options, &plan)
+            .map(|chunks| (chunks, Vec::new()))
+    }
+    .map_err(CompileError::from)
+    .map_err(|error| module_compile_error(&modules, error))?;
     let preload = match config.bundle.preload {
         PreloadPolicy::None => Vec::new(),
         PreloadPolicy::Entry => emitted
@@ -554,6 +661,46 @@ fn compile_javascript_bundle_from_ir<'src>(
             .collect(),
     };
     apply_module_preloads(&mut emitted, entry_file, &preload);
+    let source_maps = if config.javascript.source_map.enabled {
+        if source_traces.len() != emitted.len() {
+            return Err(ModuleError::new(
+                &modules.modules[modules.root].path,
+                &modules.modules[modules.root].source,
+                Span::empty(0),
+                "chunk source-provenance count does not match emitted chunk count",
+            ));
+        }
+        emitted
+            .iter()
+            .zip(&source_traces)
+            .map(|(chunk, trace)| {
+                build_javascript_source_map_from_trace(
+                    &chunk.code,
+                    trace,
+                    modules,
+                    config
+                        .config_dir
+                        .as_deref()
+                        .or_else(|| modules.modules[modules.root].path.parent()),
+                    config.javascript.source_map.include_sources_content,
+                )
+                .map(Some)
+                .map_err(|error| {
+                    ModuleError::new(
+                        &modules.modules[modules.root].path,
+                        &modules.modules[modules.root].source,
+                        Span::empty(0),
+                        format!(
+                            "failed to build source map for chunk `{}`: {error}",
+                            chunk.file_name
+                        ),
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, ModuleError>>()?
+    } else {
+        vec![None; emitted.len()]
+    };
     let depths = chunk_dependency_depths(&emitted, entry_file);
     let reachability = chunk_reachability(&emitted);
     let mut deploy_cost = 0u64;
@@ -671,9 +818,11 @@ fn compile_javascript_bundle_from_ir<'src>(
     );
     let files = emitted
         .into_iter()
-        .map(|chunk| JavaScriptBundleFile {
+        .zip(source_maps)
+        .map(|(chunk, source_map)| JavaScriptBundleFile {
             file_name: chunk.file_name,
             code: chunk.code,
+            source_map,
         })
         .collect::<Vec<_>>();
     let bundle = JavaScriptBundle {
@@ -861,8 +1010,13 @@ fn compile_path_all_configured_inner(
     let arena = Bump::new();
     let programs = parse_modules(&arena, &modules)?;
     let linked = link_modules(&arena, &modules, &programs)?;
-    compile_program_all_configured(&linked, config)
-        .map_err(|error| module_compile_error(&modules, error))
+    compile_program_all_configured_with_modules(
+        &linked,
+        config,
+        &modules,
+        config.config_dir.as_deref().or_else(|| path.parent()),
+    )
+    .map_err(|error| module_compile_error(&modules, error))
 }
 
 #[derive(Debug, Clone)]
@@ -1221,8 +1375,10 @@ pub fn measure_javascript_transfer_sizes(bytes: &[u8]) -> Result<JavaScriptTrans
 }
 
 fn compressed_artifact_sizes(code: &str) -> Result<(usize, usize), String> {
-    let sizes = measure_javascript_transfer_sizes(code.as_bytes())?;
-    Ok((sizes.gzip9, sizes.brotli11))
+    Ok((
+        admitted_generated_javascript_size(code, CompressionCostModel::Gzip)?,
+        admitted_generated_javascript_size(code, CompressionCostModel::Brotli)?,
+    ))
 }
 
 fn apply_module_preloads(chunks: &mut [IrJsChunk], entry: &str, preload: &[String]) {
@@ -1361,19 +1517,42 @@ fn compile_program_all<'ast, 'src>(
     let c = emit_native_c(&ir)?;
     Ok(CompilationArtifacts {
         javascript,
+        source_map: None,
         c,
         optimization_reports,
     })
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn compile_program_all_configured<'ast, 'src>(
     program: &crate::ast::Program<'ast, 'src>,
     config: &ProjectConfig,
 ) -> Result<CompilationArtifacts, CompileError> {
+    compile_program_all_configured_inner(program, config, None)
+}
+
+fn compile_program_all_configured_with_modules<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+    config: &ProjectConfig,
+    modules: &ModuleSet,
+    source_base: Option<&Path>,
+) -> Result<CompilationArtifacts, CompileError> {
+    compile_program_all_configured_inner(program, config, Some((modules, source_base)))
+}
+
+fn compile_program_all_configured_inner<'ast, 'src>(
+    program: &crate::ast::Program<'ast, 'src>,
+    config: &ProjectConfig,
+    source_context: Option<(&ModuleSet, Option<&Path>)>,
+) -> Result<CompilationArtifacts, CompileError> {
     let semantics = analyze(program)?;
     let javascript_ir = lower_to_control_flow(program, &semantics)?;
     let mut native_ir = javascript_ir.clone();
-    let selected = optimize_and_select_javascript(javascript_ir, config, false)?;
+    let selected = if source_context.is_some() && config.javascript.source_map.enabled {
+        optimize_and_select_javascript_with_source_trace(javascript_ir, config, false)?
+    } else {
+        optimize_and_select_javascript(javascript_ir, config, false)?
+    };
     let native_guidance =
         load_optimization_guidance(config, config.native_profile_guided_optimization())?;
     optimize_control_flow_with_guidance(
@@ -1383,8 +1562,15 @@ fn compile_program_all_configured<'ast, 'src>(
         &native_guidance,
     )?;
     let c = emit_native_c_with_options(&native_ir, &config.native_options())?;
+    let source_map = source_context
+        .map(|(modules, source_base)| {
+            build_selected_source_map(&selected, modules, source_base, config)
+        })
+        .transpose()?
+        .flatten();
     Ok(CompilationArtifacts {
         javascript: selected.javascript,
+        source_map,
         c,
         optimization_reports: selected.optimization_reports,
     })
@@ -1443,11 +1629,13 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 
 struct OptimizedJavascriptCandidate {
     javascript: String,
+    source_trace: Option<IrJsSourceTrace>,
     #[cfg_attr(not(test), allow(dead_code))]
     plan_identity: JavaScriptPlanIdentity,
     optimization_reports: Vec<OptimizationReport>,
     selection_metrics: JavaScriptSelectionMetrics,
     abi_manifest: crate::compilation_contract::JavaScriptAbiManifest,
+    artifact_witness: JavaScriptArtifactWitness,
 }
 
 fn prepare_javascript_ir(ir: &mut ControlFlowModule<'_>, config: &ProjectConfig) {
@@ -1462,11 +1650,39 @@ fn optimize_and_select_javascript<'src>(
     config: &ProjectConfig,
     module_output: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
+    optimize_and_select_javascript_with_provenance(ir, config, module_output, false)
+}
+
+fn optimize_and_select_javascript_with_source_trace<'src>(
+    ir: ControlFlowModule<'src>,
+    config: &ProjectConfig,
+    module_output: bool,
+) -> Result<OptimizedJavascriptCandidate, CompileError> {
+    optimize_and_select_javascript_with_provenance(
+        ir,
+        config,
+        module_output,
+        config.javascript.source_map.enabled,
+    )
+}
+
+fn optimize_and_select_javascript_with_provenance<'src>(
+    ir: ControlFlowModule<'src>,
+    config: &ProjectConfig,
+    module_output: bool,
+    capture_source_trace: bool,
+) -> Result<OptimizedJavascriptCandidate, CompileError> {
     let contract = config.javascript_compilation_contract(module_output);
     let objective = config.javascript_optimization_objective();
     debug_assert_eq!(objective.transfer, config.javascript.cost_model);
     install_configured_compiler_pool(&config.compiler.resources, move || {
-        optimize_and_select_javascript_inner(ir, config, contract.abi.preserve_root_exports)
+        optimize_and_select_javascript_inner(
+            ir,
+            config,
+            module_output,
+            contract.abi.preserve_root_exports,
+            capture_source_trace,
+        )
     })
 }
 
@@ -1499,7 +1715,9 @@ fn install_configured_compiler_pool_by<Output: Send, Error: Send>(
 fn optimize_and_select_javascript_inner<'src>(
     ir: ControlFlowModule<'src>,
     config: &ProjectConfig,
+    module_output: bool,
     preserve_exports: bool,
+    capture_source_trace: bool,
 ) -> Result<OptimizedJavascriptCandidate, CompileError> {
     let started = Instant::now();
     let mut ir = ir;
@@ -1520,196 +1738,38 @@ fn optimize_and_select_javascript_inner<'src>(
     };
     let mut optimizer_options =
         crate::decision_registry::scored_ir_optimizer_clones(config, configured);
-    let mut compression_contrast = None;
-    let mut outline_phase_interaction = None;
-    if configured.inlining && config.ir_phase_ordering_variants_enabled() {
-        // Phase-order probes answer a narrow question: did an early CSE or the
-        // default inlining budget hide a smaller program?  Crossing them with
-        // every independent optimizer toggle is both redundant and extremely
-        // expensive on large modules.  Keep the configured pipeline and the
-        // one phase-adjacent specialization variant that can materially change
-        // what the inliner sees.
-        let broad_module = ir.functions.len() > 24
-            || ir
-                .functions
-                .iter()
-                .flat_map(|function| &function.blocks)
-                .map(|block| block.instructions.len() + block.phis.len() + 1)
-                .sum::<usize>()
-                > 2_048;
-        let mut phase_bases = vec![configured];
-        if configured.constant_parameter_specialization {
-            let mut without_constant_specialization = configured;
-            without_constant_specialization.constant_parameter_specialization = false;
-            if broad_module {
-                // One combined proposal retains the phase-order opportunity on
-                // broad modules without making every final-emission search run
-                // six additional times.
-                phase_bases.clear();
-            }
-            phase_bases.push(without_constant_specialization);
-        }
-        for base in phase_bases {
-            if broad_module {
-                let mut combined = base;
-                combined.common_subexpression_elimination = false;
-                combined.inline_instruction_limit = combined.inline_instruction_limit.max(48);
-                combined.inline_control_flow_limit = combined.inline_control_flow_limit.max(128);
-                combined.inline_growth_limit =
-                    Some(combined.inline_growth_limit.unwrap_or(0).max(40));
-                if !optimizer_options.contains(&combined) {
-                    optimizer_options.push(combined);
-                }
-                continue;
-            }
-            let mut without_early_cse = base;
-            without_early_cse.common_subexpression_elimination = false;
-            if !optimizer_options.contains(&without_early_cse) {
-                optimizer_options.push(without_early_cse);
-            }
-
-            let mut aggressive_inlining = base;
-            aggressive_inlining.inline_instruction_limit =
-                aggressive_inlining.inline_instruction_limit.max(48);
-            aggressive_inlining.inline_control_flow_limit =
-                aggressive_inlining.inline_control_flow_limit.max(128);
-            aggressive_inlining.inline_growth_limit =
-                Some(aggressive_inlining.inline_growth_limit.unwrap_or(0).max(40));
-            if !optimizer_options.contains(&aggressive_inlining) {
-                optimizer_options.push(aggressive_inlining);
-            }
-
-            aggressive_inlining.common_subexpression_elimination = false;
-            if !optimizer_options.contains(&aggressive_inlining) {
-                optimizer_options.push(aggressive_inlining);
-            }
-        }
-    }
-    if config.javascript_optimization_enabled(JavaScriptOptimization::IrCompressPassVariants) {
-        let mut without_compress = configured;
-        without_compress.pipeline_fusion = false;
-        without_compress.partial_escape_sinking = false;
-        without_compress.region_outlining = false;
-        without_compress.expression_superopt = false;
-        without_compress.path_sensitive_propagation = false;
-        without_compress.parameterized_function_merging = false;
-        if !optimizer_options.contains(&without_compress) {
-            optimizer_options.push(without_compress);
-        }
-        if configured.region_outlining {
-            let mut without_outlining = configured;
-            without_outlining.region_outlining = false;
-            compression_contrast = Some(without_outlining);
-            if !optimizer_options.contains(&without_outlining) {
-                optimizer_options.push(without_outlining);
-            }
-        } else if config.js_region_outlining_candidate_enabled() {
-            let mut with_outlining = configured;
-            with_outlining.region_outlining = true;
-            compression_contrast = Some(with_outlining);
-            if !optimizer_options.contains(&with_outlining) {
-                optimizer_options.push(with_outlining);
-            }
-
-            // Aggressive inlining can expose a repeated composite region that
-            // the configured pipeline never presents to the outliner. Cross
-            // outlining with only the strongest already-bounded phase-order
-            // proposal; duplicating every optimizer tuple would multiply the
-            // expensive IR search without adding a distinct proof boundary.
-            if let Some(mut interaction) = optimizer_options
-                .iter()
-                .copied()
-                .filter(|options| {
-                    options.inlining
-                        && !options.region_outlining
-                        && !options.common_subexpression_elimination
-                        && (options.inline_instruction_limit > configured.inline_instruction_limit
-                            || options.inline_control_flow_limit
-                                > configured.inline_control_flow_limit
-                            || options.inline_growth_limit.unwrap_or(0)
-                                > configured.inline_growth_limit.unwrap_or(0))
-                })
-                .max_by_key(|options| {
-                    (
-                        !options.constant_parameter_specialization,
-                        options.inline_instruction_limit,
-                        options.inline_control_flow_limit,
-                        options.inline_growth_limit.unwrap_or(0),
-                    )
-                })
-            {
-                interaction.region_outlining = true;
-                outline_phase_interaction = Some(interaction);
-                if !optimizer_options.contains(&interaction) {
-                    optimizer_options.push(interaction);
-                }
-            }
-        }
-        if configured.pipeline_fusion {
-            let mut without_fusion = configured;
-            without_fusion.pipeline_fusion = false;
-            if !optimizer_options.contains(&without_fusion) {
-                optimizer_options.push(without_fusion);
-            }
-        }
-        if configured.parameterized_function_merging {
-            let mut without_merging = configured;
-            without_merging.parameterized_function_merging = false;
-            if !optimizer_options.contains(&without_merging) {
-                optimizer_options.push(without_merging);
-            }
-        }
-    }
-    optimizer_options.sort_by_key(|options| {
-        (
-            options.function_subsumption,
-            !options.inlining,
-            !options.inline_closure_factories,
-            options.common_subexpression_elimination,
-            !options.constant_parameter_specialization,
-            !options.specialize_tagged_constants,
-            !options.call_site_specialization,
-            !options.capture_signature_cloning,
-            options.inline_instruction_limit,
-            options.inline_control_flow_limit,
-            options.inline_growth_limit,
-        )
-    });
-    optimizer_options.dedup();
-
-    // Probe each optimizer IR with its configured emission before concentrating
-    // the terminal beam on the transfer-best finalists (configured always
-    // kept). Reusable boundaries receive one additional helper-interaction
-    // probe: AllEligible for a successful repeated-region outline, or
-    // SingleStaticUse for a deferred-inlining IR. Without that bounded joint
-    // score, the useful IR can be discarded before emission search gets a
-    // chance to inline its leaves while retaining its shared composite.
-    if let Some(configured_index) = optimizer_options
-        .iter()
-        .position(|options| options == &configured)
+    // Phase-order probes answer a narrow question: did an early CSE or the
+    // default inlining budget hide a smaller program? Broad modules receive one
+    // combined recipe rather than the small-module cross product.
+    let broad_module = ir.functions.len() > 24
+        || ir
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .map(|block| block.instructions.len() + block.phis.len() + 1)
+            .sum::<usize>()
+            > 2_048;
+    for candidate in
+        crate::decision_registry::scored_ir_phase_ordering_clones(config, configured, broad_module)
     {
-        optimizer_options.swap(0, configured_index);
+        if !optimizer_options.contains(&candidate) {
+            optimizer_options.push(candidate);
+        }
     }
+    let (compression_contrast, outline_phase_interaction) =
+        crate::decision_registry::append_ir_compress_pass_clones(
+            config,
+            configured,
+            &mut optimizer_options,
+        );
     let total_candidate_limit = config.javascript.effective_candidate_limit().max(1);
-    if total_candidate_limit >= 2 {
-        if let Some(contrast_index) = compression_contrast.and_then(|contrast| {
-            optimizer_options
-                .iter()
-                .position(|options| *options == contrast)
-        }) {
-            optimizer_options.swap(1, contrast_index);
-        }
-    }
-    if total_candidate_limit >= 3 {
-        if let Some(interaction_index) = outline_phase_interaction.and_then(|interaction| {
-            optimizer_options
-                .iter()
-                .position(|options| *options == interaction)
-        }) {
-            optimizer_options.swap(2, interaction_index);
-        }
-    }
-    optimizer_options.truncate(total_candidate_limit);
+    let optimizer_options = crate::decision_registry::finalize_scored_ir_optimizer_clones(
+        optimizer_options,
+        configured,
+        compression_contrast,
+        outline_phase_interaction,
+        total_candidate_limit,
+    );
 
     struct IrProbe<'probe> {
         context_id: usize,
@@ -2254,11 +2314,18 @@ fn optimize_and_select_javascript_inner<'src>(
         .javascript_compilation_contract(preserve_exports)
         .abi_manifest(&selected_context.ir);
     // The selected artifact may legitimately contain the class rewrite's own
-    // `constructor`; see `validate_observed_javascript_artifact_allowing`. This is
-    // the same "re-check an artifact that already won" position as the canonical
-    // peephole, so it takes the same opt-in. Admission stays strict everywhere the
-    // search is still choosing between candidates.
-    selected.admission.validate_selected(&selected.code)?;
+    // `constructor`. Candidate admission stays strict; only re-checks of an
+    // artifact that has already won opt into that exemption.
+    let artifact_witness = selected.admission.witness_selected(&selected.code)?;
+    // Capture provenance only for the winning plan, after the full candidate
+    // search. Disabled builds therefore perform neither tracing nor map work.
+    let source_trace = capture_source_trace
+        .then(|| {
+            contexts
+                .get(selected.plan_identity.context_id)
+                .source_trace(module_output, selected_options)
+        })
+        .transpose()?;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -2293,9 +2360,11 @@ fn optimize_and_select_javascript_inner<'src>(
     };
     Ok(OptimizedJavascriptCandidate {
         javascript: selected.code,
+        source_trace,
         plan_identity: selected.plan_identity,
         optimization_reports,
         abi_manifest,
+        artifact_witness,
         selection_metrics: JavaScriptSelectionMetrics {
             codec: compression_cost_model_name(config.javascript.cost_model).to_string(),
             transfer_bytes: selected.transfer_cost,
@@ -2915,6 +2984,46 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
             (self.baseline, self.baseline_integer_analysis())
         };
         emit_javascript_candidate(ir, module_output, options, integer_analysis)
+    }
+
+    fn source_trace(
+        &self,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Result<IrJsSourceTrace, crate::codegen_js::CodegenError> {
+        let (ir, integer_analysis) = if options.constructor_initializer_fusion {
+            self.constructor_fused()
+                .map(|(ir, analysis)| (ir, Arc::clone(analysis)))
+                .unwrap_or_else(|| (self.baseline, self.baseline_integer_analysis()))
+        } else {
+            (self.baseline, self.baseline_integer_analysis())
+        };
+        emit_optimized_ir_js_source_trace_with_options_and_analysis(
+            ir,
+            module_output,
+            &options,
+            integer_analysis,
+        )
+    }
+
+    fn property_provenance(
+        &self,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Vec<IrJsPropertyProvenance> {
+        let (ir, integer_analysis) = if options.constructor_initializer_fusion {
+            self.constructor_fused()
+                .map(|(ir, analysis)| (ir, Arc::clone(analysis)))
+                .unwrap_or_else(|| (self.baseline, self.baseline_integer_analysis()))
+        } else {
+            (self.baseline, self.baseline_integer_analysis())
+        };
+        ir_js_property_provenance_with_options_and_analysis(
+            ir,
+            module_output,
+            &options,
+            integer_analysis,
+        )
     }
 }
 
@@ -4601,11 +4710,16 @@ struct JavaScriptArtifactAdmission {
     abi_manifest: Arc<crate::compilation_contract::JavaScriptAbiManifest>,
     lowering_obligations: usize,
     ecmascript: crate::js_syntax_target::EcmaScriptEdition,
+    property_provenance: Arc<[IrJsPropertyProvenance]>,
 }
 
 impl JavaScriptArtifactAdmission {
     fn validate(&self, source: &str) -> Result<(), CompileError> {
-        let outcome = self.validate_inner(source);
+        self.witness(source).map(|_| ())
+    }
+
+    fn witness(&self, source: &str) -> Result<JavaScriptArtifactWitness, CompileError> {
+        let outcome = self.witness_inner(source, false);
         if crate::timing::enabled() {
             // `bytes` accumulates rejections so the report shows discards
             // against total validations.
@@ -4618,32 +4732,34 @@ impl JavaScriptArtifactAdmission {
     /// rewrite's own `constructor` keyword. See
     /// [`validate_observed_javascript_artifact_allowing`] for why this is opt-in.
     fn validate_selected(&self, source: &str) -> Result<(), CompileError> {
-        let outcome = validate_generated_javascript_syntax_floor(source, self.ecmascript)
-            .map_err(generated_javascript_parse_error)
-            .and_then(|()| {
-                validate_observed_javascript_artifact_allowing(
-                    source,
-                    &self.direct_source,
-                    &self.abi_manifest,
-                    self.lowering_obligations,
-                    true,
-                )
-            });
+        self.witness_selected(source).map(|_| ())
+    }
+
+    fn witness_selected(&self, source: &str) -> Result<JavaScriptArtifactWitness, CompileError> {
+        let outcome = self.witness_inner(source, true);
         if crate::timing::enabled() {
             crate::timing::ADMISSION.record_pass(u64::from(outcome.is_err()), 0);
         }
         outcome
     }
 
-    fn validate_inner(&self, source: &str) -> Result<(), CompileError> {
+    fn witness_inner(
+        &self,
+        source: &str,
+        allow_class_constructor: bool,
+    ) -> Result<JavaScriptArtifactWitness, CompileError> {
         validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)?;
-        validate_observed_javascript_artifact(
+        let mut witness = validate_observed_javascript_artifact_allowing(
             source,
             &self.direct_source,
             &self.abi_manifest,
             self.lowering_obligations,
-        )
+            &self.property_provenance,
+            allow_class_constructor,
+        )?;
+        witness.syntax_floor = self.ecmascript.name().to_string();
+        Ok(witness)
     }
 }
 
@@ -4662,26 +4778,58 @@ fn test_artifact_admission(source: &str) -> Arc<JavaScriptArtifactAdmission> {
         }),
         lowering_obligations: 0,
         ecmascript: crate::js_syntax_target::EcmaScriptEdition::Es2022,
+        property_provenance: Arc::from(test_property_provenance(source)),
     })
+}
+
+#[cfg(test)]
+fn test_property_provenance(source: &str) -> Vec<IrJsPropertyProvenance> {
+    generated_javascript_static_property_names(source)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|emitted| IrJsPropertyProvenance {
+            owner: None,
+            slot: None,
+            source: emitted.clone(),
+            emitted,
+            category: IrJsPropertyCategory::Unowned,
+            stable: true,
+            span: None,
+        })
+        .collect()
 }
 
 fn sort_scored_javascript_candidates(candidates: &mut [ScoredJavaScriptCandidate]) {
     candidates.sort_by(|left, right| {
-        (left.rank, scored_javascript_candidate_tiebreak(left))
-            .cmp(&(right.rank, scored_javascript_candidate_tiebreak(right)))
+        javascript_candidate_order(
+            left.rank,
+            &left.code,
+            left.startup_score,
+            left.plan_identity,
+        )
+        .cmp(&javascript_candidate_order(
+            right.rank,
+            &right.code,
+            right.startup_score,
+            right.plan_identity,
+        ))
     });
 }
 
-fn scored_javascript_candidate_tiebreak(
-    candidate: &ScoredJavaScriptCandidate,
-) -> (usize, u8, u64, &str, usize, usize) {
+fn javascript_candidate_order(
+    rank: (u64, u64),
+    code: &str,
+    startup_score: u64,
+    plan_identity: JavaScriptPlanIdentity,
+) -> ((u64, u64), usize, u8, u64, &str, usize, usize) {
     (
-        candidate.code.len(),
-        top_level_declaration_preference(&candidate.code),
-        candidate.startup_score,
-        &candidate.code,
-        candidate.plan_identity.context_id,
-        candidate.plan_identity.ordinal,
+        rank,
+        code.len(),
+        top_level_declaration_preference(code),
+        startup_score,
+        code,
+        plan_identity.context_id,
+        plan_identity.ordinal,
     )
 }
 
@@ -4701,8 +4849,18 @@ fn sort_terminal_javascript_candidates(
                     .cmp(&resolved_one_byte_binding_count(&left.code))
             })
             .then_with(|| {
-                scored_javascript_candidate_tiebreak(left)
-                    .cmp(&scored_javascript_candidate_tiebreak(right))
+                javascript_candidate_order(
+                    left.rank,
+                    &left.code,
+                    left.startup_score,
+                    left.plan_identity,
+                )
+                .cmp(&javascript_candidate_order(
+                    right.rank,
+                    &right.code,
+                    right.startup_score,
+                    right.plan_identity,
+                ))
             })
     });
 }
@@ -4727,106 +4885,6 @@ fn into_bounded_contiguous_batches<T>(items: Vec<T>, maximum_batches: usize) -> 
         .collect()
 }
 
-fn terminal_scope_naming_options(
-    parent: crate::codegen_ir_js::IrJsOptions,
-    configured: crate::codegen_ir_js::IrJsOptions,
-) -> Vec<crate::codegen_ir_js::IrJsOptions> {
-    if !configured.mangle_identifiers || !configured.cross_scope_name_reuse {
-        return Vec::new();
-    }
-
-    let mut variants = Vec::new();
-    let mut push = |options| {
-        if options != parent && !variants.contains(&options) {
-            variants.push(options);
-        }
-    };
-
-    // This is the closest safe analogue of Terser's per-scope allocator: a
-    // nested scope restarts the alphabet and excludes only parent bindings
-    // that its complete transitive reference graph can observe.
-    push(crate::codegen_ir_js::IrJsOptions {
-        precise_cross_scope_shadowing: true,
-        reserved_local_name_prefix: false,
-        ..parent
-    });
-
-    // A small globally unused prefix is intentionally raw-positive: module
-    // bindings move later in the alphabet so independent functions can start
-    // with exactly the same local names. Dictionary codecs may recover more
-    // from that repetition than the module namespace costs. Search a bounded
-    // geometric family, including both the selected and configured reserve.
-    let mut reserve_counts = vec![parent.local_name_reserve, configured.local_name_reserve];
-    reserve_counts.extend([8, 16, 32]);
-    reserve_counts.retain(|reserve| *reserve != 0);
-    reserve_counts.dedup();
-    for local_name_reserve in reserve_counts {
-        push(crate::codegen_ir_js::IrJsOptions {
-            precise_cross_scope_shadowing: true,
-            reserved_local_name_prefix: true,
-            local_name_reserve,
-            ..parent
-        });
-    }
-
-    // The narrower proof can occasionally spell a nested-function-heavy
-    // artifact better without perturbing globals and entry bindings.
-    if !parent.precise_cross_scope_shadowing {
-        push(crate::codegen_ir_js::IrJsOptions {
-            transitive_nested_shadowing: true,
-            ..parent
-        });
-    }
-    variants
-}
-
-fn terminal_string_pooling_options(
-    parent: crate::codegen_ir_js::IrJsOptions,
-    configured: crate::codegen_ir_js::IrJsOptions,
-) -> Vec<crate::codegen_ir_js::IrJsOptions> {
-    if !configured.pool_strings {
-        return Vec::new();
-    }
-    let mut variants = Vec::new();
-    let mut push = |options| {
-        if options != parent && !variants.contains(&options) {
-            variants.push(options);
-        }
-    };
-
-    // Repeated literals are already dictionary material. Keeping every
-    // raw-profitable alias can therefore make gzip/Brotli larger, while a
-    // sparse set of very expensive literals can still win. Revisit both the
-    // unpooled spelling and a denser threshold ladder on the actual final
-    // structural/naming winner.
-    push(crate::codegen_ir_js::IrJsOptions {
-        pool_strings: false,
-        ..parent
-    });
-    for string_pool_minimum_savings in [
-        parent.string_pool_minimum_savings,
-        configured.string_pool_minimum_savings,
-        16,
-        32,
-        64,
-        96,
-        128,
-        192,
-        256,
-        384,
-        512,
-        768,
-        1024,
-    ] {
-        push(crate::codegen_ir_js::IrJsOptions {
-            pool_strings: true,
-            string_pool_minimum_savings,
-            ..parent
-        });
-    }
-    variants
-}
-
 fn finalized_javascript_candidate_precedes(
     left: &SelectedJavaScriptCandidate,
     right: &SelectedJavaScriptCandidate,
@@ -4847,23 +4905,19 @@ fn finalized_javascript_candidate_precedes(
         right.performance.score,
         right.baseline_performance.score,
     );
-    (
+    let left_order = javascript_candidate_order(
         left_rank,
-        left.code.len(),
-        top_level_declaration_preference(&left.code),
+        &left.code,
         left.startup_score,
-        left.code.as_str(),
-        left.plan_identity.context_id,
-        left.plan_identity.ordinal,
-    ) < (
+        left.plan_identity,
+    );
+    let right_order = javascript_candidate_order(
         right_rank,
-        right.code.len(),
-        top_level_declaration_preference(&right.code),
+        &right.code,
         right.startup_score,
-        right.code.as_str(),
-        right.plan_identity.context_id,
-        right.plan_identity.ordinal,
-    )
+        right.plan_identity,
+    );
+    left_order < right_order
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4921,6 +4975,7 @@ struct TerminalCodecProbeBudget {
     slice_end: Option<usize>,
     challenger_reserve_released: bool,
     finalist_reserve_released: bool,
+    selected_name_reserve_released: bool,
 }
 
 impl TerminalCodecProbeBudget {
@@ -4935,6 +4990,7 @@ impl TerminalCodecProbeBudget {
             slice_end: None,
             challenger_reserve_released: false,
             finalist_reserve_released: false,
+            selected_name_reserve_released: false,
         }
     }
 
@@ -5010,6 +5066,13 @@ impl TerminalCodecProbeBudget {
         }
     }
 
+    fn release_selected_name_reserve_once(&mut self, released: usize) {
+        if !self.selected_name_reserve_released {
+            self.release_reserved(released);
+            self.selected_name_reserve_released = true;
+        }
+    }
+
     fn begin_final_phase(&mut self) {
         self.final_phase = true;
     }
@@ -5034,10 +5097,9 @@ impl TerminalCodecProbeBudget {
     fn measure_reserved(&self, bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
         let source = std::str::from_utf8(bytes)
             .map_err(|error| format!("generated JavaScript is not UTF-8: {error}"))?;
-        analyze_generated_javascript(source)
-            .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
+        let admitted = admit_generated_javascript(source)?;
         self.codec_calls.fetch_add(1, Ordering::Relaxed);
-        compressed_size(bytes, model)
+        score_admitted_javascript(admitted, model)
     }
 
     fn measure_reserved_compile(
@@ -5190,6 +5252,12 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
         0
     };
     let terminal_finalist_reserve = terminal_codec_probe_limit.div_euclid(4).min(96);
+    let selected_name_reserve = selected_unused_name_reserve(
+        config,
+        configured_baseline.len(),
+        &candidates,
+        terminal_codec_probe_limit,
+    );
     // Preserve enough selected-model calls for the factored terminal naming
     // family even when ordinary cleanup exhausts its general allowance. Four
     // reserved plan slots expose at most four declaration spellings each.
@@ -5197,7 +5265,8 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
         terminal_codec_probe_limit,
         exact_pair_reserve
             .saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE)
-            .saturating_add(terminal_finalist_reserve),
+            .saturating_add(terminal_finalist_reserve)
+            .saturating_add(selected_name_reserve),
     );
     let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_terminal_objective_challengers_in_current_pool(
@@ -5209,6 +5278,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
             profile,
             candidate_limit,
             module_output,
+            selected_name_reserve,
             &mut codec_budget,
         )
     })?;
@@ -5229,6 +5299,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     profile: &OptimizationProfile,
     candidate_limit: usize,
     module_output: bool,
+    selected_name_reserve: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     // The parsed peephole can make a structurally weaker emission plan become
@@ -5285,6 +5356,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         profile,
         candidate_limit,
         true,
+        selected_name_reserve,
         codec_budget,
     )?;
     // Naming and declaration spelling jointly determine the binding topology.
@@ -5308,7 +5380,10 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     let mut terminal_string_pooling_incumbent_bytes = None;
     let mut terminal_string_pooling_best_bytes = None;
 
-    let challenger_options = terminal_scope_naming_options(parent_options, config.js_options());
+    let challenger_options = crate::decision_registry::terminal_scope_naming_options(
+        parent_options,
+        config.js_options(),
+    );
     let challenger_candidates = emit_terminal_javascript_challengers(
         challenger_options,
         selected.plan_identity.context_id,
@@ -5332,6 +5407,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
             profile,
             usize::MAX,
             true,
+            0,
             codec_budget,
         ) {
             candidates_evaluated =
@@ -5359,8 +5435,10 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         .registered_plan_by_identity(selected.plan_identity)
         .map(|plan| plan.options)
     {
-        let pooling_options =
-            terminal_string_pooling_options(pooling_parent_options, config.js_options());
+        let pooling_options = crate::decision_registry::terminal_string_pooling_options(
+            pooling_parent_options,
+            config.js_options(),
+        );
         let pooling_candidates = emit_terminal_javascript_challengers(
             pooling_options,
             selected.plan_identity.context_id,
@@ -5381,6 +5459,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
                 profile,
                 usize::MAX,
                 true,
+                0,
                 codec_budget,
             ) {
                 candidates_evaluated =
@@ -5437,6 +5516,7 @@ fn finalize_javascript_candidates(
             profile,
             candidate_limit,
             true,
+            0,
             &mut codec_budget,
         )
     })?;
@@ -5458,6 +5538,7 @@ fn finalize_javascript_candidates_with_parallelism(
     profile: &OptimizationProfile,
     candidate_limit: usize,
     allow_parallel_brotli: bool,
+    selected_name_reserve: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<SelectedJavaScriptCandidate, CompileError> {
     // Candidate limits count structural emission plans, not their equivalent
@@ -5590,18 +5671,40 @@ fn finalize_javascript_candidates_with_parallelism(
         let direct_source = candidate.emission.code.clone();
         let module_output = generated_javascript_export_names(&direct_source)
             .is_ok_and(|exports| !exports.is_empty());
+        let options = candidate.options();
         let abi_manifest = config
             .javascript_compilation_contract(module_output)
             .abi_manifest(context.baseline);
+        let mut property_provenance = context.property_provenance(module_output, options);
+        for emitted in
+            generated_javascript_static_property_names(&direct_source).unwrap_or_default()
+        {
+            if !property_provenance
+                .iter()
+                .any(|property| property.emitted == emitted)
+            {
+                property_provenance.push(IrJsPropertyProvenance {
+                    owner: None,
+                    slot: None,
+                    source: emitted.clone(),
+                    emitted,
+                    category: IrJsPropertyCategory::Unowned,
+                    stable: true,
+                    span: None,
+                });
+            }
+        }
+        property_provenance.sort();
+        property_provenance.dedup();
         let admission = Arc::new(JavaScriptArtifactAdmission {
             direct_source: Arc::from(direct_source.as_str()),
             abi_manifest: Arc::new(abi_manifest),
             lowering_obligations,
             ecmascript: config.javascript.resolved_ecmascript(),
+            property_provenance: Arc::from(property_provenance),
         });
         let prepare_peephole =
             peephole_plan_identities.contains(&plan_identity) && !has_explicit_lowering_obligations;
-        let options = candidate.options();
         let declaration_scores = candidate.emission.declaration_scores;
         let performance = if performance_model {
             analyze_javascript_performance(
@@ -6053,6 +6156,7 @@ fn finalize_javascript_candidates_with_parallelism(
     // plan. Coordinate descent is a terminal namespace fine-tune and cannot
     // expose more structure, so run it once on that exact winner instead of
     // duplicating its exhaustive swap neighborhood for every finalist.
+    codec_budget.release_selected_name_reserve_once(selected_name_reserve);
     let selected = apply_terminal_binding_coordinate_descent(selected, config, codec_budget)?;
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
@@ -7160,6 +7264,27 @@ fn unused_letter_remap_pair_budget(code_len: usize) -> usize {
     }
 }
 
+fn selected_unused_name_reserve(
+    config: &ProjectConfig,
+    raw_size: usize,
+    candidates: &[JavaScriptEmissionCandidate],
+    limit: usize,
+) -> usize {
+    if raw_size > 16 * 1024
+        || !config.js_options().mangle_identifiers
+        || !config.entropy_aware_mangling_enabled()
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+        || (!candidates.is_empty()
+            && !candidates
+                .iter()
+                .any(|candidate| resolved_one_byte_binding_count(candidate.code()) > 2))
+    {
+        0
+    } else {
+        28.min(limit.div_euclid(4))
+    }
+}
+
 fn retain_resolved_javascript(
     previous: ScoredJavaScriptCandidate,
     next: ScoredJavaScriptCandidate,
@@ -7268,11 +7393,20 @@ fn apply_terminal_boolean_binding_remap(
         return Ok(selected);
     };
     let boolean_code = repair_late_javascript_candidate(boolean_code);
-    if boolean_code == selected.code || selected.admission.validate(&boolean_code).is_err() {
+    if boolean_code == selected.code {
         return Ok(selected);
     }
-    let boolean_cost = codec_budget
-        .measure_reserved_compile(boolean_code.as_bytes(), config.javascript.cost_model)?;
+    let Some(scored) = score_reserved_terminal_javascript(
+        boolean_code,
+        config.javascript.cost_model,
+        codec_budget,
+        &selected.admission,
+    )?
+    else {
+        return Ok(selected);
+    };
+    let boolean_code = scored.code;
+    let boolean_cost = scored.cost;
     let (candidate, candidate_cost) =
         if matches!(config.javascript.cost_model, CompressionCostModel::Raw) {
             (boolean_code, boolean_cost)
@@ -7376,6 +7510,15 @@ fn apply_terminal_binding_coordinate_descent(
 
     let mut code = selected.code.clone();
     let mut transfer_cost = selected.transfer_cost;
+    if let Some((next, cost)) = best_unused_letter_binding_remaps_from_cost(
+        &code,
+        config.javascript.cost_model,
+        transfer_cost,
+        codec_budget,
+    )? {
+        code = next;
+        transfer_cost = cost;
+    }
     if let Some((next, cost)) = best_function_local_binding_remaps_with_beam(
         &code,
         config.javascript.cost_model,
@@ -7515,48 +7658,10 @@ fn apply_selected_canonical_peephole(
     {
         return Ok(selected);
     }
-    if config
-        .javascript
-        .startup
-        .max_nesting
-        .is_some_and(|maximum| metrics.max_nesting > maximum)
-        || (config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
-            && !startup_cost_allowed(
-                metrics,
-                selected.baseline_metrics,
-                &config.javascript.startup,
-            ))
-    {
-        return Ok(selected);
-    }
-    if selected.admission.validate_selected(&code).is_err() {
-        return Ok(selected);
-    }
-    let cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
-        .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-    selected.terminal_codec_probes = selected.terminal_codec_probes.saturating_add(1);
-    let startup_score = metrics.startup_score(
-        config.javascript.startup.parse_weight,
-        config.javascript.startup.compile_weight,
-        config.javascript.startup.memory_weight,
-    );
-    let mut challenger = selected.clone();
-    challenger.code = code;
-    challenger.transfer_cost = cost;
-    challenger.startup_score = startup_score;
-    challenger.metrics = metrics;
-    challenger.peephole_rewrites = challenger
+    let rewrites = selected
         .peephole_rewrites
         .saturating_add(optimized.rewrites);
-    if !finalized_javascript_candidate_precedes(
-        &challenger,
-        &selected,
-        config,
-        selected.baseline_transfer,
-    ) {
-        return Ok(selected);
-    }
-    Ok(challenger)
+    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config, true)
 }
 
 fn apply_search_off_declaration_peephole(
@@ -7579,6 +7684,17 @@ fn apply_search_off_declaration_peephole(
     if rewrites == 0 || code == selected.code {
         return Ok(selected);
     }
+    accept_finalized_javascript_challenger(selected, code, metrics, rewrites, config, false)
+}
+
+fn accept_finalized_javascript_challenger(
+    mut incumbent: SelectedJavaScriptCandidate,
+    code: String,
+    metrics: JavaScriptSyntaxMetrics,
+    peephole_rewrites: usize,
+    config: &ProjectConfig,
+    allow_class_constructor: bool,
+) -> Result<SelectedJavaScriptCandidate, CompileError> {
     if config
         .javascript
         .startup
@@ -7587,23 +7703,26 @@ fn apply_search_off_declaration_peephole(
         || (config.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
             && !startup_cost_allowed(
                 metrics,
-                selected.baseline_metrics,
+                incumbent.baseline_metrics,
                 &config.javascript.startup,
             ))
+        || (if allow_class_constructor {
+            incumbent.admission.validate_selected(&code)
+        } else {
+            incumbent.admission.validate(&code)
+        })
+        .is_err()
     {
-        return Ok(selected);
-    }
-    if selected.admission.validate(&code).is_err() {
-        return Ok(selected);
+        return Ok(incumbent);
     }
     let transfer_cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-    let mut challenger = selected.clone();
+    incumbent.terminal_codec_probes = incumbent.terminal_codec_probes.saturating_add(1);
+    let mut challenger = incumbent.clone();
     challenger.code = code;
     challenger.metrics = metrics;
     challenger.transfer_cost = transfer_cost;
-    challenger.peephole_rewrites = rewrites;
-    challenger.terminal_codec_probes = challenger.terminal_codec_probes.saturating_add(1);
+    challenger.peephole_rewrites = peephole_rewrites;
     challenger.startup_score = metrics.startup_score(
         config.javascript.startup.parse_weight,
         config.javascript.startup.compile_weight,
@@ -7611,13 +7730,13 @@ fn apply_search_off_declaration_peephole(
     );
     if finalized_javascript_candidate_precedes(
         &challenger,
-        &selected,
+        &incumbent,
         config,
-        selected.baseline_transfer,
+        incumbent.baseline_transfer,
     ) {
         Ok(challenger)
     } else {
-        Ok(selected)
+        Ok(incumbent)
     }
 }
 
@@ -7668,6 +7787,40 @@ fn repair_late_javascript_candidate(mut code: String) -> String {
     code
 }
 
+#[derive(Clone)]
+struct ScoredTerminalJavaScript {
+    code: String,
+    cost: usize,
+}
+
+fn score_terminal_javascript(
+    code: String,
+    model: CompressionCostModel,
+    codec_budget: &mut TerminalCodecProbeBudget,
+    admission: &JavaScriptArtifactAdmission,
+) -> Result<Option<ScoredTerminalJavaScript>, CompileError> {
+    if admission.validate(&code).is_err() {
+        return Ok(None);
+    }
+    if !codec_budget.reserve_work_unit() {
+        return Ok(None);
+    }
+    score_reserved_terminal_javascript(code, model, codec_budget, admission)
+}
+
+fn score_reserved_terminal_javascript(
+    code: String,
+    model: CompressionCostModel,
+    codec_budget: &TerminalCodecProbeBudget,
+    admission: &JavaScriptArtifactAdmission,
+) -> Result<Option<ScoredTerminalJavaScript>, CompileError> {
+    if admission.validate(&code).is_err() {
+        return Ok(None);
+    }
+    let cost = codec_budget.measure_reserved_compile(code.as_bytes(), model)?;
+    Ok(Some(ScoredTerminalJavaScript { code, cost }))
+}
+
 fn apply_late_javascript_cleanup(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
@@ -7690,12 +7843,6 @@ fn apply_late_javascript_cleanup(
     }
     crate::timing::CLEANUP_ENTERED.event(codec_budget.remaining() as u64);
 
-    #[derive(Clone)]
-    struct CleanupCandidate {
-        code: String,
-        cost: usize,
-    }
-
     // Keep enough independently valid spellings for later passes to skip a
     // locally attractive rewrite. Small codec differences can otherwise
     // discard the topology that wins after terminal namespace remapping.
@@ -7703,7 +7850,7 @@ fn apply_late_javascript_cleanup(
     const ROUNDS: usize = 2;
     let admission = Arc::clone(&selected.admission);
 
-    let original = CleanupCandidate {
+    let original = ScoredTerminalJavaScript {
         code: selected.code.clone(),
         cost: selected.transfer_cost,
     };
@@ -7745,10 +7892,12 @@ fn apply_late_javascript_cleanup(
                 })
                 && admission.validate(&code).is_ok()
             {
-                if let Some(cost) =
-                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-                {
-                    let candidate = CleanupCandidate { code, cost };
+                if let Some(candidate) = score_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )? {
                     beam.push(candidate.clone());
                     canonical_peephole = Some(candidate);
                 }
@@ -7788,20 +7937,21 @@ fn apply_late_javascript_cleanup(
                 crate::timing::RENAME_REFUSED.event(rewrites as u64);
                 continue;
             }
-            let Some(cost) =
-                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
+            let Some(scored) = score_terminal_javascript(
+                converged,
+                config.javascript.cost_model,
+                codec_budget,
+                &admission,
+            )?
             else {
                 crate::timing::RENAME_UNPROBED.event(rewrites as u64);
                 continue;
             };
-            if cost < candidate.cost {
-                crate::timing::RENAME_WON.event((candidate.cost - cost) as u64);
-                beam.push(CleanupCandidate {
-                    code: converged,
-                    cost,
-                });
+            if scored.cost < candidate.cost {
+                crate::timing::RENAME_WON.event((candidate.cost - scored.cost) as u64);
+                beam.push(scored);
             } else {
-                crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
+                crate::timing::RENAME_LOST.event((scored.cost - candidate.cost) as u64);
             }
         }
     }
@@ -7846,19 +7996,20 @@ fn apply_late_javascript_cleanup(
             // The cleanup rounds below still reach this candidate if those
             // passes help it.
             let code = repair_late_javascript_candidate(inlined);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
+            if beam.iter().any(|existing| existing.code == code) {
                 continue;
             }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            let Some(scored) = score_terminal_javascript(
+                code,
+                config.javascript.cost_model,
+                codec_budget,
+                &admission,
+            )?
             else {
                 continue;
             };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
+            if scored.cost < candidate.cost {
+                beam.push(scored);
             }
         }
     }
@@ -7889,19 +8040,20 @@ fn apply_late_javascript_cleanup(
                 continue;
             }
             let code = repair_late_javascript_candidate(folded);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
+            if beam.iter().any(|existing| existing.code == code) {
                 continue;
             }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            let Some(scored) = score_terminal_javascript(
+                code,
+                config.javascript.cost_model,
+                codec_budget,
+                &admission,
+            )?
             else {
                 continue;
             };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
+            if scored.cost < candidate.cost {
+                beam.push(scored);
             }
         }
     }
@@ -7948,19 +8100,19 @@ fn apply_late_javascript_cleanup(
                     continue;
                 };
                 let code = repair_late_javascript_candidate(optimized.code);
-                if code == original.code
-                    || analyze_generated_javascript(&code).is_err()
-                    || admission.validate(&code).is_err()
-                    || beam.iter().any(|candidate| candidate.code == code)
-                {
+                if code == original.code || beam.iter().any(|candidate| candidate.code == code) {
                     continue;
                 }
-                let Some(cost) =
-                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+                let Some(scored) = score_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )?
                 else {
                     break 'factored_naming;
                 };
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(scored);
             }
         }
     }
@@ -7984,16 +8136,18 @@ fn apply_late_javascript_cleanup(
                 let Ok(code) = late_generated_javascript_cleanup_pass(&candidate.code, pass) else {
                     continue;
                 };
-                if code == candidate.code
-                    || analyze_generated_javascript(&code).is_err()
-                    || admission.validate(&code).is_err()
-                    || proposals.iter().any(|proposal| proposal.code == code)
+                if code == candidate.code || proposals.iter().any(|proposal| proposal.code == code)
                 {
                     continue;
                 }
-                let cost = codec_budget
-                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                proposals.push(CleanupCandidate { code, cost });
+                if let Some(scored) = score_reserved_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )? {
+                    proposals.push(scored);
+                }
             }
             proposals.sort_by(|left, right| {
                 (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
@@ -8013,25 +8167,26 @@ fn apply_late_javascript_cleanup(
     if codec_budget.reserve_work_unit() {
         if let Ok(code) = late_generated_javascript_cleanup(&original.code) {
             let code = repair_late_javascript_candidate(code);
-            if code != original.code
-                && analyze_generated_javascript(&code).is_ok()
-                && admission.validate(&code).is_ok()
-                && !beam.iter().any(|candidate| candidate.code == code)
-            {
-                let cost = codec_budget
-                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
-                    &code,
+            if code != original.code && !beam.iter().any(|candidate| candidate.code == code) {
+                if let Some(scored) = score_reserved_terminal_javascript(
+                    code,
                     config.javascript.cost_model,
-                    cost,
                     codec_budget,
+                    &admission,
                 )? {
-                    beam.push(CleanupCandidate {
-                        code: remapped,
-                        cost: remapped_cost,
-                    });
+                    if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                        &scored.code,
+                        config.javascript.cost_model,
+                        scored.cost,
+                        codec_budget,
+                    )? {
+                        beam.push(ScoredTerminalJavaScript {
+                            code: remapped,
+                            cost: remapped_cost,
+                        });
+                    }
+                    beam.push(scored);
                 }
-                beam.push(CleanupCandidate { code, cost });
             }
         }
     }
@@ -8051,7 +8206,7 @@ fn apply_late_javascript_cleanup(
                 codec_budget,
             )?;
             if let Some((remapped, remapped_cost)) = remapped {
-                beam.push(CleanupCandidate {
+                beam.push(ScoredTerminalJavaScript {
                     code: remapped,
                     cost: remapped_cost,
                 });
@@ -8099,27 +8254,30 @@ fn apply_late_javascript_cleanup(
                     code = next;
                 }
                 code = repair_late_javascript_candidate(code);
-                if code == candidate.code
-                    || analyze_generated_javascript(&code).is_err()
-                    || admission.validate(&code).is_err()
-                    || beam.iter().any(|proposal| proposal.code == code)
-                {
+                if code == candidate.code || beam.iter().any(|proposal| proposal.code == code) {
                     continue;
                 }
-                let cost = codec_budget
-                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
-                    &code,
+                let Some(scored) = score_reserved_terminal_javascript(
+                    code,
                     config.javascript.cost_model,
-                    cost,
+                    codec_budget,
+                    &admission,
+                )?
+                else {
+                    continue;
+                };
+                if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
+                    &scored.code,
+                    config.javascript.cost_model,
+                    scored.cost,
                     codec_budget,
                 )? {
-                    beam.push(CleanupCandidate {
+                    beam.push(ScoredTerminalJavaScript {
                         code: remapped,
                         cost: remapped_cost,
                     });
                 }
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(scored);
             }
         }
     }
@@ -8193,13 +8351,15 @@ fn apply_late_javascript_cleanup(
         let measured = proposal_codes
             .into_par_iter()
             .map(|code| {
-                codec_budget
-                    .measure_reserved(code.as_bytes(), config.javascript.cost_model)
-                    .map(|cost| CleanupCandidate { code, cost })
+                score_reserved_terminal_javascript(
+                    code,
+                    config.javascript.cost_model,
+                    codec_budget,
+                    &admission,
+                )
             })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
-        proposals.extend(measured);
+            .collect::<Result<Vec<_>, CompileError>>()?;
+        proposals.extend(measured.into_iter().flatten());
         proposals.sort_by(|left, right| {
             (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
         });
@@ -8230,16 +8390,17 @@ fn apply_late_javascript_cleanup(
             continue;
         };
         let code = repair_late_javascript_candidate(code);
-        if code == candidate.code
-            || analyze_generated_javascript(&code).is_err()
-            || admission.validate(&code).is_err()
-            || beam.iter().any(|proposal| proposal.code == code)
-        {
+        if code == candidate.code || beam.iter().any(|proposal| proposal.code == code) {
             continue;
         }
-        let cost =
-            codec_budget.measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-        beam.push(CleanupCandidate { code, cost });
+        if let Some(scored) = score_reserved_terminal_javascript(
+            code,
+            config.javascript.cost_model,
+            codec_budget,
+            &admission,
+        )? {
+            beam.push(scored);
+        }
     }
     beam.push(original);
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
@@ -8287,22 +8448,25 @@ fn parenthesize_logical_assignments(
     if repaired == selected.code {
         return Ok(selected);
     }
-    let Ok(metrics) = analyze_generated_javascript(&repaired) else {
+    let Some(scored) = score_reserved_terminal_javascript(
+        repaired,
+        config.javascript.cost_model,
+        codec_budget,
+        &selected.admission,
+    )?
+    else {
         return Ok(selected);
     };
-    if selected.admission.validate(&repaired).is_err() {
-        return Ok(selected);
-    }
-    let transfer_cost =
-        codec_budget.measure_reserved_compile(repaired.as_bytes(), config.javascript.cost_model)?;
+    let metrics =
+        analyze_generated_javascript(&scored.code).map_err(generated_javascript_parse_error)?;
     selected.metrics = metrics;
     selected.startup_score = selected.metrics.startup_score(
         config.javascript.startup.parse_weight,
         config.javascript.startup.compile_weight,
         config.javascript.startup.memory_weight,
     );
-    selected.code = repaired;
-    selected.transfer_cost = transfer_cost;
+    selected.code = scored.code;
+    selected.transfer_cost = scored.cost;
     Ok(selected)
 }
 
@@ -8833,23 +8997,10 @@ fn best_one_unused_letter_binding_remap(
     }
     let counts =
         single_character_identifier_use_counts(code).map_err(generated_javascript_parse_error)?;
-    let mut unused = ONE_BYTE_IDENTIFIER_STARTS
-        .iter()
-        .copied()
-        .filter(|byte| !identifiers.contains(byte))
-        .collect::<Vec<_>>();
+    let unused = ordered_unused_binding_replacements(code, &identifiers)?;
     if unused.is_empty() {
         return Ok(None);
     }
-    // Punctuation identifiers can interact unusually well with arrows and
-    // repeated property syntax, but the canonical frequency alphabet places
-    // them last. Score them first, then retain canonical order for letters so
-    // every smaller budget remains a useful prefix of every larger one.
-    unused.sort_by_key(|byte| match byte {
-        b'_' => 0,
-        b'$' => 1,
-        _ => 2,
-    });
     let mut sources = single_character_resolved_binding_identifiers(code)
         .map_err(generated_javascript_parse_error)?;
     sources.retain(|byte| single_character_name_is_clear_binding(code, *byte).unwrap_or(false));
@@ -8860,9 +9011,23 @@ fn best_one_unused_letter_binding_remap(
     });
     let budget = unused_letter_remap_pair_budget(code.len());
     let mut pairs = Vec::new();
+    if let Some(contextual) = unused
+        .iter()
+        .copied()
+        .find(|replacement| !matches!(replacement, b'_' | b'$'))
+    {
+        for source in sources.iter().copied() {
+            pairs.push((source, contextual));
+            if pairs.len() == budget {
+                break;
+            }
+        }
+    }
     'pairs: for replacement in unused.iter().copied() {
         for source in sources.iter().copied() {
-            pairs.push((source, replacement));
+            if !pairs.contains(&(source, replacement)) {
+                pairs.push((source, replacement));
+            }
             if pairs.len() == budget {
                 break 'pairs;
             }
@@ -8884,6 +9049,55 @@ fn best_one_unused_letter_binding_remap(
         })
         .min_by(|left, right| (left.1, left.0.as_str()).cmp(&(right.1, right.0.as_str())));
     Ok(best)
+}
+
+fn ordered_unused_binding_replacements(
+    code: &str,
+    identifiers: &[u8],
+) -> Result<Vec<u8>, CompileError> {
+    let binding_character_counts =
+        declared_identifier_character_use_counts(code).map_err(generated_javascript_parse_error)?;
+    let mut surrounding_character_counts = [0usize; 128];
+    for byte in code.bytes().filter(u8::is_ascii) {
+        surrounding_character_counts[byte as usize] += 1;
+    }
+    for (count, binding_count) in surrounding_character_counts
+        .iter_mut()
+        .zip(binding_character_counts)
+    {
+        *count = count.saturating_sub(binding_count);
+    }
+    let mut unused = ONE_BYTE_IDENTIFIER_STARTS
+        .iter()
+        .copied()
+        .filter(|byte| !identifiers.contains(byte))
+        .collect::<Vec<_>>();
+    // Punctuation candidates remain first. Letters then follow surrounding
+    // artifact frequency so bounded search reaches dictionary-friendly names.
+    unused.sort_by(|left, right| {
+        let priority = |byte| match byte {
+            b'_' => 0,
+            b'$' => 1,
+            _ => 2,
+        };
+        priority(*left)
+            .cmp(&priority(*right))
+            .then_with(|| {
+                surrounding_character_counts[*right as usize]
+                    .cmp(&surrounding_character_counts[*left as usize])
+            })
+            .then_with(|| {
+                ONE_BYTE_IDENTIFIER_STARTS
+                    .iter()
+                    .position(|candidate| candidate == left)
+                    .cmp(
+                        &ONE_BYTE_IDENTIFIER_STARTS
+                            .iter()
+                            .position(|candidate| candidate == right),
+                    )
+            })
+    });
+    Ok(unused)
 }
 
 fn search_identifier_alphabets(
@@ -8966,7 +9180,6 @@ fn rank_identifier_mapping(
 ) -> Result<(), CompileError> {
     let remapped = remap_single_character_identifiers(code, &mapping)
         .map_err(generated_javascript_parse_error)?;
-    analyze_generated_javascript(&remapped).map_err(generated_javascript_parse_error)?;
     if ranked
         .iter()
         .any(|candidate| candidate.remapped == remapped)
@@ -8976,13 +9189,13 @@ fn rank_identifier_mapping(
     let objective_costs = [
         remapped.len(),
         optional_entropy_objective_cost_result(
-            compressed_size(remapped.as_bytes(), CompressionCostModel::Gzip),
+            admitted_generated_javascript_size(&remapped, CompressionCostModel::Gzip),
             CompressionCostModel::Gzip,
             model,
         )
         .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?,
         optional_entropy_objective_cost_result(
-            compressed_size(remapped.as_bytes(), CompressionCostModel::Brotli),
+            admitted_generated_javascript_size(&remapped, CompressionCostModel::Brotli),
             CompressionCostModel::Brotli,
             model,
         )
@@ -9509,11 +9722,15 @@ fn emit_javascript_candidate(
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match crate::js_peephole::fold_once_memoized(&code, fold_redundant_null_undefined_or) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_redundant_null_undefined_or)
+    {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match crate::js_peephole::fold_once_memoized(&code, fold_dead_identifier_copy_declarators) {
+    let code = match crate::js_peephole::fold_once_memoized(
+        &code,
+        fold_dead_identifier_copy_declarators,
+    ) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
@@ -9535,9 +9752,25 @@ fn admitted_generated_javascript_size(
     source: &str,
     model: CompressionCostModel,
 ) -> Result<usize, String> {
+    score_admitted_javascript(admit_generated_javascript(source)?, model)
+}
+
+#[derive(Clone, Copy)]
+struct AdmittedGeneratedJavaScript<'src> {
+    source: &'src str,
+}
+
+fn admit_generated_javascript(source: &str) -> Result<AdmittedGeneratedJavaScript<'_>, String> {
     analyze_generated_javascript(source)
         .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
-    compressed_size(source.as_bytes(), model)
+    Ok(AdmittedGeneratedJavaScript { source })
+}
+
+fn score_admitted_javascript(
+    admitted: AdmittedGeneratedJavaScript<'_>,
+    model: CompressionCostModel,
+) -> Result<usize, String> {
+    compressed_size(admitted.source.as_bytes(), model)
 }
 
 fn validate_observed_javascript_artifact(
@@ -9545,12 +9778,14 @@ fn validate_observed_javascript_artifact(
     direct_source: &str,
     expected: &crate::compilation_contract::JavaScriptAbiManifest,
     expected_bit_or_zero: usize,
-) -> Result<(), CompileError> {
+    property_provenance: &[IrJsPropertyProvenance],
+) -> Result<JavaScriptArtifactWitness, CompileError> {
     validate_observed_javascript_artifact_allowing(
         source,
         direct_source,
         expected,
         expected_bit_or_zero,
+        property_provenance,
         false,
     )
 }
@@ -9567,15 +9802,16 @@ fn validate_observed_javascript_artifact(
 ///
 /// It is opt-in rather than unconditional because admission runs over every
 /// candidate in the search, and relaxing it globally admits a different
-/// portfolio: measured on micromarklil that settles 826 Brotli *worse*. Only the
-/// one call that re-checks an already-selected artifact passes `true`.
+/// portfolio: measured on micromarklil that settles 826 Brotli *worse*. Only
+/// re-checks of the canonical winner and final selected artifact pass `true`.
 fn validate_observed_javascript_artifact_allowing(
     source: &str,
     direct_source: &str,
     expected: &crate::compilation_contract::JavaScriptAbiManifest,
     expected_bit_or_zero: usize,
+    property_provenance: &[IrJsPropertyProvenance],
     allow_class_constructor: bool,
-) -> Result<(), CompileError> {
+) -> Result<JavaScriptArtifactWitness, CompileError> {
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
     let export_witnesses =
@@ -9617,9 +9853,9 @@ fn validate_observed_javascript_artifact_allowing(
     // against the manifest.
     let direct_witnesses = generated_javascript_export_witnesses(direct_source)
         .map_err(generated_javascript_parse_error)?;
-    let direct_arity = direct_witnesses
+    let direct_shapes = direct_witnesses
         .iter()
-        .map(|export| (export.name.clone(), export.arity))
+        .map(|export| (export.name.clone(), (export.arity, export.fields.clone())))
         .collect::<std::collections::BTreeMap<_, _>>();
     let mut expected_callables = expected
         .exports
@@ -9647,15 +9883,16 @@ fn validate_observed_javascript_artifact_allowing(
                     )
                 })
                 .collect::<Vec<_>>();
-            let arity = direct_arity
+            let (arity, fields) = direct_shapes
                 .get(&export.name)
-                .copied()
-                .unwrap_or(export.arity);
+                .cloned()
+                .unwrap_or_else(|| (export.arity, Vec::new()));
             Some((
                 export.name.clone(),
                 kind,
                 arity,
                 export.constructible,
+                fields,
                 methods,
             ))
         })
@@ -9680,6 +9917,7 @@ fn validate_observed_javascript_artifact_allowing(
                 export.kind,
                 export.arity,
                 export.constructible,
+                export.fields,
                 methods,
             )
         })
@@ -9693,6 +9931,7 @@ fn validate_observed_javascript_artifact_allowing(
                 && observed.2 == expected_callable.2
                 && observed.3 == expected_callable.3
                 && observed.4 == expected_callable.4
+                && observed.5 == expected_callable.5
         });
         let Some(match_at) = match_at else {
             return Err(crate::codegen_js::CodegenError::new(
@@ -9730,15 +9969,17 @@ fn validate_observed_javascript_artifact_allowing(
         )
         .into());
     }
-    let direct_properties = generated_javascript_static_property_names(direct_source)
-        .map_err(generated_javascript_parse_error)?;
-    let observed_properties = generated_javascript_static_property_names(source)
+    let observed_properties = generated_javascript_static_property_occurrences(source)
         .map_err(generated_javascript_parse_error)?;
     let introduced = observed_properties
         .iter()
-        .filter(|property| !direct_properties.contains(property))
-        .filter(|property| !(allow_class_constructor && property.as_str() == "constructor"))
-        .cloned()
+        .filter(|property| {
+            !property_provenance
+                .iter()
+                .any(|provenance| provenance.emitted == property.name)
+        })
+        .filter(|property| !(allow_class_constructor && property.name == "constructor"))
+        .map(|property| (property.name.clone(), property.start, property.end))
         .collect::<Vec<_>>();
     if !introduced.is_empty() {
         return Err(crate::codegen_js::CodegenError::new(
@@ -9749,7 +9990,138 @@ fn validate_observed_javascript_artifact_allowing(
         )
         .into());
     }
-    Ok(())
+    let direct_free = generated_javascript_free_identifiers(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_free =
+        generated_javascript_free_identifiers(source).map_err(generated_javascript_parse_error)?;
+    let introduced_free = observed_free
+        .iter()
+        .filter(|name| !direct_free.contains(name))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !introduced_free.is_empty() {
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!(
+                "generated JavaScript introduced undeclared external names: {introduced_free:?}"
+            ),
+        )
+        .into());
+    }
+    let direct_bindings = generated_javascript_binding_occurrences(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_bindings = generated_javascript_binding_occurrences(source)
+        .map_err(generated_javascript_parse_error)?;
+    let mut unresolved = direct_bindings
+        .iter()
+        .filter(|binding| {
+            binding.kind == crate::js_peephole::GeneratedJavaScriptBindingKind::Unresolved
+        })
+        .map(|binding| binding.name.clone())
+        .collect::<Vec<_>>();
+    for binding in observed_bindings.iter().filter(|binding| {
+        binding.kind == crate::js_peephole::GeneratedJavaScriptBindingKind::Unresolved
+    }) {
+        let Some(index) = unresolved.iter().position(|name| *name == binding.name) else {
+            return Err(crate::codegen_js::CodegenError::new(
+                Span::empty(binding.start),
+                format!(
+                    "generated JavaScript introduced unresolved binding `{}`",
+                    binding.name
+                ),
+            )
+            .into());
+        };
+        unresolved.remove(index);
+    }
+    let direct_templates = generated_javascript_template_literals(direct_source)
+        .map_err(generated_javascript_parse_error)?;
+    let observed_templates =
+        generated_javascript_template_literals(source).map_err(generated_javascript_parse_error)?;
+    let mut available = direct_templates;
+    for template in observed_templates {
+        let Some(index) = available
+            .iter()
+            .position(|candidate| *candidate == template)
+        else {
+            return Err(crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                "generated JavaScript changed an opaque template expression",
+            )
+            .into());
+        };
+        available.remove(index);
+    }
+    let properties = observed_properties
+        .into_iter()
+        .map(|property| JavaScriptPropertyOccurrenceWitness {
+            start: property.start,
+            end: property.end,
+            emitted: property.name.clone(),
+            category: "static".to_string(),
+            identities: property_provenance
+                .iter()
+                .filter(|provenance| provenance.emitted == property.name)
+                .map(|provenance| JavaScriptPropertyIdentityWitness {
+                    owner: provenance.owner.clone(),
+                    slot: provenance.slot,
+                    source: provenance.source.clone(),
+                    category: match provenance.category {
+                        IrJsPropertyCategory::Owned => "owned",
+                        IrJsPropertyCategory::External => "external",
+                        IrJsPropertyCategory::Unowned => "unowned",
+                    }
+                    .to_string(),
+                    stable: provenance.stable,
+                })
+                .collect(),
+        })
+        .chain(
+            generated_javascript_dynamic_property_occurrences(source)
+                .map_err(generated_javascript_parse_error)?
+                .into_iter()
+                .map(|(start, end)| JavaScriptPropertyOccurrenceWitness {
+                    start,
+                    end,
+                    emitted: source[start..end].to_string(),
+                    category: "dynamic".to_string(),
+                    identities: Vec::new(),
+                }),
+        )
+        .collect();
+    Ok(JavaScriptArtifactWitness {
+        syntax_floor: "validated".to_string(),
+        exports: observed,
+        foreign_imports: observed_imports
+            .into_iter()
+            .map(|(source, imported)| JavaScriptModuleEdgeWitness { source, imported })
+            .collect(),
+        free_identifiers: observed_free,
+        template_sha256: generated_javascript_template_literals(source)
+            .map_err(generated_javascript_parse_error)?
+            .into_iter()
+            .map(|template| content_hash(template.as_bytes()))
+            .collect(),
+        expected_bit_or_zero,
+        observed_bit_or_zero,
+        properties,
+        bindings: observed_bindings
+            .into_iter()
+            .map(|binding| JavaScriptBindingOccurrenceWitness {
+                start: binding.start,
+                end: binding.end,
+                name: binding.name,
+                resolution: match binding.kind {
+                    crate::js_peephole::GeneratedJavaScriptBindingKind::Bound => "bound",
+                    crate::js_peephole::GeneratedJavaScriptBindingKind::Free => "free",
+                    crate::js_peephole::GeneratedJavaScriptBindingKind::Unresolved => "unresolved",
+                }
+                .to_string(),
+                declaration_start: binding.declaration_start,
+                declaration_end: binding.declaration_end,
+            })
+            .collect(),
+    })
 }
 
 fn validate_direct_javascript_artifact(
@@ -9778,7 +10150,27 @@ fn validate_direct_javascript_artifact_inner(
         .abi_manifest(ir);
     let lowering_obligations =
         ir.lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
-    validate_observed_javascript_artifact(source, source, &manifest, lowering_obligations)
+    let direct_properties = generated_javascript_static_property_names(source)
+        .map_err(generated_javascript_parse_error)?
+        .into_iter()
+        .map(|emitted| IrJsPropertyProvenance {
+            owner: None,
+            slot: None,
+            source: emitted.clone(),
+            emitted,
+            category: IrJsPropertyCategory::Unowned,
+            stable: true,
+            span: None,
+        })
+        .collect::<Vec<_>>();
+    validate_observed_javascript_artifact(
+        source,
+        source,
+        &manifest,
+        lowering_obligations,
+        &direct_properties,
+    )
+    .map(|_| ())
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
@@ -9986,6 +10378,283 @@ mod tests {
         CandidateSearch, CompressionDecision, JavaScriptOptimization, JavaScriptPriority,
         OptimizationPreset, StartupCostConfig,
     };
+
+    #[test]
+    fn hidden_source_map_preserves_selected_javascript_and_names() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-source-map-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let main = directory.join("main.lil");
+        let source = r#"
+            class HiddenCounter {
+              int accumulatedValue;
+
+              int addAmount(int deltaAmount) {
+                this.accumulatedValue = this.accumulatedValue + deltaAmount;
+                return this.accumulatedValue;
+              }
+            }
+
+            extern class HiddenOptions {
+              JsValue verboseOption;
+            }
+
+            export JsValue buildOptions() {
+              HiddenOptions options = JS.assume(JS.object());
+              options.verboseOption = true;
+              return options;
+            }
+
+            export int calculateTotal(int startingValue) {
+              HiddenCounter counter = new HiddenCounter();
+              counter.accumulatedValue = startingValue;
+              return counter.addAmount(7);
+            }
+        "#;
+        std::fs::write(&main, source).unwrap();
+
+        let mut without_map = ProjectConfig {
+            config_dir: Some(directory.clone()),
+            ..ProjectConfig::default()
+        };
+        without_map.javascript.candidate_search = CandidateSearch::Off;
+        without_map.javascript.strip_console = false;
+        without_map.mangle.extern_fields = Some(false);
+        let baseline = compile_path_to_js_module_explained_configured(&main, &without_map).unwrap();
+        assert!(baseline.source_map.is_none());
+
+        let mut with_map = without_map.clone();
+        with_map.javascript.source_map.enabled = true;
+        let mapped = compile_path_to_js_module_explained_configured(&main, &with_map).unwrap();
+        assert_eq!(baseline.javascript, mapped.javascript);
+        let generated_javascript = mapped.javascript.clone();
+        let source_map = mapped.source_map.expect("source maps are enabled");
+        assert!(source_map.mapping_count() > 0);
+        assert!(source_map.original_name_count() > 0);
+
+        let json: serde_json::Value = serde_json::from_str(source_map.as_str()).unwrap();
+        assert_eq!(json["version"], 3);
+        assert_eq!(json["sources"], serde_json::json!(["main.lil"]));
+        assert_eq!(json["sourcesContent"][0], source);
+        let names = json["names"].as_array().unwrap();
+        assert!(names.iter().any(|name| name == "startingValue"));
+        assert!(names.iter().any(|name| name == "calculateTotal"));
+        assert!(names.iter().any(|name| name == "verboseOption"));
+        let mangled = json["x_lilscript"]["mangledNames"].as_array().unwrap();
+        assert!(mangled.iter().any(|record| {
+            record["original"] == "startingValue" && record["generated"] != "startingValue"
+        }));
+        assert!(mangled.iter().any(|record| {
+            record["original"] == "verboseOption"
+                && record["generated"] != "verboseOption"
+                && record["kind"] == "property"
+        }));
+        assert!(!mangled.iter().any(|record| {
+            matches!(
+                record["generated"].as_str(),
+                Some("function" | "var" | "let" | "const")
+            )
+        }));
+        let decoded = sourcemap::decode_slice(source_map.as_str().as_bytes()).unwrap();
+        let sourcemap::DecodedMap::Regular(decoded) = decoded else {
+            panic!("compiler emits a regular Source Map v3 artifact");
+        };
+        assert!(decoded.lookup_token(0, 0).is_some());
+        for original in ["startingValue", "verboseOption"] {
+            let token = decoded
+                .tokens()
+                .find(|token| token.get_name() == Some(original))
+                .unwrap_or_else(|| panic!("missing named mapping for {original}"));
+            assert_eq!(token.get_source(), Some("main.lil"));
+            let source_line = source.lines().nth(token.get_src_line() as usize).unwrap();
+            let source_byte_column = source_line
+                .char_indices()
+                .scan(0usize, |utf16_column, (byte, character)| {
+                    let current = *utf16_column;
+                    *utf16_column += character.len_utf16();
+                    Some((current, byte))
+                })
+                .find_map(|(column, byte)| (column == token.get_src_col() as usize).then_some(byte))
+                .unwrap_or(source_line.len());
+            assert!(
+                source_line[source_byte_column..].starts_with(original),
+                "{original} should map to its exact authored token"
+            );
+            let generated = mangled
+                .iter()
+                .find(|record| record["original"] == original)
+                .and_then(|record| record["generated"].as_str())
+                .unwrap();
+            let generated_line = generated_javascript
+                .lines()
+                .nth(token.get_dst_line() as usize)
+                .unwrap();
+            assert!(
+                generated_line[token.get_dst_col() as usize..].starts_with(generated),
+                "{original} metadata should name the generated token"
+            );
+        }
+
+        use base64::Engine as _;
+        let inline_payload = source_map
+            .data_url()
+            .strip_prefix("data:application/json;charset=utf-8;base64,")
+            .unwrap();
+        assert_eq!(
+            base64::engine::general_purpose::STANDARD
+                .decode(inline_payload)
+                .unwrap(),
+            source_map.as_str().as_bytes()
+        );
+        let repeated = compile_path_to_js_module_explained_configured(&main, &with_map).unwrap();
+        assert_eq!(repeated.javascript, generated_javascript);
+        assert_eq!(repeated.source_map.as_ref(), Some(&source_map));
+
+        let mut without_contents = with_map.clone();
+        without_contents
+            .javascript
+            .source_map
+            .include_sources_content = false;
+        let private_map = compile_path_to_js_module_explained_configured(&main, &without_contents)
+            .unwrap()
+            .source_map
+            .unwrap();
+        let private_json: serde_json::Value = serde_json::from_str(private_map.as_str()).unwrap();
+        assert!(private_json.get("sourcesContent").is_none());
+        assert_eq!(private_json["x_lilscript"]["sourcesContentIncluded"], false);
+
+        let empty = directory.join("empty.lil");
+        let empty_source = "int privateUnused() { return 1; }\n";
+        std::fs::write(&empty, empty_source).unwrap();
+        let empty_compilation =
+            compile_path_to_js_module_explained_configured(&empty, &with_map).unwrap();
+        assert!(empty_compilation.javascript.is_empty());
+        let empty_map = empty_compilation.source_map.unwrap();
+        assert_eq!(empty_map.mapping_count(), 0);
+        let empty_json: serde_json::Value = serde_json::from_str(empty_map.as_str()).unwrap();
+        assert_eq!(empty_json["sources"], serde_json::json!(["empty.lil"]));
+        assert_eq!(empty_json["sourcesContent"][0], empty_source);
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    #[ignore = "explicit real-library source-map transparency audit"]
+    fn source_maps_are_transparent_across_real_libraries() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let cases = [
+            (
+                "clsx",
+                "benchmarks/popular/ports/clsx/index.lil",
+                Some("benchmarks/popular/ports/clsx/lilscript.toml"),
+            ),
+            (
+                "mitt",
+                "benchmarks/popular/ports/mitt/index.lil",
+                Some("benchmarks/popular/ports/mitt/lilscript.toml"),
+            ),
+            (
+                "acorn",
+                "benchmarks/popular/ports/acorn/index.lil",
+                Some("benchmarks/popular/ports/acorn/lilscript.toml"),
+            ),
+            (
+                "robust-predicates",
+                "benchmarks/libraries/ports/robust-predicates/index.lil",
+                None,
+            ),
+            (
+                "mobx",
+                "benchmarks/popular/ports/mobx/src/mobx.lil",
+                Some("benchmarks/popular/ports/mobx/lilscript.toml"),
+            ),
+        ];
+        let requested = std::env::var("LILSCRIPT_SOURCE_MAP_AUDIT").ok();
+        let mut audited = 0usize;
+
+        for (name, entry, config_path) in cases {
+            if requested
+                .as_deref()
+                .is_some_and(|requested| requested != name)
+            {
+                continue;
+            }
+            audited += 1;
+            let entry = root.join(entry);
+            let mut config = if let Some(config_path) = config_path {
+                crate::config::load_project_config(&entry, Some(&root.join(config_path)))
+                    .unwrap()
+                    .config
+            } else {
+                ProjectConfig {
+                    config_dir: entry.parent().map(Path::to_path_buf),
+                    ..ProjectConfig::default()
+                }
+            };
+            config.javascript.candidate_search = CandidateSearch::Off;
+            config.javascript.source_map.enabled = false;
+            eprintln!("source-map audit {name}: compiling map-disabled baseline");
+            let without_map_started = Instant::now();
+            let without_map =
+                compile_path_to_js_module_explained_configured(&entry, &config).unwrap();
+            let without_map_elapsed = without_map_started.elapsed();
+
+            config.javascript.source_map.enabled = true;
+            eprintln!("source-map audit {name}: compiling map-enabled artifact");
+            let with_map_started = Instant::now();
+            let with_map = compile_path_to_js_module_explained_configured(&entry, &config).unwrap();
+            let with_map_elapsed = with_map_started.elapsed();
+            assert_eq!(without_map.javascript, with_map.javascript, "{name}");
+            let source_map = with_map.source_map.expect("enabled source map");
+            assert!(source_map.mapping_count() > 0, "{name}");
+            assert!(source_map.original_name_count() > 0, "{name}");
+            let decoded = sourcemap::decode_slice(source_map.as_str().as_bytes()).unwrap();
+            assert!(decoded.lookup_token(0, 0).is_some(), "{name}");
+            let json: serde_json::Value = serde_json::from_str(source_map.as_str()).unwrap();
+            let sources = json["sources"].as_array().unwrap();
+            let contents = json["sourcesContent"].as_array().unwrap();
+            assert_eq!(sources.len(), contents.len(), "{name}");
+            assert!(
+                sources.iter().all(|source| {
+                    source
+                        .as_str()
+                        .is_some_and(|source| source.ends_with(".lil") && !source.starts_with("//"))
+                }),
+                "{name}: {sources:?}"
+            );
+            assert!(
+                contents.iter().all(|source| source.as_str().is_some()),
+                "{name}"
+            );
+            assert!(
+                json["x_lilscript"]["mangledNames"]
+                    .as_array()
+                    .is_some_and(|names| !names.is_empty()),
+                "{name}"
+            );
+            eprintln!(
+                "source-map audit {name}: {} JS bytes, {} sources, {} mappings, {} names, off {:?} (selection {} us), on {:?} (selection {} us)",
+                with_map.javascript.len(),
+                source_map.source_count(),
+                source_map.mapping_count(),
+                source_map.original_name_count(),
+                without_map_elapsed,
+                without_map.selection_metrics.compiler_time_micros,
+                with_map_elapsed,
+                with_map.selection_metrics.compiler_time_micros,
+            );
+        }
+        assert!(
+            audited > 0,
+            "unknown source-map audit filter: {requested:?}"
+        );
+    }
 
     fn test_javascript_plan(
         ordinal: usize,
@@ -12171,6 +12840,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            0,
             &mut serial_budget,
         )
         .unwrap();
@@ -12183,6 +12853,7 @@ mod tests {
             &profile,
             plans.len(),
             true,
+            0,
             &mut parallel_budget,
         )
         .unwrap();
@@ -12228,6 +12899,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            0,
             &mut serial_budget,
         )
         .unwrap();
@@ -12240,6 +12912,7 @@ mod tests {
             &profile,
             3,
             true,
+            0,
             &mut parallel_budget,
         )
         .unwrap();
@@ -12288,6 +12961,7 @@ mod tests {
             &profile,
             candidates.len(),
             false,
+            0,
             &mut serial_budget,
         )
         .unwrap_err();
@@ -12300,6 +12974,7 @@ mod tests {
             &profile,
             2,
             true,
+            0,
             &mut parallel_budget,
         )
         .unwrap_err();
@@ -14740,6 +15415,15 @@ mod tests {
     }
 
     #[test]
+    fn unused_letter_search_prioritizes_surrounding_dictionary_characters() {
+        let code = "let J=0;console.log('vvvvvvvvvvvvvvvv',J,J,J,J,J,J,J,J,J,J)";
+        let identifiers = single_character_identifiers(code).unwrap();
+        let replacements = ordered_unused_binding_replacements(code, &identifiers).unwrap();
+
+        assert_eq!(&replacements[..3], &[b'_', b'$', b'v']);
+    }
+
+    #[test]
     fn unused_letter_binding_remap_can_recover_a_two_name_brotli_interaction() {
         let code = "let a=b=>10+b|0;console.log(a(3));console.log(a(8))";
         let baseline = compressed_size(code.as_bytes(), CompressionCostModel::Brotli).unwrap();
@@ -15087,7 +15771,7 @@ mod tests {
             local_name_reserve: 16,
             ..configured
         };
-        let variants = terminal_scope_naming_options(parent, configured);
+        let variants = crate::decision_registry::terminal_scope_naming_options(parent, configured);
         assert!(variants.iter().any(|variant| {
             variant.precise_cross_scope_shadowing && !variant.reserved_local_name_prefix
         }));
@@ -15241,6 +15925,7 @@ mod tests {
                 arity: None,
                 constructible: None,
                 methods: Vec::new(),
+                fields: Vec::new(),
             }],
             export_names_may_mangle: false,
             foreign_imports: Vec::new(),
@@ -15254,6 +15939,7 @@ mod tests {
             "let a=1;export{a as actual}",
             &manifest,
             0,
+            &test_property_provenance("let a=1;export{a as actual}"),
         )
         .unwrap_err();
         assert!(error.to_string().contains("export ABI mismatch"));
@@ -15271,10 +15957,10 @@ mod tests {
             stable_extern_fields: Vec::new(),
         };
 
-        let error =
-            validate_observed_javascript_artifact("let a=1", "let a=1", &manifest, 1).unwrap_err();
+        let error = validate_observed_javascript_artifact("let a=1", "let a=1", &manifest, 1, &[])
+            .unwrap_err();
         assert!(error.to_string().contains("lowering-obligation mismatch"));
-        validate_observed_javascript_artifact("let a=value|0", "let a=value|0", &manifest, 1)
+        validate_observed_javascript_artifact("let a=value|0", "let a=value|0", &manifest, 1, &[])
             .unwrap();
     }
 
@@ -15295,9 +15981,87 @@ mod tests {
             "let a=o.safe",
             &manifest,
             0,
+            &test_property_provenance("let a=o.safe"),
         )
         .unwrap_err();
         assert!(error.to_string().contains("unclassified static properties"));
+    }
+
+    #[test]
+    fn explained_compilation_reports_property_ranges_and_owner_slots() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export constructor Box;class Box{int value;init(int value){this.value=value;}int read(){return this.value;}}",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        let ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let mut config = javascript_oracle_config();
+        config.javascript.candidate_search = CandidateSearch::Off;
+        config.mangle.exports = Some(false);
+        let selected = optimize_and_select_javascript(ir, &config, true).unwrap();
+
+        assert_eq!(selected.artifact_witness.syntax_floor, "es2022");
+        let value = selected
+            .artifact_witness
+            .properties
+            .iter()
+            .find(|property| property.emitted == "value")
+            .unwrap();
+        assert_eq!(&selected.javascript[value.start..value.end], "value");
+        assert!(value.identities.iter().any(|identity| {
+            identity.owner.as_deref() == Some("Box")
+                && identity.slot == Some(0)
+                && identity.source == "value"
+                && identity.category == "owned"
+                && identity.stable
+        }));
+        assert!(selected.artifact_witness.bindings.iter().any(|binding| {
+            binding.name == "Box"
+                && binding.resolution == "bound"
+                && binding.declaration_start.is_some()
+        }));
+    }
+
+    #[test]
+    fn final_javascript_cannot_introduce_an_undeclared_external() {
+        let manifest = crate::compilation_contract::JavaScriptAbiManifest {
+            world: "closed-application",
+            exports: Vec::new(),
+            export_names_may_mangle: false,
+            foreign_imports: Vec::new(),
+            public_aggregate_abi: "named",
+            stable_aggregate_fields: Vec::new(),
+            stable_extern_fields: Vec::new(),
+        };
+
+        let error = validate_observed_javascript_artifact(
+            "console.log(allowed()+typo())",
+            "console.log(allowed())",
+            &manifest,
+            0,
+            &test_property_provenance("console.log(allowed())"),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("undeclared external names"));
+    }
+
+    #[test]
+    fn final_javascript_cannot_change_an_opaque_template_expression() {
+        let admission = test_artifact_admission("let a=`value ${external}`");
+        let error = admission.validate("let a=`value ${other}`").unwrap_err();
+        assert!(error.to_string().contains("opaque template expression"));
+        admission.validate("").unwrap();
+    }
+
+    #[test]
+    fn final_javascript_cannot_introduce_an_unresolved_binding() {
+        let admission = test_artifact_admission("function f({value}){return value}");
+        let error = admission
+            .validate("function f({value}){return value+missing}")
+            .unwrap_err();
+        assert!(error.to_string().contains("unresolved binding `missing`"));
     }
 
     #[test]
@@ -15651,6 +16415,7 @@ mod tests {
             &OptimizationProfile::default(),
             1,
             false,
+            0,
             &mut zero_budget,
         )
         .unwrap();
@@ -15679,6 +16444,7 @@ mod tests {
             &OptimizationProfile::default(),
             1,
             false,
+            0,
             &mut one_budget,
         )
         .unwrap();
@@ -15700,7 +16466,7 @@ mod tests {
         let ir = lower_to_control_flow(&program, &semantics).unwrap();
         let config = ProjectConfig::default();
         let parent = config.js_options();
-        let options = terminal_scope_naming_options(parent, parent);
+        let options = crate::decision_registry::terminal_scope_naming_options(parent, parent);
         assert!(!options.is_empty());
         let contexts = test_javascript_contexts(&ir);
 
@@ -15814,7 +16580,8 @@ mod tests {
             string_pool_minimum_savings: 128,
             ..configured
         };
-        let variants = terminal_string_pooling_options(parent, configured);
+        let variants =
+            crate::decision_registry::terminal_string_pooling_options(parent, configured);
         assert!(variants.iter().any(|variant| !variant.pool_strings));
         for threshold in [16, 32, 64, 96, 192, 256, 384, 512, 768, 1024] {
             assert!(variants.iter().any(|variant| {
@@ -15827,7 +16594,9 @@ mod tests {
             pool_strings: false,
             ..configured
         };
-        assert!(terminal_string_pooling_options(parent, disabled).is_empty());
+        assert!(
+            crate::decision_registry::terminal_string_pooling_options(parent, disabled).is_empty()
+        );
     }
 
     #[test]
@@ -16989,6 +17758,84 @@ mod tests {
             "Empty:0:0:false::0:1",
             "{javascript}"
         );
+    }
+
+    #[test]
+    fn exported_class_preserves_field_order_and_method_descriptors() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export constructor Box;class Box{int first;int second;init(int first,int second){this.first=first;this.second=second;}int read(){return this.first+this.second;}}",
+        )
+        .unwrap();
+        for cost_model in [
+            CompressionCostModel::Raw,
+            CompressionCostModel::Gzip,
+            CompressionCostModel::Brotli,
+        ] {
+            let mut config = javascript_oracle_config();
+            config.javascript.candidate_search = CandidateSearch::Off;
+            config.javascript.cost_model = cost_model;
+            config.mangle.exports = Some(false);
+            let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+            let output = std::process::Command::new("node")
+                .arg("--input-type=module")
+                .arg("-e")
+                .arg(format!(
+                    "{javascript};let value=new Box(1,2),field=Object.getOwnPropertyDescriptor(value,'first'),method=Object.getOwnPropertyDescriptor(Box.prototype,'read');process.stdout.write([Object.keys(value).join(','),field.enumerable,field.writable,field.configurable,method.enumerable,method.writable,method.configurable].join(':'))"
+                ))
+                .output()
+                .expect("Node.js is required for JavaScript runtime parity tests");
+            assert!(output.status.success(), "{cost_model:?}: {javascript}");
+            assert_eq!(
+                String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+                "first,second:true:true:true:false:true:true",
+                "{cost_model:?}: {javascript}"
+            );
+        }
+    }
+
+    #[test]
+    fn exported_global_remains_a_live_binding() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int value=1;export void set(int next){value=next;}",
+        )
+        .unwrap();
+        for cost_model in [
+            CompressionCostModel::Raw,
+            CompressionCostModel::Gzip,
+            CompressionCostModel::Brotli,
+        ] {
+            let mut config = javascript_oracle_config();
+            config.javascript.candidate_search = CandidateSearch::Off;
+            config.javascript.cost_model = cost_model;
+            config.mangle.exports = Some(false);
+            let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+            let path = std::env::temp_dir().join(format!(
+                "lilscript-live-export-{}-{}.mjs",
+                std::process::id(),
+                compression_cost_model_name(cost_model)
+            ));
+            std::fs::write(&path, &javascript).unwrap();
+            let url = serde_json::to_string(&format!("file://{}", path.display())).unwrap();
+            let output = std::process::Command::new("node")
+                .arg("--input-type=module")
+                .arg("-e")
+                .arg(format!(
+                    "let m=await import({url});m.set(7);process.stdout.write(String(m.value))"
+                ))
+                .output()
+                .expect("Node.js is required for JavaScript runtime parity tests");
+            std::fs::remove_file(path).unwrap();
+            assert!(output.status.success(), "{cost_model:?}: {javascript}");
+            assert_eq!(
+                String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
+                "7",
+                "{cost_model:?}: {javascript}"
+            );
+        }
     }
 
     #[test]
@@ -18957,6 +19804,9 @@ mod tests {
         config.optimization.inlining = Some(false);
         config.mangle.identifiers = Some(false);
 
+        let without_maps =
+            compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
+        config.javascript.source_map.enabled = true;
         let bundle = compile_path_to_js_bundle_configured(&main, &config, "entry.js").unwrap();
         for _ in 0..8 {
             assert_eq!(
@@ -18965,6 +19815,23 @@ mod tests {
             );
         }
         assert_eq!(bundle.files.len(), 2);
+        assert_eq!(
+            bundle
+                .files
+                .iter()
+                .map(|file| (&file.file_name, &file.code))
+                .collect::<Vec<_>>(),
+            without_maps
+                .files
+                .iter()
+                .map(|file| (&file.file_name, &file.code))
+                .collect::<Vec<_>>()
+        );
+        for file in &bundle.files {
+            let source_map = file.source_map.as_ref().expect("chunk source map");
+            assert!(source_map.mapping_count() > 0, "{}", file.file_name);
+            sourcemap::decode_slice(source_map.as_str().as_bytes()).unwrap();
+        }
         assert_eq!(bundle.manifest.chunks.len(), 1);
         assert_eq!(bundle.manifest.chunks[0].modules, ["library.lil"]);
         assert_eq!(bundle.manifest.objective.javascript_codec, "brotli");
@@ -19242,6 +20109,7 @@ mod tests {
             .map(|chunk| JavaScriptBundleFile {
                 file_name: chunk.file_name,
                 code: chunk.code,
+                source_map: None,
             })
             .collect::<Vec<_>>();
 

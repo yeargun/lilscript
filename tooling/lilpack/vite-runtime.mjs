@@ -91,9 +91,10 @@ function lilscriptPlugin(options) {
       trackDependencies(file, dependencies, ownerDependencies, dependencyOwners);
       for (const dependency of dependencies) this.addWatchFile(dependency);
 
-      let code = compileLilscript(file, options);
+      const artifact = compileLilscript(file, options);
+      let code = artifact.code;
       if (options.command === "dev") code = addHotBoundary(code);
-      return { code, map: null };
+      return { code, map: artifact.map };
     },
 
     handleHotUpdate(context) {
@@ -130,10 +131,24 @@ function compileLilscript(file, options) {
       "--mode",
       options.command === "dev" ? "development" : "production",
       "--delegate-bundling",
+      "--print-delegated-artifact",
     ],
     options,
   );
-  return result.stdout;
+  try {
+    const artifact = JSON.parse(result.stdout);
+    if (
+      artifact.version !== 1 ||
+      typeof artifact.code !== "string" ||
+      (artifact.map !== null &&
+        (typeof artifact.map !== "object" || Array.isArray(artifact.map)))
+    ) {
+      throw new Error("unsupported artifact shape");
+    }
+    return artifact;
+  } catch (error) {
+    throw new Error(`Lilscript returned an invalid delegated artifact: ${error.message}`);
+  }
 }
 
 function compilerDependencies(file, options) {

@@ -47,7 +47,7 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 
 | id | status | intent | gate | note |
 |---|---|---|---|---|
-| `emit-01` | todo | `?:break` was emitted while a stronger receiver coloring was tried. The coloring was backed off; **the emission path that put a statement in expression position was not fixed**. Isolate it independently. | A minimized peephole test that reproduces statement-in-expression, then passes | [notes](notes/emit-01.md) |
+| `emit-01` | landed | Prove the branch-to-conditional path accepts only complete expression statements and rejects `break`, `continue`, `return`, and `throw` in either arm. | Direct fold regressions for all control-transfer forms | [notes](notes/emit-01.md) |
 | `emit-07` | landed | Measure our own artifact against a minifier instead of against another program: naming and formatting are already better than terser's, and the entire remaining advantage is value placement. Three folds landed from it. | Brotli 25,605 → 25,459 across nine jQuery submodules, every module improved; 36 new tests | [notes](notes/emit-07.md) |
 | `emit-08` | landed | V-03: preserve ordinary-object assignment semantics unless the explicit pristine-prototype contract authorizes literal collection. | Inherited-setter regression, full release suite, canonical cases, and five-fork G2 | [notes](notes/emit-08.md) |
 | `emit-06` | landed | A total use-to-binding resolver for generated JavaScript, plus converged naming scored on it. The primitive answers `Bound`/`Free`/`Unresolved` for every identifier and fails closed per name. | 23 unit tests; Brotli −76 across nine artifacts with no regression; corpus unchanged | [notes](notes/emit-06.md) |
@@ -99,7 +99,24 @@ Documentation: [current architecture](../../compilation/current-architecture.md)
 | `gate-01` | landed | Benchmark/publication runners use the canonical codec wrapper; explicit historical/generated exclusions are reviewed by the contract test. | `node --test benchmarks/codec-contract.test.mjs` 10/10 | [notes](notes/gate-01.md) |
 | `gate-02` | landed | Add MotionLil direct-output boundaries and MobXLil's true `production-min` lane to the pinned large-library matrix. | Five pinned repositories, fresh semantics, direct artifacts, and zero-regression matrix check | [notes](notes/gate-02.md) |
 | `gate-03` | landed | Pin the intended MotionLil multi-entry and MobXLil production-min source/config states in their sibling repositories. | Clean sibling Git objects contain every matrix input | [notes](notes/gate-03.md) |
-| `gate-04` | active | V-01: admit a final artifact to scoring only after syntax, binding, property-category, module-link, ABI, and lowering-obligation validation. | Validator rejection fixtures, incumbent replay, and five-fork G2 | [notes](notes/gate-04.md) |
+| `gate-04` | active | V-01 implementation is complete under targeted gates; release promotion waits for the explicitly deferred five-fork checkpoint. | Validator rejection fixtures, incumbent replay, and five-fork G2 | [notes](notes/gate-04.md) |
+
+## recovery — phase-1 legal incumbent recovery
+
+| id | status | intent | gate | note |
+|---|---|---|---|---|
+| `recover-01` | landed | The provisional MobX production-min regression mixed boundaries; exact `2d2268` → `06b89aa` on the first reproducible true min lane improves 521 Brotli bytes. | Same pinned source/config, fresh semantics, zero selected-metric regression | [notes](notes/recover-01.md) |
+| `recover-02` | landed | Direct Motion animate/stagger/lab/export tie exact `2d2268`, mini/full improve, and template-aware naming recovers animateMini to one byte smaller. | Per-boundary direct output, fresh semantics, zero selected-metric regression | [notes](notes/recover-02.md) |
+| `recover-03` | landed | Current exact Marked Brotli is 9,506, nine bytes below the best committed historical artifact; raw/gzip remain ineligible. | Pinned compiler/source/config, 660-case semantics, zero Brotli regression | [notes](notes/recover-03.md) |
+| `recover-04` | landed | jQuery's exact migration pair ties at Brotli-11 30,275; its independent JavaScript-baseline gap remains `jquery-01`. | Fresh semantics and zero compiler-incumbent regression | [notes](notes/recover-04.md) |
+
+## phase 2 — decision consolidation
+
+| id | status | intent | gate | note |
+|---|---|---|---|---|
+| `phase2-01` | landed | Move phase-order, compress-contrast, terminal naming/pooling recipe construction and common ordering into the registry unchanged. | Byte-identical focused fixtures, candidate reachability, targeted Rust gates | [notes](notes/phase2-01.md) |
+| `phase2-02` | landed | Route final and late-cleanup challengers through shared admission, exact scoring, guards, and ordering; binding remaps retain V-02 proof. | Existing candidate set and byte order unchanged under focused terminal gates | [notes](notes/phase2-02.md) |
+| `phase2-03` | active | Replace lower-layer raw config policy reads with the normalized contract and execution options already in scope. | Byte-identical focused fixtures and policy tests | [notes](notes/phase2-03.md) |
 
 ## board — the system itself
 

@@ -6,14 +6,16 @@ use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
 
-use lilscript::config::{load_project_config, BundleMode, CandidateSearch, ProjectConfig};
+use lilscript::config::{
+    load_project_config, BundleMode, CandidateSearch, JavaScriptSourceMapMode, ProjectConfig,
+};
 use lilscript::package::write_lockfile;
 use lilscript::{
     compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
     compile_path_explained_configured, compile_path_to_c_configured,
     compile_path_to_js_bundle_configured, compile_path_to_js_module_configured,
     compile_path_to_js_module_explained_configured, profile_template_path_configured,
-    render_module_diagnostic, JavaScriptBundle,
+    render_module_diagnostic, JavaScriptBundle, JavaScriptSourceMap,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -85,6 +87,10 @@ struct Args {
     #[arg(long, hide = true)]
     delegate_bundling: bool,
 
+    /// Print a versioned JSON code/source-map artifact for an external bundler.
+    #[arg(long, hide = true, requires = "delegate_bundling")]
+    print_delegated_artifact: bool,
+
     /// Print compiler inputs as JSON for an external incremental build graph, then exit.
     #[arg(long, hide = true)]
     print_dependencies: bool,
@@ -132,20 +138,41 @@ fn run() -> Result<(), String> {
             .map_err(|error| format!("failed to write {}: {error}", output.display()))?;
         return Ok(());
     }
+    if args.print_delegated_artifact {
+        if !matches!(args.target, Target::JsModule) {
+            return Err("--print-delegated-artifact requires --target js-module".to_string());
+        }
+        if args.output.is_some() || args.explain.is_some() {
+            return Err(
+                "--print-delegated-artifact cannot be combined with --output or --explain"
+                    .to_string(),
+            );
+        }
+        return print_delegated_javascript_artifact(&args.input, &loaded.config);
+    }
     match args.target {
         Target::Js => {
             if loaded.config.bundle.mode == BundleMode::Single {
-                if let Some(format) = args.explain {
+                if args.explain.is_some() || loaded.config.javascript.source_map.enabled {
                     let compilation =
                         compile_path_explained_configured(&args.input, &loaded.config)
                             .map_err(|error| render_module_diagnostic(&error))?;
-                    print_explanation(
-                        format,
-                        &compilation.optimization_reports,
-                        &compilation.selection_metrics,
-                        &compilation.abi_manifest,
+                    if let Some(format) = args.explain {
+                        print_explanation(
+                            format,
+                            &compilation.optimization_reports,
+                            &compilation.selection_metrics,
+                            &compilation.abi_manifest,
+                            &compilation.artifact_witness,
+                            compilation.source_map.as_ref(),
+                        )?;
+                    }
+                    write_javascript_artifact(
+                        args.output.as_deref(),
+                        &compilation.javascript,
+                        compilation.source_map.as_ref(),
+                        loaded.config.javascript.source_map.mode,
                     )?;
-                    write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
                     let js = compile_path_configured(&args.input, &loaded.config)
                         .map_err(|error| render_module_diagnostic(&error))?;
@@ -160,17 +187,26 @@ fn run() -> Result<(), String> {
         }
         Target::JsModule => {
             if loaded.config.bundle.mode == BundleMode::Single {
-                if let Some(format) = args.explain {
+                if args.explain.is_some() || loaded.config.javascript.source_map.enabled {
                     let compilation =
                         compile_path_to_js_module_explained_configured(&args.input, &loaded.config)
                             .map_err(|error| render_module_diagnostic(&error))?;
-                    print_explanation(
-                        format,
-                        &compilation.optimization_reports,
-                        &compilation.selection_metrics,
-                        &compilation.abi_manifest,
+                    if let Some(format) = args.explain {
+                        print_explanation(
+                            format,
+                            &compilation.optimization_reports,
+                            &compilation.selection_metrics,
+                            &compilation.abi_manifest,
+                            &compilation.artifact_witness,
+                            compilation.source_map.as_ref(),
+                        )?;
+                    }
+                    write_javascript_artifact(
+                        args.output.as_deref(),
+                        &compilation.javascript,
+                        compilation.source_map.as_ref(),
+                        loaded.config.javascript.source_map.mode,
                     )?;
-                    write_or_print(args.output.as_deref(), &compilation.javascript)?;
                 } else {
                     let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
                         .map_err(|error| render_module_diagnostic(&error))?;
@@ -210,9 +246,12 @@ fn run() -> Result<(), String> {
                 let artifacts = compile_path_all_configured(&args.input, &loaded.config)
                     .map_err(|error| render_module_diagnostic(&error))?;
                 ensure_parent(&base)?;
-                fs::write(&javascript, &artifacts.javascript).map_err(|error| {
-                    format!("failed to write {}: {error}", javascript.display())
-                })?;
+                write_javascript_artifact(
+                    Some(&javascript),
+                    &artifacts.javascript,
+                    artifacts.source_map.as_ref(),
+                    loaded.config.javascript.source_map.mode,
+                )?;
                 fs::write(&c, &artifacts.c)
                     .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
                 compile_native(&artifacts.c, &base)?;
@@ -228,7 +267,11 @@ fn run() -> Result<(), String> {
                 )
                 .map_err(|error| render_module_diagnostic(&error))?;
                 ensure_parent(&base)?;
-                write_javascript_bundle(&javascript, &artifacts.javascript)?;
+                write_javascript_bundle(
+                    &javascript,
+                    &artifacts.javascript,
+                    loaded.config.javascript.source_map.mode,
+                )?;
                 fs::write(&c, &artifacts.c)
                     .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
                 compile_native(&artifacts.c, &base)?;
@@ -236,6 +279,35 @@ fn run() -> Result<(), String> {
         }
     }
 
+    Ok(())
+}
+
+fn print_delegated_javascript_artifact(input: &Path, config: &ProjectConfig) -> Result<(), String> {
+    let (code, source_map) = if config.javascript.source_map.enabled {
+        let compilation = compile_path_to_js_module_explained_configured(input, config)
+            .map_err(|error| render_module_diagnostic(&error))?;
+        (compilation.javascript, compilation.source_map)
+    } else {
+        let code = compile_path_to_js_module_configured(input, config)
+            .map_err(|error| render_module_diagnostic(&error))?;
+        (code, None)
+    };
+    let source_map = source_map
+        .as_ref()
+        .map(|source_map| {
+            serde_json::from_str::<serde_json::Value>(source_map.as_str())
+                .map_err(|error| format!("failed to encode delegated source map: {error}"))
+        })
+        .transpose()?;
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "version": 1,
+            "code": code,
+            "map": source_map,
+        }))
+        .map_err(|error| format!("failed to serialize delegated JavaScript artifact: {error}"))?
+    );
     Ok(())
 }
 
@@ -301,6 +373,8 @@ fn print_explanation(
     reports: &[lilscript::optimizer::OptimizationReport],
     metrics: &lilscript::JavaScriptSelectionMetrics,
     abi: &lilscript::JavaScriptAbiManifest,
+    artifact_witness: &lilscript::JavaScriptArtifactWitness,
+    source_map: Option<&JavaScriptSourceMap>,
 ) -> Result<(), String> {
     match format {
         ExplainFormat::Human => {
@@ -492,6 +566,19 @@ fn print_explanation(
                 "{:<34} {}",
                 "compiler time (microseconds)", metrics.compiler_time_micros
             );
+            if let Some(source_map) = source_map {
+                eprintln!("{:<34} {}", "source-map sources", source_map.source_count());
+                eprintln!(
+                    "{:<34} {}",
+                    "source-map mappings",
+                    source_map.mapping_count()
+                );
+                eprintln!(
+                    "{:<34} {}",
+                    "source-map original names",
+                    source_map.original_name_count()
+                );
+            }
         }
         ExplainFormat::Json => eprintln!(
             "{}",
@@ -499,6 +586,12 @@ fn print_explanation(
                 "optimization_reports": reports,
                 "javascript_selection": metrics,
                 "abi_manifest": abi,
+                "artifact_witness": artifact_witness,
+                "source_map": source_map.map(|map| serde_json::json!({
+                    "sources": map.source_count(),
+                    "mappings": map.mapping_count(),
+                    "original_names": map.original_name_count(),
+                })),
             }))
             .map_err(|error| format!("failed to serialize optimization report: {error}"))?
         ),
@@ -521,10 +614,14 @@ fn write_configured_bundle(
         .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
     let bundle = compile_path_to_js_bundle_configured(input, config, entry_file)
         .map_err(|error| render_module_diagnostic(&error))?;
-    write_javascript_bundle(output, &bundle)
+    write_javascript_bundle(output, &bundle, config.javascript.source_map.mode)
 }
 
-fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(), String> {
+fn write_javascript_bundle(
+    output: &Path,
+    bundle: &JavaScriptBundle,
+    source_map_mode: JavaScriptSourceMapMode,
+) -> Result<(), String> {
     ensure_parent(output)?;
     let directory = output.parent().unwrap_or_else(|| Path::new("."));
     let manifest_path = output.with_extension("manifest.json");
@@ -536,8 +633,12 @@ fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(
             directory.join(&file.file_name)
         };
         ensure_parent(&path)?;
-        fs::write(&path, &file.code)
-            .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+        write_javascript_artifact(
+            Some(&path),
+            &file.code,
+            file.source_map.as_ref(),
+            source_map_mode,
+        )?;
     }
     let manifest = serde_json::to_string_pretty(&bundle.manifest)
         .map_err(|error| format!("failed to serialize bundle manifest: {error}"))?;
@@ -547,6 +648,104 @@ fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(
             manifest_path.display()
         )
     })
+}
+
+fn write_javascript_artifact(
+    output: Option<&Path>,
+    contents: &str,
+    source_map: Option<&JavaScriptSourceMap>,
+    mode: JavaScriptSourceMapMode,
+) -> Result<(), String> {
+    let Some(source_map) = source_map else {
+        write_or_print(output, contents)?;
+        if let Some(output) = output {
+            remove_source_map_sidecar(output)?;
+        }
+        return Ok(());
+    };
+    match (mode, output) {
+        (JavaScriptSourceMapMode::Inline, None) => {
+            println!(
+                "{}",
+                javascript_with_source_map_url(contents, source_map.data_url())
+            );
+            Ok(())
+        }
+        (JavaScriptSourceMapMode::Hidden | JavaScriptSourceMapMode::Linked, None) => Err(
+            "hidden and linked source maps require an explicit --output JavaScript file"
+                .to_string(),
+        ),
+        (JavaScriptSourceMapMode::Inline, Some(output)) => {
+            ensure_parent(output)?;
+            let published = javascript_with_source_map_url(contents, source_map.data_url());
+            fs::write(output, published)
+                .map_err(|error| format!("failed to write {}: {error}", output.display()))?;
+            remove_source_map_sidecar(output)
+        }
+        (JavaScriptSourceMapMode::Hidden, Some(output)) => {
+            ensure_parent(output)?;
+            let map_path = javascript_source_map_path(output);
+            fs::write(&map_path, format!("{}\n", source_map.as_str()))
+                .map_err(|error| format!("failed to write {}: {error}", map_path.display()))?;
+            fs::write(output, contents)
+                .map_err(|error| format!("failed to write {}: {error}", output.display()))
+        }
+        (JavaScriptSourceMapMode::Linked, Some(output)) => {
+            ensure_parent(output)?;
+            let map_path = javascript_source_map_path(output);
+            fs::write(&map_path, format!("{}\n", source_map.as_str()))
+                .map_err(|error| format!("failed to write {}: {error}", map_path.display()))?;
+            let map_name = map_path
+                .file_name()
+                .ok_or_else(|| "source-map output has no file name".to_string())?;
+            let map_url = url_path_component(&map_name.to_string_lossy());
+            let published = javascript_with_source_map_url(contents, &map_url);
+            fs::write(output, published)
+                .map_err(|error| format!("failed to write {}: {error}", output.display()))
+        }
+    }
+}
+
+fn javascript_source_map_path(output: &Path) -> PathBuf {
+    let mut path = output.as_os_str().to_os_string();
+    path.push(".map");
+    PathBuf::from(path)
+}
+
+fn remove_source_map_sidecar(output: &Path) -> Result<(), String> {
+    let map_path = javascript_source_map_path(output);
+    match fs::remove_file(&map_path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("failed to remove {}: {error}", map_path.display())),
+    }
+}
+
+fn javascript_with_source_map_url(contents: &str, url: &str) -> String {
+    let mut published = String::with_capacity(contents.len() + url.len() + 24);
+    published.push_str(contents);
+    if !published.ends_with('\n') {
+        published.push('\n');
+    }
+    published.push_str("//# sourceMappingURL=");
+    published.push_str(url);
+    published.push('\n');
+    published
+}
+
+fn url_path_component(component: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut encoded = String::with_capacity(component.len());
+    for byte in component.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push(char::from(HEX[(byte >> 4) as usize]));
+            encoded.push(char::from(HEX[(byte & 0x0f) as usize]));
+        }
+    }
+    encoded
 }
 
 fn remove_stale_chunks(
@@ -589,6 +788,7 @@ fn remove_stale_chunks(
                 ));
             }
         }
+        remove_source_map_sidecar(&path)?;
     }
     Ok(())
 }
@@ -674,6 +874,42 @@ mod tests {
         assert_eq!(config.compiler.resources.codec_workers.get(), 8);
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
+    }
+
+    #[test]
+    fn source_map_publication_paths_and_comments_are_unambiguous() {
+        assert_eq!(
+            javascript_source_map_path(Path::new("dist/app.min.js")),
+            PathBuf::from("dist/app.min.js.map")
+        );
+        assert_eq!(url_path_component("app build.js.map"), "app%20build.js.map");
+        assert_eq!(
+            javascript_with_source_map_url("let a=1", "app.js.map"),
+            "let a=1\n//# sourceMappingURL=app.js.map\n"
+        );
+        assert_eq!(
+            javascript_with_source_map_url("let a=1\n", "app.js.map"),
+            "let a=1\n//# sourceMappingURL=app.js.map\n"
+        );
+
+        let directory = std::env::temp_dir().join(format!(
+            "lilscript-source-map-publication-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&directory).unwrap();
+        let output = directory.join("app.js");
+        let sidecar = javascript_source_map_path(&output);
+        fs::write(&sidecar, "stale map").unwrap();
+        write_javascript_artifact(
+            Some(&output),
+            "let a=1",
+            None,
+            JavaScriptSourceMapMode::Hidden,
+        )
+        .unwrap();
+        assert_eq!(fs::read_to_string(&output).unwrap(), "let a=1");
+        assert!(!sidecar.exists());
+        fs::remove_dir_all(directory).unwrap();
     }
 }
 

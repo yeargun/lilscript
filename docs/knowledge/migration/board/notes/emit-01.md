@@ -1,6 +1,6 @@
 # emit-01 — emitted JS must be valid and direct
 
-Parent: [ledger](../LEDGER.md). Status: open (emit-01); emit-02..04 landed.
+Parent: [ledger](../LEDGER.md). Status: landed.
 
 ## Question
 
@@ -33,11 +33,13 @@ expression-like, coloring or not.
 | date | what | command | result | tag |
 |---|---|---|---|---|
 | 2026-08-19 | Symptom observed under experimental coloring; not reproduced since backing off | — | no minimized repro on disk yet | diag |
+| 2026-08-29 | Direct branch-fold control-transfer regression | `cargo test --release --lib expression_branches_reject_control_transfer_statements` | `break`, `continue`, `return`, and `throw` in either arm all remained statements; 1 passed | gate |
 
 ## Log
 
 - 2026-08-19 — Split out of [ident-01](ident-01.md) so backing off the coloring does not
   close a real emission bug by accident. — **OPEN**
+- 2026-08-29 — The suspected path already delegates every arm to `ExpressionParser::parse_complete`, which rejects control-transfer statements. Added direct coverage for both arms and all four transfer forms; no production change was needed. — **LANDED**
 
 ## Landed in this lane — do not re-derive
 
@@ -49,7 +51,5 @@ expression-like, coloring or not.
 
 ## Next step
 
-Try to reproduce statement-in-expression directly: search `src/codegen_ir_js.rs` and
-`src/js_peephole/folds/control.rs` for where a branch becomes `?:`, and check what it
-asserts about the branch bodies. If it asserts nothing, write the failing test from the
-assertion's absence rather than waiting for a port to hit it.
+Keep the direct regression in the generated-JavaScript suite; any future target
+AST branch contraction must preserve the same expression-only type boundary.

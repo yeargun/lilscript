@@ -9,12 +9,15 @@ use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
 use super::{
     analyze_generated_javascript, function_leading_declaration_variant,
-    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript, optimize_generated_javascript_assuming,
-    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
-    validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
+    generated_javascript_binding_occurrences, generated_javascript_bit_or_zero_count,
+    generated_javascript_dynamic_property_occurrences, generated_javascript_export_names,
+    generated_javascript_export_witnesses, generated_javascript_free_identifiers,
+    generated_javascript_static_imports, generated_javascript_static_property_names,
+    generated_javascript_static_property_occurrences, generated_javascript_template_literals,
+    late_generated_javascript_cleanup_pass, optimize_generated_javascript,
+    optimize_generated_javascript_assuming, optimize_generated_javascript_preserving_functions,
+    reorder_uninitialized_var_declarators, validate_generated_javascript_syntax_floor,
+    LateJavaScriptCleanupPass, PeepholeResult,
 };
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
@@ -1065,12 +1068,14 @@ fn two_character_remapping_rejects_unresolved_template_occurrences() {
 }
 
 #[test]
-fn one_character_remap_candidates_reject_template_expressions() {
-    let source = "let a=1;console.log(`${a+1}`)";
-    assert!(super::single_character_resolved_binding_identifiers(source)
-        .unwrap()
-        .is_empty());
+fn one_character_remap_candidates_reject_only_template_references() {
+    let source = "let a=1,b=2;console.log(`${a+1}`,b)";
+    assert_eq!(
+        super::single_character_resolved_binding_identifiers(source).unwrap(),
+        [b'b']
+    );
     assert!(!super::single_character_name_is_clear_binding(source, b'a').unwrap());
+    assert!(super::single_character_name_is_clear_binding(source, b'b').unwrap());
     assert!(
         super::function_local_binding_swap_variants("function f(a,b){return`${a+b}`}")
             .unwrap()
@@ -1129,7 +1134,7 @@ fn rejects_duplicate_generated_export_names() {
 #[test]
 fn observes_generated_export_callable_shapes() {
     let witnesses = generated_javascript_export_witnesses(
-        "class B{base(a){}}function f(a,b=1){}class C extends B{constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
+        "class B{baseField=0;base(a){}}function f(a,b=1){}class C extends B{ownField=0;constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
     )
     .unwrap();
     assert_eq!(witnesses.len(), 4);
@@ -1149,6 +1154,7 @@ fn observes_generated_export_callable_shapes() {
         super::GeneratedJavaScriptExportKind::Constructor
     );
     assert_eq!(class.arity, Some(2));
+    assert_eq!(class.fields, ["baseField", "ownField"]);
     assert_eq!(
         class
             .methods
@@ -1223,6 +1229,62 @@ fn observes_static_properties_without_confusing_dynamic_keys() {
         .unwrap(),
         ["bracket", "field", "method", "named", "quoted", "static"]
     );
+    let occurrences = generated_javascript_static_property_occurrences("value.field").unwrap();
+    assert_eq!(occurrences[0].name, "field");
+    assert_eq!(
+        &"value.field"[occurrences[0].start..occurrences[0].end],
+        "field"
+    );
+}
+
+#[test]
+fn records_dynamic_property_ranges_separately_from_static_keys() {
+    let source = "value[key]+value['fixed']+call()[next()]";
+    let occurrences = generated_javascript_dynamic_property_occurrences(source).unwrap();
+    assert_eq!(
+        occurrences
+            .iter()
+            .map(|(start, end)| &source[*start..*end])
+            .collect::<Vec<_>>(),
+        ["[key]", "[next()]"]
+    );
+}
+
+#[test]
+fn observes_free_identifiers_without_properties_or_bound_names() {
+    assert_eq!(
+        generated_javascript_free_identifiers(
+            "let local=external;function f(arg){return local+arg+other.value}"
+        )
+        .unwrap(),
+        ["external", "other"]
+    );
+}
+
+#[test]
+fn records_binding_and_declaration_byte_ranges() {
+    let source = "let value=1;function read(){return value+external}";
+    let bindings = generated_javascript_binding_occurrences(source).unwrap();
+    let captured = bindings
+        .iter()
+        .find(|binding| binding.name == "value" && binding.start > 20)
+        .unwrap();
+    assert_eq!(captured.kind, super::GeneratedJavaScriptBindingKind::Bound);
+    assert_eq!(captured.declaration_start, Some(4));
+    assert_eq!(captured.declaration_end, Some(9));
+    let external = bindings
+        .iter()
+        .find(|binding| binding.name == "external")
+        .unwrap();
+    assert_eq!(external.kind, super::GeneratedJavaScriptBindingKind::Free);
+}
+
+#[test]
+fn records_opaque_template_literals_exactly() {
+    assert_eq!(
+        generated_javascript_template_literals("let a=`x${value}`;let b=`plain`").unwrap(),
+        ["`plain`", "`x${value}`"]
+    );
 }
 
 #[test]
@@ -1236,6 +1298,17 @@ fn rejects_generated_syntax_above_the_configured_floor() {
     let error =
         validate_generated_javascript_syntax_floor("class A{x=0}", EcmaScriptEdition::Es2021)
             .unwrap_err();
+    assert!(error.to_string().contains("syntax floor"));
+    validate_generated_javascript_syntax_floor(
+        "let f=(...a)=>a;let o={...source}",
+        EcmaScriptEdition::Es2018,
+    )
+    .unwrap();
+    let error = validate_generated_javascript_syntax_floor(
+        "let f=(...a)=>a;let o={...source}",
+        EcmaScriptEdition::Es2017,
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("syntax floor"));
 }
 
@@ -3198,13 +3271,12 @@ fn conditional_value_fold_stops_at_the_enclosing_colon() {
 
     let probe = format!("{folded}console.log([Da(null),Da({{constructor:{{name:'GeneratorFunction'}}}}),Da({{constructor:{{displayName:'GeneratorFunction'}}}}),Da({{constructor:{{name:'x'}}}})].join(','))");
     let original = format!("{source}console.log([Da(null),Da({{constructor:{{name:'GeneratorFunction'}}}}),Da({{constructor:{{displayName:'GeneratorFunction'}}}}),Da({{constructor:{{name:'x'}}}})].join(','))");
-    assert_eq!(run_javascript(&probe).trim(), run_javascript(&original).trim());
+    assert_eq!(
+        run_javascript(&probe).trim(),
+        run_javascript(&original).trim()
+    );
     assert_eq!(run_javascript(&probe).trim(), "false,true,true,false");
 }
-
-
-
-
 
 #[test]
 fn export_binding_resolves_after_a_brace_initializer() {
@@ -3213,10 +3285,19 @@ fn export_binding_resolves_after_a_brace_initializer() {
     // initializer contains braces. Losing those later names makes a valid export
     // look unresolved, and the whole artifact is refused.
     for (label, source) in [
-        ("function-initializer", "var a=function(){return 1},n=2;export{n as x}"),
+        (
+            "function-initializer",
+            "var a=function(){return 1},n=2;export{n as x}",
+        ),
         ("object-initializer", "var a={k:1},n=2;export{n as x}"),
-        ("class-initializer", "var a=class{m(){return 1}},n=2;export{n as x}"),
-        ("arrow-initializer", "var a=()=>{return 1},n=2;export{n as x}"),
+        (
+            "class-initializer",
+            "var a=class{m(){return 1}},n=2;export{n as x}",
+        ),
+        (
+            "arrow-initializer",
+            "var a=()=>{return 1},n=2;export{n as x}",
+        ),
         ("plain", "var a=1,n=2;export{n as x}"),
     ] {
         let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
@@ -3224,7 +3305,6 @@ fn export_binding_resolves_after_a_brace_initializer() {
         assert_eq!(witnesses.len(), 1, "{label}: {witnesses:?}");
     }
 }
-
 
 #[test]
 fn class_member_bodies_open_their_own_scope() {
@@ -3236,23 +3316,71 @@ fn class_member_bodies_open_their_own_scope() {
     // and computed names were all unrecognised; mobxlil's class rewrite emits
     // `[Symbol.toPrimitive](){...}` and lost 769 Brotli to it.
     for (label, source) in [
-        ("plain-method", "class C{m(){var n=1;return n}}var n=2;export{n as x}"),
-        ("constructor", "class C{constructor(){var n=1;this.n=n}}var n=2;export{n as x}"),
-        ("getter", "class C{get p(){var n=1;return n}}var n=2;export{n as x}"),
-        ("setter", "class C{set p(v){var n=v;this.q=n}}var n=2;export{n as x}"),
-        ("static", "class C{static m(){var n=1;return n}}var n=2;export{n as x}"),
-        ("async", "class C{async m(){var n=1;return n}}var n=2;export{n as x}"),
-        ("generator", "class C{*m(){var n=1;yield n}}var n=2;export{n as x}"),
-        ("computed-symbol", "class C{[Symbol.iterator](){var n=1;return n}}var n=2;export{n as x}"),
-        ("computed-string", "class C{[\"m\"](){var n=1;return n}}var n=2;export{n as x}"),
-        ("object-getter", "var o={get p(){var n=1;return n}};var n=2;export{n as x}"),
-        ("extends", "class C extends Object{m(){var n=1;return n}}var n=2;export{n as x}"),
+        (
+            "plain-method",
+            "class C{m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "constructor",
+            "class C{constructor(){var n=1;this.n=n}}var n=2;export{n as x}",
+        ),
+        (
+            "getter",
+            "class C{get p(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "setter",
+            "class C{set p(v){var n=v;this.q=n}}var n=2;export{n as x}",
+        ),
+        (
+            "static",
+            "class C{static m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "async",
+            "class C{async m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "generator",
+            "class C{*m(){var n=1;yield n}}var n=2;export{n as x}",
+        ),
+        (
+            "computed-symbol",
+            "class C{[Symbol.iterator](){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "computed-string",
+            "class C{[\"m\"](){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "object-getter",
+            "var o={get p(){var n=1;return n}};var n=2;export{n as x}",
+        ),
+        (
+            "extends",
+            "class C extends Object{m(){var n=1;return n}}var n=2;export{n as x}",
+        ),
         // Reserved words are legal member names; mobxlil emits `delete(e){...}`.
-        ("keyword-delete", "class C{delete(e){var n=1;return n+e}}var n=2;export{n as x}"),
-        ("keyword-new", "class C{new(){var n=1;return n}}var n=2;export{n as x}"),
-        ("keyword-default", "class C{default(){var n=1;return n}}var n=2;export{n as x}"),
-        ("keyword-in", "class C{in(){var n=1;return n}}var n=2;export{n as x}"),
-        ("keyword-get-computed", "class C{get [Symbol.toStringTag](){var n=1;return n}}var n=2;export{n as x}"),
+        (
+            "keyword-delete",
+            "class C{delete(e){var n=1;return n+e}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-new",
+            "class C{new(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-default",
+            "class C{default(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-in",
+            "class C{in(){var n=1;return n}}var n=2;export{n as x}",
+        ),
+        (
+            "keyword-get-computed",
+            "class C{get [Symbol.toStringTag](){var n=1;return n}}var n=2;export{n as x}",
+        ),
     ] {
         let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
             .unwrap_or_else(|error| panic!("{label}: {error}"));
@@ -3264,10 +3392,22 @@ fn class_member_bodies_open_their_own_scope() {
     // A control header has the same token shape as a keyword-named member and is
     // not one: `if(x){var n=1}` must keep `n` in the function that contains it.
     for (label, source) in [
-        ("if-header", "function f(x){if(x){var n=1;return n}return 0}var n=2;export{n as x}"),
-        ("for-header", "function f(x){for(var i=0;i<x;i++){var n=i}return n}var n=2;export{n as x}"),
-        ("while-header", "function f(x){while(x){var n=1;x--}return n}var n=2;export{n as x}"),
-        ("catch-header", "function f(){try{g()}catch(e){var n=1;return n}return 0}var n=2;export{n as x}"),
+        (
+            "if-header",
+            "function f(x){if(x){var n=1;return n}return 0}var n=2;export{n as x}",
+        ),
+        (
+            "for-header",
+            "function f(x){for(var i=0;i<x;i++){var n=i}return n}var n=2;export{n as x}",
+        ),
+        (
+            "while-header",
+            "function f(x){while(x){var n=1;x--}return n}var n=2;export{n as x}",
+        ),
+        (
+            "catch-header",
+            "function f(){try{g()}catch(e){var n=1;return n}return 0}var n=2;export{n as x}",
+        ),
     ] {
         let witnesses = crate::js_peephole::generated_javascript_export_witnesses(source)
             .unwrap_or_else(|error| panic!("{label}: {error}"));
