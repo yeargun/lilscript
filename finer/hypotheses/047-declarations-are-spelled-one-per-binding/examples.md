@@ -198,6 +198,7 @@ codec-scored where they can be wrong.
 | port change | sites | same compiler, shipped ESM Brotli |
 |---|---:|---:|
 | `Object.keys` counter loops → `for (string key in value)` (mathMLTree already used it) | 19 | **−165** (65507 → 65342), 17/17, Jest 1230/1230 |
+| `int i = 0; while (i < n) {…; i = i + 1;}` → `for (int i = 0; i < n; i++)` | 22 | −37 with the wrong lift (build L, invalid), **−12** once it is refused (build N: 65337; corpus 0 diffs, 17/17, 1230/1230); mobx −3, micromark +14, remark-gfm −31 against base |
 
 The transliterator spelled upstream's `for…in` as `objectKeys` + a counter `while` in 19 places
 and as the language's `for…in` in 2; one idiom, one spelling, is what the collective similarity
