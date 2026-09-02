@@ -18,6 +18,7 @@
 //   node finer/tools/fleet.mjs --ports a,b     # a subset
 //   node finer/tools/fleet.mjs --slots 4       # concurrent ports
 //   node finer/tools/fleet.mjs --committed     # measure HEAD's dist, not the worktree's
+//   node finer/tools/fleet.mjs --workers       # build on the lilscript-workers pool (workers.mjs), measure here
 import { spawn, spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -161,7 +162,20 @@ if (ports.length === 0) { console.error("no ports found"); process.exit(1) }
 mkdirSync(outDir, { recursive: true })
 
 let builds = []
-if (!has("measure")) {
+if (!has("measure") && has("workers")) {
+  // objective.md §9: the pool builds, this host measures. workers.mjs starts what
+  // is stopped, syncs the compiler and every port, builds one port per worker
+  // and brings dist/ back; its last-build.json carries the per-port outcome.
+  process.stderr.write(`building ${ports.length} ports on the ${flag("vmss", "lilscript-workers")} pool\n`)
+  const workersTool = join(repo, "finer", "tools", "workers.mjs")
+  const upArgs = ["up", ...(flag("worker-count", null) ? [flag("worker-count")] : [])]
+  spawnSync(process.execPath, [workersTool, ...upArgs], { stdio: ["ignore", "inherit", "inherit"] })
+  const r = spawnSync(process.execPath, [workersTool, "build", "--ports", ports.join(","), "--timeout", String(Math.round(buildTimeoutMs / 1000))], { stdio: ["ignore", "inherit", "inherit"] })
+  const lastPath = join(repo, "finer", "out", "workers", "last-build.json")
+  const last = existsSync(lastPath) ? JSON.parse(readFileSync(lastPath, "utf8")).results : {}
+  builds = ports.map((port) => ({ port, ok: !!last[port]?.ok, seconds: last[port]?.seconds ?? 0, error: last[port]?.ok ? null : (last[port]?.error ?? (r.status === 0 ? "not built" : "workers.mjs failed")) }))
+  if (has("down")) spawnSync(process.execPath, [workersTool, "down"], { stdio: ["ignore", "inherit", "inherit"] })
+} else if (!has("measure")) {
   process.stderr.write(`building ${ports.length} ports, ${slots} slots x ${coresPerSlot} cores\n`)
   builds = await runPool(ports)
 }
