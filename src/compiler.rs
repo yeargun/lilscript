@@ -20285,6 +20285,23 @@ mod function_scope_tests {
     }
 
     #[test]
+    fn a_record_read_that_is_never_tested_keeps_its_null_normalization() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "Record<string> cache = record{};export string seed(string key){cache[key] = key + \"!\";return key;}export JsValue peek(string key){string? hit = cache[key];return JS.assume(hit);}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = Some(false);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        // no test anywhere, so absence keeps its `null` spelling rather than leaking `undefined`
+        assert!(javascript.contains("??null"), "{javascript}");
+        let probe = "seed('a');process.stdout.write([String(peek('a')),String(peek('zz'))].join(':'))";
+        assert_eq!(run_module(&javascript, probe), "a!:null");
+    }
+
+    #[test]
     fn an_unnormalized_map_get_tests_strictly_for_undefined_unless_truthiness_is_cheaper() {
         let arena = Bump::new();
         let program = parse_source(

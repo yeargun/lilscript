@@ -23521,11 +23521,19 @@ fn value_is_used_outside_expression_region(
 
 /// Record reads (`rec[k]`, typed `T?` with `T` not itself nullable) whose
 /// every use is a comparison against the null constant, a nullish test, or
-/// the narrowing after one. Their `??null` normalization is unobservable:
-/// the tests accept `undefined` spelled as `===void 0`, and the narrowing
-/// only runs when the value is present. Any other use — a phi, a store, a
-/// call argument, a return, a strict comparison — keeps the normalization,
-/// because there `null` and `undefined` are distinguishable.
+/// the narrowing after one, **and at least one of them is such a test**.
+/// Their `??null` normalization is unobservable: the tests accept `undefined`
+/// spelled as `===void 0`, and the narrowing only runs on the path the test
+/// admitted, where the value is present and identical either way. Any other
+/// use — a phi, a store, a call argument, a return, a strict comparison —
+/// keeps the normalization, because there `null` and `undefined` are
+/// distinguishable.
+///
+/// The "at least one test" half is what makes the narrowing safe to allow:
+/// an unwrap with no test anywhere would hand `undefined` to code that
+/// treats the value as present, where the normalization used to hand `null`.
+/// It also costs nothing measurable — those sites were a net loss on the one
+/// port that had them (motionlil, +24 Brotli in the fleet A/B).
 fn undefined_absent_record_reads(
     function: &ControlFlowFunction<'_>,
     record_values: &AHashSet<ValueId>,
@@ -23547,6 +23555,7 @@ fn undefined_absent_record_reads(
     if candidates.is_empty() {
         return candidates;
     }
+    let mut tested = AHashSet::<ValueId>::default();
     for block in &function.blocks {
         for phi in &block.phis {
             for (_, value) in &phi.incoming {
@@ -23554,6 +23563,27 @@ fn undefined_absent_record_reads(
             }
         }
         for instruction in &block.instructions {
+            match &instruction.op {
+                ControlFlowOp::Binary {
+                    op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+                    lhs,
+                    rhs,
+                } => {
+                    if null_values.contains(lhs) {
+                        tested.insert(*rhs);
+                    } else if null_values.contains(rhs) {
+                        tested.insert(*lhs);
+                    }
+                }
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsIsNullish,
+                    receiver: Some(receiver),
+                    args,
+                } if args.is_empty() => {
+                    tested.insert(*receiver);
+                }
+                _ => {}
+            }
             let allowed = match &instruction.op {
                 ControlFlowOp::Binary {
                     op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
@@ -23591,6 +23621,7 @@ fn undefined_absent_record_reads(
             _ => {}
         }
     }
+    candidates.retain(|candidate| tested.contains(candidate));
     candidates
 }
 
