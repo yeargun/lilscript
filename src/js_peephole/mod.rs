@@ -2746,6 +2746,26 @@ impl LateJavaScriptCleanupPass {
 /// Apply one late syntax proposal and close any implicit-assignment bindings
 /// it exposes. The compiler uses these independently so raw, gzip, and Brotli
 /// can retain different subsets under their exact whole-artifact objective.
+/// Declaration shaping for the late cleanup (047): `var x=void 0` loses the
+/// initializer where the binding is fresh, adjacent declarations of one kind
+/// join, and an assignment that follows its declaration folds in — then the
+/// join again, since the fold makes the next declaration adjacent. Terser's
+/// `join_vars` + `reduce_vars`/`unused` class; Oxc `handle_variable_declaration`.
+/// Applied to the whole finalist, never per declaration: the joins only exist
+/// across declarations, and on two ports the raw-smaller text scored worse
+/// under Brotli, so the codec decides.
+pub(crate) fn shape_declarations(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let mut session = RewriteSession::new(source.to_string());
+    session.run(fold_void_initializers_off_fresh_vars)?;
+    session.run(join_adjacent_declarations)?;
+    session.repeat(fold_uninitialized_var_into_any_assign, 8)?;
+    session.run(join_adjacent_declarations)?;
+    let rewrites = session.rewrites;
+    Ok((session.code, rewrites))
+}
+
 pub(crate) fn late_generated_javascript_cleanup_pass(
     source: &str,
     pass: LateJavaScriptCleanupPass,

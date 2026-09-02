@@ -605,6 +605,13 @@ fn declarator_names(
     while cursor < tokens.len() {
         match tokens[cursor].text {
             ";" => break,
+            // An unbalanced closer ends the declaration: a block-terminal
+            // `var c=x,e=!0}` whose semicolon the emitter elided. Scanning past
+            // it read the rest of the function and then took `,_(j),j={…}` at
+            // module level for declarators of `_` and `j`, which made both
+            // names ambiguous and the whole-artifact peephole candidate
+            // unadmittable on katexlil (047).
+            ")" | "]" | "}" => break,
             "," => {
                 expect_name = true;
                 cursor += 1;
@@ -680,6 +687,24 @@ mod tests {
 
     fn binding_of(source: &str, occurrence: usize) -> Resolution {
         resolved(source)[occurrence].2
+    }
+
+    /// A block-terminal declaration without its semicolon ends at the brace.
+    /// The scan used to run on through the function and read `,_(j),j={}` at
+    /// module level as two more declarators, making `_` and `j` ambiguous.
+    #[test]
+    fn declaration_ends_at_an_unbalanced_closer() {
+        let source = "var _=1,q;var l=a=>{if(a){var c=a,e=!0}return c},j={};_(j),j={}";
+        let tokens = lex(source).unwrap();
+        let resolution = BindingResolution::new(&tokens);
+        let module_decl = tokens.iter().position(|t| t.text == "_").unwrap();
+        let call = tokens.iter().rposition(|t| t.text == "_").unwrap();
+        assert_eq!(resolution.resolve(call), Resolution::Bound(module_decl));
+        let j_decl = tokens.iter().position(|t| t.text == "j").unwrap();
+        let j_last = tokens.iter().rposition(|t| t.text == "j").unwrap();
+        assert_eq!(resolution.resolve(j_last), Resolution::Bound(j_decl));
+        let e_decl = tokens.iter().position(|t| t.text == "e").unwrap();
+        assert!(matches!(resolution.resolve(e_decl), Resolution::Bound(_)));
     }
 
     /// The bug that made the first renamer unsound: a parameter token sits
@@ -898,3 +923,4 @@ mod tests {
         }
     }
 }
+

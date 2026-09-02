@@ -147,6 +147,18 @@ pub static INLINE_FIXPOINT: Bucket = Bucket::new("inline_fixpoint");
 pub static CLEANUP_ENTERED: Bucket = Bucket::new("cleanup_entered");
 pub static CLEANUP_UNBUDGETED: Bucket = Bucket::new("cleanup_unbudgeted");
 pub static CLEANUP_SKIPPED: Bucket = Bucket::new("cleanup_skipped");
+// The late cleanup's canonical whole-artifact peephole candidate, by exit (047):
+// a parse error, an unchanged artifact, the function-boundary guard, an
+// admission refusal, a codec probe the budget could not pay, or pushed.
+pub static CLEANUP_CANONICAL_ERR: Bucket = Bucket::new("cleanup_canonical_err");
+pub static CLEANUP_CANONICAL_SAME: Bucket = Bucket::new("cleanup_canonical_same");
+pub static CLEANUP_CANONICAL_BOUNDARY: Bucket = Bucket::new("cleanup_canonical_boundary");
+pub static CLEANUP_CANONICAL_REFUSED: Bucket = Bucket::new("cleanup_canonical_refused");
+pub static CLEANUP_CANONICAL_UNPROBED: Bucket = Bucket::new("cleanup_canonical_unprobed");
+pub static CLEANUP_CANONICAL_PUSHED: Bucket = Bucket::new("cleanup_canonical_pushed");
+pub static CLEANUP_SHAPED_PUSHED: Bucket = Bucket::new("cleanup_shaped_pushed");
+pub static CLEANUP_SHAPED_LOST: Bucket = Bucket::new("cleanup_shaped_lost");
+pub static CLEANUP_SHAPED_REFUSED: Bucket = Bucket::new("cleanup_shaped_refused");
 pub static RENAME_CANDIDATES: Bucket = Bucket::new("rename_candidates");
 pub static RENAME_STARVED: Bucket = Bucket::new("rename_starved");
 pub static RENAME_IDLE: Bucket = Bucket::new("rename_idle");
@@ -183,10 +195,19 @@ const BYTE_BUCKETS: [&Bucket; 16] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 14] = [
+const EVENT_BUCKETS: [&Bucket; 23] = [
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,
     &CLEANUP_SKIPPED,
+    &CLEANUP_CANONICAL_ERR,
+    &CLEANUP_CANONICAL_SAME,
+    &CLEANUP_CANONICAL_BOUNDARY,
+    &CLEANUP_CANONICAL_REFUSED,
+    &CLEANUP_CANONICAL_UNPROBED,
+    &CLEANUP_CANONICAL_PUSHED,
+    &CLEANUP_SHAPED_PUSHED,
+    &CLEANUP_SHAPED_LOST,
+    &CLEANUP_SHAPED_REFUSED,
     &RENAME_CANDIDATES,
     &RENAME_STARVED,
     &RENAME_IDLE,

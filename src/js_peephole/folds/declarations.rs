@@ -546,6 +546,23 @@ pub(crate) fn strip_void_initializer_before_write(
 pub(crate) fn fold_uninitialized_var_into_assign(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
+    fold_uninitialized_var_into_assign_with(source, false)
+}
+
+/// The same fold accepting any right-hand side (047): the assignment is the
+/// statement right after the declaration, so its evaluation point does not
+/// move. Offered to the late cleanup as a scored candidate, never applied to
+/// the per-declaration pass unconditionally.
+pub(crate) fn fold_uninitialized_var_into_any_assign(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_uninitialized_var_into_assign_with(source, true)
+}
+
+fn fold_uninitialized_var_into_assign_with(
+    source: &str,
+    any_rhs: bool,
+) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut var_index = 0usize;
@@ -599,7 +616,13 @@ pub(crate) fn fold_uninitialized_var_into_assign(
             continue;
         }
         let name = tokens[assign_at].text;
-        if !matches!(tokens[assign_at + 2].text, "{" | "[" | "function" | "(") {
+        // The compact lexer cannot see through regex or template text, so a
+        // right-hand side carrying either keeps the original shape (checked
+        // below); the per-declaration pass additionally keeps to literal and
+        // function shapes, whose ends it can prove.
+        if tokens[assign_at + 2].text == "=>"
+            || (!any_rhs && !matches!(tokens[assign_at + 2].text, "{" | "[" | "function" | "("))
+        {
             var_index = semicolon + 1;
             continue;
         }
@@ -627,7 +650,11 @@ pub(crate) fn fold_uninitialized_var_into_assign(
             continue;
         };
         let rhs = &source[tokens[assign_at + 2].start..tokens[stop].start];
-        if rhs.is_empty() {
+        if rhs.is_empty()
+            || tokens[assign_at + 2..stop]
+                .iter()
+                .any(|token| token.text == "/" || token.text.starts_with('`'))
+        {
             var_index = semicolon + 1;
             continue;
         }
@@ -2003,4 +2030,190 @@ fn skip_function_or_class(
         return Some(matching_close.get(index).copied().flatten()? + 1);
     }
     None
+}
+
+/// `var x=void 0` → `var x` when the initializer cannot be observed: a `var`
+/// binding is `undefined` from the start of its function, so writing
+/// `undefined` into it is a no-op unless something wrote the binding earlier
+/// (an assignment above the declaration, or an earlier declarator of the same
+/// name) or the statement runs more than once (a loop body resets the binding
+/// on every pass). Function-body and program-level statements outside any loop
+/// with no earlier occurrence of the name are the shape the emitter produces
+/// for `JsValue x = undef(); … x = value;` at module level. Terser reaches the
+/// same text through `reduce_vars`+`unused` (the initializer is a dead store);
+/// Oxc's `handle_variable_declaration` drops an `undefined` initializer as part
+/// of `join_vars` (`minimize_statements.rs`).
+pub(crate) fn fold_void_initializers_off_fresh_vars(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let matching_close = matching_closers(&tokens);
+    let matching_open = crate::js_peephole::token::matching_openers(&matching_close);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    for var_index in 0..tokens.len() {
+        if tokens[var_index].text != "var"
+            || !is_statement_boundary(&tokens, var_index)
+            || var_index
+                .checked_sub(1)
+                .is_some_and(|index| tokens[index].text == "export")
+            || statement_runs_in_loop(&tokens, &matching_open, var_index)
+        {
+            continue;
+        }
+        let scope_start = enclosing_function_span(&tokens, &matching_close, var_index)
+            .map(|(open, _)| open)
+            .unwrap_or(0);
+        let Some(semicolon) = top_level_stop(&tokens, var_index + 1, &[";"]) else {
+            continue;
+        };
+        let mut cursor = var_index + 1;
+        while cursor < semicolon {
+            let name_at = cursor;
+            let Some(segment_end) = top_level_stop(&tokens, cursor, &[",", ";"]) else {
+                break;
+            };
+            cursor = segment_end + 1;
+            if tokens[name_at].kind != TokenKind::Identifier
+                || segment_end != name_at + 4
+                || tokens[name_at + 1].text != "="
+                || tokens[name_at + 2].text != "void"
+                || tokens[name_at + 3].text != "0"
+            {
+                continue;
+            }
+            let name = tokens[name_at].text;
+            if identifier_occurs(&tokens, scope_start, name_at, name) {
+                continue;
+            }
+            replacements.push((tokens[name_at].end, tokens[name_at + 3].end, String::new()));
+        }
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Whether the statement starting at `index` sits in a loop body somewhere
+/// below its enclosing function: walk outwards through the unmatched openers,
+/// stopping at a function body. Conservative on anything it does not
+/// recognise, in the direction of "yes, a loop".
+fn statement_runs_in_loop(tokens: &[Token<'_>], matching_open: &[Option<usize>], index: usize) -> bool {
+    // A brace-less body: `while(c)var x=void 0;` or `do var x=void 0;while(c)`.
+    if let Some(previous) = index.checked_sub(1) {
+        if tokens[previous].text == "do" {
+            return true;
+        }
+        if tokens[previous].text == ")" {
+            if let Some(open) = matching_open[previous] {
+                if open
+                    .checked_sub(1)
+                    .is_some_and(|keyword| matches!(tokens[keyword].text, "while" | "for"))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    let mut cursor = index;
+    loop {
+        // Find the unmatched opener enclosing `cursor`.
+        let mut depth = 0i32;
+        let mut opener = None;
+        let mut at = cursor;
+        while at > 0 {
+            at -= 1;
+            match tokens[at].text {
+                ")" | "]" | "}" => depth += 1,
+                "(" | "[" | "{" => {
+                    if depth == 0 {
+                        opener = Some(at);
+                        break;
+                    }
+                    depth -= 1;
+                }
+                _ => {}
+            }
+        }
+        let Some(open) = opener else {
+            return false;
+        };
+        if tokens[open].text != "{" {
+            // Inside a parenthesis or bracket: an expression, never a statement list.
+            return true;
+        }
+        let Some(before) = open.checked_sub(1) else {
+            return false;
+        };
+        match tokens[before].text {
+            "=>" => return false,
+            "do" => return true,
+            ")" => {
+                let Some(head) = matching_open[before] else {
+                    return true;
+                };
+                match head.checked_sub(1).map(|keyword| tokens[keyword].text) {
+                    Some("while" | "for") => return true,
+                    Some("if" | "switch" | "catch") => {}
+                    _ => {
+                        if function_header_precedes_parameters(tokens, head) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            "else" | "try" | "finally" => {}
+            _ => return true,
+        }
+        cursor = open;
+    }
+}
+
+/// `var a=1;var b=2` → `var a=1,b=2` (and `let`/`const` alike): two adjacent
+/// declarations of one kind in one statement list are one declaration, with
+/// the same hoisting, the same TDZ order and the same initializer order.
+/// Terser `join_consecutive_vars` (`compress/tighten-body.js:1440-1500`), Oxc
+/// `handle_variable_declaration` (`peephole/minimize_statements.rs:352-410`),
+/// esbuild `mangleStmts`. The emitter writes one statement per module-level
+/// binding, so a port with many globals pays the keyword for each.
+pub(crate) fn join_adjacent_declarations(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let Some(tokens) = lex_certainly(source)? else {
+        return Ok((source.to_string(), 0));
+    };
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+    while index < tokens.len() {
+        let kind = tokens[index].text;
+        if !matches!(kind, "var" | "let" | "const")
+            || !is_statement_boundary(&tokens, index)
+            || index
+                .checked_sub(1)
+                .is_some_and(|previous| tokens[previous].text == "export")
+            || !tokens
+                .get(index + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            index += 1;
+            continue;
+        }
+        let Some(semicolon) = top_level_stop(&tokens, index + 1, &[";"]) else {
+            index += 1;
+            continue;
+        };
+        if tokens[semicolon].text != ";" {
+            index = semicolon + 1;
+            continue;
+        }
+        let next = semicolon + 1;
+        if tokens.get(next).map(|token| token.text) == Some(kind)
+            && tokens
+                .get(next + 1)
+                .is_some_and(|token| token.kind == TokenKind::Identifier)
+        {
+            replacements.push((tokens[semicolon].start, tokens[next + 1].start, ",".to_string()));
+        }
+        index = next;
+    }
+    Ok(apply_token_rewrites(source, replacements))
 }

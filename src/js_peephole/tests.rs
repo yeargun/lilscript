@@ -14,6 +14,7 @@ use super::{
     generated_javascript_static_property_names, late_generated_javascript_cleanup_pass,
     optimize_generated_javascript, optimize_generated_javascript_assuming,
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3640,4 +3641,60 @@ fn diagnose_043_expression_suffix_returns_on_an_artifact() {
         analyzed,
         output.display(),
     );
+}
+
+
+#[test]
+fn drops_void_initializers_only_where_the_binding_is_fresh_and_runs_once() {
+    // Module-level `var x=void 0;…;x=value` pairs (the emitter's spelling of a
+    // `JsValue x = undef()` global) lose the initializer; a loop body, an earlier
+    // write, and a duplicate declarator keep it.
+    let source = "var log=[];var a=void 0;var b=void 0;a={n:1};b=[a];function f(){var c=void 0;c=2;for(var i=0;i<2;i++){var d=void 0;log.push(d);d=i}var e=void 0;return [c,e,d]}g=5;var g=void 0;var h=1;var h=void 0;console.log(JSON.stringify([a,b,f(),g,h,log]))";
+    let (folded, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+    assert_eq!(
+        folded,
+        "var log=[];var a;var b;a={n:1};b=[a];function f(){var c;c=2;for(var i=0;i<2;i++){var d=void 0;log.push(d);d=i}var e;return [c,e,d]}g=5;var g=void 0;var h=1;var h=void 0;console.log(JSON.stringify([a,b,f(),g,h,log]))"
+    );
+    assert_eq!(count, 4);
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+}
+
+#[test]
+fn joins_adjacent_declarations_of_one_kind() {
+    let source = "var a=1;var b=a+1;let c=3;let d=c;const e=4;var f=5;for(var g=0;g<1;g++){var h=g;var i=h}export const j=1;var k=2;if(a){let l=1;let m=l;console.log(m)}console.log(a,b,c,d,e,f,h,i,j,k)";
+    let (folded, count) = join_adjacent_declarations(source).unwrap();
+    assert_eq!(
+        folded,
+        "var a=1,b=a+1;let c=3,d=c;const e=4;var f=5;for(var g=0;g<1;g++){var h=g,i=h}export const j=1;var k=2;if(a){let l=1,m=l;console.log(m)}console.log(a,b,c,d,e,f,h,i,j,k)"
+    );
+    assert_eq!(count, 4);
+    let runnable = folded.replace("export ", "");
+    assert_eq!(run_javascript(&runnable), run_javascript(&source.replace("export ", "")));
+}
+
+#[test]
+fn module_globals_declared_then_assigned_become_one_declaration() {
+    // The three folds in session order: initializer off, statements joined, then the
+    // assignments that follow fold into their declarators in source order.
+    let source = "var a=void 0;var b=void 0;var c=void 0;a={x:1};b=(function(){return a.x+1});c=b();var d=void 0;d=c>1?\"big\":\"small\";console.log(JSON.stringify([a,b(),c,d]))";
+    let (shaped, rewrites) = shape_declarations(source).unwrap();
+    assert_eq!(
+        shaped,
+        "var a={x:1},b=(function(){return a.x+1}),c=b(),d=c>1?\"big\":\"small\";console.log(JSON.stringify([a,b(),c,d]))"
+    );
+    assert!(rewrites >= 7, "{rewrites}");
+    assert_eq!(run_javascript(&shaped), run_javascript(source));
+}
+
+
+
+#[test]
+fn trailing_increment_in_an_else_arm_is_not_lifted() {
+    // Both arms end in `h++`; lifting the last one into a `for` header would run the
+    // other arm's increment twice. The body-level increment still lifts.
+    let source = "var h=0,q=4,s=[1,0,2,0],t=0,u=0;while(h<q){var c=s[h];if(!c)h++;else t+=c,h++}while(u<3){t+=u;u++}var k=0;while(k<2)k%2?(t+=1,k++):k++;console.log(h,t,u,k)";
+    let optimized = optimize_emitted_without_regex_literals(source);
+    assert!(!optimized.code.contains("else}"), "{}", optimized.code);
+    assert!(optimized.code.contains("for(;u<3;u++)"), "{}", optimized.code);
+    assert_eq!(run_javascript(&optimized.code), run_javascript(source));
 }

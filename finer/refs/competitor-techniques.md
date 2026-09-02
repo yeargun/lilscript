@@ -118,6 +118,8 @@ are legal comma members; no such check in either file); ASI and precedence (`for
 
 ---
 
+| Adjacent declarations joined (`var a=1;var b=2` → `var a=1,b=2`); a following `x=v` folded into `var x`; a `void 0` initializer on a fresh binding dropped | `handle_variable_declaration` (`OXC/peephole/minimize_statements.rs:352-410`): every declarator appended to the previous same-kind declaration; unused declarators dropped | `join_consecutive_vars` (`TERSER/compress/tighten-body.js:1440-1500`, `join_vars` on by default `index.js:250`); the dead `=void 0` store goes through `reduce_vars`+`unused`. Ablated on our katexlil artifact: `join_vars` +140, `unused` +362, `reduce_vars` +123 Brotli | `join_adjacent_declarations`, `fold_void_initializers_off_fresh_vars`, `fold_uninitialized_var_into_assign` (widened, repeated) — `LS/js_peephole/folds/declarations.rs`, session order `mod.rs:2560-2568` (047) | **was ABSENT / PARTIAL**: the emitter wrote one `var` per module global with its `void 0` initializer; 047 measures the folds |
+
 ## C. Constant folding and known-method replacement
 
 | Technique | oxc | terser | Size axis | Class | Example |
@@ -133,6 +135,8 @@ are legal comma members; no such check in either file); ASI and precedence (`for
 | `String.fromCharCode`/`Number()`/`BigInt()` constant call folding | `ECMA/constant_evaluation/call_expr.rs:87-88` | `TERSER/compress/evaluate.js` | raw | peephole | `String.fromCharCode(97)` → `"a"` |
 
 ---
+
+| Unary plus on a numeric literal folded (`+7227` → `7227`, `a-+1` → `a-1`) | `ECMA/constant_evaluation/mod.rs:489` (`UnaryPlus` evaluates to the number) | `TERSER/compress/evaluate.js` (`AST_UnaryPrefix` `_eval`) | `fold_unary_plus_on_numeric_literal` (`LS/js_peephole/folds/integers.rs`, 047) | **was ABSENT**: the emitter writes `+x` for a `JsValue`→number coercion and constant propagation later makes `x` a literal; 101 sites on katexlil |
 
 ## D. Inlining, single-use substitution, and variable collapsing
 

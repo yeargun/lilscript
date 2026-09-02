@@ -858,6 +858,39 @@ fn condition_updates_name(tokens: &[Token<'_>], from: usize, to: usize, name: &s
     false
 }
 
+/// The increment must be a statement of the loop body itself, not the tail of
+/// an `if`/`else` arm, a ternary arm or an arrow body inside it: lifting the
+/// `h++` that ends an `else` arm into the `for` header leaves the other arm's
+/// `h++` in place and runs it twice (047: `if(!c)h++;else t=…,h++` became
+/// `for(;…;h++){if(c)…;else}`). Walk back from the increment to the last
+/// body-level boundary; any control keyword or `?`/`:`/`=>` at depth 0 on the
+/// way means the increment is nested.
+fn increment_is_body_level(tokens: &[Token<'_>], body_from: usize, name_at: usize) -> bool {
+    let mut depth = 0i32;
+    let mut index = name_at;
+    while index > body_from {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return true;
+                }
+                depth -= 1;
+            }
+            ";" if depth == 0 => return true,
+            "if" | "else" | "for" | "while" | "do" | "switch" | "case" | "default" | "try"
+            | "catch" | "finally" | "with" | "=>" | "?" | ":"
+                if depth == 0 =>
+            {
+                return false;
+            }
+            _ => {}
+        }
+    }
+    true
+}
+
 fn increment_can_lift(tokens: &[Token<'_>], name_at: usize) -> bool {
     if is_property_identifier(tokens, name_at) {
         return false;
@@ -994,6 +1027,7 @@ pub(crate) fn fold_while_trailing_increments(
                     .get(last)
                     .is_none_or(|token| token.kind != TokenKind::Identifier)
                 || !increment_can_lift(&tokens, last)
+                || !increment_is_body_level(&tokens, body_at + 1, last)
             {
                 continue;
             }
@@ -1008,7 +1042,9 @@ pub(crate) fn fold_while_trailing_increments(
             let Some((incr_at, name)) = match_postfix_increment(&tokens, incr_from, stop) else {
                 continue;
             };
-            if !increment_can_lift(&tokens, incr_at) {
+            if !increment_can_lift(&tokens, incr_at)
+                || !increment_is_body_level(&tokens, body_at, incr_at)
+            {
                 continue;
             }
             let replace_end = if stop < tokens.len() && tokens[stop].text == ";" {

@@ -109,6 +109,10 @@ pub(crate) fn fold_int32_coercions(source: &str) -> Result<(String, usize), Java
             cursor = next;
             continue;
         }
+        if let Some(next) = fold_unary_plus_on_numeric_literal(&tokens, cursor, &mut replacements) {
+            cursor = next;
+            continue;
+        }
         if let Some(next) = fold_unary_plus_before_bitwise(&tokens, cursor, &mut replacements) {
             cursor = next;
             continue;
@@ -1001,6 +1005,39 @@ fn plus_is_unary(tokens: &[Token<'_>], cursor: usize) -> bool {
     }
 }
 
+/// `+7227` → `7227`, `a-+1` → `a-1`, `b/+18` → `b/18`: a number coercion of a
+/// numeric literal is the literal (Terser `evaluate`, Oxc
+/// `constant_evaluation/mod.rs:489`). The emitter writes the coercion for a
+/// `JsValue` operand and constant propagation later makes the operand a
+/// literal, so the `+` survives to the artifact: 101 sites on katexlil (047).
+/// A `+` that follows `+`, `++`, or a binary `+` operand is not unary and is
+/// left alone; the splice guard keeps `a+ +1` from fusing.
+fn fold_unary_plus_on_numeric_literal(
+    tokens: &[Token<'_>],
+    cursor: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) -> Option<usize> {
+    if tokens.get(cursor).map(|token| token.text) != Some("+") || !plus_is_unary(tokens, cursor) {
+        return None;
+    }
+    let literal = tokens.get(cursor + 1)?;
+    if literal.kind != TokenKind::Number
+        || literal.text.starts_with('.')
+        || !literal.text.bytes().next().is_some_and(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    // `+ +1` and `- +1` stay legal after the splice; `++1` would not.
+    if cursor
+        .checked_sub(1)
+        .is_some_and(|index| matches!(tokens[index].text, "+" | "++"))
+    {
+        return None;
+    }
+    replacements.push((tokens[cursor].start, tokens[cursor].end, String::new()));
+    Some(cursor + 2)
+}
+
 fn fold_unary_plus_before_bitwise(
     tokens: &[Token<'_>],
     cursor: usize,
@@ -1531,6 +1568,18 @@ fn ident_is_first_arg_to_callee(
 #[cfg(test)]
 mod tests {
     use super::fold_int32_coercions;
+
+    #[test]
+    fn drops_unary_plus_on_numeric_literals_only() {
+        let source = "h=+7227;h=h/+2540;var i=c[a-+1];b=+0;x=a+ +1;y=+b.size-+1;z=1++1;w=-+1;q=[+0,+.5,+1e3]";
+        let (out, count) = fold_int32_coercions(source).unwrap();
+        assert_eq!(
+            out,
+            "h=7227;h=h/2540;var i=c[a-1];b=0;x=a+ +1;y=+b.size-1;z=1++1;w=-1;q=[0,+.5,1e3]",
+            "{out}"
+        );
+        assert!(count >= 8, "{count}");
+    }
 
     #[test]
     fn keeps_call_parens_when_argument_ends_with_length_or_zero() {

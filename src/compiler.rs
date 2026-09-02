@@ -7716,15 +7716,22 @@ fn apply_late_javascript_cleanup(
     // large general rewrite only after plan selection.
     let mut canonical_peephole = None;
     if codec_budget.reserve_work_unit() {
-        if let Ok(optimized) = optimize_generated_javascript_assuming(
+        let optimized = optimize_generated_javascript_assuming(
             &original.code,
             config.javascript.assume_pristine_builtins,
-        ) {
+        );
+        if optimized.is_err() {
+            crate::timing::CLEANUP_CANONICAL_ERR.event(0);
+        }
+        if let Ok(optimized) = optimized {
             let code = repair_late_javascript_candidate(optimized.code);
             let metrics = analyze_generated_javascript(&code).ok();
             let crosses_disabled_function_boundary = !config
                 .single_use_function_expression_candidates_enabled()
                 && metrics.is_some_and(|metrics| metrics.functions < selected.metrics.functions);
+            if crosses_disabled_function_boundary {
+                crate::timing::CLEANUP_CANONICAL_BOUNDARY.event(0);
+            }
             let (code, metrics) = if crosses_disabled_function_boundary {
                 let (code, _, _, _) = peephole_preserve_or_baseline(
                     original.code.clone(),
@@ -7738,20 +7745,31 @@ fn apply_late_javascript_cleanup(
             } else {
                 (code, metrics)
             };
-            if code != original.code
-                && metrics.is_some_and(|metrics| {
-                    config.single_use_function_expression_candidates_enabled()
-                        || metrics.functions >= selected.metrics.functions
-                })
-                && admission.validate(&code).is_ok()
-            {
-                if let Some(cost) =
-                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-                {
-                    let candidate = CleanupCandidate { code, cost };
-                    beam.push(candidate.clone());
-                    canonical_peephole = Some(candidate);
+            if code == original.code {
+                crate::timing::CLEANUP_CANONICAL_SAME.event(0);
+            } else if !metrics.is_some_and(|metrics| {
+                config.single_use_function_expression_candidates_enabled()
+                    || metrics.functions >= selected.metrics.functions
+            }) {
+                crate::timing::CLEANUP_CANONICAL_BOUNDARY.event(0);
+            } else if let Err(refusal) = admission.validate_selected(&code) {
+                // `validate_selected`: this is a re-check of the selected artifact
+                // after a whole-artifact rewrite, the one place the class rewrite's
+                // own `constructor` is exempt (see `validate_observed_javascript_artifact_allowing`);
+                // the candidate is still scored by the codec before it enters the beam.
+                crate::timing::CLEANUP_CANONICAL_REFUSED.event(0);
+                if std::env::var_os("LILSCRIPT_TIMING").is_some() {
+                    eprintln!("late-cleanup canonical peephole refused: {refusal:?}");
                 }
+            } else if let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            {
+                crate::timing::CLEANUP_CANONICAL_PUSHED.event(cost as u64);
+                let candidate = CleanupCandidate { code, cost };
+                beam.push(candidate.clone());
+                canonical_peephole = Some(candidate);
+            } else {
+                crate::timing::CLEANUP_CANONICAL_UNPROBED.event(0);
             }
         }
     }
@@ -7802,6 +7820,49 @@ fn apply_late_javascript_cleanup(
                 });
             } else {
                 crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
+            }
+        }
+    }
+    // Declaration shaping (047): one `var` per module binding, each initialised
+    // `void 0`, is the emitter's faithful spelling of `JsValue x = undef()`
+    // globals; Terser's `join_vars` and `unused` take ~−240 Brotli from it on
+    // katexlil. The joins only exist across declarations, so the per-declaration
+    // pass cannot reach them, and applied unconditionally they lost on two
+    // portfolio ports (naming cascades), so this is a scored candidate offered
+    // on every beam member and kept where it wins. It runs after the local
+    // rename so the rename converges on the original text and its budget is
+    // untouched; the shaped candidates inherit the converged names.
+    {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            let Ok((shaped, rewrites)) = crate::js_peephole::shape_declarations(&candidate.code)
+            else {
+                continue;
+            };
+            if rewrites == 0 || shaped == candidate.code {
+                continue;
+            }
+            let code = repair_late_javascript_candidate(shaped);
+            if analyze_generated_javascript(&code).is_err()
+                || admission.validate(&code).is_err()
+                || beam.iter().any(|existing| existing.code == code)
+            {
+                crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
+                beam.push(CleanupCandidate { code, cost });
+            } else {
+                crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
             }
         }
     }
