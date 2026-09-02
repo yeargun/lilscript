@@ -1,3 +1,4 @@
+pub mod analysis_map;
 pub mod artifact_memo;
 pub mod ast;
 pub mod codegen_ir_js;
@@ -24,12 +25,14 @@ pub mod package;
 pub mod parser;
 pub mod profile;
 pub mod semantic;
+pub mod source_map;
 pub mod span;
 mod stable_hash;
 pub mod timing;
 pub mod typed_array;
 pub mod value_analysis;
 
+pub use analysis_map::{JavaScriptAnalysisMap, JAVASCRIPT_ANALYSIS_MAP_VERSION};
 pub use codegen_js::{compile_to_js, CodegenError, CodegenOptions, CompileError, JsEmitter};
 pub use codegen_native::{compile_to_c, emit_native_c, emit_native_c_with_options, NativeOptions};
 pub use compilation_contract::{
@@ -65,3 +68,4 @@ pub use module::ModuleError;
 pub use parser::{parse_source, ParseError, Parser};
 pub use profile::{JavaScriptPerformanceMetrics, OptimizationProfile};
 pub use semantic::{analyze, SemanticError, SemanticModel, Type};
+pub use source_map::JavaScriptSourceMap;
