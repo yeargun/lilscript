@@ -2041,6 +2041,7 @@ fn optimize_and_select_javascript_inner<'src>(
         integer_analysis: Arc<IntegerValueAnalysis>,
         reports: Vec<OptimizationReport>,
         configured_code: String,
+        configured_trace: Option<IrJsSourceTrace>,
         configured: Option<ScoredJavaScriptEmissionSeed>,
         interaction_code: Option<(String, crate::codegen_ir_js::IrJsOptions)>,
         interaction: Option<ScoredJavaScriptEmissionSeed>,
@@ -2050,6 +2051,8 @@ fn optimize_and_select_javascript_inner<'src>(
         raw_size: usize,
     }
 
+    let trace_configured_seed =
+        capture_source_trace && !config.javascript.candidate_search_enabled();
     let probes = optimizer_options
         .into_par_iter()
         .enumerate()
@@ -2064,12 +2067,29 @@ fn optimize_and_select_javascript_inner<'src>(
                 )?;
                 let integer_analysis = Arc::new(analyze_javascript_integer_values(&candidate_ir));
                 let configured_js = config.js_options();
-                let emitted = emit_javascript_candidate(
-                    &candidate_ir,
-                    preserve_exports,
-                    configured_js,
-                    Arc::clone(&integer_analysis),
-                )?;
+                // With the search off this emission is the artifact, so a
+                // requested map records its provenance here rather than
+                // emitting the winner a second time afterwards.
+                let (emitted, configured_trace) = if trace_configured_seed {
+                    let (code, trace) = emit_traced_javascript_candidate(
+                        &candidate_ir,
+                        preserve_exports,
+                        configured_js,
+                        Arc::clone(&integer_analysis),
+                        capture_mangling_analysis,
+                    )?;
+                    (code, Some(trace))
+                } else {
+                    (
+                        emit_javascript_candidate(
+                            &candidate_ir,
+                            preserve_exports,
+                            configured_js,
+                            Arc::clone(&integer_analysis),
+                        )?,
+                        None,
+                    )
+                };
                 let outlined = reports.iter().any(|report| {
                     report.pass_name == "repeated-region-outlining" && report.changed
                 });
@@ -2112,6 +2132,7 @@ fn optimize_and_select_javascript_inner<'src>(
                         integer_analysis,
                         reports,
                         configured_code: emitted,
+                        configured_trace,
                         configured: None,
                         interaction_code: interaction,
                         interaction: None,
@@ -2392,6 +2413,7 @@ fn optimize_and_select_javascript_inner<'src>(
             configured_seed: probe
                 .configured
                 .expect("admitted probes have a configured scored emission"),
+            configured_trace: probe.configured_trace,
             interaction_seed: probe.interaction,
             integer_analysis: Some(probe.integer_analysis),
         })
@@ -2458,6 +2480,7 @@ fn optimize_and_select_javascript_inner<'src>(
                     optimizer_options: context.optimizer_options,
                     reports,
                     configured_seed: seed,
+                    configured_trace: None,
                     interaction_seed: None,
                     integer_analysis: Some(integer_analysis),
                 },
@@ -2510,6 +2533,7 @@ fn optimize_and_select_javascript_inner<'src>(
                         JavaScriptOptimization::ConstructorInitializerFusionVariants,
                     ),
                 )
+                .with_configured_trace(context.configured_trace.as_ref())
             })
             .collect(),
     );
@@ -2764,6 +2788,9 @@ struct JavaScriptIrSearchContext<'src> {
     optimizer_options: crate::optimizer::OptimizationOptions,
     reports: Vec<OptimizationReport>,
     configured_seed: ScoredJavaScriptEmissionSeed,
+    /// Provenance of `configured_seed`'s emission when it was traced at
+    /// emission time; `None` means a map must re-emit the winner.
+    configured_trace: Option<IrJsSourceTrace>,
     interaction_seed: Option<ScoredJavaScriptEmissionSeed>,
     integer_analysis: Option<Arc<IntegerValueAnalysis>>,
 }
@@ -3182,6 +3209,7 @@ struct JavaScriptEmissionContext<'ir, 'src> {
     id: usize,
     baseline: &'ir ControlFlowModule<'src>,
     configured_seed: Option<&'ir ScoredJavaScriptEmissionSeed>,
+    configured_trace: Option<&'ir IrJsSourceTrace>,
     baseline_integer_analysis: OnceLock<Arc<IntegerValueAnalysis>>,
     constructor_fused: OnceLock<Option<(ControlFlowModule<'src>, Arc<IntegerValueAnalysis>)>>,
     enable_constructor_fusion: bool,
@@ -3205,10 +3233,16 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
             id,
             baseline,
             configured_seed,
+            configured_trace: None,
             baseline_integer_analysis: analysis,
             constructor_fused: OnceLock::new(),
             enable_constructor_fusion,
         }
+    }
+
+    fn with_configured_trace(mut self, trace: Option<&'ir IrJsSourceTrace>) -> Self {
+        self.configured_trace = trace;
+        self
     }
 
     fn baseline_integer_analysis(&self) -> Arc<IntegerValueAnalysis> {
@@ -3259,6 +3293,13 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
         options: crate::codegen_ir_js::IrJsOptions,
         capture_mangling_analysis: bool,
     ) -> Result<IrJsSourceTrace, crate::codegen_js::CodegenError> {
+        if let Some(trace) = self.configured_trace.filter(|trace| {
+            self.configured_seed
+                .is_some_and(|seed| seed.options == options)
+                && (trace.mangling.is_some() || !capture_mangling_analysis)
+        }) {
+            return Ok(trace.clone());
+        }
         let (ir, integer_analysis) = if options.constructor_initializer_fusion {
             self.constructor_fused()
                 .map(|(ir, analysis)| (ir, Arc::clone(analysis)))
@@ -9851,6 +9892,45 @@ fn emit_javascript_candidate(
     } else {
         emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)?
     };
+    let code = fold_emitted_javascript_candidate(code, options);
+    if crate::timing::enabled() {
+        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    Ok(code)
+}
+
+/// The same emission with source provenance recorded, returning the candidate
+/// bytes `emit_javascript_candidate` would return together with the trace of
+/// the emitter output they were folded from. Used for the configured seed when
+/// the search is off, so a map never costs a second emission of the winner.
+fn emit_traced_javascript_candidate(
+    ir: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: crate::codegen_ir_js::IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+    capture_mangling_analysis: bool,
+) -> Result<(String, IrJsSourceTrace), crate::codegen_js::CodegenError> {
+    #[cfg(test)]
+    JAVASCRIPT_CANDIDATE_EMISSIONS.with(|count| count.set(count.get() + 1));
+    let started = std::time::Instant::now();
+    let trace = emit_optimized_ir_js_source_trace_with_options_and_analysis(
+        ir,
+        module_output,
+        &options,
+        integer_analysis,
+        capture_mangling_analysis,
+    )?;
+    let code = fold_emitted_javascript_candidate(trace.code.clone(), options);
+    if crate::timing::enabled() {
+        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    Ok((code, trace))
+}
+
+fn fold_emitted_javascript_candidate(
+    code: String,
+    options: crate::codegen_ir_js::IrJsOptions,
+) -> String {
     // Each of these six re-scans the whole artifact, on every emission, which
     // is the hottest path in the compiler on a large program. Routing them
     // through the decline memo means an emission whose bytes a fold has already
@@ -9879,14 +9959,10 @@ fn emit_javascript_candidate(
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match crate::js_peephole::fold_once_memoized(&code, fold_nested_unguarded_ifs) {
+    match crate::js_peephole::fold_once_memoized(&code, fold_nested_unguarded_ifs) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
-    };
-    if crate::timing::enabled() {
-        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
     }
-    Ok(code)
 }
 
 fn admitted_generated_javascript_size(
