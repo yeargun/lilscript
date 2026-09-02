@@ -49,7 +49,9 @@ const flag = (name, fallback) => { const at = argv.indexOf(`--${name}`); return 
 const has = (name) => argv.includes(`--${name}`)
 
 const RG = flag("rg", "lilscript-build-farm")
-const VMSS = flag("vmss", "lilscript-workers")
+// The production pool is the Turin set (038: 2.5x a Cascade Lake core at the same
+// price); `--vmss lilscript-workers` is the owner's original F8s_v2 set, kept as the fallback.
+const VMSS = flag("vmss", "lilscript-workers-v7")
 const USER = flag("user", "lilfarm")
 const REMOTE = "lil" // ~/lil/<checkout> on the worker mirrors /home/azureuser/<checkout> here
 const COMPILER = resolve(flag("compiler", join(repo, "target", "release", "lilscript")))

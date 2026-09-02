@@ -2,7 +2,7 @@
 
 Standings, settled facts and ranked leads for the [finer loop](README.md). Volatile: rewritten
 after every fleet measure and every verdict. Contract: [objective.md](objective.md). History:
-[log.md](log.md). Updated 2026-09-02 after 041 and 044 landed.
+[log.md](log.md). Updated 2026-09-02 after 042; the build pool (038) is live and the source-map branch is being integrated.
 
 ## Standings
 
@@ -108,11 +108,14 @@ bytes).
 
 ## Open leads, ranked by measured value
 
-1. **Ship jquerylil** (040, 041): the tree `dist/` now holds the build with the fixed compiler —
-   `animate` runs, 28641 Brotli — uncommitted on top of a clean source; the port needs an `animate`
-   test and a commit. Then the remaining local-rename gap: 40 distinct parameter-header spellings
-   against Terser's 24, and the emitter's own `reserve_enclosing_js_bindings` (2d2268a) is where
-   the 1045 came from.
+1. **The arrow candidate can spell a `this` method as an arrow** (042's finding): shipped
+   jquerylil's `scrollTop(1)` TypeError is exactly that, and the same whole-artifact
+   `function-spelling` flip is source-dependent at level 15 (+99 / +141 on two 16-line source
+   changes; states that lose it are 3.5 KB raw from the incumbent's family). Two compiler items,
+   correctness first: admission refuses an arrow spelling for any function that uses `this`
+   (`arguments`, `new.target` too), then the family is made reachable from every seed. Then ship
+   jquerylil: its tree `dist/` holds the fixed-compiler build (28641, `animate` runs) and its `src/`
+   carries 042's five struct views (−57), both uncommitted on a clean source.
 2. **Landed by 041 and 044**: the local rename narrowed to refuse only unsound scopes, −3864 across
    the fleet; the ternary-arm precedence fix and its admission check. What 041 leaves open is the
    template-literal bail (micromarklil never converges: 16 backticks) and the duplicate-`var`
@@ -120,9 +123,11 @@ bytes).
 3. **The loop runs on one host** (038): the owner's pool of Azure machines must carry fleet builds,
    sweeps and A/Bs (objective.md §9); a fleet A/B on this host is two hours, most of it jquerylil at
    level 15 on two cores. Inventory first — nothing in the repo names the machines.
-4. **A plain-data object type** (013 → 042, opened from a harvest): 013's −540 included DOM reads
-   no honest type can free, so the ceiling is lower; first a no-syntax port experiment re-typing
-   jquerylil's five compiler-owned bags (≤ −80 confirms), then `object<T>` and a callable `object`.
+4. **A plain-data object type** (013 → 042): the no-syntax experiment re-typed jquerylil's five
+   owned bags for −57 (25 of 405 stores): a typed read stops blocking but is still not deferrable
+   (`op_can_defer`), so the gain is read–read adjacency and scales with read count. The language
+   follow-ups (`object<T>`, a callable `object`) would sit under the search's own noise until the
+   spelling family above is deterministic; parked behind it.
 5. **Single-use assignment collapsing** (013 → 043's redirection): Terser's `collapse_vars` and
    `unused` are +280 / +296 on micromark, +56 / +132 on mobx, +136 / +94 on jquery when ablated —
    the largest compiler-side class left with a measured ceiling. Prior art to read before opening:

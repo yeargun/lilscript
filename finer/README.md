@@ -129,9 +129,9 @@ scored and starved, budget stop reason).
 ## Compute
 
 The loop runs across the owner's pool of Azure machines (objective.md §9), driven by
-`finer/tools/workers.mjs`: two scale sets on this host's subnet, `lilscript-workers-v6` (six
-Standard_D16ls_v6, Intel Emerald Rapids, the default once proven) and `lilscript-workers` (six
-Standard_F8s_v2, the fallback). Every fleet build, sweep and A/B is dispatched several ports per
+`finer/tools/workers.mjs`: `lilscript-workers-v7` (six Standard_D16als_v7, AMD Turin, the default:
+2.5x a Cascade Lake core at the same price, 038) and `lilscript-workers` (the owner's six
+Standard_F8s_v2, `--vmss lilscript-workers`, the fallback), both on this host's subnet. Every fleet build, sweep and A/B is dispatched several ports per
 worker and measured here; `node finer/tools/fleet.mjs --workers` is the fleet on the pool. Workers
 provision themselves (`worker-provision.sh`) and deallocate themselves twenty minutes after their
 last build, so a pass costs minutes of pay-as-you-go and a deallocated pool costs its disks; the
