@@ -7,10 +7,10 @@ use crate::js_peephole::rewrite::{
 use crate::js_peephole::scope::{
     collect_same_scope_name_uses, enclosing_block_end, enclosing_block_start,
     enclosing_function_range, enclosing_function_span, name_is_arguments_length_copy,
-    name_is_nonnegative_length_copy, nested_function_end, outermost_function_body_start,
-    parse_function_expression,
+    name_is_nonnegative_length_copy, name_use_is_mutated, nested_function_end,
+    outermost_function_body_start, parse_function_expression,
 };
-use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
+use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
 /// Fold a braced `if`/`else` whose arms contain only expression statements
@@ -3630,4 +3630,284 @@ mod tests {
         assert_eq!(count, 0, "{out}");
         assert_eq!(out, source);
     }
+}
+
+/// `x=E??null;if(null!=x)…`, `var x=E??null;return null!=x?x:F`, and
+/// `if(c&&(x=E??null,null!=x))…`: the emitter normalizes an absent record or
+/// map read to `null` so a `T?` binding holds exactly `null`, and the loose
+/// null test that follows accepts `undefined` just the same. When every
+/// other same-scope use of `x` sits inside the guarded consequent (which runs
+/// only when the value is present, where both spellings agree) or after an
+/// unconditional statement-level reassignment, the normalization is
+/// unobservable and its two tokens go. A use before the assignment (a loop
+/// back edge could carry the old value), inside a nested function, in the
+/// untaken path, a strict test, or anything but a single-declarator
+/// statement keeps it: `null` and `undefined` are distinguishable there.
+/// cnlil's whole-string cache hit is this shape on its hottest path; the
+/// normalization was 8% of a hit (048).
+pub(crate) fn fold_null_normalized_nullable_tests(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let matching_open = matching_openers(&matching_close);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut cursor = 0usize;
+    while cursor + 2 < tokens.len() {
+        if tokens[cursor].text != "??" || tokens[cursor + 1].text != "null" {
+            cursor += 1;
+            continue;
+        }
+        match null_normalization_is_unobservable(&tokens, &matching_close, &matching_open, cursor)
+        {
+            Some(next) => {
+                replacements.push((tokens[cursor].start, tokens[cursor + 1].end, String::new()));
+                cursor = next;
+            }
+            None => cursor += 1,
+        }
+    }
+    Ok(apply_token_rewrites(source, replacements))
+}
+
+/// The three-token loose null test `null!=x` / `x!=null` / `null==x` /
+/// `x==null` starting at `at`: the tested name and whether the test is `!=`.
+fn loose_null_test<'tok>(tokens: &'tok [Token<'tok>], at: usize) -> Option<(&'tok str, bool)> {
+    let (first, operator, third) = (tokens.get(at)?, tokens.get(at + 1)?, tokens.get(at + 2)?);
+    let present = match operator.text {
+        "!=" => true,
+        "==" => false,
+        _ => return None,
+    };
+    if first.text == "null" && third.kind == TokenKind::Identifier {
+        return Some((third.text, present));
+    }
+    if third.text == "null" && first.kind == TokenKind::Identifier {
+        return Some((first.text, present));
+    }
+    None
+}
+
+fn null_normalization_is_unobservable(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    at: usize,
+) -> Option<usize> {
+    let after = at + 2;
+    let terminator = tokens.get(after)?.text;
+    if !matches!(terminator, ";" | ",") {
+        return None;
+    }
+    // The assignment feeding the normalization: `x=E` with `E` a plain operand.
+    let mut depth = 0i32;
+    let mut assign = None;
+    let mut index = at;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                depth -= 1;
+                if depth < 0 {
+                    return None;
+                }
+            }
+            "=" if depth == 0 => {
+                assign = Some(index);
+                break;
+            }
+            ";" | "," | "?" | ":" | "||" | "&&" | "=>" | "return" | "var" | "let" | "const"
+                if depth == 0 =>
+            {
+                return None
+            }
+            _ => {}
+        }
+    }
+    let assign = assign?;
+    if assign < 1 || assign + 1 >= at {
+        return None;
+    }
+    let name_at = assign - 1;
+    let name_token = &tokens[name_at];
+    if name_token.kind != TokenKind::Identifier
+        || name_at
+            .checked_sub(1)
+            .is_some_and(|before| tokens[before].text == ".")
+    {
+        return None;
+    }
+    let name = name_token.text;
+    let before = name_at.checked_sub(1).map(|index| tokens[index].text);
+    let statement_form = terminator == ";";
+    let statement_start = match before {
+        Some("var" | "let" | "const") if statement_form => {
+            // a single-declarator statement only
+            let keyword = name_at - 1;
+            if keyword > 0 && !matches!(tokens[keyword - 1].text, ";" | "{" | "}") {
+                return None;
+            }
+            keyword
+        }
+        Some(";" | "{" | "}") | None if statement_form => name_at,
+        Some("(" | "&&") if !statement_form => name_at,
+        _ => return None,
+    };
+
+    // The guard and its consequent.
+    let (guard_at, present, consequent_start, consequent_end, ternary_false_arm) =
+        if statement_form {
+            let guard = after + 1;
+            match tokens.get(guard)?.text {
+                "if" => {
+                    if tokens.get(guard + 1)?.text != "(" {
+                        return None;
+                    }
+                    let (tested, present) = loose_null_test(tokens, guard + 2)?;
+                    if tested != name || tokens.get(guard + 5)?.text != ")" {
+                        return None;
+                    }
+                    let start = guard + 6;
+                    let end = if tokens.get(start)?.text == "{" {
+                        matching_close.get(start).copied().flatten()?
+                    } else {
+                        next_statement_end(tokens, start)
+                    };
+                    if tokens.get(end + 1).is_some_and(|token| token.text == "else") {
+                        return None;
+                    }
+                    if !present {
+                        // `if(x==null)…`: the consequent is the absent path, where
+                        // the spellings differ; it must leave the function before
+                        // any later use can see the value.
+                        if !matches!(tokens[start].text, "return" | "throw" | "continue" | "break")
+                            || tokens[start].text == "{"
+                        {
+                            return None;
+                        }
+                    }
+                    (guard + 2, present, start, end, None)
+                }
+                "return" => {
+                    let (tested, present) = loose_null_test(tokens, guard + 1)?;
+                    if tested != name || tokens.get(guard + 4)?.text != "?" {
+                        return None;
+                    }
+                    let colon = top_level_stop(tokens, guard + 5, &[":"])?;
+                    let end = next_statement_end(tokens, guard + 5);
+                    if end <= colon {
+                        return None;
+                    }
+                    // the arm taken when the value is present must be the name
+                    // itself; the other arm must not mention it
+                    let (present_from, present_to, other_from, other_to) = if present {
+                        (guard + 5, colon, colon + 1, end)
+                    } else {
+                        (colon + 1, end, guard + 5, colon)
+                    };
+                    if present_to != present_from + 1
+                        || tokens[present_from].text != name
+                        || identifier_occurs(tokens, other_from, other_to, name)
+                    {
+                        return None;
+                    }
+                    (guard + 1, true, guard + 5, end, Some((other_from, other_to)))
+                }
+                _ => return None,
+            }
+        } else {
+            // `if(…&&(x=E??null,null!=x))…`
+            let (tested, present) = loose_null_test(tokens, after + 1)?;
+            if tested != name || !present {
+                return None;
+            }
+            let close = after + 4;
+            if tokens.get(close)?.text != ")" {
+                return None;
+            }
+            let mut header = matching_open.get(close).copied().flatten()?;
+            // the group may be nested in the condition: `if(a&&(x=E??null,null!=x))`
+            loop {
+                let before = header.checked_sub(1)?;
+                match tokens[before].text {
+                    "if" => break,
+                    "&&" | "(" => header = enclosing_block_start(matching_close, header)?,
+                    _ => return None,
+                }
+                if tokens[header].text != "(" {
+                    return None;
+                }
+            }
+            let start = matching_close.get(header).copied().flatten()? + 1;
+            let end = if tokens.get(start)?.text == "{" {
+                matching_close.get(start).copied().flatten()?
+            } else {
+                next_statement_end(tokens, start)
+            };
+            if tokens.get(end + 1).is_some_and(|token| token.text == "else") {
+                return None;
+            }
+            (after + 1, true, start, end, None)
+        };
+    let _ = ternary_false_arm;
+
+    // Every other same-scope use of the name.
+    let (scope_start, scope_end) = enclosing_function_span(tokens, matching_close, name_at)
+        .map(|(open, close)| (open + 1, close))
+        .unwrap_or((0, tokens.len()));
+    let (uses, nested_use) = collect_same_scope_name_uses(
+        tokens,
+        matching_close,
+        name,
+        scope_start,
+        scope_end,
+        name_at,
+    );
+    if nested_use {
+        return None;
+    }
+    let mut killed = false;
+    for use_at in uses {
+        if killed {
+            break;
+        }
+        // a bare declaration (`var x;`) neither reads nor writes the value
+        if use_at
+            .checked_sub(1)
+            .is_some_and(|before| matches!(tokens[before].text, "var" | "let" | "const"))
+            && tokens.get(use_at + 1).map(|token| token.text) != Some("=")
+        {
+            continue;
+        }
+        if use_at < statement_start || (use_at > name_at && use_at < guard_at) {
+            return None;
+        }
+        if (guard_at..guard_at + 3).contains(&use_at) {
+            continue;
+        }
+        if use_at >= consequent_start && use_at <= consequent_end {
+            if present {
+                continue;
+            }
+            return None;
+        }
+        if use_at > consequent_end {
+            // a statement-level reassignment starts a new value
+            if name_use_is_mutated(tokens, use_at)
+                && tokens.get(use_at + 1).map(|token| token.text) == Some("=")
+                && is_statement_boundary(tokens, use_at)
+            {
+                killed = true;
+                continue;
+            }
+            if !present {
+                // after `if(x==null)return…` the value is present in both spellings
+                continue;
+            }
+            return None;
+        }
+        return None;
+    }
+    Some(after)
 }

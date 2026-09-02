@@ -25,7 +25,8 @@ mod folds;
 pub(crate) use folds::{
     fold_constant_json_parse, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots,
     fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns,
-    fold_nested_unguarded_ifs, fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
+    fold_nested_unguarded_ifs, fold_null_normalized_nullable_tests,
+    fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
     inline_single_use_functions,
 };
 mod binding;
@@ -2586,6 +2587,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_void_prefix_updates)?;
     session.run(fold_negated_equalities)?;
     session.run(fold_redundant_null_undefined_or)?;
+    session.run(fold_null_normalized_nullable_tests)?;
     session.run(reorder_uninitialized_var_declarators)?;
     session.run_if(elide_functions, fold_single_use_function_values)?;
     session.repeat(fold_forwarding_call_wrappers, 4)?;
@@ -2687,6 +2689,7 @@ pub(crate) enum LateJavaScriptCleanupPass {
     SingleStatementControlBraces,
     NegatedEqualities,
     RedundantNullUndefinedOr,
+    NullNormalizedNullableTests,
     IdentTernaryToOr,
     OrAssignmentParens,
     NotGtZeroLength,
@@ -2701,7 +2704,7 @@ pub(crate) enum LateJavaScriptCleanupPass {
 }
 
 impl LateJavaScriptCleanupPass {
-    pub(crate) const ALL: [Self; 21] = [
+    pub(crate) const ALL: [Self; 22] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::NegatedConditionalArms,
@@ -2713,6 +2716,7 @@ impl LateJavaScriptCleanupPass {
         Self::SingleStatementControlBraces,
         Self::NegatedEqualities,
         Self::RedundantNullUndefinedOr,
+        Self::NullNormalizedNullableTests,
         Self::IdentTernaryToOr,
         Self::OrAssignmentParens,
         Self::NotGtZeroLength,
@@ -2855,6 +2859,9 @@ fn late_generated_javascript_cleanup_pass_into(
         LateJavaScriptCleanupPass::NegatedEqualities => session.run(fold_negated_equalities)?,
         LateJavaScriptCleanupPass::RedundantNullUndefinedOr => {
             session.run(fold_redundant_null_undefined_or)?
+        }
+        LateJavaScriptCleanupPass::NullNormalizedNullableTests => {
+            session.run(fold_null_normalized_nullable_tests)?
         }
         LateJavaScriptCleanupPass::IdentTernaryToOr => session.run(fold_ident_ternary_to_or)?,
         LateJavaScriptCleanupPass::OrAssignmentParens => session.run(fold_or_assignment_parens)?,
