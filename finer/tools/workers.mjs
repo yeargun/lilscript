@@ -135,7 +135,8 @@ function status() {
 }
 
 function up() {
-  const want = argv[1] && argv[1] !== "all" ? Number(argv[1]) : null
+  const positional = argv[1] && !argv[1].startsWith("--") ? argv[1] : null
+  const want = positional && positional !== "all" ? Number(positional) : null
   const instances = discover()
   const stopped = selected(instances).filter((i) => i.power !== "running")
   const targets = want == null ? stopped : stopped.slice(0, Math.max(0, want - running(instances).length))
@@ -150,7 +151,7 @@ function up() {
 }
 
 function down() {
-  const which = argv[1]
+  const which = argv[1] && !argv[1].startsWith("--") ? argv[1] : null
   const instances = discover()
   const targets = which && which !== "all" ? instances.filter((i) => String(i.id) === which) : running(instances)
   if (!targets.length) { log("nothing running"); return }
@@ -210,9 +211,17 @@ function sync(workers = running(discover()), ports = null) {
   const only = (flag("ports", "") || "").split(",").filter(Boolean)
   ports = ports ?? (only.length ? only : portDirs())
   log(`syncing ${ports.length} ports + compiler to ${workers.length} worker(s)`)
-  const results = workers.map((w) => ({ w, r: syncWorker(w, ports) }))
-  for (const { w, r } of results) log(`${w.ip} sync: ${r.ok ? `ok ${r.seconds.toFixed(0)}s` : "FAILED " + r.err.slice(-300)}`)
-  return results.filter(({ r }) => r.ok).map(({ w }) => w)
+  // One rsync process per worker, all at once: the sync is network-bound per
+  // worker, and six sequential syncs of 26 ports were the slowest part of a pass.
+  const results = workers.map((w) => {
+    const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "sync-one", w.ip, ...ports, "--compiler", COMPILER, "--user", USER], { stdio: ["ignore", "pipe", "pipe"] })
+    let out = ""; child.stdout.on("data", (d) => { out += d }); child.stderr.on("data", (d) => { out += d })
+    return { w, child, done: new Promise((resolve) => child.on("exit", (code) => resolve({ ok: code === 0, out }))) }
+  })
+  return Promise.all(results.map(({ done }) => done)).then((rs) => {
+    rs.forEach((r, i) => log(`${results[i].w.ip} sync: ${r.ok ? r.out.trim().split("\n").pop() : "FAILED " + r.out.slice(-300)}`))
+    return results.filter((_, i) => rs[i].ok).map(({ w }) => w)
+  })
 }
 
 /** Build one port on one worker and bring its dist/ back. */
@@ -269,7 +278,16 @@ async function main() {
     case "down": down(); break
     case "provision": provision(); break
     case "grant": grant(); break
-    case "sync": sync(); break
+    case "sync": await sync(); break
+    case "sync-one": {
+      // Internal: one worker, the ports listed after its ip (used by `sync` for parallelism).
+      const ip = argv[1]
+      const ports = argv.slice(2).filter((a) => !a.startsWith("--") && a !== COMPILER && a !== USER)
+      const r = syncWorker({ ip }, ports)
+      if (!r.ok) { console.error(r.err); process.exit(1) }
+      console.log(`ok ${r.seconds.toFixed(0)}s`)
+      break
+    }
     case "run": {
       const script = argv[1]; if (!script) fail("run needs a shell command")
       for (const w of running(discover())) { const r = ssh(w.ip, script, { timeoutS: 600 }); console.log(`--- ${w.id} ${w.ip}\n${r.out}${r.err ? "\n" + r.err : ""}`) }
@@ -280,7 +298,7 @@ async function main() {
       if (!ports.length) fail("build needs --ports a,b")
       let workers = running(discover())
       if (!workers.length) fail("no running worker; `workers.mjs up` first")
-      if (!has("no-sync")) workers = sync(workers)
+      if (!has("no-sync")) workers = await sync(workers, ports)
       const results = await build(workers, ports)
       const bad = Object.entries(results).filter(([, r]) => !r.ok)
       log(`${Object.keys(results).length - bad.length} ok, ${bad.length} failed`)
@@ -291,7 +309,7 @@ async function main() {
       let workers = up()
       if (!workers.length) fail("no worker reachable")
       provision(workers)
-      workers = sync(workers, portDirs())
+      workers = await sync(workers, portDirs())
       const ports = (flag("ports", "") || "").split(",").filter(Boolean)
       const results = await build(workers, ports.length ? ports : portDirs())
       const bad = Object.entries(results).filter(([, r]) => !r.ok)
