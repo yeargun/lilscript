@@ -12901,7 +12901,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .string_index_in_bounds(*object, *index)
                     .or_else(|| self.global_string_index_in_bounds(*object, *index, context));
                 let indexed = self.render_index_access(*object, *index, context, cache)?;
-                Ok(if in_bounds == Some(true) {
+                let unobservable = instruction
+                    .out
+                    .is_some_and(|out| context.guard_free_string_reads.contains(&out));
+                Ok(if in_bounds == Some(true) || unobservable {
                     indexed
                 } else {
                     JsExpression::binary(IrBinaryOp::Or, indexed, JsExpression::atom("\"\""))
@@ -17950,6 +17953,8 @@ struct LocalNames {
     /// or the narrowing after one, so the `??null` normalization would be
     /// unobservable and the test can be the strict `===void 0`.
     undefined_absent_reads: AHashSet<ValueId>,
+    /// String index reads whose `|| ""` hole guard no observer can tell from the bare read.
+    guard_free_string_reads: AHashSet<ValueId>,
     safe_int_array_reads: AHashSet<ValueId>,
     in_range_string_indexes: AHashSet<(ValueId, ValueId)>,
     safe_in_place_updates: AHashSet<(ValueId, ValueId)>,
@@ -19391,6 +19396,7 @@ impl LocalNames {
             })
             .collect();
         let undefined_absent_reads = undefined_absent_record_reads(function, &record_values, &null_values);
+        let guard_free_string_reads = guard_free_string_index_reads(function);
         let mut truthy_nullable_values = function
             .params
             .iter()
@@ -19776,6 +19782,7 @@ impl LocalNames {
             js_undefined_values,
             truthy_nullable_values,
             undefined_absent_reads,
+            guard_free_string_reads,
             safe_int_array_reads,
             in_range_string_indexes,
             safe_in_place_updates,
@@ -23534,6 +23541,147 @@ fn value_is_used_outside_expression_region(
 /// treats the value as present, where the normalization used to hand `null`.
 /// It also costs nothing measurable — those sites were a net loss on the one
 /// port that had them (motionlil, +24 Brotli in the fleet A/B).
+/// String index reads (`values[i]` on a `string[]`, `text[i]` on a `string`) whose `|| ""`
+/// hole guard cannot be observed, so the read is emitted bare.
+///
+/// The guard exists because an out-of-range or absent element reads as `undefined` where the
+/// language promises a `string`; it maps that `undefined` to `""`. When the read's every use is
+/// a strict equality (`==` on strings, or `JS.strictEqual`) against a value that is *truthy
+/// wherever the comparison runs*, the mapping
+/// is invisible: a truthy value is never `""`, so it fails against both `undefined` and the
+/// `""` the guard would substitute, and it matches a real element identically either way.
+///
+/// Truthiness comes from the dominating branch — `if (v.truthy()) { … v === a[i] … }`, or the
+/// bare `if (v)` the optimizer leaves when a branch is the truthiness test's only consumer. Any other
+/// use — a store, a call, a return, a phi, a concatenation, a comparison with something not
+/// known truthy — keeps the guard, because there `undefined` and `""` differ.
+///
+/// The cost this removes is a branch per comparison inside a loop: on cnlil's argument-cache
+/// walk it is the difference between 1.09 and 1.04 of upstream on the `dup-loop` lane (049).
+fn guard_free_string_index_reads(function: &ControlFlowFunction<'_>) -> AHashSet<ValueId> {
+    // A branch on `JsTruthy(v)` proves `v` truthy throughout the blocks its taken edge dominates.
+    let mut truthy_receiver = AHashMap::<ValueId, ValueId>::default();
+    for block in &function.blocks {
+        for instruction in &block.instructions {
+            if let (
+                Some(out),
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsTruthy,
+                    receiver: Some(receiver),
+                    args,
+                },
+            ) = (instruction.out, &instruction.op)
+            {
+                if args.is_empty() {
+                    truthy_receiver.insert(out, *receiver);
+                }
+            }
+        }
+    }
+    let mut truthy_edges = Vec::<(BlockId, ValueId)>::new();
+    for block in &function.blocks {
+        if let Some(Terminator::Branch {
+            condition,
+            then_block,
+            ..
+        }) = block.terminator.as_ref()
+        {
+            // A branch proves its own condition truthy on the taken edge: `if (v)` and the
+            // explicit `if (v.truthy())` are the same test, and the optimizer drops the
+            // intrinsic when a branch is its only consumer.
+            truthy_edges.push((*then_block, *condition));
+            if let Some(value) = truthy_receiver.get(condition) {
+                truthy_edges.push((*then_block, *value));
+            }
+        }
+    }
+    if truthy_edges.is_empty() {
+        return AHashSet::default();
+    }
+    let mut candidates = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (&instruction.op, instruction.out, &instruction.ty) {
+            (ControlFlowOp::IndexGet { .. }, Some(out), Some(Type::String)) => Some(out),
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    if candidates.is_empty() {
+        return candidates;
+    }
+    // Every use, with the block it runs in: only a strict equality against a truthy operand keeps
+    // a candidate alive, and a use in a terminator or a phi always kills it.
+    let mut uses = AHashMap::<ValueId, Vec<(BlockId, Option<ValueId>)>>::default();
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (_, value) in &phi.incoming {
+                candidates.remove(value);
+            }
+        }
+        for instruction in &block.instructions {
+            // `a == b` in the IR, and `JS.strictEqual(a, b)` which carries its operands as an
+            // intrinsic receiver and argument rather than a binary op.
+            let paired = match &instruction.op {
+                ControlFlowOp::Binary {
+                    op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+                    lhs,
+                    rhs,
+                } => Some((*lhs, *rhs)),
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsStrictEqual | Intrinsic::JsStrictNotEqual,
+                    receiver: Some(receiver),
+                    args,
+                } if args.len() == 1 => Some((*receiver, args[0])),
+                _ => None,
+            };
+            for value in op_values(&instruction.op) {
+                if !candidates.contains(&value) {
+                    continue;
+                }
+                let other = paired.and_then(|(lhs, rhs)| {
+                    if lhs == value && rhs != value {
+                        Some(rhs)
+                    } else if rhs == value && lhs != value {
+                        Some(lhs)
+                    } else {
+                        None
+                    }
+                });
+                uses.entry(value).or_default().push((block.id, other));
+            }
+        }
+        match block.terminator.as_ref() {
+            Some(Terminator::Branch { condition, .. }) => {
+                candidates.remove(condition);
+            }
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => {
+                candidates.remove(value);
+            }
+            _ => {}
+        }
+    }
+    let mut dominance = AHashMap::<(BlockId, BlockId), bool>::default();
+    let mut proves_truthy = |value: ValueId, at: BlockId, function: &ControlFlowFunction<'_>| {
+        truthy_edges.iter().any(|(edge, proven)| {
+            *proven == value
+                && *dominance
+                    .entry((*edge, at))
+                    .or_insert_with(|| block_dominates(function, *edge, at))
+        })
+    };
+    candidates.retain(|candidate| {
+        let Some(sites) = uses.get(candidate) else {
+            // never read: the guard is dead either way, and dropping it is smaller
+            return true;
+        };
+        sites.iter().all(|(at, other)| {
+            other.is_some_and(|other| proves_truthy(other, *at, function))
+        })
+    });
+    candidates
+}
+
 fn undefined_absent_record_reads(
     function: &ControlFlowFunction<'_>,
     record_values: &AHashSet<ValueId>,

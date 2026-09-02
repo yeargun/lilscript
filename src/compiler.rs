@@ -20324,6 +20324,43 @@ mod function_scope_tests {
     }
 
     #[test]
+    fn a_string_element_read_compared_against_a_truthy_value_drops_its_hole_guard() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "export int matched(JsValue args, string[] expected){int slot = 0;int index = 0;int length = args.length.toInt();while (index < length) {JsValue value = args[index];if (value.truthy()) {if (!JS.strictEqual(value, expected[slot])) return index;slot = slot + 1;}index = index + 1;}return -1;}",
+        )
+        .unwrap();
+        let mut config = ProjectConfig::default();
+        config.mangle.exports = Some(false);
+        let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(!javascript.contains("||\"\""), "{javascript}");
+        // the guard is unobservable, not absent from the semantics: a short `expected` still
+        // reports a mismatch, exactly as the guarded spelling did
+        let probe = "process.stdout.write([matched(['a','b'],['a','b']),matched(['a','b'],['a','z']),matched(['a','b'],['a']),matched([0,'b'],['b'])].join(':'))";
+        assert_eq!(run_module(&javascript, probe), "-1:1:1:-1");
+    }
+
+    #[test]
+    fn a_string_element_read_keeps_its_guard_where_the_difference_shows() {
+        let arena = Bump::new();
+        for source in [
+            // compared against a value that is not known truthy
+            "export bool same(string[] expected, string probe){return JS.strictEqual(probe, expected[3]);}",
+            // concatenated, not compared
+            "export string tail(string[] expected){return \"x\" + expected[3];}",
+            // returned
+            "export string at(string[] expected){return expected[3];}",
+        ] {
+            let program = parse_source(&arena, source).unwrap();
+            let mut config = ProjectConfig::default();
+            config.mangle.exports = Some(false);
+            let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
+            assert!(javascript.contains("||\"\""), "{source}\n{javascript}");
+        }
+    }
+
+    #[test]
     fn truthy_nullable_checks_follow_the_priority_unless_configured() {
         let mut config = ProjectConfig::default();
         assert!(config.js_options().truthy_nullable_checks);
