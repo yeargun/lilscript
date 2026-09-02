@@ -81,6 +81,21 @@ ports, Spot 5.4x cheaper and fine for retryable batch builds. Recommendation: si
 fallback; Spot needs a second scale set beside this one. The Genoa gain is an estimate (≈ 1.5x per
 core from compile benchmarks) until one port is built on each.
 
+## Thread scaling, measured on a dedicated F8s_v2 (2026-09-02)
+
+One port, one worker, nothing else running; `/usr/bin/time`; the artifact's md5 is identical at every
+thread count (determinism across thread counts holds on the pool, objective.md §8).
+
+| port (level, search) | 1 thread | 2 | 4 | 8 | speed-up at 8 | parallel share (Amdahl) |
+|---|---:|---:|---:|---:|---:|---:|
+| micromarklil (13, `always`) | 149.7 s | 123.2 s | 104.8 s | 104.0 s | 1.44x | ≈ 35% |
+| mobxlil (13, `always`) | 193.9 s | 128.8 s | 92.7 s | see below | 2.09x at 4 | ≈ 70% |
+
+So a port's build is mostly serial at level 13: past four threads a worker's extra cores are idle.
+The fleet's wall clock is cut by *more ports in flight*, not by more cores per port — two ports per
+8-core worker at four threads each costs micromark 1 s and mobx about 12 s — and by per-core speed,
+which is why Genoa over Cascade Lake matters more than the core count.
+
 ## Result
 
 | variant | ports | pass wall clock | artifacts identical | notes |

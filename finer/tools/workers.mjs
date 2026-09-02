@@ -20,7 +20,10 @@
 // --user, --timeout <s> per port build (default 5400), --no-sync, --measure,
 // --dist-dir <dir> (bring each port's dist/ back under <dir>/<port>/ instead of
 // into the port itself: an A/B snapshot that leaves the working tree alone),
-// --instances 3,4,5 (use only those instance ids; up/down/sync/build/run honour it).
+// --instances 3,4,5 (use only those instance ids; up/down/sync/build/run honour it),
+// --per-worker N (N ports at once on each worker, each with nproc/N threads; a
+// port's build is mostly serial past four threads — 038 measured 1.44x at 8 on
+// micromark — so 2 is the default on 8-core workers).
 // `build` syncs only the ports it builds (plus the compiler); `sync` and `fleet`
 // sync every sibling port, which the source-graph ports need.
 //
@@ -51,6 +54,7 @@ const REMOTE = "lil" // ~/lil/<checkout> on the worker mirrors /home/azureuser/<
 const COMPILER = resolve(flag("compiler", join(repo, "target", "release", "lilscript")))
 const CODEC = join(repo, "target", "release", "lilscript-codec")
 const BUILD_TIMEOUT_S = Number(flag("timeout", 5400))
+const PER_WORKER = Math.max(1, Number(flag("per-worker", 2)))
 const SSH_OPTS = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=30"]
 
 const log = (line) => { const stamp = new Date().toISOString().slice(11, 19); process.stderr.write(`[workers ${stamp}] ${line}\n`) }
@@ -210,7 +214,7 @@ function sync(workers = running(discover()), ports = null) {
 async function buildOn(w, port) {
   const logFile = join(outDir, `${port}.log`)
   writeFileSync(logFile, `# ${port} on ${w.ip} (${VMSS}/${w.id}) ${new Date().toISOString()}\n`)
-  const script = `cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(nproc) LILSCRIPT_TIMING=1 && node scripts/build.mjs --compile`
+  const script = `cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${PER_WORKER} > 0 ? $(nproc) / ${PER_WORKER} : 1 )) LILSCRIPT_TIMING=1 && node scripts/build.mjs --compile`
   const started = Date.now()
   const r = await sshAsync(w.ip, script, { timeoutS: BUILD_TIMEOUT_S, logFile })
   const seconds = (Date.now() - started) / 1000
@@ -241,7 +245,8 @@ async function build(workers, ports) {
       results[port] = { worker: w.id, ...r }
     }
   }
-  await Promise.all(workers.map(worker))
+  // PER_WORKER lanes per worker: each lane pulls the next port off the shared queue.
+  await Promise.all(workers.flatMap((w) => Array.from({ length: PER_WORKER }, () => worker(w))))
   writeFileSync(join(outDir, "last-build.json"), JSON.stringify({ at: new Date().toISOString(), results }, null, 2))
   return results
 }
