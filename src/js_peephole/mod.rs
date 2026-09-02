@@ -2675,6 +2675,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_typeof_identifier_caches)?;
     session.run(fold_coalesced_or_returns)?;
     session.run(flatten_associative_string_concats)?;
+    session.run(fold_constant_string_concatenations)?;
     session.run(fold_known_string_coercions)?;
     session.run(fold_for_false_breaks)?;
     session.run(fold_nullish_index_walks)?;

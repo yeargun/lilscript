@@ -16,7 +16,7 @@ use super::{
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
-    fold_for_trailing_increments, fold_self_receiver_calls,
+    fold_for_trailing_increments, fold_self_receiver_calls, fold_constant_string_concatenations,
     fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
@@ -3858,3 +3858,20 @@ fn function_scope_wrapper_refuses_what_it_cannot_prove() {
     let source = "var a;a=2;function f(){return a}export{a,f}";
     assert!(wrap_module_internals_in_function_scope(source).unwrap().is_ok());
 }
+
+#[test]
+fn adjacent_constant_operands_of_a_concatenation_merge() {
+    let source = "var a=5,r=[\"x\"+\"y\",\" \"+80+\"h400v\",a+\"p\"+\"q\",\"n\"+2+a,a-\"1\"+\"2\",\"m\"+\"n\".length,\"s\"+2*3,typeof \"t\"+\"u\",+\"3\"+\"4\"];console.log(JSON.stringify(r))";
+    let (folded, _) = fold_constant_string_concatenations(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("\"xy\""), "{folded}");
+    assert!(folded.contains("\" 80h400v\""), "{folded}");
+    assert!(folded.contains("a+\"pq\""), "{folded}");
+    assert!(folded.contains("\"n2\"+a"), "{folded}");
+    assert!(folded.contains("a-\"1\"+\"2\""), "{folded}");
+    assert!(folded.contains("\"m\"+\"n\".length"), "{folded}");
+    assert!(folded.contains("\"s\"+2*3"), "{folded}");
+    assert!(folded.contains("typeof \"t\"+\"u\""), "{folded}");
+    assert!(folded.contains("+\"3\"+\"4\""), "{folded}");
+}
+
