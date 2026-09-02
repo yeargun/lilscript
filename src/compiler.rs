@@ -5081,6 +5081,7 @@ impl JavaScriptArtifactAdmission {
     fn validate_selected(&self, source: &str) -> Result<(), CompileError> {
         let outcome = validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)
+            .and_then(|()| validate_generated_javascript_with_standard_parser(source))
             .and_then(|()| {
                 validate_observed_javascript_artifact_allowing(
                     source,
@@ -5105,6 +5106,60 @@ impl JavaScriptArtifactAdmission {
             &self.abi_manifest,
             self.lowering_obligations,
         )
+    }
+}
+
+/// Standards-complete syntax admission for terminal JavaScript artifacts.
+///
+/// The compiler's token validator intentionally stays on the candidate-beam
+/// hot path. This parser is used only after exact scoring has reduced that beam
+/// to terminal leaves, and after a late rewrite proposes replacement bytes.
+/// It therefore catches grammar interactions the lightweight validator cannot
+/// prove while keeping proposal throughput and emitted bytes unchanged.
+fn validate_generated_javascript_with_standard_parser(
+    source: &str,
+) -> Result<(), CompileError> {
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, source, oxc_span::SourceType::mjs())
+        .with_options(oxc_parser::ParseOptions {
+            parse_regular_expression: true,
+            ..oxc_parser::ParseOptions::default()
+        })
+        .parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        let detail = parsed
+            .diagnostics
+            .first()
+            .map_or_else(|| "parser could not recover".to_string(), ToString::to_string);
+        return Err(crate::codegen_js::CodegenError::new(
+            Span::empty(0),
+            format!("generated JavaScript failed standards parser admission: {detail}"),
+        )
+        .into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod terminal_javascript_parser_tests {
+    use super::validate_generated_javascript_with_standard_parser;
+
+    #[test]
+    fn standards_parser_rejects_malformed_conditional_sequence() {
+        let malformed = "let a=true,b=1,c=2;a?b=3,c=4:b=5,c=6?:c=7";
+        assert!(validate_generated_javascript_with_standard_parser(malformed).is_err());
+    }
+
+    #[test]
+    fn standards_parser_accepts_script_and_module_artifacts() {
+        assert!(validate_generated_javascript_with_standard_parser(
+            "const value=true?1:2;export{value}"
+        )
+        .is_ok());
+        assert!(validate_generated_javascript_with_standard_parser(
+            "module.exports=function(){return /x+/g.test('xx')}"
+        )
+        .is_ok());
     }
 }
 
@@ -6332,6 +6387,14 @@ fn finalize_javascript_candidates_with_parallelism(
     sort_scored_javascript_candidates(&mut scored);
     let mut seen_code = crate::stable_hash::StableHashSet::default();
     scored.retain(|candidate| seen_code.insert(candidate.code.clone()));
+    // Exact codec scoring is deliberately cheaper than a complete parse for
+    // every proposal. Once one scored leaf remains per plan, reject any leaf
+    // that is not valid ECMAScript before late cleanup or terminal naming can
+    // grant it selection authority. Late transforms are independently checked
+    // by `validate_selected` and fall back to these known-valid bytes.
+    scored.retain(|candidate| {
+        validate_generated_javascript_with_standard_parser(&candidate.code).is_ok()
+    });
     let candidates_evaluated = scored.len();
     // A representation that is slightly worse before syntax recovery can win
     // after branch/conditional cleanup (single-use function inlining is a
