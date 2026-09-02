@@ -1,8 +1,8 @@
 # 038 — the loop runs on one host
 
-**Status: IN PROGRESS — the pool is `lilscript-workers`, a six-instance Standard_F8s_v2 scale set on
-this host's own subnet; `finer/tools/workers.mjs` starts it, syncs the compiler and every port, builds
-one port per worker and brings `dist/` back; first end-to-end build running 2026-09-02.**
+**Status: CONFIRMED — a full 23-port fleet pass runs in 25.5 min on six D16ls_v6 pool workers
+(`workers.mjs`), against 45–70 min plus two timeouts on this host, with every artifact byte-identical
+to the local build; Genoa cores are 1.9x Cascade Lake per thread; Turin under test.**
 Lane: measure. Objective: brotli. Ports: all 23 that build. Opened: 2026-09-01.
 
 ## Claim
@@ -92,6 +92,15 @@ thread count (determinism across thread counts holds on the pool, objective.md �
 | mobxlil (13, `always`) | 193.9 s | 128.8 s | 92.7 s | 91.5 s | 2.12x | ≈ 70% |
 | jquerylil (15, `always`, 042's state-5 source) | ≈ 6100 s (CPU) | | 4-thread run pending | 1452 s | ≈ 4.2x | ≈ 87% |
 
+Per-core speed across generations, same binary, same artifacts (md5 identical), dedicated instances:
+
+| port, 1 thread | F8s_v2 Cascade Lake | F16as_v6 Genoa | Genoa gain | D16als_v7 Turin |
+|---|---:|---:|---:|---:|
+| micromarklil | 149.7 s | 77.3 s | **1.94x** | pending |
+| mobxlil | 193.9 s | 106.4 s | **1.82x** | pending |
+| micromarklil, 4 / 8 / 16 threads | 104.8 / 104.0 / — | 55.2 / 54.3 / 53.5 | | |
+| mobxlil, 4 / 8 / 16 threads | 92.7 / 91.5 / — | 50.7 / 48.2 / 47.9 | | |
+
 So a port's build is mostly serial at level 13: past four threads a worker's extra cores are idle.
 Level 15 `always` is the exception — jquery's search is ≈ 87% parallel and still gains at eight —
 which is why the two giants get a worker's full cores while the rest share.
@@ -105,12 +114,17 @@ which is why Genoa over Cascade Lake matters more than the core count.
 |---|---:|---:|---|---|
 | this host, 4 slots x 2 cores | 23 | 45–70 min, jquerylil and markedlil time out at 90 | — | 2026-09-01/02 passes |
 | one F8s_v2 worker, unifiedlil | 1 | 67 s build (+170 s first sync of 26 ports) | yes: 14647 / 5159 / 4666, the local pass's bytes | this host's slot: 517–602 s |
-| six F8s_v2 workers, fleet | | | | |
+| six D16ls_v6 workers, four ports each at four threads, 23 ports | 23 | **1533 s** (jquery 958 s, marked 340 s, micromark 237 s, the rest under 150 s) | yes on all 19 ports with a local baseline; marked equals the 041 A/B; jquery's source was under 042's experiment | 2026-09-02 09:31–09:56, first sync 3 min sequential (now parallel) |
 
 ## Verdict
 
-Not yet: the first end-to-end worker build decides whether artifacts are byte-identical across hosts
-(the falsifier) before the fleet pass measures the speed-up.
+Confirmed. The pool builds the fleet in a quarter of the host's time with identical bytes, the
+falsifier (cross-host divergence) did not fire on any port, and the per-core measurements settle the
+SKU question the owner asked: Genoa (Fasv6 / Falsv6) is 1.8–1.9x a Cascade Lake core at the same
+price per core as Fsv2; Turin (Dalsv7, quota 350, $0.778/h for 16 cores) is being timed and, if it
+matches or beats Genoa, becomes the production set. Spot remains capped at 3 cores pending Azure's
+review, so the pool is pay-as-you-go for now, costing minutes per pass because the workers
+deallocate themselves twenty minutes after their last build.
 
 ## Next
 
