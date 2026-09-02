@@ -670,6 +670,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         name: field.name,
                         ty: field.ty.clone(),
                         index: field.index,
+                        span: field.span,
                     })
                     .collect(),
                 object: false,
@@ -695,6 +696,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         name: field.name,
                         ty: field.ty.clone(),
                         index: field.index,
+                        span: field.span,
                     })
                     .collect(),
                 object: info.object,

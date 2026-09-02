@@ -100,6 +100,56 @@ pub struct GeneratedJavaScriptMethodWitness {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedJavaScriptPropertyOccurrence {
+    pub name: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeneratedJavaScriptBindingKind {
+    Bound,
+    Free,
+    Unresolved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedJavaScriptBindingOccurrence {
+    pub name: String,
+    pub start: usize,
+    pub end: usize,
+    pub kind: GeneratedJavaScriptBindingKind,
+    pub declaration_start: Option<usize>,
+    pub declaration_end: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum GeneratedJavaScriptTokenKind {
+    Identifier,
+    Number,
+    String,
+    Template,
+    Keyword,
+    Punctuation,
+    Regex,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedJavaScriptTokenOccurrence {
+    pub kind: GeneratedJavaScriptTokenKind,
+    pub text: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedJavaScriptSourceMapAnalysis {
+    pub tokens: Vec<GeneratedJavaScriptTokenOccurrence>,
+    pub bindings: Vec<GeneratedJavaScriptBindingOccurrence>,
+    pub properties: Vec<GeneratedJavaScriptPropertyOccurrence>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JavaScriptParseError {
     offset: usize,
     message: &'static str,
@@ -890,17 +940,43 @@ pub fn generated_javascript_bit_or_zero_count(source: &str) -> Result<usize, Jav
 pub fn generated_javascript_static_property_names(
     source: &str,
 ) -> Result<Vec<String>, JavaScriptParseError> {
+    let mut names = generated_javascript_static_property_occurrences(source)?
+        .into_iter()
+        .map(|property| property.name)
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+pub fn generated_javascript_static_property_occurrences(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptPropertyOccurrence>, JavaScriptParseError> {
     analyze_generated_javascript(source)?;
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let class_names = class_element_name_occurrences(&tokens, &matching_close);
-    let mut names = std::collections::BTreeSet::new();
+    Ok(generated_static_property_occurrences_from_tokens(
+        &tokens,
+        &class_names,
+    ))
+}
+
+fn generated_static_property_occurrences_from_tokens(
+    tokens: &[Token<'_>],
+    class_names: &[bool],
+) -> Vec<GeneratedJavaScriptPropertyOccurrence> {
+    let mut properties = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
         if matches!(token.kind, TokenKind::Identifier | TokenKind::Keyword)
-            && (is_property_identifier(&tokens, index)
+            && (is_property_identifier(tokens, index)
                 || class_names.get(index).copied().unwrap_or(false))
         {
-            names.insert(token.text.to_string());
+            properties.push(GeneratedJavaScriptPropertyOccurrence {
+                name: token.text.to_string(),
+                start: token.start,
+                end: token.end,
+            });
             continue;
         }
         if token.kind != TokenKind::String {
@@ -914,11 +990,100 @@ pub fn generated_javascript_static_property_names(
                 && previous.is_some_and(|token| matches!(token.text, "{" | ","));
         if static_property {
             if let Some(name) = unescape_js_string(token.text) {
-                names.insert(name);
+                properties.push(GeneratedJavaScriptPropertyOccurrence {
+                    name,
+                    start: token.start,
+                    end: token.end,
+                });
             }
         }
     }
-    Ok(names.into_iter().collect())
+    properties
+}
+
+pub fn generated_javascript_binding_occurrences(
+    source: &str,
+) -> Result<Vec<GeneratedJavaScriptBindingOccurrence>, JavaScriptParseError> {
+    analyze_generated_javascript(source)?;
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    let resolution = BindingResolution::new(&tokens);
+    Ok(generated_binding_occurrences_from_tokens(
+        &tokens,
+        &class_names,
+        &resolution,
+    ))
+}
+
+fn generated_binding_occurrences_from_tokens(
+    tokens: &[Token<'_>],
+    class_names: &[bool],
+    resolution: &BindingResolution<'_>,
+) -> Vec<GeneratedJavaScriptBindingOccurrence> {
+    tokens
+        .iter()
+        .enumerate()
+        .filter(|(index, token)| {
+            token.kind == TokenKind::Identifier
+                && !is_property_identifier(tokens, *index)
+                && !class_names.get(*index).copied().unwrap_or(false)
+        })
+        .map(|(index, token)| {
+            let (kind, declaration_start, declaration_end) = match resolution.resolve(index) {
+                Resolution::Bound(declaration) => (
+                    GeneratedJavaScriptBindingKind::Bound,
+                    Some(tokens[declaration].start),
+                    Some(tokens[declaration].end),
+                ),
+                Resolution::Free => (GeneratedJavaScriptBindingKind::Free, None, None),
+                Resolution::Unresolved => (GeneratedJavaScriptBindingKind::Unresolved, None, None),
+            };
+            GeneratedJavaScriptBindingOccurrence {
+                name: token.text.to_string(),
+                start: token.start,
+                end: token.end,
+                kind,
+                declaration_start,
+                declaration_end,
+            }
+        })
+        .collect()
+}
+
+/// One tokenization pass serving every source-map index. The compiler output
+/// has already passed the JavaScript validator, so this does not re-validate.
+pub(crate) fn analyze_generated_javascript_for_source_map(
+    source: &str,
+) -> Result<GeneratedJavaScriptSourceMapAnalysis, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let class_names = class_element_name_occurrences(&tokens, &matching_close);
+    let resolution = BindingResolution::new(&tokens);
+    let bindings = generated_binding_occurrences_from_tokens(&tokens, &class_names, &resolution);
+    let properties = generated_static_property_occurrences_from_tokens(&tokens, &class_names);
+    let tokens = tokens
+        .into_iter()
+        .map(|token| GeneratedJavaScriptTokenOccurrence {
+            kind: match token.kind {
+                TokenKind::Identifier => GeneratedJavaScriptTokenKind::Identifier,
+                TokenKind::Number => GeneratedJavaScriptTokenKind::Number,
+                TokenKind::String => GeneratedJavaScriptTokenKind::String,
+                TokenKind::Template => GeneratedJavaScriptTokenKind::Template,
+                TokenKind::Keyword => GeneratedJavaScriptTokenKind::Keyword,
+                TokenKind::Punct => GeneratedJavaScriptTokenKind::Punctuation,
+                TokenKind::Regex => GeneratedJavaScriptTokenKind::Regex,
+            },
+            text: token.text.to_string(),
+            start: token.start,
+            end: token.end,
+        })
+        .collect();
+    Ok(GeneratedJavaScriptSourceMapAnalysis {
+        tokens,
+        bindings,
+        properties,
+    })
 }
 
 pub fn validate_generated_javascript_syntax_floor(

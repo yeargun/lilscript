@@ -209,6 +209,7 @@ pub struct AggregateField<'src> {
     pub name: &'src str,
     pub ty: Type<'src>,
     pub index: usize,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
