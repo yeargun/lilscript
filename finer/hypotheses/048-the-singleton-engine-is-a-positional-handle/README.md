@@ -51,9 +51,7 @@ plus two call-path spellings V8 prices.
   nothing" (`engine.ts:1405-1413, 1435-1437`); the whole-string hit is "one object-property read
   with a V8-cached hash" (`:1085-1088`).
 
-Rows added to refs/competitor-techniques.md §D.2: singleton dissolution (ABSENT in every
-minifier; PARTIAL here — LocalOnly only), `arguments` escape on a rest wrapper, null
-normalization of an optional record read.
+Refs §D.2 carries the three rows (singleton dissolution, `arguments` escape, null normalization).
 
 ## Claim
 
@@ -83,10 +81,9 @@ once the three shapes are gone: the residual would then be the compiler's spelli
 
 ## Method
 
-One binary per comparison — main 4c25f05 for the shape attribution (byte-identical to the
-committed `dist/` on the old source), main f9829a1 for the shipped build; config frozen for every
-port-side comparison (level 8, `candidate_search = "off"`, `performance-first`), the level and
-priority chosen last by their own curve. Sizes: `lilscript-codec` on the port's boundary
+One binary per comparison — main 4c25f05 for the shape attribution, main f9829a1 for the shipped
+build; config frozen for every port-side comparison (level 8, search off, `performance-first`),
+the level and priority chosen last by their own curve. Sizes: `lilscript-codec` on the port's boundary
 (esbuild 0.25.12 minified browser ESM bundle of the entry, as `scripts/measure.mjs` does; Node's
 zlib/brotli numbers in `reports/` differ). Perf: the upstream isolated-process harness, lil and
 official interleaved per lane, five rounds, median of the per-round ratios
@@ -128,22 +125,10 @@ on the nine lanes; module-state port 1.08-1.17x; shipped build (level 13, size-f
 (dup-loop the worst, arb and ssr 1.18). Node 22, level 13: 1.02-1.23x, and 0.95-1.02x on six lanes once the artifact's
 internals are wrapped in a function scope by hand.
 
-**What the residual is.** (1) Module-scope state: one process per variant on both runtimes puts a
-closure-held cache hit at 6.9-7.8 ns and a module-`var` one at 8.2-9.1 — V8 reaches a module
-binding through a module cell, a closure binding through one context slot; `iife.mjs` took the
-cold lanes to 0.94-1.00 here. Spelling the port as upstream's factory closure (which the compiler
-keeps as a closure, `probe-closure/`) hit a name-coalescing miscompile — the emitter reused the
-binding holding `groupCount` for a later closure while a nested closure still read it
-(`factory-src/`, adjacency conflicts stop resolving); `local_name_coalescing = false` repairs it at
-+1812 Brotli. (2) The null-normalized hit read is not a cost (spellings within 5%; the 8% seen
-in E2 was a single-process ordering artifact); the fold on `finer/048-nullish-fold` is bytes only,
-and the peephole that carries it never runs at level 8 with `candidate_search = "off"`
-(`peephole_calls=0`). (3) The argument-cache paths (dup-loop 1.2x, loop 1.1x) were not attributed
-further. (4) `int * int` is spelled `a*b|0`, which loses low bits past 2^53; the port now spells its
-hashes with `Math.imul` like upstream — faster on the cold lanes, slower on `workset` in the
-harness (1.14 → 1.37 here), where every implementation swings between a 45 ns and a 24 ns phase
-after ~1.2 M calls and the exact hash admits the corpus's slot-colliding strings later.
-Correctness wins.
+**What the residual is** — measured, in [`finer/out/048/results.md`](../../out/048/results.md):
+module-scope state read through a V8 module cell (the wrapper fixes it), a whole `arguments` pass
+(the port reads by index and copies only on a miss), `int*int` spelled `a*b|0` (`Math.imul` now),
+and the argument-cache walk, which is diffuse and continues as [049](../049-the-arg-cache-walk-is-diffusely-slower/README.md).
 
 ## Verdict
 
@@ -157,6 +142,17 @@ access; a whole `arguments` pass allocates on every call; `int*int` is not i32 m
 peephole is off at level 8 / search off; single-process microbenchmarks order their variants.
 Shipped: `~/cnlil` rewritten (module state, imul, index-only `arguments`, level 13 / production /
 size-first), reports and site regenerated.
+
+## Compiler follow-up (branch `finer/048-nullish-fold`, in verification)
+
+After the owner restated the gate and required every compiler change to be generic and
+fleet-verified (objective §8), three generic emission changes went on the branch:
+`javascript.function_scope` (internals in one function scope, opt-in, +27 Brotli on cnlil, cold
+lanes 1.15 → 1.00 by hand), `javascript.truthy_nullable_checks` (a nullable object test as
+truthiness is 3.8 ns against 3.2 for the comparison; default follows the priority), and the
+undefined-absent record read (bare read + `===void 0` when every use is a null test or the
+narrowing after one). Claims, numbers and the verification log:
+[`finer/out/048/results.md`](../../out/048/results.md) §"Compiler follow-up".
 
 ## Next
 
