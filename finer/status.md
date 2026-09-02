@@ -126,14 +126,16 @@ bytes).
    rates.
 8. **Markdown-stack composition** (006): remarklil bundles npm `vfile` (~1821); the three
    `lilBundlePorts` concatenate independently compiled modules.
-9. **Fleet hygiene**: katexlil's `scripts/build.mjs` skips the compiler whenever `dist/` is newer
-   than `src/` — the binary is not in its cache key — so **no compiler change has been measured on
-   katexlil** since its last `--force` build and its +5800 is an old compiler's number; five ports
-   fail to build under the fleet; motionlil's baseline needs a scope decision; sixteen ports need
-   their sources committed before their numbers are compiler measurements; react-markdownlil's tree
-   carries a 45-file source-graph migration with the 037 config change on top. `shipped-vs-compiled`
-   fails on rehype-katexlil (2026-09-01): its build re-prints every `!0`/`!1` as `true`/`false`, the
-   030 class — five sites, a small fix, and the gate stays red until it lands.
+9. **Fleet hygiene**: katexlil's *working-tree* `scripts/build.mjs` (an uncommitted owner rewrite)
+   skips the compiler whenever `dist/` is newer than `src/` — the binary is not in its cache key —
+   so **no compiler change has been measured on katexlil** since its last `--force` build and its
+   +5800 is an old compiler's number; five ports fail to build under the fleet; motionlil's baseline
+   needs a scope decision; sixteen ports need their sources committed before their numbers are
+   compiler measurements; react-markdownlil's tree carries a 45-file source-graph migration with the
+   037 config change on top. `shipped-vs-compiled` is **green again** (2026-09-02): rehype-katexlil's
+   four esbuild steps now keep `minifySyntax` on, the 030 fix, −103 raw / −9 Brotli on its ESM,
+   63/63 tests — applied in the port's working tree on top of its owner's uncommitted build rewrite,
+   so it lands with that rewrite.
 10. **Objective purity** (objective.md §2): give a second port raw and gzip configs so the check is
     not one port's; re-run on every fresh three-way build of markedlil.
 
