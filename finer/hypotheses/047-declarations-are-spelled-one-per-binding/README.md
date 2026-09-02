@@ -24,8 +24,7 @@ remark-gfmlil (portfolio). Opened: 2026-09-02.
   declarators are dropped and side-effecting initializers kept as statements.
 - **esbuild** `mangleStmts` (not vendored — verify) merges adjacent declarations of one kind and
   `var x;x=v` pairs into `var x=v`.
-- **Closure** `CollapseVariableDeclarations` (not vendored — verify) does the join; `Normalize`
-  splits first and the collapse re-joins after other passes.
+- **Closure** `CollapseVariableDeclarations` (not vendored — verify) does the join.
 - **LilScript** had `fold_uninitialized_var_into_assign` (`LS/js_peephole/folds/declarations.rs:546`)
   for `var x;x={…}` — but the emitter writes `var x=void 0` for a `JsValue x = undef()` global (an
   explicit initializer, faithfully printed), one `var` statement per binding, and the fold refused
@@ -135,9 +134,10 @@ rename; (4) `JS.push` is not a port smell: the intrinsic is what the array famil
 
 ## Next
 
-The canonical candidate is now admitted, but it is one candidate: the declaration folds and the
-class rewrite reach the artifact only through it, and a budget-starved cleanup
-(`cleanup_unbudgeted=2` on katexlil, default budgets a twelfth of `level_limit` above 256 KB)
-drops it silently. Run the four-port A/B with `terminal_codec_probe_limit` at 2× and 4× the
-default to see whether the late families are budget-limited on the fleet the way jQuery was (043),
-and read `cleanup_canonical_*` on every port of the next fleet measure.
+Budget is not the limiter here: katexlil at `terminal_codec_probe_limit = 512` enters all three
+late cleanups (`cleanup_entered=3`, canonical pushed 3, shaped pushed 2 / lost 2 / refused 3) and
+is **byte-identical** to G1 at 256 (1024 too). The gap left to Terser of the published graph is
++2542, to the source lane +3828. Terser still extracts −811 from G1's ESM (was −1234; `unused`
++241, `collapse_vars` +175, `evaluate` +162 — 045's class and constant evaluation;
+`finer/out/047/terser-on-g1.txt`); the ~1.7 KB no post-minifier reaches is the port's `JsValue`
+shape (046), and typing the port is the next step.
