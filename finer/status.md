@@ -29,10 +29,11 @@ at measurement: how much of the number is *not* the compiler.
 | unifiedlil | +241 | 6 | config exhausted (027); emits 47% more functions, each 29% bigger. +7 from 037, and its HEAD build threw on import |
 | remark-mathlil | +137 | 9 | config exhausted (027) |
 
-**cnlil** (not in the fleet measure; 048, 2026-09-02): committed port +283 Brotli and 1.03-1.49x
-slower than upstream on its nine harness lanes; rewritten as module state it is **−367 Brotli**
-(9416 against 9783 at level 13, production search) and 1.03-1.2x, with the residual attributed
-(module-cell reads, `arguments`, hash spelling). The perf gate (objective §3) is still open there.
+**cnlil** (not in the fleet measure; 048, 2026-09-02): the committed port was +283 Brotli and
+1.03-1.49x slower than upstream on its nine harness lanes. Shipped (a90f001) it is **−326 Brotli**
+(9457 against 9783) and **1.00-1.10x**, the one lane above 1.05 being `dup-loop`, which continues
+as [049](hypotheses/049-the-arg-cache-walk-is-diffusely-slower/README.md). The perf gate
+(objective §3) is met on eight lanes of nine.
 
 Wins: rehype-katex −112118 (scope-suspect), zod −20103, rehype −3384 (−766 from 041),
 hast-util-to-html −1014, rehype-stringify −794, mdast-util-to-hast −754, remark-rehype −687, remark-gfm
@@ -122,6 +123,15 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 - **`JS.push` is not a port smell** (047): spelled as a method invoke it is +696 on katexlil; the
   intrinsic is what the array families fold.
 
+- **Three emission knobs landed for V8, not for bytes** (048, `e112c94`): `javascript.function_scope`
+  puts a single bundle's internals in one function scope (module cells → context slots; opt-in,
+  the exported bindings are `undefined` until the body has run, which only an import cycle sees),
+  `javascript.truthy_nullable_checks` lets the priority choose between `if(x)` and `x!=null` on an
+  always-truthy nullable (3.8 ns against 3.2), and a record read whose every use is a null test —
+  with at least one real test — stays bare and is tested `===void 0`. Fleet A/B on the pool, one
+  binary at a time: **net −209 Brotli over 21 ports** (katexlil −116, remarklil −94, jquerylil −48;
+  worst port +40), suite 1673/1673, seven of the eight ports whose bytes moved green (mobxlil red
+  before and after).
 - **A class singleton in a port is a positional handle in the artifact** (048): every field read in
   a hot loop is a bounds-checked element load through it, the handle literal carries every typed
   default and the init re-stores every slot. cnlil's engine (66 fields), tables (24) and argument
