@@ -6,6 +6,11 @@ actually won whole-program optimization and codec scoring. With the default
 exact authored `.lil` files even when the shipped JavaScript has been heavily
 rewritten and mangled.
 
+Source maps explain generated-to-authored locations and original names. To
+audit *why* the compiler preserved, shortened, coalesced, or exported a name,
+enable the separate [analysis map](analysis-maps.md). The two artifacts share
+the winner replay and final provenance composition when both are enabled.
+
 Source maps are opt-in:
 
 ```toml

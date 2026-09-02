@@ -25,6 +25,7 @@ Parent: [tree](../README.md). Behavior: [compilation](../compilation/README.md).
 - [`javascript.optimizations`](javascript-optimizations.md) — which searches run
 - [Cost model and search budgets](cost-model.md)
 - [Source maps](../../source-maps.md) — final-artifact provenance and publication modes
+- [Analysis maps](../../analysis-maps.md) — selected mangling rules and evidence
 
 ### ABI and shape
 
@@ -80,6 +81,7 @@ javascript.compression  → overlay / opt-in names (optional; `[]` disables)
 javascript.optimizations / optimization_level → search dimensions
 javascript.cost_model   → what “smaller” means (raw | gzip | brotli)
 javascript.source_map   → optional external debug artifact; never a search input
+javascript.analysis_map → optional mangling-decision sidecar; never a search input
 candidate_*             → compile-time budget for measuring “smaller”
 [mangle]                → highest-precedence name/pool overrides
 [bundle]                → artifact layout; does not by itself define public world

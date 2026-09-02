@@ -88,6 +88,17 @@ assert.ok(composedMap.sources.some((source) => source.endsWith("main.lil")));
 assert.ok(composedMap.sources.some((source) => source.endsWith("value.lil")));
 assert.ok(composedMap.sourcesContent.some((source) => source.includes("hotAccept")));
 assert.ok(composedMap.sourcesContent.some((source) => source.includes("return 20")));
+const compilerAnalysis = JSON.parse(
+  await readFile(
+    path.join(sourceMapDist, "lilscript-analysis/main.lil.lilmap.json"),
+    "utf8",
+  ),
+);
+assert.equal(compilerAnalysis.kind, "lilscript-javascript-analysis-map");
+assert.equal(compilerAnalysis.level, "full");
+assert.equal(compilerAnalysis.artifact.sha256.length, 64);
+assert.ok(compilerAnalysis.summary.decisions > 0);
+assert.ok(compilerAnalysis.decisions.some((decision) => decision.rules?.length > 0));
 
 const port = await freePort();
 const server = spawn(

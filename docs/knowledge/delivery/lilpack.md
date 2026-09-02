@@ -17,6 +17,12 @@ Vite plugin passes that map through its transform hook, preserving authored
 --sourcemap` to publish maps for the final production assets; the compiler's
 `hidden` / `linked` / `inline` mode only controls direct `lilscript` output.
 
+When `[javascript.analysis_map]` is `summary` or `full`, the delegated artifact
+also carries the compiler analysis object. Production builds publish it below
+`lilscript-analysis/<source-relative>.lilmap.json`. Its SHA-256 identifies the
+LilScript-selected module code before Vite's later transforms; it does not
+claim to describe final Vite chunk spellings.
+
 ## Dev vs production
 
 | | Dev (`lilpack dev`) | Production (`lilpack build`) |
