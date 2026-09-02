@@ -19,7 +19,10 @@
 // Options: --compiler <path> (default target/release/lilscript), --rg, --vmss,
 // --user, --timeout <s> per port build (default 5400), --no-sync, --measure,
 // --dist-dir <dir> (bring each port's dist/ back under <dir>/<port>/ instead of
-// into the port itself: an A/B snapshot that leaves the working tree alone).
+// into the port itself: an A/B snapshot that leaves the working tree alone),
+// --instances 3,4,5 (use only those instance ids; up/down/sync/build/run honour it).
+// `build` syncs only the ports it builds (plus the compiler); `sync` and `fleet`
+// sync every sibling port, which the source-graph ports need.
 //
 // The pool is discovered from `az` each time (`--cache` reuses the last
 // discovery in finer/out/workers/instances.json). Workers are addressed by
@@ -80,7 +83,9 @@ function discover({ cache = has("cache") } = {}) {
   return instances
 }
 
-const running = (instances) => instances.filter((i) => i.power === "running" && i.ip)
+const ONLY = (flag("instances", "") || "").split(",").filter(Boolean)
+const selected = (instances) => (ONLY.length ? instances.filter((i) => ONLY.includes(String(i.id))) : instances)
+const running = (instances) => selected(instances).filter((i) => i.power === "running" && i.ip)
 
 function ssh(ip, script, { timeoutS = 60 } = {}) {
   const r = spawnSync("ssh", [...SSH_OPTS, `${USER}@${ip}`, script], { encoding: "utf8", timeout: timeoutS * 1000, maxBuffer: 64 << 20 })
@@ -127,7 +132,7 @@ function status() {
 function up() {
   const want = argv[1] && argv[1] !== "all" ? Number(argv[1]) : null
   const instances = discover()
-  const stopped = instances.filter((i) => i.power !== "running")
+  const stopped = selected(instances).filter((i) => i.power !== "running")
   const targets = want == null ? stopped : stopped.slice(0, Math.max(0, want - running(instances).length))
   if (targets.length) {
     log(`starting ${targets.map((i) => i.id).join(",")}`)
@@ -142,7 +147,7 @@ function up() {
 function down() {
   const which = argv[1]
   const instances = discover()
-  const targets = which && which !== "all" ? instances.filter((i) => String(i.id) === which) : instances.filter((i) => i.power === "running")
+  const targets = which && which !== "all" ? instances.filter((i) => String(i.id) === which) : running(instances)
   if (!targets.length) { log("nothing running"); return }
   log(`deallocating ${targets.map((i) => i.id).join(",")}`)
   az(["vmss", "deallocate", "-g", RG, "-n", VMSS, "--instance-ids", ...targets.map((i) => i.id)], { json: false })
@@ -192,9 +197,9 @@ function syncWorker(w, ports = portDirs()) {
   return { ok: true, seconds: (Date.now() - started) / 1000 }
 }
 
-function sync(workers = running(discover())) {
+function sync(workers = running(discover()), ports = null) {
   const only = (flag("ports", "") || "").split(",").filter(Boolean)
-  const ports = only.length ? only : portDirs()
+  ports = ports ?? (only.length ? only : portDirs())
   log(`syncing ${ports.length} ports + compiler to ${workers.length} worker(s)`)
   const results = workers.map((w) => ({ w, r: syncWorker(w, ports) }))
   for (const { w, r } of results) log(`${w.ip} sync: ${r.ok ? `ok ${r.seconds.toFixed(0)}s` : "FAILED " + r.err.slice(-300)}`)
@@ -274,7 +279,7 @@ async function main() {
       let workers = up()
       if (!workers.length) fail("no worker reachable")
       provision(workers)
-      workers = sync(workers)
+      workers = sync(workers, portDirs())
       const ports = (flag("ports", "") || "").split(",").filter(Boolean)
       const results = await build(workers, ports.length ? ports : portDirs())
       const bad = Object.entries(results).filter(([, r]) => !r.ok)
