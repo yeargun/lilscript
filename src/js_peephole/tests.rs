@@ -1,5 +1,5 @@
 use super::folds::{
-    fold_common_conditional_arms, fold_early_exit_guards, fold_fresh_empty_array_pushes,
+    fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
     fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
     fold_single_use_temporaries, fold_statement_assignments_into_first_use,
@@ -3875,3 +3875,27 @@ fn adjacent_constant_operands_of_a_concatenation_merge() {
     assert!(folded.contains("+\"3\"+\"4\""), "{folded}");
 }
 
+#[test]
+fn a_one_element_string_array_is_not_a_static_property() {
+    let literal = "var a=[\"katex-error\"],b=f([\"x-y\"]),c={k:[\"q-r\"]};g(a,b,c)";
+    let names = generated_javascript_static_property_names(literal).expect("names");
+    assert!(!names.iter().any(|name| name.contains('-')), "{names:?}");
+    let member = "var o={\"katex-error\":1},k=o[\"katex-error\"],m=f(1)[\"a-b\"],n=[1][\"c-d\"];g(k,m,n)";
+    let names = generated_javascript_static_property_names(member).expect("names");
+    for expected in ["katex-error", "a-b", "c-d"] {
+        assert!(names.iter().any(|name| name == expected), "{expected} missing from {names:?}");
+    }
+}
+
+#[test]
+fn an_identity_ternary_keeps_a_conditional_else_arm_grouped() {
+    let source = "function f(x,y,p,q){return x?x:y?p:q}var g=(x,y)=>x?x:y,r=[f(0,1,\"p\",\"q\"),f(\"X\",1,\"p\",\"q\"),f(0,0,\"p\",\"q\"),g(0,\"z\"),g(\"a\",\"z\")];console.log(JSON.stringify(r))";
+    let (folded, _) = fold_ident_ternary_to_or(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("return x?x:y?p:q"), "{folded}");
+    assert!(folded.contains("(x,y)=>x||y"), "{folded}");
+    let member = "function h(a,b){return b?b:a[2]?\"s\":\" \"}var m=[h([0,0,0],0),h([0,0,\"t\"],0),h([0,0,0],\"B\")];console.log(JSON.stringify(m))";
+    let (folded, count) = fold_ident_ternary_to_or(member).expect("fold");
+    assert_eq!(run_javascript(member), run_javascript(&folded), "{folded}");
+    assert_eq!(count, 0, "{folded}");
+}
