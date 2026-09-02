@@ -119,6 +119,14 @@ pub static BINDINGS: Bucket = Bucket::new("bindings");
 pub static IDLE_FOLD: Bucket = Bucket::new("idle_fold");
 /// Peephole folds that did rewrite something.
 pub static ACTIVE_FOLD: Bucket = Bucket::new("active_fold");
+/// Debug sidecars: the winner's traced re-emission, the composition of that
+/// trace through the final JavaScript, and each map's serialization. All of
+/// it runs once, after selection, and only when a map is enabled, so these
+/// buckets separate "what the map costs" from "what the search costs".
+pub static DEBUG_TRACE: Bucket = Bucket::new("debug_trace");
+pub static DEBUG_COMPOSE: Bucket = Bucket::new("debug_compose");
+pub static DEBUG_SOURCE_MAP: Bucket = Bucket::new("debug_source_map");
+pub static DEBUG_ANALYSIS_MAP: Bucket = Bucket::new("debug_analysis_map");
 
 /// Artifact-admission outcomes during terminal candidate search. `calls` counts
 /// validations and `bytes` accumulates rejections, so their ratio is the share
@@ -162,7 +170,7 @@ pub static RENAME_TEMPLATED: Bucket = Bucket::new("rename_templated");
 pub static RENAME_UNSOUND: Bucket = Bucket::new("rename_unsound");
 pub static RENAME_AMBIGUOUS: Bucket = Bucket::new("rename_ambiguous");
 
-const BYTE_BUCKETS: [&Bucket; 16] = [
+const BYTE_BUCKETS: [&Bucket; 20] = [
     &ADMISSION,
     &DIRECT_VALIDATE,
     &PROBE_DROPPED,
@@ -179,6 +187,10 @@ const BYTE_BUCKETS: [&Bucket; 16] = [
     &BINDINGS,
     &IDLE_FOLD,
     &ACTIVE_FOLD,
+    &DEBUG_TRACE,
+    &DEBUG_COMPOSE,
+    &DEBUG_SOURCE_MAP,
+    &DEBUG_ANALYSIS_MAP,
 ];
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and

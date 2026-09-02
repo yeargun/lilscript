@@ -184,13 +184,29 @@ pub(crate) struct SelectedNameRecord {
     pub first_generated: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-enum TokenKey {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum TokenKey<'a> {
     BoundIdentifier {
-        spelling: Option<String>,
+        spelling: Option<&'a str>,
         declaration: bool,
     },
-    Exact(GeneratedJavaScriptTokenKind, String),
+    Exact(GeneratedJavaScriptTokenKind, &'a str),
+}
+
+/// Maps each distinct token key to a small integer once, so the diff that
+/// aligns emitter output with final JavaScript compares and hashes `u32`s
+/// rather than strings. On a 15k-token artifact that is the difference between
+/// a 200 ms composition and a 20 ms one.
+#[derive(Default)]
+struct TokenKeyInterner<'a> {
+    ids: ahash::AHashMap<TokenKey<'a>, u32>,
+}
+
+impl<'a> TokenKeyInterner<'a> {
+    fn intern(&mut self, key: TokenKey<'a>) -> u32 {
+        let next = self.ids.len() as u32;
+        *self.ids.entry(key).or_insert(next)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -237,10 +253,12 @@ pub(crate) fn compose_javascript_provenance(
             &raw_analysis.bindings,
             &mut raw_origins,
         );
-        let raw_exact_keys = token_keys(raw_tokens, &raw_analysis.bindings, true);
-        let final_exact_keys = token_keys(final_tokens, &final_analysis.bindings, true);
-        let raw_generic_keys = token_keys(raw_tokens, &raw_analysis.bindings, false);
-        let final_generic_keys = token_keys(final_tokens, &final_analysis.bindings, false);
+        let mut keys = TokenKeyInterner::default();
+        let raw_exact_keys = token_keys(&mut keys, raw_tokens, &raw_analysis.bindings, true);
+        let final_exact_keys = token_keys(&mut keys, final_tokens, &final_analysis.bindings, true);
+        let raw_generic_keys = token_keys(&mut keys, raw_tokens, &raw_analysis.bindings, false);
+        let final_generic_keys =
+            token_keys(&mut keys, final_tokens, &final_analysis.bindings, false);
         compose_origins(
             &trace.code,
             generated,
@@ -746,11 +764,12 @@ const fn binding_kind(category: IrJsBindingCategory) -> OriginKind {
     }
 }
 
-fn token_keys(
-    tokens: &[GeneratedJavaScriptTokenOccurrence],
+fn token_keys<'a>(
+    interner: &mut TokenKeyInterner<'a>,
+    tokens: &'a [GeneratedJavaScriptTokenOccurrence],
     bindings: &[GeneratedJavaScriptBindingOccurrence],
     retain_bound_spelling: bool,
-) -> Vec<TokenKey> {
+) -> Vec<u32> {
     let by_range = bindings
         .iter()
         .map(|binding| {
@@ -765,14 +784,17 @@ fn token_keys(
         .collect::<BTreeMap<_, _>>();
     tokens
         .iter()
-        .map(|token| match by_range.get(&(token.start, token.end)) {
-            Some((GeneratedJavaScriptBindingKind::Bound, declaration)) => {
-                TokenKey::BoundIdentifier {
-                    spelling: retain_bound_spelling.then(|| token.text.clone()),
-                    declaration: *declaration,
+        .map(|token| {
+            let key = match by_range.get(&(token.start, token.end)) {
+                Some((GeneratedJavaScriptBindingKind::Bound, declaration)) => {
+                    TokenKey::BoundIdentifier {
+                        spelling: retain_bound_spelling.then_some(token.text.as_str()),
+                        declaration: *declaration,
+                    }
                 }
-            }
-            _ => TokenKey::Exact(token.kind, token.text.clone()),
+                _ => TokenKey::Exact(token.kind, token.text.as_str()),
+            };
+            interner.intern(key)
         })
         .collect()
 }
@@ -783,10 +805,10 @@ fn compose_origins(
     final_source: &str,
     raw_tokens: &[GeneratedJavaScriptTokenOccurrence],
     final_tokens: &[GeneratedJavaScriptTokenOccurrence],
-    raw_exact_keys: &[TokenKey],
-    final_exact_keys: &[TokenKey],
-    raw_generic_keys: &[TokenKey],
-    final_generic_keys: &[TokenKey],
+    raw_exact_keys: &[u32],
+    final_exact_keys: &[u32],
+    raw_generic_keys: &[u32],
+    final_generic_keys: &[u32],
     raw_origins: &[Option<Origin>],
 ) -> Vec<Option<Origin>> {
     if raw_source == final_source && raw_tokens.len() == final_tokens.len() {
@@ -804,12 +826,16 @@ fn compose_origins(
 }
 
 fn transfer_equal_origins(
-    raw_keys: &[TokenKey],
-    final_keys: &[TokenKey],
+    raw_keys: &[u32],
+    final_keys: &[u32],
     raw_origins: &[Option<Origin>],
     origins: &mut [Option<Origin>],
 ) {
-    for operation in capture_diff_slices(Algorithm::Histogram, raw_keys, final_keys) {
+    // Myers, not Histogram: on acorn's 15k tokens Histogram took 88 ms per pass
+    // (the streams are dominated by repeated punctuation and one-letter names,
+    // which starves its unique-anchor heuristic) where Myers takes 5 ms and
+    // aligns slightly more tokens.
+    for operation in capture_diff_slices(Algorithm::Myers, raw_keys, final_keys) {
         let DiffOp::Equal {
             old_index,
             new_index,

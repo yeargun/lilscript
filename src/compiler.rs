@@ -431,6 +431,7 @@ fn build_selected_debug_artifacts(
             "selected JavaScript is missing its source provenance trace",
         )
     })?;
+    let compose_scope = crate::timing::DEBUG_COMPOSE.scope(selected.javascript.len());
     let composed =
         compose_javascript_provenance(&selected.javascript, trace, modules).map_err(|error| {
             CompileError::from(crate::codegen_js::CodegenError::new(
@@ -438,8 +439,10 @@ fn build_selected_debug_artifacts(
                 format!("failed to compose JavaScript debug provenance: {error}"),
             ))
         })?;
+    drop(compose_scope);
     let source_map = source_map_enabled
         .then(|| {
+            let _scope = crate::timing::DEBUG_SOURCE_MAP.scope(selected.javascript.len());
             build_javascript_source_map_from_provenance(
                 &selected.javascript,
                 &composed,
@@ -458,6 +461,7 @@ fn build_selected_debug_artifacts(
     let analysis_map = analysis_level
         .enabled()
         .then(|| {
+            let _scope = crate::timing::DEBUG_ANALYSIS_MAP.scope(selected.javascript.len());
             build_javascript_analysis_map(AnalysisMapBuildContext {
                 generated: &selected.javascript,
                 file_name,
@@ -2582,6 +2586,7 @@ fn optimize_and_select_javascript_inner<'src>(
     // candidate search; disabled builds do neither the tracing nor the map work.
     let source_trace = capture_source_trace
         .then(|| {
+            let _scope = crate::timing::DEBUG_TRACE.scope(selected.code.len());
             contexts
                 .get(selected.plan_identity.context_id)
                 .source_trace(module_output, selected_options, capture_mangling_analysis)
