@@ -2,7 +2,7 @@ use super::folds::{
     fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
     fold_fresh_empty_object_assign, fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
-    fold_single_use_temporaries, fold_statement_assignments_into_first_use,
+    fold_single_use_literal_bindings, fold_single_use_temporaries, fold_statement_assignments_into_first_use,
     fold_typeof_identifier_caches,
 };
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
@@ -3922,4 +3922,24 @@ fn a_literal_with_properties_absorbs_the_writes_that_follow() {
     assert!(folded.contains("let d={p:a};a=9"), "{folded}");
     // and a call could observe the object's absence, so that one stays too
     assert!(folded.contains("let d={p:a};let x=k(a)"), "{folded}");
+}
+
+#[test]
+fn an_inert_literal_moves_to_its_only_use() {
+    let source = "function f(a,b){let e={t:\"elem\",v:a},c={t:\"kern\",v:b};return q([e,c])}function g(a){let e={v:a.x};a.x=9;return q(e)}function h(a){let e={v:k(a)};return q(e)}function q(x){return x}function k(x){return x*2}console.log(JSON.stringify([f(1,2),g({x:1}),h(3)]))";
+    let mut folded = source.to_string();
+    for _ in 0..4 {
+        let (next, _) = fold_single_use_literal_bindings(&folded).expect("fold");
+        folded = next;
+    }
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("q([{t:\"elem\",v:a},{t:\"kern\",v:b}])"), "{folded}");
+    // a member read would move with the literal, and `k(a)` is a call
+    assert!(folded.contains("let e={v:a.x};a.x=9"), "{folded}");
+    assert!(folded.contains("let e={v:k(a)};"), "{folded}");
+    // and a captured operand that is reassigned in between pins the literal
+    let captured = "function p(a){let e={v:a};a=9;return q(e)}function q(x){return x}console.log(JSON.stringify(p(1)))";
+    let (folded, count) = fold_single_use_literal_bindings(captured).expect("fold");
+    assert_eq!(run_javascript(captured), run_javascript(&folded), "{folded}");
+    assert_eq!(count, 0, "{folded}");
 }
