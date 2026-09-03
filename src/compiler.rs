@@ -6027,12 +6027,27 @@ fn finalize_javascript_candidates_with_parallelism(
             // rename exposes single-use function movement.
             let candidate_end = codec_budget.used.saturating_add(allowance);
             codec_budget.begin_fair_slice(allowance.min(8));
-            let cleaned = apply_late_javascript_cleanup(selected.clone(), config, 0, codec_budget);
+            let cleaned = late_javascript_cleanup_finalists(
+                selected.clone(),
+                config,
+                0,
+                codec_budget,
+                config.javascript.terminal_cleanup_finalists(),
+            );
             codec_budget.end_fair_slice();
             let cleaned = cleaned?;
-            let selected = retain_resolved_javascript(selected, cleaned);
-            codec_budget.begin_fair_slice(candidate_end.saturating_sub(codec_budget.used));
-            let remainder = (|| {
+            // Finish each cleanup spelling and keep the one that ends smallest.
+            // The cleanup ranked them by what they cost before the remapping,
+            // and the remapping is not monotone in that cost.
+            let mut finished = Vec::with_capacity(cleaned.len());
+            let carried = cleaned.len();
+            for (offset, cleaned) in cleaned.into_iter().enumerate() {
+                let selected = retain_resolved_javascript(selected.clone(), cleaned);
+                let share = candidate_end
+                    .saturating_sub(codec_budget.used)
+                    .div_ceil(carried.saturating_sub(offset).max(1));
+                codec_budget.begin_fair_slice(share);
+                let remainder = (|| {
                 let remapped = apply_unused_letter_binding_remaps(
                     selected.clone(),
                     config,
@@ -6065,9 +6080,27 @@ fn finalize_javascript_candidates_with_parallelism(
                     baseline_performance.score,
                 );
                 Ok::<_, CompileError>(selected)
-            })();
-            codec_budget.end_fair_slice();
-            remainder
+                })();
+                codec_budget.end_fair_slice();
+                finished.push(remainder?);
+            }
+            sort_terminal_javascript_candidates(
+                &mut finished,
+                exact_two_binding_terminal_search_enabled_for_artifact(
+                    config,
+                    configured_baseline.len(),
+                ),
+            );
+            finished
+                .into_iter()
+                .next()
+                .ok_or_else(|| -> CompileError {
+                    crate::codegen_js::CodegenError::new(
+                        Span::empty(0),
+                        "terminal cleanup returned no candidate",
+                    )
+                    .into()
+                })
         })();
         terminal_finalists.push(result?);
     }
@@ -7759,11 +7792,35 @@ fn offer_cleanup_family(
 }
 
 fn apply_late_javascript_cleanup(
-    mut selected: ScoredJavaScriptCandidate,
+    selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
     terminal_local_rounds: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    let fallback = selected.clone();
+    Ok(
+        late_javascript_cleanup_finalists(selected, config, terminal_local_rounds, codec_budget, 1)?
+            .into_iter()
+            .next()
+            .unwrap_or(fallback),
+    )
+}
+
+/// The cleanup beam's best `keep` spellings, each materialised as a candidate.
+///
+/// Keeping more than one exists because the beam ranks by what a spelling costs
+/// *here*, while the namespace remapping that runs after it decides the bytes
+/// that ship. Those stages are not monotone in the cleanup's cost: a locally
+/// cheaper spelling can remap worse, which is how a single extra candidate has
+/// been measured moving a finished artifact by more than a percent. Carrying
+/// several and ranking them by their finished cost is the only way to tell.
+fn late_javascript_cleanup_finalists(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+    terminal_local_rounds: usize,
+    codec_budget: &mut TerminalCodecProbeBudget,
+    keep: usize,
+) -> Result<Vec<ScoredJavaScriptCandidate>, CompileError> {
     // Late syntax search is the terminal half of ParsedPeephole. An explicit
     // optimization allowlist that omits that feature must preserve the exact
     // emitter spelling (and its already-measured declaration score ledger).
@@ -7776,7 +7833,7 @@ fn apply_late_javascript_cleanup(
         } else {
             crate::timing::CLEANUP_SKIPPED.event(0);
         }
-        return Ok(selected);
+        return Ok(vec![selected]);
     }
     crate::timing::CLEANUP_ENTERED.event(codec_budget.remaining() as u64);
 
@@ -8373,26 +8430,52 @@ fn apply_late_javascript_cleanup(
     beam.push(original);
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
     beam.dedup_by(|left, right| left.code == right.code);
-    let cleaned = beam
-        .into_iter()
-        .next()
-        .expect("late cleanup retains the selected JavaScript candidate");
-    if cleaned.code != selected.code
-        && cleaned.cost <= selected.transfer_cost
-        && !(cleaned.cost == selected.transfer_cost && cleaned.code.len() >= selected.code.len())
-    {
-        if let Ok(metrics) = analyze_generated_javascript(&cleaned.code) {
-            selected.metrics = metrics;
-            selected.startup_score = selected.metrics.startup_score(
+
+    let mut finalists = Vec::new();
+    for cleaned in beam.into_iter() {
+        if finalists.len() >= keep.max(1) {
+            break;
+        }
+        // A spelling the beam ranks below the incumbent is not carried: it lost
+        // on the only evidence available here, and the caller pays a full
+        // remap for each one it takes.
+        let takes = cleaned.code != selected.code
+            && cleaned.cost <= selected.transfer_cost
+            && !(cleaned.cost == selected.transfer_cost
+                && cleaned.code.len() >= selected.code.len());
+        let mut candidate = selected.clone();
+        if takes {
+            let Ok(metrics) = analyze_generated_javascript(&cleaned.code) else {
+                continue;
+            };
+            candidate.metrics = metrics;
+            candidate.startup_score = candidate.metrics.startup_score(
                 config.javascript.startup.parse_weight,
                 config.javascript.startup.compile_weight,
                 config.javascript.startup.memory_weight,
             );
-            selected.code = cleaned.code;
-            selected.transfer_cost = cleaned.cost;
+            candidate.code = cleaned.code;
+            candidate.transfer_cost = cleaned.cost;
+        } else if !finalists.is_empty() {
+            continue; // the incumbent is already among them
         }
+        let candidate = parenthesize_logical_assignments(candidate, config, codec_budget)?;
+        if finalists
+            .iter()
+            .any(|existing: &ScoredJavaScriptCandidate| existing.code == candidate.code)
+        {
+            continue;
+        }
+        finalists.push(candidate);
     }
-    parenthesize_logical_assignments(selected, config, codec_budget)
+    if finalists.is_empty() {
+        finalists.push(parenthesize_logical_assignments(
+            selected,
+            config,
+            codec_budget,
+        )?);
+    }
+    Ok(finalists)
 }
 
 fn parenthesize_logical_assignments(

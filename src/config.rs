@@ -1202,6 +1202,18 @@ pub struct JavaScriptConfig {
     /// unit is charged before optional repair/validation and bounds one exact
     /// codec call. Omitted values derive from level and artifact size; zero
     /// disables optional terminal search while retaining the incumbent.
+    /// How many cleanup spellings are carried through the terminal namespace
+    /// remapping before one is chosen. Default 1: the cleanup's own ranking
+    /// decides, as it always has.
+    ///
+    /// The cleanup ranks a spelling by what it costs at that point, but the
+    /// remapping that follows is not monotone in that cost — a locally cheaper
+    /// spelling can remap worse, and a single extra candidate has been measured
+    /// moving a finished artifact by more than a percent. Raising this carries
+    /// the beam's next-best spellings through the same finishing stages and
+    /// keeps whichever ends smallest, which is the only ranking that matches
+    /// what ships. It costs one full remap per extra candidate.
+    pub terminal_cleanup_finalists: Option<usize>,
     pub terminal_codec_probe_limit: Option<usize>,
     pub max_candidate_raw_growth_percent: u16,
     pub function_layout_exact_limit: usize,
@@ -1318,6 +1330,7 @@ impl Default for JavaScriptConfig {
             candidate_byte_budget: 1024 * 1024,
             candidate_beam_width: 12,
             candidate_proposal_limit: None,
+            terminal_cleanup_finalists: None,
             terminal_codec_probe_limit: None,
             max_candidate_raw_growth_percent: 0,
             function_layout_exact_limit: 13,
@@ -1906,6 +1919,11 @@ impl JavaScriptConfig {
             CandidateSearch::Production => level_limit,
             CandidateSearch::Always => level_limit.saturating_mul(4),
         }
+    }
+
+    /// How many cleanup spellings to finish and compare. At least one.
+    pub fn terminal_cleanup_finalists(&self) -> usize {
+        self.terminal_cleanup_finalists.unwrap_or(1).max(1)
     }
 
     pub fn effective_terminal_codec_probe_limit(&self) -> usize {
