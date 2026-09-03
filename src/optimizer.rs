@@ -246,6 +246,7 @@ fn optimize_control_flow_inner(
 ) -> Result<Vec<OptimizationReport>, SsaError> {
     let _timing = crate::timing::OPTIMIZE.scope(module.functions.len());
     let mut reports = Vec::new();
+    reports.push(normalize_ambient_regex_constructions(module));
     if options.global_optimization {
         if options.forward_global_aliases {
             reports.push(forward_single_assignment_global_aliases(module));
@@ -2988,6 +2989,89 @@ fn field_store_barrier(op: &ControlFlowOp<'_>) -> bool {
             | ControlFlowOp::Intrinsic { .. }
             | ControlFlowOp::Closure { .. }
     )
+}
+
+/// The name a program uses for the ambient regular-expression constructor.
+const AMBIENT_REGEX_GLOBAL: &str = "RegExp";
+
+/// `new RegExp(pattern, flags)` on the ambient `RegExp` global is the same
+/// construction as [`Intrinsic::RegexNew`], and saying so here lets the rest of
+/// the pipeline treat it as one: a fresh allocation for escape analysis, and a
+/// candidate for the literal spelling the emitter already knows how to prove.
+///
+/// The rewrite is output-neutral on its own. `RegexNew` emits `new RegExp(...)`
+/// verbatim unless `javascript.regex_literals` is in force, and that flag
+/// already requires the pristine-builtin contract that makes a literal and a
+/// constructor call interchangeable. A port that has not signed that contract
+/// sees the same bytes it saw before.
+fn normalize_ambient_regex_constructions(module: &mut ControlFlowModule<'_>) -> OptimizationReport {
+    let mut ambient = module
+        .globals
+        .iter()
+        .filter(|global| global.external && global.name == AMBIENT_REGEX_GLOBAL)
+        .map(|global| global.symbol)
+        .collect::<AHashSet<_>>();
+    // A program that writes to the binding is not talking about the ambient
+    // constructor any more, whatever the contract says about the builtins.
+    for instruction in module
+        .functions
+        .iter()
+        .flat_map(|function| &function.blocks)
+        .flat_map(|block| &block.instructions)
+    {
+        if let ControlFlowOp::StoreGlobal { global, .. } = &instruction.op {
+            ambient.remove(global);
+        }
+    }
+    let mut changed = false;
+    if !ambient.is_empty() {
+        for function in &mut module.functions {
+            let constructors = function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| match (instruction.out, &instruction.op) {
+                    (Some(out), ControlFlowOp::LoadGlobal(symbol)) if ambient.contains(symbol) => {
+                        Some(out)
+                    }
+                    _ => None,
+                })
+                .collect::<AHashSet<_>>();
+            if constructors.is_empty() {
+                continue;
+            }
+            for instruction in function
+                .blocks
+                .iter_mut()
+                .flat_map(|block| &mut block.instructions)
+            {
+                let ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsConstruct,
+                    receiver: Some(callee),
+                    args,
+                } = &instruction.op
+                else {
+                    continue;
+                };
+                // `RegExp` reads at most two arguments. Any further operand is
+                // evaluated for its effects and then dropped, which the
+                // intrinsic has no place to record, so leave those calls alone.
+                if !constructors.contains(callee) || !(1..=2).contains(&args.len()) {
+                    continue;
+                }
+                instruction.op = ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::RegexNew,
+                    receiver: None,
+                    args: args.clone(),
+                };
+                changed = true;
+            }
+        }
+    }
+    OptimizationReport {
+        pass_name: "normalize-ambient-regex-constructions",
+        changed,
+    }
 }
 
 fn eliminate_unread_globals(module: &mut ControlFlowModule<'_>) -> OptimizationReport {

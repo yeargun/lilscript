@@ -12959,6 +12959,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     property,
                     self.options.elide_call_chain_parentheses,
                 );
+                if instruction
+                    .out
+                    .is_some_and(|out| context.normalization_free_host_fields.contains(&out))
+                {
+                    // Nothing downstream can tell `undefined` from `null`, so
+                    // the normalization is dead. The tests stay loose: this
+                    // field may hold a `null` the program stored.
+                    return Ok(member);
+                }
                 Ok(self.coalesce_absent_to_null(member))
             }
             _ => self.render_op(&instruction.op, instruction.out, context, cache),
@@ -17953,6 +17962,7 @@ struct LocalNames {
     /// or the narrowing after one, so the `??null` normalization would be
     /// unobservable and the test can be the strict `===void 0`.
     undefined_absent_reads: AHashSet<ValueId>,
+    normalization_free_host_fields: AHashSet<ValueId>,
     /// String index reads whose `|| ""` hole guard no observer can tell from the bare read.
     guard_free_string_reads: AHashSet<ValueId>,
     safe_int_array_reads: AHashSet<ValueId>,
@@ -19395,7 +19405,10 @@ impl LocalNames {
                 _ => None,
             })
             .collect();
-        let undefined_absent_reads = undefined_absent_record_reads(function, &record_values, &null_values);
+        let undefined_absent_reads =
+            undefined_absent_record_reads(function, &record_values, &null_values);
+        let normalization_free_host_fields =
+            normalization_free_host_field_reads(function, &js_value_values, &null_values);
         let guard_free_string_reads = guard_free_string_index_reads(function);
         let mut truthy_nullable_values = function
             .params
@@ -19782,6 +19795,7 @@ impl LocalNames {
             js_undefined_values,
             truthy_nullable_values,
             undefined_absent_reads,
+            normalization_free_host_fields,
             guard_free_string_reads,
             safe_int_array_reads,
             in_range_string_indexes,
@@ -23682,6 +23696,12 @@ fn guard_free_string_index_reads(function: &ControlFlowFunction<'_>) -> AHashSet
     candidates
 }
 
+/// Reads whose absent case may stay `undefined` in the artifact instead of
+/// being normalized to `null`: a record index read, or a nullable field read on
+/// a host object. Both are absent-as-`undefined` at the source, and the
+/// normalization is only observable if something other than a null test can see
+/// it -- so the caller keeps `??null` unless every use is a null comparison or
+/// the narrowing after one, in which case the test is spelled `===void 0`.
 fn undefined_absent_record_reads(
     function: &ControlFlowFunction<'_>,
     record_values: &AHashSet<ValueId>,
@@ -23770,6 +23790,152 @@ fn undefined_absent_record_reads(
         }
     }
     candidates.retain(|candidate| tested.contains(candidate));
+    candidates
+}
+
+/// Nullable host-field reads whose `??null` normalization is dead.
+///
+/// The read lowers to a plain member access, so an absent field is already
+/// `undefined` and the normalization exists only to spell it `null`. Dropping
+/// it is safe when nothing can tell the two apart, which holds for three kinds
+/// of use: a loose `==`/`!=` (JavaScript's loose equality equates `null` and
+/// `undefined`, so no operand separates them), the narrowing intrinsics, and
+/// any read in a block dominated by a branch that already proved the value
+/// non-nullish. A phi carries the value into a binding whose other arms are not
+/// proved here, and a return or throw hands it to a caller; both keep it.
+///
+/// This is deliberately weaker than `undefined_absent_record_reads`: that set
+/// also re-spells the null test as `===void 0`, which is only valid when
+/// `undefined` is the *only* absent value. A host field can hold a `null` the
+/// program stored, so its tests must stay loose.
+fn normalization_free_host_field_reads(
+    function: &ControlFlowFunction<'_>,
+    js_value_values: &AHashSet<ValueId>,
+    null_values: &AHashSet<ValueId>,
+) -> AHashSet<ValueId> {
+    let mut candidates = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (&instruction.op, instruction.out, &instruction.ty) {
+            // The `JsValue` receiver is excluded: that path guards the receiver
+            // too (`o?.p??null`), and the guard is not a normalization.
+            (
+                ControlFlowOp::HostFieldGet { object, .. },
+                Some(out),
+                Some(Type::Nullable(inner)),
+            ) if !js_value_values.contains(object)
+                && !matches!(inner.as_ref(), Type::Nullable(_)) =>
+            {
+                Some(out)
+            }
+            _ => None,
+        })
+        .collect::<AHashSet<_>>();
+    if candidates.is_empty() {
+        return candidates;
+    }
+    let mut truthy_receiver = AHashMap::<ValueId, ValueId>::default();
+    let mut non_null_test = AHashMap::<ValueId, ValueId>::default();
+    for block in &function.blocks {
+        for instruction in &block.instructions {
+            match (instruction.out, &instruction.op) {
+                (
+                    Some(out),
+                    ControlFlowOp::Intrinsic {
+                        intrinsic: Intrinsic::JsTruthy,
+                        receiver: Some(receiver),
+                        args,
+                    },
+                ) if args.is_empty() => {
+                    truthy_receiver.insert(out, *receiver);
+                }
+                (
+                    Some(out),
+                    ControlFlowOp::Binary {
+                        op: IrBinaryOp::NotEq,
+                        lhs,
+                        rhs,
+                    },
+                ) => {
+                    if null_values.contains(lhs) {
+                        non_null_test.insert(out, *rhs);
+                    } else if null_values.contains(rhs) {
+                        non_null_test.insert(out, *lhs);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut proving_edges = Vec::<(BlockId, ValueId)>::new();
+    for block in &function.blocks {
+        if let Some(Terminator::Branch {
+            condition,
+            then_block,
+            ..
+        }) = block.terminator.as_ref()
+        {
+            proving_edges.push((*then_block, *condition));
+            if let Some(value) = truthy_receiver.get(condition) {
+                proving_edges.push((*then_block, *value));
+            }
+            if let Some(value) = non_null_test.get(condition) {
+                proving_edges.push((*then_block, *value));
+            }
+        }
+    }
+    let mut uses = AHashMap::<ValueId, Vec<(BlockId, bool)>>::default();
+    for block in &function.blocks {
+        for phi in &block.phis {
+            for (_, value) in &phi.incoming {
+                candidates.remove(value);
+            }
+        }
+        for instruction in &block.instructions {
+            let harmless = match &instruction.op {
+                ControlFlowOp::Binary {
+                    op: IrBinaryOp::Eq | IrBinaryOp::NotEq,
+                    ..
+                } => true,
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::UnwrapNullable | Intrinsic::JsIsNullish,
+                    receiver: Some(_),
+                    args,
+                } => args.is_empty(),
+                _ => false,
+            };
+            for value in op_values(&instruction.op) {
+                if candidates.contains(&value) {
+                    uses.entry(value).or_default().push((block.id, harmless));
+                }
+            }
+        }
+        match block.terminator.as_ref() {
+            // A branch on the value is a truthiness test, which cannot separate
+            // `undefined` from `null` either, so it does not kill the candidate.
+            Some(Terminator::Return(Some(value)) | Terminator::Throw(value)) => {
+                candidates.remove(value);
+            }
+            _ => {}
+        }
+    }
+    let mut dominance = AHashMap::<(BlockId, BlockId), bool>::default();
+    let mut proven_at = |value: ValueId, at: BlockId, function: &ControlFlowFunction<'_>| {
+        proving_edges.iter().any(|(edge, proven)| {
+            *proven == value
+                && *dominance
+                    .entry((*edge, at))
+                    .or_insert_with(|| block_dominates(function, *edge, at))
+        })
+    };
+    candidates.retain(|candidate| match uses.get(candidate) {
+        // never read: the normalization is dead either way, and dropping it is smaller
+        None => true,
+        Some(sites) => sites
+            .iter()
+            .all(|(at, harmless)| *harmless || proven_at(*candidate, *at, function)),
+    });
     candidates
 }
 
@@ -27476,6 +27642,42 @@ mod tests {
         assert!(output.contains(".lastIndexOf("), "{output}");
         assert!(output.contains(".repeat(3)"), "{output}");
         assert!(!output.contains("lilscript_"), "{output}");
+    }
+
+    #[test]
+    fn folds_ambient_regexp_constructions_into_the_same_literals() {
+        let source = "extern JsValue RegExp;extern JsValue subject();\
+                      JsValue pattern=JS.construct(RegExp,\"sale\",\"i\");\
+                      print(JS.invoke(pattern,\"test\",subject()).truthy());";
+        let open_world = compile(source);
+        assert!(open_world.contains("new RegExp("), "{open_world}");
+
+        let enabled = IrJsOptions {
+            regex_literals: true,
+            ..IrJsOptions::default()
+        };
+        let compact = compile_with_options(source, enabled);
+        assert!(compact.contains("/sale/i"), "{compact}");
+        assert!(!compact.contains("new RegExp("), "{compact}");
+        assert!(!compact.contains("RegExp"), "{compact}");
+    }
+
+    #[test]
+    fn keeps_ambient_regexp_constructions_that_carry_extra_operands() {
+        // `RegExp` reads two arguments and evaluates the rest for effect. The
+        // intrinsic has nowhere to record that third operand, so the
+        // constructor call has to survive intact.
+        let source = "extern JsValue RegExp;extern JsValue note();\
+                      JsValue pattern=JS.construct(RegExp,\"sale\",\"i\",note());\
+                      print(JS.invoke(pattern,\"test\",\"SALE\").truthy());";
+        let enabled = IrJsOptions {
+            regex_literals: true,
+            ..IrJsOptions::default()
+        };
+        let compact = compile_with_options(source, enabled);
+        assert!(compact.contains("new RegExp("), "{compact}");
+        assert!(compact.contains("note()"), "{compact}");
+        assert!(!compact.contains("/sale/i"), "{compact}");
     }
 
     #[test]
