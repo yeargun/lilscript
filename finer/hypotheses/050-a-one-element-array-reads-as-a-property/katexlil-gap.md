@@ -241,3 +241,65 @@ and remark-breaks / mdast-util-to-hast / remark-rehype unmoved.
 Also confirmed while measuring: the narrow wins hold either way (remark-breaks
 −54, mdast-util-to-hast −750, remark-rehype −697), and unified (+214) and
 remark-math (+129) are unmoved by any of it.
+
+## What Terser does to our output, and why we cannot simply copy it
+
+Running Terser over our own katexlil artifact:
+
+| | raw | Brotli |
+|---|---:|---:|
+| ours | 276219 | 64993 |
+| + Terser `passes:1` | 272814 | 64268 |
+| + `passes:2` | 272574 | **64224** |
+| + `passes:3` | 272563 | 64255 |
+| + `passes:5` / `10` | 272556 | 64293 |
+| Terser re-run over its own output (rounds 2, 3) | 272556 | 64293 |
+| upstream's artifact, Terser re-run | 267050 (identical) | 63063 (+19) |
+
+Three things worth keeping. **Our compiled JavaScript does get smaller through
+Terser — −3645 raw, −769 Brotli — which is 40% of the gap to upstream.**
+**More passes is not better**: raw converges by pass 3–5, but Brotli is best at
+*two* passes and gets worse after, so a raw-minimising fixed point is not a
+Brotli-minimising one. And **upstream's artifact is already at Terser's fixed
+point** — re-running changes not one raw byte — so they have no headroom left
+and we have 769.
+
+Per option, beyond what its printer alone recovers (−98, most of it our banner):
+`join_vars` −111, `collapse_vars` −110, `booleans` −89, `evaluate` −53,
+`conditionals` −18, `comparisons` −16; `if_return` +4, `loops` +29 and
+`sequences` +94 are losses. Combined `defaults` is −457 and `unsafe` −567.
+
+### The largest one, implemented and rejected
+
+`join_vars` on our artifact is 34 empty `var` statements declaring 59 names
+(upstream's has 15/21) — `var ba;…;ba=g`, which Terser turns into `…;var ba=g`.
+`sink_uninitialized_declarations` does that: `var` hoists, so moving the
+declaration to the first assignment is invisible as long as nothing reads the
+name first, the assignment is a statement of its own (a `var` in front of a
+comma sequence makes declarators of everything after it — caught by the Node
+oracle), and it shares the declaration's scope. Correct, tested, corpus clean.
+
+It is a **loss** on katexlil in every placement measured:
+
+| placement | Brotli |
+|---|---:|
+| committed, no sinking | 64993 |
+| its own scored family, per beam member | 66349 |
+| its own family, one probe on the best member | 65152 |
+| inside `shape_declarations` (no extra probe) | 66349 |
+| families moved after every existing one | 65000 |
+| per-member family with `terminal_codec_probe_limit` 512 | 64902 |
+
+Only the last wins, and it doubles the build. The +1356 rows are not the fold:
+the whole late cleanup runs inside `begin_fair_slice(allowance.min(8))`, eight
+work units shared by every family, so a family that offers itself to each beam
+member spends the slice and starves the ones after it — and the shaped
+declaration candidate it starves is worth 831 bytes. Raising the cap to 16
+removes the starvation exactly (64993, byte for byte) and the fold still gains
+nothing.
+
+So the honest reading is not "we lack Terser's transforms". It is that **we
+cannot afford to score the ones we add**: the beam is eight probes wide for all
+families, and a new candidate has to displace an existing winner to be
+evaluated. Making that budget scale with the number of families is the change
+that would unlock this class, and it is worth more than any single fold.
