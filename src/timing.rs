@@ -199,7 +199,7 @@ const BYTE_BUCKETS: [&Bucket; 16] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 23] = [
+const EVENT_BUCKETS: [&Bucket; 27] = [
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,
     &CLEANUP_SKIPPED,
@@ -219,6 +219,10 @@ const EVENT_BUCKETS: [&Bucket; 23] = [
     &RENAME_REFUSED,
     &RENAME_UNPROBED,
     &RENAME_WON,
+    &IDIOM_CANDIDATES,
+    &IDIOM_WON,
+    &IDIOM_LOST,
+    &IDIOM_IDLE,
     &RENAME_LOST,
     &RENAME_TEMPLATED,
     &RENAME_UNSOUND,

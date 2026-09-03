@@ -237,7 +237,15 @@ async function buildOn(w, port) {
   // A giant (level 15, `always`: 038 measured jquery ≈ 87% parallel) takes the
   // worker's full cores; the level-13 ports are mostly serial and share.
   const lanes = (KNOWN_COST[port] ?? 0) >= 3000 ? 1 : PER_WORKER
-  const script = `touch ~/${REMOTE}/.heartbeat; cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${lanes} > 0 ? $(nproc) / ${lanes} : 1 )) LILSCRIPT_TIMING=1 && node scripts/build.mjs --compile; status=$?; touch ~/${REMOTE}/.heartbeat; exit $status`
+  // Forward the orchestrator's own LILSCRIPT_* switches, minus the three this
+  // function sets itself, so a config A/B can be run across the pool without
+  // editing every port's toml. Values are quoted: they reach a remote shell.
+  const forwarded = Object.entries(process.env)
+    .filter(([name]) => name.startsWith("LILSCRIPT_"))
+    .filter(([name]) => !["LILSCRIPT_ROOT", "LILSCRIPT_COMPILER", "LILSCRIPT_TIMING"].includes(name))
+    .map(([name, value]) => `${name}='${String(value).replace(/'/g, "'\\''")}'`)
+    .join(" ")
+  const script = `touch ~/${REMOTE}/.heartbeat; cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${lanes} > 0 ? $(nproc) / ${lanes} : 1 )) LILSCRIPT_TIMING=1 ${forwarded} && node scripts/build.mjs --compile; status=$?; touch ~/${REMOTE}/.heartbeat; exit $status`
   const started = Date.now()
   const r = await sshAsync(w.ip, script, { timeoutS: BUILD_TIMEOUT_S, logFile })
   const seconds = (Date.now() - started) / 1000
