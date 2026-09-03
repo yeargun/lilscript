@@ -123,6 +123,17 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 - **`JS.push` is not a port smell** (047): spelled as a method invoke it is +696 on katexlil; the
   intrinsic is what the array families fold.
 
+- **A port's `npm test` usually does not rebuild, so testing it is not testing the compiler**
+  (049, the night of 2026-09-02): a fleet "test gate" that only runs `npm test` measures each
+  port's *committed* dist, whatever binary made it. A gate has to rebuild with the binary under
+  test and then run the suite. Two other traps met the same night: a pool worker deallocates
+  after 20 idle minutes and takes the run's tail with it, and `cmd | tail; echo $?` reports
+  tail's status, so every port looked green. `finer/out/048/fleet-tests.mjs` captures npm's own
+  status now.
+- **A perf lane cannot be read on this host** (049): the shared box gives `dup-loop` a range of
+  ±0.15 between rounds, which hid a 5% effect entirely; an idle pool worker gives ±0.03 and
+  resolved it in one pass. Interleave, take the median of per-round ratios, and measure on a
+  worker the pool is not otherwise using.
 - **Three emission knobs landed for V8, not for bytes** (048, `e112c94`): `javascript.function_scope`
   puts a single bundle's internals in one function scope (module cells → context slots; opt-in,
   the exported bindings are `undefined` until the body has run, which only an import cycle sees),
@@ -132,6 +143,12 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
   binary at a time: **net −209 Brotli over 21 ports** (katexlil −116, remarklil −94, jquerylil −48;
   worst port +40), suite 1673/1673, seven of the eight ports whose bytes moved green (mobxlil red
   before and after).
+- **A `string[]` hole guard is an operand question, not an index question** (049, `b6da284`): the
+  `|| ""` on an element read is unobservable when every use is a strict equality against a value a
+  dominating branch proves truthy, because a truthy value equals neither `undefined` nor the `""`
+  the guard substitutes. That elision is the whole `dup-loop` gap on cnlil (1.09 → 1.04, −52
+  Brotli); an explicit index bound buys nothing, because density is unprovable for an
+  `extern class` field.
 - **A class singleton in a port is a positional handle in the artifact** (048): every field read in
   a hot loop is a bounds-checked element load through it, the handle literal carries every typed
   default and the init re-stores every slot. cnlil's engine (66 fields), tables (24) and argument
