@@ -71,3 +71,52 @@ is *not* what the codec is charging for. Per function we are at parity or ahead:
 Redundant `+` coercions (`3*+h`, `0-+c`): raw −236, Brotli **0**. `let`→`var`: +18.
 Statement joining to 49 top-level items: −76. Outlining repeated literals: above.
 Larger terminal probe budget (256→1024): byte-identical.
+
+## The bottom-up pass, finished (2026-09-03)
+
+Every function in both lanes, paired two ways and measured:
+
+| pairing | pairs | our excess |
+|---|---:|---:|
+| same module and name, sharing a string literal | 211 | **−581 bytes** |
+| unmatched remainder, matched by string-literal Jaccard ≥ 0.5 | 189 | **+37 bytes** |
+
+Wherever a function can be paired at all, we are at parity or ahead. Splitting
+the artifact by AST instead (no map, so it works on any lane) says the same:
+
+| part | ours raw | ours Br | theirs raw | theirs Br | delta |
+|---|---:|---:|---:|---:|---:|
+| glue (everything outside a function) | 150604 | 30253 | 145223 | 30619 | **−366** |
+| bodies (477 vs 457 functions) | 126659 | 34794 | 122741 | 32549 | **+2245** |
+
+−366 + 2245 = +1879, which is the +1913 gap. So the whole of it is in function
+bodies, spread as ~14 raw bytes per function over ~280 functions that the two
+lanes partition differently — not in any function you can point at.
+
+## What this predicts, and what it cost to check
+
+The same shape holds on the other ports: Terser's own compressor over *our*
+artifact recovers −333 of micromark's +3188 and −92 of remark-math's +182. The
+gap is code shape, not a missing pass, on every port measured.
+
+Two more results worth keeping:
+
+- **remark-math is the same raw size as its Terser baseline** (6368 vs 6350)
+  and still +182 Brotli. Its structure count is identical to the byte (5305 vs
+  5306 characters with literals counted as one); we spend +72 `=` and +56 `,`
+  and 159 fewer identifier bytes. Compressibility, not size.
+- **The `/*! … MIT */` banner is 50–55 Brotli on a small port** — 39% of
+  remark-math's gap and 26% of unified's — and the Terser baselines carry no
+  comment. On katexlil the same banner is worth −91 (removing it makes the
+  artifact *larger*). Whether the ports keep it is a licensing call, but the
+  comparison is not like-for-like today.
+
+## Rejected this session, each measured on a real build
+
+Local function declarations (`var f=function(){}` -> `function f(){}`, the shape
+Terser's output has and ours does not): micromark **+108**, remark-math +11.
+Namespace member aliasing (`X.MathNode` -> `_n0`, 218 sites, raw −1644): **+68**.
+Splitting a completed literal declarator out of its list: +169. Stepping the
+object fold by comma element: same. Non-empty array literals absorbing their
+pushes, and inert literals that read a member: fire nowhere in the pipeline.
+`function_spelling = "function"`: +95. Inlining a hoisted numeric constant: −1.
