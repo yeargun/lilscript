@@ -1272,17 +1272,13 @@ pub(crate) fn fold_prefix_increment_for_bounds(
             cursor += 1;
             continue;
         }
-        let bound = &source[tokens[first_semi + 3].start..tokens[second_semi].start];
-        let bound = if expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "&&")
-            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "||")
-            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "?")
-            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], ",")
-            || expression_has_top_level_token(&tokens[first_semi + 3..second_semi], "=")
-        {
-            format!("({bound})")
-        } else {
-            bound.to_string()
-        };
+        // Everything after `name <` up to the condition's end is not one operand: `<` binds
+        // tighter than `&&`, `||`, `?`, `,` and `=`, so `i<n&&ok` is `(i<n)&&ok` and the tail
+        // belongs to the loop's condition, not to the comparison. Parenthesising it turned the
+        // test into `i<(n&&ok)` — a comparison against a boolean, with a different iteration
+        // count (cnlil's run-merge loop never merged; finer 049). The text goes through as it
+        // stands, which reproduces the original parse with the increment lifted.
+        let bound = source[tokens[first_semi + 3].start..tokens[second_semi].start].to_string();
         replacements.push((
             tokens[cursor].start,
             tokens[header_close].end,
@@ -1369,6 +1365,16 @@ pub(crate) fn fold_increment_infinite_for_bounds(
             continue;
         };
         let test = &tokens[scan + 2..if_close];
+        // The break test has to be the comparison itself: `if(i>=n&&!ok)break` exits on the
+        // conjunction, so its negation is `i<n||ok`, which this rewrite cannot spell.
+        if expression_has_top_level_token(test, "&&")
+            || expression_has_top_level_token(test, "||")
+            || expression_has_top_level_token(test, "?")
+            || expression_has_top_level_token(test, ",")
+        {
+            cursor += 1;
+            continue;
+        }
         let bound = if matches!(
             test,
             [ident, op, ..] if ident.text == name && op.text == ">="
@@ -1511,6 +1517,14 @@ pub(crate) fn fold_while_true_unit_increment_bounds(
             continue;
         };
         let test = &tokens[inc_end + 2..if_close];
+        if expression_has_top_level_token(test, "&&")
+            || expression_has_top_level_token(test, "||")
+            || expression_has_top_level_token(test, "?")
+            || expression_has_top_level_token(test, ",")
+        {
+            cursor += 1;
+            continue;
+        }
         let header = if prefix == "++"
             && matches!(test, [ident, op, ..] if ident.text == name && matches!(op.text, ">=" | ">"))
         {

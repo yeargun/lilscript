@@ -18,6 +18,7 @@ use super::{
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
     fold_for_trailing_increments, fold_self_receiver_calls, fold_constant_string_concatenations,
     fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
+    fold_prefix_increment_for_bounds, fold_increment_infinite_for_bounds,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 
@@ -3909,4 +3910,41 @@ fn borrowed_pushes_onto_an_array_literal_become_method_calls() {
     assert!(folded.contains("Array.prototype.push.call(b,7)"), "{folded}");
     assert!(folded.contains("Array.prototype.push.call(c,8)"), "{folded}");
     assert_eq!(count, 2, "{folded}");
+}
+
+/// A loop whose condition is a conjunction is not a comparison against that conjunction: `<`
+/// binds tighter than `&&`. These programs print their iteration trace, so a rewrite that
+/// changes the trip count is caught even when the final value happens to agree.
+#[test]
+fn lifting_an_increment_keeps_a_conjunction_in_the_loop_condition() {
+    for source in [
+        "let a=[3,4,5,0,7];let i=0;let out='';i++;for(;i<a.length&&a[i]>0;i++){out+=i}console.log(out)",
+        "let a=[3,4,5,0,7];let i=0;let out='';i++;for(;i<a.length&&a[i]>0||i===1;i++){out+=i}console.log(out)",
+        "let n=4;let i=0;let out='';i++;for(;i<n?true:false;i++){out+=i}console.log(out)",
+    ] {
+        let (folded, _) = fold_prefix_increment_for_bounds(source).unwrap();
+        assert!(!folded.contains("<("), "{source}\n{folded}");
+        assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    }
+}
+
+#[test]
+fn an_infinite_loop_break_on_a_conjunction_is_left_alone() {
+    for source in [
+        "let a=[3,4,0,7];let i=0;let out='';while(true){if(i>=a.length&&a[0]>0)break;out+=i;i++}console.log(out)",
+        "let a=[3,4,0,7];let i=0;let out='';while(true){if(i>=a.length||a[i]===0)break;out+=i;i++}console.log(out)",
+    ] {
+        let (folded, count) = fold_increment_infinite_for_bounds(source).unwrap();
+        assert_eq!(count, 0, "{source}\n{folded}");
+        assert_eq!(run_javascript(source), run_javascript(&folded));
+    }
+}
+
+#[test]
+fn a_lifted_increment_still_folds_a_plain_bound() {
+    let source = "let n=4;let i=0;let out='';i++;for(;i<n;i++){out+=i}console.log(out)";
+    let (folded, count) = fold_prefix_increment_for_bounds(source).unwrap();
+    assert_eq!(count, 1, "{folded}");
+    assert!(folded.contains("for(;++i<n;)"), "{folded}");
+    assert_eq!(run_javascript(source), run_javascript(&folded));
 }
