@@ -193,3 +193,37 @@ not recover it: beam 20/22/26/28 give 5698/5674/5649/5649 and
 The fold stays, because the fleet verdict is what decides: katexlil −104,
 remark-gfm −182, micromark −43, mobx +0, posthog +28 — **net −301**. But one
 port lost its win to it, and that is worth more than 28 bytes to know.
+
+## Trying to give posthog its win back
+
+The absorption fold costs posthog 28 bytes by moving the terminal search into a
+worse basin, not by making its code worse. The project's answer to that is a
+scored late family — offer the rewrite to each beam member and keep it only
+where the codec agrees — which is how `shape_declarations` and the regex
+spelling already work. Built and measured:
+
+| port | fold in the session | fold as a scored late family |
+|---|---:|---:|
+| posthog | 5649 (**loss** +27) | **5621 (win −1)** |
+| katexlil | 64957 | 65026 |
+| micromark | 25964 | 25984 |
+| remark-gfm | 10334 (win −904) | 10502 (win −736) |
+| mobx | 15575 | 15575 |
+
+Nine wins against eight losses instead of eight against nine, for 229 bytes
+spread over three ports that all keep their standing. On the fleet's own metric
+that is the better artifact — but **the late candidate is a wrong program**:
+katexlil's screenshot corpus differs on 123 of 130 items and 589 official tests
+fail, reproduced with main's own compiler as well as the source-map worktree.
+Run standalone on the finished artifact the same fold makes zero rewrites and
+changes nothing, so what it mis-handles is a mid-cleanup beam candidate, whose
+shapes the session version never sees.
+
+Reverted. A one-byte win is not worth a path that can emit a wrong program, and
+the in-session version is the one 1230 official tests pass on. Fixing the late
+family — most likely `skip_simple_statement` mis-reading an already comma-joined
+candidate — would flip posthog back and is the cheapest win on the board.
+
+Also confirmed while measuring: the narrow wins hold either way (remark-breaks
+−54, mdast-util-to-hast −750, remark-rehype −697), and unified (+214) and
+remark-math (+129) are unmoved by any of it.
