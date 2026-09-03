@@ -1207,6 +1207,53 @@ fn validate_each_fold() -> bool {
     *ENABLED.get_or_init(|| std::env::var_os("LILSCRIPT_VALIDATE_FOLDS").is_some())
 }
 
+/// Folds that `LILSCRIPT_SKIP_FOLDS` names are not run at all.
+///
+/// `LILSCRIPT_VALIDATE_FOLDS` catches a fold that emits JavaScript the parser
+/// rejects. It cannot catch the worse kind: a fold that emits *valid*
+/// JavaScript for a different program. Nothing announces that one either --
+/// the artifact ships and a port's test suite fails -- so the only way to find
+/// it is to run the suite with folds removed until it passes. This makes that
+/// bisection possible without a rebuild. Names match on suffix, so a bare
+/// `fold_assigned_truthy_ternaries` matches the full path `run` derives from
+/// the function's type. `LILSCRIPT_LIST_FOLDS` prints each fold name once, in
+/// session order, which is where the bisection's candidate list comes from.
+fn skipped_folds() -> &'static [String] {
+    static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    NAMES.get_or_init(|| {
+        std::env::var("LILSCRIPT_SKIP_FOLDS")
+            .map(|value| {
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}
+
+fn fold_is_skipped(name: &str) -> bool {
+    skipped_folds()
+        .iter()
+        .any(|skipped| name == skipped || name.ends_with(skipped.as_str()))
+}
+
+fn note_fold_name(name: &'static str) {
+    static SEEN: std::sync::OnceLock<std::sync::Mutex<std::collections::HashSet<&'static str>>> =
+        std::sync::OnceLock::new();
+    if std::env::var_os("LILSCRIPT_LIST_FOLDS").is_none() {
+        return;
+    }
+    let seen = SEEN.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+    if let Ok(mut seen) = seen.lock() {
+        if seen.insert(name) {
+            eprintln!("LILSCRIPT_LIST_FOLDS: {name}");
+        }
+    }
+}
+
 fn dump_rejected_generated_javascript(source: &str, error: &JavaScriptParseError) {
     let Some(directory) = std::env::var_os("LILSCRIPT_DUMP_REJECTED") else {
         return;
@@ -3155,6 +3202,10 @@ impl RewriteSession {
         name: &'static str,
         fold: impl Fn(&str) -> Result<(String, usize), JavaScriptParseError>,
     ) -> Result<(), JavaScriptParseError> {
+        note_fold_name(name);
+        if fold_is_skipped(name) {
+            return Ok(());
+        }
         let key = (name, self.digest());
         if crate::artifact_memo::DECLINED_FOLDS.get(&key).is_some() {
             return Ok(());

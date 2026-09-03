@@ -396,16 +396,25 @@ impl ProjectConfig {
                 .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
             // Keep the mandatory emission conservative. Production search
             // scores exact transitive nested-function shadowing separately.
-            transitive_nested_shadowing: false,
+            transitive_nested_shadowing: self
+                .javascript
+                .transitive_nested_shadowing
+                .unwrap_or(false),
             // The precise regime is an aggressive scored proposal. Keep the
             // configured/pinned emission conservative so an incomplete
             // transitive-reference proof can be rejected without making the
             // compiler's mandatory fallback invalid.
-            precise_cross_scope_shadowing: false,
+            precise_cross_scope_shadowing: self
+                .javascript
+                .precise_cross_scope_shadowing
+                .unwrap_or(false),
             reserved_local_name_prefix: false,
             local_name_reserve: self.javascript.local_name_reserve,
             stable_local_names: self.javascript.stable_local_names,
-            frequency_order_local_names: false,
+            frequency_order_local_names: self
+                .javascript
+                .frequency_order_local_names
+                .unwrap_or(false),
             entropy_property_names: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
@@ -1217,6 +1226,19 @@ pub struct JavaScriptConfig {
     pub terminal_codec_probe_limit: Option<usize>,
     pub max_candidate_raw_growth_percent: u16,
     pub function_layout_exact_limit: usize,
+    /// Let an inner scope take an enclosing binding's name whenever it proves
+    /// it never reads that binding, rather than reserving every enclosing name.
+    /// Terser does this from its reference graph and reaches a measurably
+    /// tighter name set for it -- 401 distinct short names against our 445 on
+    /// zodlil (finer 054). The mandatory emission stays conservative because an
+    /// incomplete transitive-reference proof must be rejectable; production
+    /// search scores the aggressive regime separately. Set it here to pin the
+    /// regime and measure a finished artifact instead of an intermediate one.
+    pub precise_cross_scope_shadowing: Option<bool>,
+    /// Extend that proof through nested function bodies as well.
+    pub transitive_nested_shadowing: Option<bool>,
+    /// Hand the shortest names to the most-used locals within a scope.
+    pub frequency_order_local_names: Option<bool>,
     pub local_name_reserve: usize,
     pub stable_local_names: bool,
     /// Reuse bindings for noninterfering SSA values in identifier-mangled
@@ -1334,6 +1356,9 @@ impl Default for JavaScriptConfig {
             terminal_codec_probe_limit: None,
             max_candidate_raw_growth_percent: 0,
             function_layout_exact_limit: 13,
+            precise_cross_scope_shadowing: None,
+            transitive_nested_shadowing: None,
+            frequency_order_local_names: None,
             local_name_reserve: 16,
             stable_local_names: true,
             local_name_coalescing: true,
