@@ -327,3 +327,20 @@ the terminal remapping before choosing — or to make the rename canonical so th
 it stops depending on the incidental shape of its input. Either is a real piece
 of work, and either would make every future fold measurable instead of a coin
 flip.
+
+## The knob that makes a transform measurable (59ce27b)
+
+`late_javascript_cleanup_finalists` returns the cleanup beam's best `keep`
+spellings instead of only its cheapest, and the caller finishes each through the
+same namespace remapping and keeps whichever *ends* smallest. Each carried
+spelling gets an equal share of the finalist's remaining slice.
+
+`[javascript] terminal_cleanup_finalists` selects `keep`; default 1 reproduces
+the old path byte for byte on katexlil, so it ships inert and costs one full
+remap per extra candidate when a port asks for it.
+
+This is the answer to the coin flip, not another fold: until a candidate is
+ranked by its finished cost, "does this transform help?" cannot be answered on
+this pipeline, because the stages after the beam move more than the transform
+does. Measuring `keep > 1` on the fleet is the next step, and every rejected
+fold in this folder deserves a re-test under it.
