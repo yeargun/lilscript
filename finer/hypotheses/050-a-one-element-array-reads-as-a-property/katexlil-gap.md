@@ -152,3 +152,44 @@ katexlil uses `"always"` with 256. Strengthening both is −26 and −30 on the
 first two; remark measures +628, but that delta is present with this session's
 folds *skipped* as well, so it predates them and belongs to whoever owns that
 port's last compiler bump.
+
+## Fleet standing with this session's compiler, and one flip it caused
+
+Measured against the pinned upstream Terser baselines, every port rebuilt with
+the compiler at `8f2fcd0`:
+
+**8 wins / 9 losses of 17 measured.** Wins: zod −20061, rehype −2953,
+hast-util-to-html −1014, remark-gfm −904, rehype-stringify −794,
+mdast-util-to-hast −750, remark-rehype −697, remark-breaks −55. Losses:
+posthog +27, remark-math +129, unified +214, katexlil +1820, mobx +2638,
+mdast-util-from-markdown +2794, remark-parse +2896, micromark +3188,
+remark +5316.
+
+Three ports have moved against the 2026-09-02 05:07 scoreboard for reasons
+that are *not* this session's folds — rebuilding each with
+`LILSCRIPT_SKIP_FOLDS` set to all four gives the same number:
+
+| port | scoreboard | today | with our folds skipped |
+|---|---:|---:|---:|
+| rehype | 51696 | 52127 | 52127 |
+| remark | 37239 | 37867 | 37869 |
+
+Those two belong to a compiler generation between the scoreboard and this
+session's first commit.
+
+**posthog is ours.** Bisecting the compiler across every commit since the
+scoreboard (1f195fa, e0c1c22, 9518ed4, 7871329, cc3715e, e112c94, b6da284,
+c40800e, 1780fa5, b181873 all give 5621) lands on `3f1b1f6` — the object-literal
+absorption fold — which takes it to 5649 and flips a −1 win into a +27 loss.
+The fold does not make posthog's code worse: the artifact diverges at byte 90
+with different names and a different function layout, and its token counts
+*improve* (`=` 521 -> 518, `,` 640 -> 630). It moved the terminal search into a
+different basin, which that port's own config comment already describes ("beam
+width is not monotone: 12 gives 5668, 22-26 give 5621, 32/48/64/96 regress to
+5720-5755… it selects which basin the terminal search lands in"). Re-tuning does
+not recover it: beam 20/22/26/28 give 5698/5674/5649/5649 and
+`local_name_reserve` 24/32/64 give 5700/5721/5720, all at or above 5649.
+
+The fold stays, because the fleet verdict is what decides: katexlil −104,
+remark-gfm −182, micromark −43, mobx +0, posthog +28 — **net −301**. But one
+port lost its win to it, and that is worth more than 28 bytes to know.
