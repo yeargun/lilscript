@@ -298,8 +298,32 @@ declaration candidate it starves is worth 831 bytes. Raising the cap to 16
 removes the starvation exactly (64993, byte for byte) and the fold still gains
 nothing.
 
-So the honest reading is not "we lack Terser's transforms". It is that **we
-cannot afford to score the ones we add**: the beam is eight probes wide for all
-families, and a new candidate has to displace an existing winner to be
-evaluated. Making that budget scale with the number of families is the change
-that would unlock this class, and it is worth more than any single fold.
+That budget reading was wrong, and testing it is what showed why. The families
+now divide their slice equally (`offer_cleanup_family`, 14474a7) and the number
+did not move: 66349 with greedy budget, with fair shares, with the beam at 8 and
+at 16, as its own family and inside `shape_declarations`. Identical every time.
+
+The artifact explains it. The +1356 build has **more** empty declarations than
+the one without the fold — 42 statements over 83 names against 34 over 59 — so
+the sinking never reached it at all. Its first difference from the good build is
+a *name*: `ga=(a,b)=>a==null?…` against `ga=(h,a)=>h==null?…`. Offering one more
+candidate moved the terminal rename into a different basin, and the whole
+artifact came out 1356 worse.
+
+**That is the real finding.** The pipeline's output is chaotic under
+perturbation: the beam ranks candidates by what they cost *now*, but the naming
+and namespace remapping that run afterwards can turn a locally cheaper spelling
+into a globally worse artifact, by one to two percent. It is the same mechanism
+that cost posthog its win from the absorption fold (+28 with *better* token
+counts), and the same one the function's own header warns about — "small codec
+differences can otherwise discard the topology that wins after terminal
+namespace remapping".
+
+So adopting a Terser transform is not blocked by having it or by affording it.
+It is blocked by the fact that we cannot tell whether a candidate is good until
+after the stages that follow it, and those stages are the ones that move. The
+design answer is to rank candidates by their *final* cost — carry each through
+the terminal remapping before choosing — or to make the rename canonical so that
+it stops depending on the incidental shape of its input. Either is a real piece
+of work, and either would make every future fold measurable instead of a coin
+flip.
