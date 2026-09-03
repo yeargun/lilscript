@@ -219,10 +219,24 @@ Run standalone on the finished artifact the same fold makes zero rewrites and
 changes nothing, so what it mis-handles is a mid-cleanup beam candidate, whose
 shapes the session version never sees.
 
-Reverted. A one-byte win is not worth a path that can emit a wrong program, and
-the in-session version is the one 1230 official tests pass on. Fixing the late
-family — most likely `skip_simple_statement` mis-reading an already comma-joined
-candidate — would flip posthog back and is the cheapest win on the board.
+The wrong program was not the absorption. Diffing the broken artifact against
+the good one found KaTeX's lexer reading
+
+    var b=a[6];return b?b:a[3]||a[2]?"\\ ":" "
+
+where it owed `var b=a[6];if(b)return b;b=a[3];return b?b:a[2]?"\\ ":" "` —
+`(a[3]||a[2])?"\\ ":" "` answers `"\\ "` where it owed `a[3]`. That is
+`fold_assigned_truthy_ternaries`, which rewrites `(b=E)?b:F` to `E||F` and takes
+F from `complete_primary_end`: a conditional continuing past that primary binds
+looser than the `||`. The same defect as `fold_ident_ternary_to_or` in 1780fa5,
+in its sibling, and latent — the beam simply never selected the candidate
+carrying it until the scored family started offering candidates that did.
+
+Both landed in `55303e2`. With the sibling guarded the late family is correct
+(screenshot corpus identical, 1230 official tests and 123 snapshots pass) and
+the fleet is **nine wins against eight losses**: posthog 5621 (−1, back to a
+win), remark-gfm 10502 (−736, still a win), katexlil 64993, micromark 25984,
+and remark-breaks / mdast-util-to-hast / remark-rehype unmoved.
 
 Also confirmed while measuring: the narrow wins hold either way (remark-breaks
 −54, mdast-util-to-hast −750, remark-rehype −697), and unified (+214) and
