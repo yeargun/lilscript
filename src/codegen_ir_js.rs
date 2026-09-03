@@ -6417,6 +6417,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .map(|export| export.name.to_string()),
             );
         }
+        if self.options.owned_js_properties == OwnedJsProperties::All {
+            stable_property_names.extend(names_reachable_from_program_strings(self.module));
+        }
         if self.options.mangle_extern_fields {
             stable_property_names.extend(extern_field_names.iter().cloned());
         }
@@ -6453,7 +6456,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             // `symbols[mode]`, and renaming one half of that is a wrong
             // program. A string used only as a static key is safe; one that
             // goes anywhere else is not.
-            stable_property_names.extend(computed_key_candidate_strings(function));
+            stable_property_names.extend(
+                escaping_string_constants(function)
+                    .into_iter()
+                    .filter(|text| is_js_property_identifier(text)),
+            );
             for block in &function.blocks {
                 for instruction in &block.instructions {
                     if let ControlFlowOp::HostFieldGet { object, property }
@@ -24237,16 +24244,71 @@ fn js_member_key_values_in_op(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
     }
 }
 
-/// String constants whose text must keep its spelling because the value is used
-/// somewhere other than as a member key, and so may reach a computed access.
-fn computed_key_candidate_strings(function: &ControlFlowFunction<'_>) -> AHashSet<String> {
+/// Property names a program could compute at run time, and so must not rename.
+///
+/// A table read as `katexImagesData[label]` names none of its keys in the code:
+/// `label` is built from the parsed input, and `"overrightarrow"` reaches the
+/// lookup as `"\\overrightarrow"` with its first character dropped. No
+/// declaration can enumerate that set -- it is the vocabulary the program
+/// accepts -- and following the object to the access needs provenance that an
+/// untyped program does not carry.
+///
+/// What is decidable is the other end. A name that occurs nowhere inside any
+/// string the program holds cannot be produced by slicing, splitting or
+/// concatenating one, so no computed access can ask for it and renaming it is
+/// safe. A name that does occur inside one might be asked for, so it stays.
+///
+/// This over-preserves: `text` occurs inside plenty of unrelated strings. It
+/// over-preserves in the safe direction, and it decides the whole question from
+/// the constant pool without an interprocedural analysis.
+fn names_reachable_from_program_strings(module: &ControlFlowModule<'_>) -> AHashSet<String> {
+    let mut strings = module
+        .functions
+        .iter()
+        .filter(|function| function.live)
+        .flat_map(escaping_string_constants)
+        .collect::<Vec<_>>();
+    strings.sort_unstable();
+    strings.dedup();
+    let mut candidates = AHashSet::default();
+    for function in module.functions.iter().filter(|function| function.live) {
+        let string_constants = function_string_constants(function);
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            for key in js_member_keys_in_op(&instruction.op, &string_constants) {
+                candidates.insert(key);
+            }
+        }
+    }
+    for layout in module.structs.iter().chain(&module.classes) {
+        for field in &layout.fields {
+            candidates.insert(field.name.to_string());
+        }
+    }
+    candidates
+        .into_iter()
+        .filter(|name| {
+            strings
+                .iter()
+                .any(|text| text.len() >= name.len() && text.contains(name.as_str()))
+        })
+        .collect()
+}
+
+/// String constants the program uses as *values*: every use is not a member key,
+/// so the text can reach a computed access, be sliced, split or concatenated.
+///
+/// A constant that only ever names a static key is not here. That distinction is
+/// what makes the rule usable at all: in `JS.object("overrightarrow", ...)` the
+/// key arrives as a string constant too, so a pool that kept those would contain
+/// every key and preserve all of them.
+fn escaping_string_constants(function: &ControlFlowFunction<'_>) -> AHashSet<String> {
     let constants = function
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
         .filter_map(|instruction| match (instruction.out, &instruction.op) {
             (Some(out), ControlFlowOp::Const(ConstValue::String(text))) => {
-                is_js_property_identifier(text).then(|| (out, (*text).to_string()))
+                Some((out, (*text).to_string()))
             }
             _ => None,
         })

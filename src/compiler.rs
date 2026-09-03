@@ -5280,11 +5280,26 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     // Preserve enough selected-model calls for the factored terminal naming
     // family even when ordinary cleanup exhausts its general allowance. Four
     // reserved plan slots expose at most four declaration spellings each.
+    // The idiom convergence runs after every other terminal family, so without a
+    // slice held back for it the ledger is already spent when it is reached:
+    // measured on markedlil, 821 idiom groups available and `idiom_candidates`
+    // zero. Reserved only when it is enabled, so with the knob off the ledger is
+    // exactly what it was.
+    let idiom_reserve = if config.javascript.idiom_directed_naming || idiom_naming_forced() {
+        std::env::var("LILSCRIPT_IDIOM_PROBES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| terminal_codec_probe_limit.div_euclid(8))
+            .min(terminal_codec_probe_limit.div_euclid(2))
+    } else {
+        0
+    };
     let mut codec_budget = TerminalCodecProbeBudget::with_final_reserve(
         terminal_codec_probe_limit,
         exact_pair_reserve
             .saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE)
-            .saturating_add(terminal_finalist_reserve),
+            .saturating_add(terminal_finalist_reserve)
+            .saturating_add(idiom_reserve),
     );
     let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_terminal_objective_challengers_in_current_pool(
@@ -6182,6 +6197,8 @@ fn finalize_javascript_candidates_with_parallelism(
     // expose more structure, so run it once on that exact winner instead of
     // duplicating its exhaustive swap neighborhood for every finalist.
     let selected = apply_terminal_binding_coordinate_descent(selected, config, codec_budget)?;
+    // Last of all, and only on this exact artifact: see `apply_terminal_idiom_convergence`.
+    let selected = apply_terminal_idiom_convergence(selected, config, codec_budget)?;
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
         code: selected.code,
@@ -7491,6 +7508,134 @@ fn apply_exact_two_binding_unused_letter_remap(
     Ok(selected)
 }
 
+/// Terminal idiom convergence: the last fine-tune, on the artifact that ships.
+///
+/// A short run of tokens the program repeats -- `"string"==typeof e`, an arrow
+/// header, a walk over a length -- is spelled differently in every scope that
+/// writes it, and the bytes that differ are novel text where they could have
+/// been a copy. Converting one is not free: claiming a spelling displaces the
+/// canonical sequence behind it, and 059 measured the whole assignment applied
+/// at once as a loss on every port, monotone in how many names it moved.
+///
+/// So it is not applied at once. Each idiom is offered alone, the exact codec
+/// rules on it, and the groups are re-derived after every acceptance, so the
+/// only conversions that survive are the ones that pay for their own
+/// displacement.
+///
+/// It runs *here* -- on the winner, after every other stage -- for the reason
+/// the cleanup beam documents about itself: the remapping that follows the beam
+/// is not monotone in the cost the beam ranks by, so a candidate offered earlier
+/// can win its own comparison and still end the run larger. Measured, when this
+/// was wired into the beam instead: katexlil +82 with every individual
+/// comparison won. Nothing downstream reads this, so the artifact that ships is
+/// either strictly smaller by the codec's own measure or byte-identical to the
+/// one that would have shipped without it.
+fn apply_terminal_idiom_convergence(
+    selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+    codec_budget: &mut TerminalCodecProbeBudget,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    // Disabled is decided before the ledger is touched at all. Releasing the
+    // final reserve is itself an observable act -- it changes what later work on
+    // this budget may spend -- so a pass that is not going to run must not do it.
+    if !(config.javascript.idiom_directed_naming || idiom_naming_forced())
+        || !config.js_options().mangle_identifiers
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        return Ok(selected);
+    }
+    // Every other terminal family is finished, so the slice held back for this
+    // one is now spendable. Released before the guard below reads `remaining`.
+    codec_budget.begin_final_phase();
+    if codec_budget.remaining() == 0 {
+        return Ok(selected);
+    }
+    let admission = Arc::clone(&selected.admission);
+    let mut code = selected.code.clone();
+    let Some(mut cost) = codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+    else {
+        return Ok(selected);
+    };
+
+    // Hill climb: take the first conversion that lowers the exact cost, then
+    // re-derive the groups against the text it produced.
+    let mut rounds = 0usize;
+    const MAX_ROUNDS: usize = 64;
+    loop {
+        rounds += 1;
+        if rounds > MAX_ROUNDS {
+            break;
+        }
+        let Ok(groups) = crate::js_peephole::idiom_conversion_groups(&code) else {
+            break;
+        };
+        if groups.is_empty() {
+            break;
+        }
+        let mut accepted = false;
+        for group in groups {
+            if !codec_budget.reserve_work_unit() {
+                return finish_terminal_idiom_convergence(selected, code, cost, config);
+            }
+            crate::timing::IDIOM_CANDIDATES.event(code.len() as u64);
+            let Ok((converged, rewrites)) =
+                crate::js_peephole::converge_with_preferences(&code, &group)
+            else {
+                continue;
+            };
+            if rewrites == 0 || converged == code {
+                crate::timing::IDIOM_IDLE.event(0);
+                continue;
+            }
+            if analyze_generated_javascript(&converged).is_err()
+                || admission.validate(&converged).is_err()
+            {
+                continue;
+            }
+            let Some(trial) =
+                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if trial < cost {
+                crate::timing::IDIOM_WON.event((cost - trial) as u64);
+                code = converged;
+                cost = trial;
+                accepted = true;
+                break;
+            }
+            crate::timing::IDIOM_LOST.event((trial - cost) as u64);
+        }
+        if !accepted {
+            break;
+        }
+    }
+    finish_terminal_idiom_convergence(selected, code, cost, config)
+}
+
+/// Move the improved text into the candidate, or hand back the incumbent
+/// untouched when nothing improved it.
+fn finish_terminal_idiom_convergence(
+    mut selected: ScoredJavaScriptCandidate,
+    code: String,
+    cost: usize,
+    config: &ProjectConfig,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    if code == selected.code {
+        return Ok(selected);
+    }
+    let metrics = analyze_generated_javascript(&code).map_err(generated_javascript_parse_error)?;
+    selected.startup_score = metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.metrics = metrics;
+    selected.code = code;
+    selected.transfer_cost = cost;
+    Ok(selected)
+}
+
 fn apply_terminal_binding_coordinate_descent(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
@@ -8031,57 +8176,6 @@ fn late_javascript_cleanup_finalists(
                 });
             } else {
                 crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
-            }
-        }
-    }
-    // Idiom-directed naming, offered beside the canonical convergence above and
-    // ranked against it by the codec. A repeated token idiom -- `"string"==typeof
-    // e`, an arrow header -- is spelled differently in every scope that writes
-    // it, and asking its bindings for the commonest occurrence's spelling makes
-    // those runs match.
-    //
-    // Off by default and the fleet says so (059): claiming a name displaces the
-    // canonical sequence behind it, and the displacement is monotone in the dose
-    // -- four bindings +21 Brotli on jquerylil, sixteen +35, two hundred and
-    // fifty-six +130. It is wired here rather than left in a branch because the
-    // slot is what makes it safe: the candidate is scored and the incumbent
-    // survives whenever it does not win, so the knob's floor is a tie.
-    if (config.javascript.idiom_directed_naming || idiom_naming_forced())
-        && config.js_options().mangle_identifiers
-        && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
-    {
-        for candidate in beam.clone() {
-            if !codec_budget.reserve_work_unit() {
-                break;
-            }
-            crate::timing::IDIOM_CANDIDATES.event(candidate.code.len() as u64);
-            let Ok((converged, rewrites)) =
-                crate::js_peephole::converge_idiom_names(&candidate.code)
-            else {
-                continue;
-            };
-            if rewrites == 0 || converged == candidate.code {
-                crate::timing::IDIOM_IDLE.event(0);
-                continue;
-            }
-            if analyze_generated_javascript(&converged).is_err()
-                || admission.validate(&converged).is_err()
-            {
-                continue;
-            }
-            let Some(cost) =
-                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
-            else {
-                continue;
-            };
-            if cost < candidate.cost {
-                crate::timing::IDIOM_WON.event((candidate.cost - cost) as u64);
-                beam.push(CleanupCandidate {
-                    code: converged,
-                    cost,
-                });
-            } else {
-                crate::timing::IDIOM_LOST.event((cost - candidate.cost) as u64);
             }
         }
     }

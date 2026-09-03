@@ -31,32 +31,52 @@ use crate::js_peephole::JavaScriptParseError;
 use std::collections::{HashMap, HashSet};
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
-    converge_names(source, false)
+    converge_names(source, &HashMap::new())
 }
 
-/// Idiom-directed convergence: the same pass, but bindings that take part in a
-/// token idiom the artifact repeats are asked for the spelling that idiom's
-/// commonest occurrence already uses.
+/// Apply one idiom conversion, expressed as declaration-token -> spelling.
 ///
-/// A small idiom -- `"string"==typeof e`, an arrow header, a walk over a length
-/// -- recurs across functions that share nothing else, and each occurrence is
-/// spelled by whichever letters its own scope happened to hand out. Measured on
-/// jquerylil: `"string"==typeof e` occurs 65 times over 60 scopes in 22
-/// spellings. Converging them is worth two things at once, which is what
-/// separates this from the positional convergence 059's predecessor falsified:
-/// the differing bytes stop being novel, *and* the commonest spelling is by
-/// construction made of the commonest letters, so the identifier stream's
-/// first-order entropy falls rather than rising.
+/// The map's keys index the token stream of `source`, so it must be the exact
+/// text the group was computed from.
+pub(crate) fn converge_with_preferences(
+    source: &str,
+    preferences: &HashMap<usize, String>,
+) -> Result<(String, usize), JavaScriptParseError> {
+    converge_names(source, preferences)
+}
+
+/// Every repeated idiom's conversion, ranked by the novel text it would remove,
+/// one map per idiom.
 ///
-/// It is an addition, never an imposition: the caller scores it and keeps the
-/// incumbent whenever it does not win, so its floor is a tie.
-pub(crate) fn converge_idiom_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
-    converge_names(source, true)
+/// They are returned separately rather than merged because merging is what 059
+/// measured failing: the whole assignment applied at once is a loss on every
+/// port, while the individual idioms inside it have not been priced one by one.
+/// The caller applies one, lets the codec rule on it, and recomputes -- so the
+/// only conversions that survive are the ones that pay for themselves.
+pub(crate) fn idiom_conversion_groups(
+    source: &str,
+) -> Result<Vec<HashMap<usize, String>>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    if tokens
+        .iter()
+        .any(|token| token.kind == TokenKind::Template && template_has_substitution(token.text))
+    {
+        return Ok(Vec::new());
+    }
+    let resolution = BindingResolution::new(&tokens);
+    if resolution
+        .function_scopes()
+        .iter()
+        .any(|(scope, _, _)| !resolution.scope_is_sound(*scope))
+    {
+        return Ok(Vec::new());
+    }
+    Ok(idiom_preference_groups(&tokens, &resolution))
 }
 
 fn converge_names(
     source: &str,
-    idiom_directed: bool,
+    preferences: &HashMap<usize, String>,
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     // A template token swallows its `${...}` substitutions whole
@@ -133,12 +153,6 @@ fn converge_names(
     let mut scopes = resolution.function_scopes();
     // Parents first, so an inner scope sees its enclosing bindings' final names.
     scopes.sort_unstable_by_key(|(_, start, end)| (*start, std::cmp::Reverse(*end)));
-
-    let preferences = if idiom_directed {
-        idiom_preferences(&tokens, &resolution)
-    } else {
-        HashMap::new()
-    };
 
     let mut assigned = HashMap::<usize, String>::new();
     let mut rewrites = Vec::<(usize, usize, String)>::new();
@@ -344,10 +358,10 @@ fn idiom_max_bindings() -> usize {
 /// so the whole census is `O(tokens x widths)` with no allocation per window.
 /// Nothing here decides anything: it returns a preference the caller may or may
 /// not be able to honour, and the artifact it produces is scored like any other.
-fn idiom_preferences(
+fn idiom_preference_groups(
     tokens: &[Token<'_>],
     resolution: &BindingResolution,
-) -> HashMap<usize, String> {
+) -> Vec<HashMap<usize, String>> {
     use std::hash::{Hash as _, Hasher as _};
 
     // A slot is a wildcard only where this pass could actually respell it. Free
@@ -476,8 +490,7 @@ fn idiom_preferences(
         slots
     };
 
-    let mut wanted: HashMap<usize, String> = HashMap::new();
-    let mut claimed: Vec<bool> = vec![false; tokens.len()];
+    let mut groups: Vec<HashMap<usize, String>> = Vec::new();
     for (_, _, key) in ranked {
         let Some(shape) = shapes.get(&key) else {
             continue;
@@ -512,6 +525,11 @@ fn idiom_preferences(
             continue;
         };
 
+        // One idiom, one group. Overlap is tracked only inside it: the caller
+        // re-derives the groups after every conversion it accepts, so two idioms
+        // never need to agree in advance.
+        let mut wanted: HashMap<usize, String> = HashMap::new();
+        let mut claimed: Vec<bool> = vec![false; tokens.len()];
         for (start, width) in &shape.occurrences {
             if wanted.len() >= idiom_max_bindings() {
                 break;
@@ -538,8 +556,11 @@ fn idiom_preferences(
                 wanted.entry(declaration).or_insert_with(|| name.clone());
             }
         }
+        if !wanted.is_empty() {
+            groups.push(wanted);
+        }
     }
-    wanted
+    groups
 }
 
 /// How body bindings are ranked within a scope. See the ranking site above.

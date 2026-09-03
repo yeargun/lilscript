@@ -6,7 +6,9 @@ use crate::js_peephole::folds::*;
 use crate::js_peephole::parse::{
     compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
 };
-pub(crate) use crate::js_peephole::rename::{converge_idiom_names, converge_local_names};
+pub(crate) use crate::js_peephole::rename::{
+    converge_local_names, converge_with_preferences, idiom_conversion_groups,
+};
 use crate::js_peephole::rewrite::{
     apply_rewrites, apply_token_rewrites, assign_is_in_declaration, is_property_identifier,
     non_overlapping_rewrites, top_level_stop,

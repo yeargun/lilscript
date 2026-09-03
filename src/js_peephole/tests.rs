@@ -4483,29 +4483,35 @@ fn idiom_census_over_an_artifact_file() {
     }
 }
 
-/// 059 — run both convergence passes over a finished artifact and write each
-/// result, so the codec can rank them the way the terminal cleanup would.
-/// Reads `LILSCRIPT_CONVERGE_INPUT`; passes vacuously when unset.
+/// 059 — hill-climb the idiom conversions over a finished artifact exactly as
+/// `apply_terminal_idiom_convergence` does, but without a codec: report how many
+/// idiom groups exist and what applying each alone would rewrite. A harness for
+/// sizing the search, not a test. Reads `LILSCRIPT_CONVERGE_INPUT`.
 #[test]
-fn both_convergence_passes_over_an_artifact_file() {
+fn idiom_conversion_groups_over_an_artifact_file() {
     let Some(input) = std::env::var_os("LILSCRIPT_CONVERGE_INPUT") else {
         return;
     };
     let input = std::path::PathBuf::from(input);
     let source = std::fs::read_to_string(&input).expect("LILSCRIPT_CONVERGE_INPUT must be readable");
-    let out = std::env::var_os("LILSCRIPT_CONVERGE_OUTPUT")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| input.with_extension("converge"));
-
-    let (local, local_rewrites) = super::converge_local_names(&source).expect("local pass");
-    let (idiom, idiom_rewrites) =
-        super::rename::converge_idiom_names(&source).expect("idiom pass");
-    std::fs::write(out.with_extension("local.js"), &local).expect("writable");
-    std::fs::write(out.with_extension("idiom.js"), &idiom).expect("writable");
+    let groups = super::rename::idiom_conversion_groups(&source).expect("groups");
+    let mut rewrites_total = 0usize;
+    let mut applied = 0usize;
+    for group in &groups {
+        let Ok((converged, rewrites)) = super::rename::converge_with_preferences(&source, group)
+        else {
+            continue;
+        };
+        if rewrites > 0 && converged != source {
+            applied += 1;
+            rewrites_total += rewrites;
+        }
+    }
     println!(
-        "059 local_rewrites={local_rewrites} idiom_rewrites={idiom_rewrites} \
-         local_bytes={} idiom_bytes={}",
-        local.len(),
-        idiom.len()
+        "059 groups={} bindings={} non_idle_groups={} rewrites_if_each_applied_alone={}",
+        groups.len(),
+        groups.iter().map(std::collections::HashMap::len).sum::<usize>(),
+        applied,
+        rewrites_total
     );
 }
