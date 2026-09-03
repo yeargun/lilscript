@@ -115,11 +115,23 @@ Measured on the idle worker, seven interleaved rounds, before → after: ssr 1.1
 arb 1.03 → 0.96, long → 0.97, dup-loop → 1.06.
 
 **Open: the recurring-working-set lane is bimodal.** With run merging restored, half of that
-lane's runs are at parity (11.1-11.7 ns against upstream's 11.2-12.3) and half are ~15 ns.
-Forcing the merged result flat by hand (`t.charCodeAt(0)` before the return) removes the slow
-mode completely and stably (11.4-11.9). Written into the port's source instead, the same flatten
-perturbed candidate selection and cost the component lanes more than it won, so it is not
-shipped. Upstream builds the same rope and is stable, so the mechanism is not the rope alone.
+lane's runs are at parity (11.1-11.7 ns against upstream's 11.2-12.3) and half are ~15 ns, on an
+idle worker, standalone, deterministic input. What it is not: garbage collection (13 collections
+against 14 in the stable build), a deoptimisation (none in either), or a different set of
+optimised functions (identical, and both runs contain on-stack replacements).
+
+Three remedies measured, none shippable:
+
+| variant | workset | cost elsewhere |
+|---|---|---|
+| `t.charCodeAt(0)` before the return, patched into the artifact | stable 11.4-11.9 | none; but it is a no-op statement the compiler would delete from a source |
+| the same written in the port (`if (output.charCodeAt(0) < 0) return "";`) | still bimodal | loop 1.06 → 1.27, dup-loop → 1.16: the extra branch moved candidate selection |
+| `if (merged == input) merged = input;` in the cache miss | still bimodal | none — and it explains itself: `===` bails on the length before flattening, which is exactly the case that matters |
+| runs collected into a `string[]` and `join(" ")`ed | **stable 11.4, ratio 1.041** | ssr 0.99 → 1.07, loop 1.06 → 1.27, dup-loop → 1.16 |
+
+So the rope is implicated (flattening the artifact by hand fixes it) but the mechanism that makes
+V8 flip run to run is not identified, and every source-level spelling that flattens costs more on
+the component lanes than the working set wins. The shipped build keeps concatenation.
 
 ## Next
 
