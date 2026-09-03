@@ -1,9 +1,9 @@
 # 052 — the prediction hop tests truthiness where upstream tests null
 
-**Status: CONFIRMED on the artifact, NOT REACHABLE from source. Replacing the single truthiness
-test on the sequence-prediction hop with a null test takes every component lane down —
-single 1.048 → 1.034, loop 1.058 → 1.026 — and it is 3 bytes. Typing the field so the compiler
-emits that test produces a different whole-function emission that loses the win.**
+**Status: RESOLVED in the compiler. The winning spelling is now what the typed source compiles
+to, and it is both smaller and faster than the shipped build: single 1.048 → 1.036, loop
+1.056 → 1.029, dup-loop 1.042 → 1.030, and 9456 → 9443 Brotli. Two compiler facts were missing,
+not one; the second only showed up after the first was fixed.**
 
 Lane: port + compiler. Objective: runtime ≤ upstream on every lane (objective §3). Ports: cnlil.
 Opened: 2026-09-03. Measured on an idle 16-core pool worker, Node 22, 9-11 interleaved rounds.
@@ -85,3 +85,63 @@ Two independent compiler items, both general:
    so it wants the codec scorer and a fleet A/B rather than an unconditional flip.
 
 Neither is cnlil-specific. Both need the 22-port fleet pass before landing.
+
+
+## Resolution
+
+The port could not reach the winning artifact because the compiler was missing two facts. Fixing
+the first exposed the second, and each on its own is a *worse* build than shipping — which is why
+the earlier measurements looked contradictory.
+
+**One: a `??null` nobody can observe.** A nullable `extern class` field read lowers to a plain
+member access, so its absent case is already `undefined`; the normalization only exists to spell
+that `null`. It is dead when nothing downstream separates the two, and three kinds of use cannot:
+a loose `==`/`!=` (JavaScript's loose equality equates null and undefined, so no operand tells
+them apart), the narrowing intrinsics, and any read in a block dominated by a branch that already
+proved the value non-nullish — the same dominance proof the string hole guard uses (049).
+
+**The bug that taught the shape of it.** The first version also re-spelled the test `!==void 0`,
+copying the record-read path it sits beside. That crashed cnlil on the first call:
+
+    TypeError: Cannot read properties of null (reading 'a0')
+
+A record's absent key is `undefined` and nothing else, so `===void 0` is a complete test there. A
+host field can hold a `null` the *program* stored, so `!==void 0` is true for it and the guarded
+call runs on null. Dropping the normalization is safe; re-spelling the test is not. They are now
+two analyses, and the weaker one carries that reason in its doc comment.
+
+**Two: a strict compare blocked the elision, and the loose one costs 7%.** `JS.strictEqual` does
+separate `undefined` from `null`, so it kept the normalization alive — leaving the port to choose
+between the elision and the faster compare. Writing the compare loosely instead (`last !=
+prediction`) reads better and lowers to abstract equality, which V8 runs instead of a pointer
+compare: **1.098 against 1.029 on component:single**, measured. The fix is that a strict compare
+against an operand whose *type* says it is neither null nor undefined answers `false` either way.
+The type check matters over the dominance proof here: the optimizer narrows the value after a null
+test, so by the compare the dominance proof names the pre-narrowing value and misses.
+
+| build | single | loop | dup-loop | brotli |
+|---|---:|---:|---:|---:|
+| shipped, `JsValue n` | 1.048 | 1.056 | 1.042 | 9456 |
+| typed + elision, loose compare | 1.098 | **1.014** | 1.052 | **9434** |
+| typed + strict compare, no elision | 1.029 | 1.066 | 1.061 | 9475 |
+| **typed + elision + strict compare** | **1.036** | **1.029** | **1.030** | **9443** |
+
+Neither half dominates the shipped build. Both together win every lane and 13 bytes.
+
+## What this says about predictability
+
+The owner's framing was that a LilScript author should know what a source line compiles to. Two
+places failed that here, and both are now either fixed or worth stating plainly:
+
+- `field != null` on a nullable host field compiled to `(field??null)!=null`. The normalization was
+  invisible in the source and cost bytes and an operation. **Fixed.**
+- `a != b` on two references compiles to loose `!=` and is measurably slower than `!==`. The
+  compiler does not yet promote it even when it can prove the two spell the same question. That is
+  a real predictability gap and the next candidate: promote `Eq`/`NotEq` to strict when at most one
+  operand can be nullish. It costs one byte per site and is worth about 7% where it is hot.
+
+## Still open
+
+`component:single` 1.036, `loop` 1.029, `dup-loop` 1.030 — better on every lane and smaller, but
+not yet at parity. The `merge:workset` bimodality from 049 is untouched. The lazy field select
+(v4 above) remains a knob-shaped trade: 20 bytes smaller, better on `loop`, worse on `single`.
