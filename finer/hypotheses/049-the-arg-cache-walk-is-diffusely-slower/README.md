@@ -96,8 +96,34 @@ question and the guard is often an *operand* question, which is where the proof 
 kept its own two shapes (the bucket walk allocates nothing on a hit, the entry's values are read
 once per candidate) because they are what upstream writes.
 
+## The second finding: a lifted increment swallowed the loop's conjunction
+
+Chasing `ssr` the same way turned up a miscompile. `fold_prefix_increment_for_bounds` rewrote
+
+    i++; for(;i<n&&keep[i];i++) body   →   for(;++i<(n&&keep[i]);) body
+
+because it took everything after `i<` as the comparison's right operand and parenthesised it.
+`<` binds tighter than `&&`, so the tail is the loop's own conjunction: the rewrite compares an
+index against a boolean and changes the trip count. On cnlil it disabled the emitter's
+run-merging loop, so every kept token was sliced and concatenated separately; on another program
+it is a wrong answer. Its two `while(true)` siblings had the mirror assumption — a break test of
+`i>=n&&other` negates to `i<n||!other`, which they cannot spell — and now refuse a test with a
+top-level `&&`, `||`, `?` or comma. Landed `b376c1b`; fleet A/B 20 of 22 ports byte-identical,
+katexlil +10 and cnlil +23 Brotli, net +33 for the correctness.
+
+Measured on the idle worker, seven interleaved rounds, before → after: ssr 1.12 → 0.99,
+arb 1.03 → 0.96, long → 0.97, dup-loop → 1.06.
+
+**Open: the recurring-working-set lane is bimodal.** With run merging restored, half of that
+lane's runs are at parity (11.1-11.7 ns against upstream's 11.2-12.3) and half are ~15 ns.
+Forcing the merged result flat by hand (`t.charCodeAt(0)` before the return) removes the slow
+mode completely and stably (11.4-11.9). Written into the port's source instead, the same flatten
+perturbed candidate selection and cost the component lanes more than it won, so it is not
+shipped. Upstream builds the same rope and is stable, so the mechanism is not the rope alone.
+
 ## Next
 
-`ssr` at 1.09 is now the widest lane and is untouched by this: it is all cold `mergeUncached`, so
-the next attribution belongs there, on the same idle-worker method. Loop-invariant member motion
+The two component lanes at 1.06 and the bimodal working-set lane are what is left. For the
+working set the mechanism is narrowed to the merged output's rope and a flatten is known to fix
+it; what is missing is a spelling that does not move the search. Loop-invariant member motion
 stays unpriced — the port hoisted its one hot case by hand.

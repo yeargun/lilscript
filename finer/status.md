@@ -31,9 +31,10 @@ at measurement: how much of the number is *not* the compiler.
 
 **cnlil** (not in the fleet measure; 048, 2026-09-02): the committed port was +283 Brotli and
 1.03-1.49x slower than upstream on its nine harness lanes. Shipped (a90f001) it is **−326 Brotli**
-(9457 against 9783) and **1.00-1.10x**, the one lane above 1.05 being `dup-loop`, which continues
-as [049](hypotheses/049-the-arg-cache-walk-is-diffusely-slower/README.md). The perf gate
-(objective §3) is met on eight lanes of nine.
+(9456 against 9783) and, on an idle worker over seven interleaved rounds, **0.96-1.06**: arb 0.96,
+long 0.97, ssr 0.99, short 1.00, repeat and workset 1.01, single 1.04, loop and dup-loop 1.06.
+Four lanes are at or better than upstream; the two component lanes and the working set's bimodal
+slow mode are what [049](hypotheses/049-the-arg-cache-walk-is-diffusely-slower/README.md) has left.
 
 Wins: rehype-katex −112118 (scope-suspect), zod −20103, rehype −3384 (−766 from 041),
 hast-util-to-html −1014, rehype-stringify −794, mdast-util-to-hast −754, remark-rehype −687, remark-gfm
@@ -150,6 +151,12 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
   binary at a time: **net −209 Brotli over 21 ports** (katexlil −116, remarklil −94, jquerylil −48;
   worst port +40), suite 1673/1673, seven of the eight ports whose bytes moved green (mobxlil red
   before and after).
+- **A lifted increment must not swallow the loop's conjunction** (049, `b376c1b`): a fold turned
+  `i++;for(;i<n&&keep[i];i++)` into `for(;++i<(n&&keep[i]);)`, comparing the index against a
+  boolean — a changed trip count, and on cnlil a silently disabled run-merging loop (ssr 1.12 →
+  0.99, arb → 0.96). `<` binds tighter than `&&`, so the tail after the comparison belongs to the
+  loop, never to the operand; its `while(true)` siblings refuse a break test carrying one.
+  A fold that re-parenthesises a condition is the third of this class after 040 and 044.
 - **A `string[]` hole guard is an operand question, not an index question** (049, `b6da284`): the
   `|| ""` on an element read is unobservable when every use is a strict equality against a value a
   dominating branch proves truthy, because a truthy value equals neither `undefined` nor the `""`
