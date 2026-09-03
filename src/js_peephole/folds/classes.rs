@@ -3389,6 +3389,41 @@ fn empty_object_binding_is_declaration(tokens: &[Token<'_>], binding_at: usize) 
     false
 }
 
+/// `NAME = { … };` in binding position. The literal may already carry
+/// properties: `d={p:1};d.k=v` is the same object as `d={p:1,k:v}`, and the
+/// run that follows can be absorbed the same way. A literal with properties
+/// brings two extra obligations, both checked by the caller: it must not run
+/// anything (no call can be moved across a skipped statement), and nothing it
+/// reads may be reassigned by a statement the binding moves past.
+fn object_literal_binding<'a>(
+    tokens: &'a [Token<'a>],
+    matching_close: &[Option<usize>],
+    at: usize,
+    allow_non_empty: bool,
+) -> Option<(usize, &'a str, usize, usize, usize)> {
+    let mut cursor = at;
+    if matches!(
+        tokens.get(cursor).map(|token| token.text),
+        Some("var" | "let" | "const")
+    ) {
+        cursor += 1;
+    }
+    if tokens.get(cursor)?.kind != TokenKind::Identifier
+        || tokens.get(cursor + 1).map(|token| token.text) != Some("=")
+        || tokens.get(cursor + 2).map(|token| token.text) != Some("{")
+    {
+        return None;
+    }
+    let close = matching_close.get(cursor + 2).copied().flatten()?;
+    if tokens.get(close + 1).map(|token| token.text) != Some(";") {
+        return None;
+    }
+    if !allow_non_empty && close != cursor + 3 {
+        return None;
+    }
+    Some((at, tokens[cursor].text, close + 2, cursor + 3, close))
+}
+
 fn empty_object_binding<'a>(tokens: &'a [Token<'a>], at: usize) -> Option<(usize, &'a str, usize)> {
     let mut cursor = at;
     if matches!(
@@ -3406,6 +3441,44 @@ fn empty_object_binding<'a>(tokens: &'a [Token<'a>], at: usize) -> Option<(usize
         return None;
     }
     Some((at, tokens[cursor].text, cursor + 5))
+}
+
+/// Every identifier the literal between `from` and `to` reads.
+fn literal_reads<'a>(tokens: &'a [Token<'a>], from: usize, to: usize) -> Vec<&'a str> {
+    let mut names = Vec::new();
+    for index in from..to {
+        if tokens[index].kind != TokenKind::Identifier {
+            continue;
+        }
+        // property keys and member names are not reads of a binding
+        if index > from && matches!(tokens[index - 1].text, "." | "?.") {
+            continue;
+        }
+        if tokens.get(index + 1).map(|token| token.text) == Some(":") {
+            continue;
+        }
+        names.push(tokens[index].text);
+    }
+    names
+}
+
+/// Whether the statement in `from..to` can run anything or assign one of `names`.
+fn statement_disturbs(tokens: &[Token<'_>], from: usize, to: usize, names: &[&str]) -> bool {
+    for index in from..to.min(tokens.len()) {
+        let text = tokens[index].text;
+        if matches!(text, "(" | "new" | "++" | "--" | "await" | "yield" | "delete") {
+            return true;
+        }
+        if tokens[index].kind == TokenKind::Identifier
+            && names.contains(&text)
+            && tokens
+                .get(index + 1)
+                .is_some_and(|next| next.text.ends_with('=') && next.text != "==" && next.text != "===" && next.text != "!=" && next.text != "!==" && next.text != "<=" && next.text != ">=")
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn object_assign_literal<'a>(
@@ -3495,18 +3568,44 @@ fn member_write<'a>(
     None
 }
 
+/// `d={};…;d.k=v` becomes `d={k:v}`.
 pub(crate) fn fold_fresh_empty_object_assign(
     source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_object_assigns(source, false)
+}
+
+/// The same for a literal that already holds properties: `d={p:1};…;d.k=v`
+/// becomes `d={p:1,k:v}`.
+///
+/// Offered as a scored late candidate rather than run in the session. It pays
+/// where it fires — katexlil −104, remark-gfm −182, micromark −43 — but it
+/// moves a binding, and the terminal search is sensitive to that: in the
+/// session it landed posthog in a worse basin for +28 and cost that port its
+/// win. The beam keeps it only where the codec agrees.
+pub(crate) fn absorb_property_writes_into_literals(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_object_assigns(source, true)
+}
+
+fn fold_object_assigns(
+    source: &str,
+    allow_non_empty: bool,
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut index = 0usize;
     while index < tokens.len() {
-        let Some((binding_at, name, mut cursor)) = empty_object_binding(&tokens, index) else {
+        let Some((binding_at, name, mut cursor, literal_from, literal_to)) =
+            object_literal_binding(&tokens, &matching_close, index, allow_non_empty)
+        else {
             index += 1;
             continue;
         };
+        let existing = &source[tokens[literal_from].start..tokens[literal_to].start];
+        let reads = literal_reads(&tokens, literal_from, literal_to);
         let prefix_from = cursor;
         let mut skipped = 0usize;
         while skipped < FRESH_OBJECT_PEEPHOLE_PREFIX {
@@ -3519,6 +3618,12 @@ pub(crate) fn fold_fresh_empty_object_assign(
                 break;
             };
             if range_reads_ident(&tokens, cursor, next, name) {
+                break;
+            }
+            // Moving a literal that already holds values past a statement is
+            // only invisible when that statement runs nothing and writes none
+            // of the values. An empty literal reads nothing, so it always is.
+            if !existing.is_empty() && statement_disturbs(&tokens, cursor, next, &reads) {
                 break;
             }
             cursor = next;
@@ -3552,8 +3657,9 @@ pub(crate) fn fold_fresh_empty_object_assign(
             continue;
         }
         let mut literal = String::from("{");
+        literal.push_str(existing);
         for (offset, (key, value)) in pairs.iter().enumerate() {
-            if offset != 0 {
+            if offset != 0 || !existing.is_empty() {
                 literal.push(',');
             }
             literal.push_str(key);

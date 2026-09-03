@@ -60,6 +60,13 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 
 ## Settled — not re-litigated without a new fact
 
+
+- **katexlil's remaining gap is not a lever, it is a distribution** (050, 2026-09-03). 64958 vs
+  Terser's 63044. The 648 `defineSymbol` calls are a win (3635 vs 3762); everything else is +2861
+  raw for +2046 Brotli. Counting every literal as one character, our code structure is +560
+  characters and our identifiers are 2228 bytes shorter than Terser's. Terser's mangler over our
+  artifact is −24 and its whole compressor −605, so nothing it knows is missing; the residual is
+  ~1050 more materialised intermediates spread over 477 functions.
 - **Level 13 is the default because it is the best trade, not the best bytes** (007, 009). Level
   15 is 20x the CPU for 1.4%; the curve differs per port (remark-math prefers 15, unified 13,
   jquerylil earns 15 with `always` at 23x CPU for 4.3%). Measure per port; never transfer a curve.

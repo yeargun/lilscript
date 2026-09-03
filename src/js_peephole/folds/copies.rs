@@ -549,6 +549,9 @@ fn cheap_literal_end(tokens: &[Token<'_>], rhs: usize) -> Option<usize> {
     if tokens.get(rhs).map(|token| token.kind) == Some(TokenKind::Regex) {
         return Some(rhs);
     }
+    if let Some(end) = inert_object_or_array_end(tokens, rhs) {
+        return Some(end);
+    }
     if tokens.get(rhs).map(|token| token.text) == Some("this")
         && matches!(
             tokens.get(rhs + 1).map(|token| token.text),
@@ -571,6 +574,100 @@ fn cheap_literal_end(tokens: &[Token<'_>], rhs: usize) -> Option<usize> {
         } else {
             rhs + 6
         });
+    }
+    None
+}
+
+/// An object or array literal that only names things: identifiers, primitive
+/// literals and the punctuation that holds them together. Moving one to its
+/// single use moves nothing observable with it -- no call, no member read, no
+/// operator that could reach a `valueOf`. The allocation itself is unobservable
+/// because the binding is read exactly once, which the caller has checked.
+/// Whether every identifier the literal in `lit_from..=lit_to` reads still holds
+/// the same value throughout `from..use_at`. A literal captures its operands
+/// when it is evaluated, so moving one down past an assignment to any of them
+/// would capture the new value instead.
+fn literal_captures_hold(
+    tokens: &[Token<'_>],
+    lit_from: usize,
+    lit_to: usize,
+    from: usize,
+    use_at: usize,
+) -> bool {
+    let mut captured = Vec::new();
+    for index in lit_from..=lit_to.min(tokens.len().saturating_sub(1)) {
+        if tokens[index].kind != TokenKind::Identifier {
+            continue;
+        }
+        if tokens.get(index + 1).map(|next| next.text) == Some(":") {
+            continue; // a property key names nothing
+        }
+        captured.push(tokens[index].text);
+    }
+    if captured.is_empty() {
+        return true;
+    }
+    for index in from..use_at.min(tokens.len()) {
+        let token = &tokens[index];
+        if token.kind != TokenKind::Identifier || !captured.contains(&token.text) {
+            continue;
+        }
+        if index
+            .checked_sub(1)
+            .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+        {
+            continue;
+        }
+        let assigned = tokens.get(index + 1).is_some_and(|next| {
+            (next.text.ends_with('=')
+                && !matches!(next.text, "==" | "===" | "!=" | "!==" | "<=" | ">="))
+                || matches!(next.text, "++" | "--")
+        }) || index
+            .checked_sub(1)
+            .is_some_and(|previous| matches!(tokens[previous].text, "++" | "--"));
+        if assigned {
+            return false;
+        }
+    }
+    true
+}
+
+fn inert_object_or_array_end(tokens: &[Token<'_>], rhs: usize) -> Option<usize> {
+    const LIMIT: usize = 48;
+    let opener = tokens.get(rhs)?.text;
+    if !matches!(opener, "{" | "[") {
+        return None;
+    }
+    let mut depth = 0usize;
+    for index in rhs..(rhs + LIMIT).min(tokens.len()) {
+        let token = &tokens[index];
+        match token.text {
+            "{" | "[" => depth += 1,
+            "}" | "]" => {
+                depth -= 1;
+                if depth == 0 {
+                    // an empty literal is already as short as its name
+                    return (index > rhs + 1).then_some(index);
+                }
+            }
+            ":" | "," => {}
+            "true" | "false" | "null" | "undefined" => {}
+            _ => {
+                if !matches!(
+                    token.kind,
+                    TokenKind::Identifier | TokenKind::Number | TokenKind::String
+                ) {
+                    return None;
+                }
+                // a member read or a call would carry an effect to the use site
+                if matches!(
+                    tokens.get(index + 1).map(|next| next.text),
+                    Some("." | "(" | "[" | "?." | "=>")
+                ) {
+                    return None;
+                }
+            }
+        }
     }
     None
 }
@@ -882,6 +979,7 @@ fn fold_single_use_literals(
             if uses.len() == 1
                 && identifier_is_expression_slot(&tokens, uses[0])
                 && !name_use_is_mutated(&tokens, uses[0])
+                && literal_captures_hold(&tokens, name_at + 2, literal_end, stop + 1, uses[0])
                 && !identifier_occurs(&tokens, name_at + 2, literal_end + 1, name)
                 && !assignment_crosses_loop_boundary(
                     &tokens,
@@ -985,6 +1083,7 @@ fn fold_single_use_literals(
         if uses.len() == 1
             && identifier_is_expression_slot(&tokens, uses[0])
             && !name_use_is_mutated(&tokens, uses[0])
+            && literal_captures_hold(&tokens, cursor + 2, literal_end, literal_end + 1, uses[0])
             && !identifier_occurs(&tokens, cursor + 2, literal_end + 1, name)
             && !assignment_crosses_loop_boundary(
                 &tokens,

@@ -1,8 +1,8 @@
 use super::folds::{
     fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
-    fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
+    absorb_property_writes_into_literals, fold_assigned_truthy_ternaries, fold_fresh_empty_object_assign, fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
-    fold_single_use_temporaries, fold_statement_assignments_into_first_use,
+    fold_single_use_literal_bindings, fold_single_use_temporaries, fold_statement_assignments_into_first_use,
     fold_typeof_identifier_caches,
 };
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
@@ -3910,6 +3910,69 @@ fn borrowed_pushes_onto_an_array_literal_become_method_calls() {
     assert!(folded.contains("Array.prototype.push.call(b,7)"), "{folded}");
     assert!(folded.contains("Array.prototype.push.call(c,8)"), "{folded}");
     assert_eq!(count, 2, "{folded}");
+}
+
+#[test]
+fn a_literal_with_properties_absorbs_the_writes_that_follow() {
+    let source = "function f(a,b){let d={p:1};let e={t:\"elem\",v:a};d.children=[e,b];return d}function g(a){let d={p:a};a=9;d.k=1;return d}function h(a){let d={p:a};let x=k(a);d.k=x;return d}function k(a){return a*2}console.log(JSON.stringify([f(1,2),g(3),h(4)]))";
+    let (folded, _) = absorb_property_writes_into_literals(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("d={p:1,children:[e,b]}"), "{folded}");
+    // `a` is reassigned between the literal that reads it and the write, so the
+    // literal cannot move down past it
+    assert!(folded.contains("let d={p:a};a=9"), "{folded}");
+    // and a call could observe the object's absence, so that one stays too
+    assert!(folded.contains("let d={p:a};let x=k(a)"), "{folded}");
+}
+
+#[test]
+fn an_inert_literal_moves_to_its_only_use() {
+    let source = "function f(a,b){let e={t:\"elem\",v:a},c={t:\"kern\",v:b};return q([e,c])}function g(a){let e={v:a.x};a.x=9;return q(e)}function h(a){let e={v:k(a)};return q(e)}function q(x){return x}function k(x){return x*2}console.log(JSON.stringify([f(1,2),g({x:1}),h(3)]))";
+    let mut folded = source.to_string();
+    for _ in 0..4 {
+        let (next, _) = fold_single_use_literal_bindings(&folded).expect("fold");
+        folded = next;
+    }
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("q([{t:\"elem\",v:a},{t:\"kern\",v:b}])"), "{folded}");
+    // a member read would move with the literal, and `k(a)` is a call
+    assert!(folded.contains("let e={v:a.x};a.x=9"), "{folded}");
+    assert!(folded.contains("let e={v:k(a)};"), "{folded}");
+    // and a captured operand that is reassigned in between pins the literal
+    let captured = "function p(a){let e={v:a};a=9;return q(e)}function q(x){return x}console.log(JSON.stringify(p(1)))";
+    let (folded, count) = fold_single_use_literal_bindings(captured).expect("fold");
+    assert_eq!(run_javascript(captured), run_javascript(&folded), "{folded}");
+    assert_eq!(count, 0, "{folded}");
+}
+
+#[test]
+fn late_passes_keep_a_guarded_return_chain_correct() {
+    let source = "var f=a=>{var b=a[6];if(b)return b;b=a[3];return b?b:a[2]?\"\\\\ \":\" \"},r=[f([0,0,0,0,0,0,\"six\"]),f([0,0,0,\"three\",0,0,0]),f([0,0,\"two\",0,0,0,0]),f([0,0,0,0,0,0,0])];console.log(JSON.stringify(r))";
+    let expected = run_javascript(source);
+    let mut chain = source.to_string();
+    for pass in LateJavaScriptCleanupPass::ALL {
+        let Ok(next) = late_generated_javascript_cleanup_pass(&chain, pass) else {
+            continue;
+        };
+        if next != chain {
+            assert_eq!(run_javascript(&next), expected, "{pass:?} changed the value:\n{next}");
+            chain = next;
+        }
+    }
+}
+
+#[test]
+fn an_assigned_truthy_ternary_keeps_a_conditional_fallback_grouped() {
+    let source = "var f=a=>{var b=a[6];if(b)return b;return(b=a[3])?b:a[2]?\"\\\\ \":\" \"},r=[f([0,0,0,0,0,0,\"six\"]),f([0,0,0,\"three\",0,0,0]),f([0,0,\"two\",0,0,0,0]),f([0,0,0,0,0,0,0])];console.log(JSON.stringify(r))";
+    let (folded, count) = fold_assigned_truthy_ternaries(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert_eq!(count, 0, "{folded}");
+    // the same shape with a primary fallback still folds
+    let plain = "var f=a=>{var b;return(b=a[3])?b:\"none\"},r=[f([0,0,0,\"three\"]),f([0,0,0,0])];console.log(JSON.stringify(r))";
+    let (folded, count) = fold_assigned_truthy_ternaries(plain).expect("fold");
+    assert_eq!(run_javascript(plain), run_javascript(&folded), "{folded}");
+    assert_eq!(count, 1, "{folded}");
+    assert!(folded.contains("a[3]||\"none\""), "{folded}");
 }
 
 /// A loop whose condition is a conjunction is not a comparison against that conjunction: `<`

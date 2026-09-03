@@ -3571,7 +3571,14 @@ fn preserves_member_reads_inside_nested_functions() {
         "var l=[],g=l.slice;function when(){var l=[1];return l.slice.call(arguments)}",
     )
     .unwrap();
-    assert!(shadowed.code.contains("l.slice.call"), "{}", shadowed.code);
+    // The inner binding may be rematerialised into its only use, which keeps the
+    // shadowing: what must never happen is the outer `[]` reaching that use.
+    assert!(!shadowed.code.contains("[].slice.call"), "{}", shadowed.code);
+    assert!(
+        shadowed.code.contains("l.slice.call") || shadowed.code.contains("[1].slice.call"),
+        "{}",
+        shadowed.code
+    );
 
     let inner_arguments = optimize_generated_javascript(
         "function when(){var e=arguments.length;return function(p){return arguments.length>1?slice.call(arguments):p}}",
