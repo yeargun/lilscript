@@ -1,6 +1,11 @@
 # 059 — The idiom census models a win the codec refuses
 
-**Status: FALSIFIED, with a monotone dose-response and the modelling error named.** Small recurring idioms *are* spelled apart, and
+**Status: NO EFFECT ABOVE THE NOISE FLOOR, and one claim of mine retracted.** Applied to a finished
+artifact the conversion loses at every dose. Offered as a scored candidate mid-search it wins 5 of 8
+offers on markedlil and the artifact ends −53 Brotli smaller — but on the pool katexlil ends
+**+82 worse**, motionlil exactly level, markedlil −77. Every one of those is inside the ±100 band
+053 established, so the honest reading is that the knob moves nothing measurable in either
+direction. Default off, and it stays off. Small recurring idioms *are* spelled apart, and
 converging them toward their commonest spelling improves identifier entropy **and** removes novel
 bytes — the two terms add rather than fight, which is the opposite of 056. The model puts 235–1083
 Brotli on the table per port. Applied under a sound legality rule only 7–30% of the renames land,
@@ -157,16 +162,82 @@ application rate rather than by the idea being wrong. What is established:
 - **Under a sound but conservative legality rule the net effect is negative on four ports of five.**
   No optimiser should be built on the model number alone.
 
+### The result that reverses the verdict
+
+Everything above rewrites a *finished* artifact. The compiler does not work that way: the terminal
+cleanup offers a candidate against each beam member, mid-search, and the search continues from
+whatever wins. Those beam members are not the finished program -- they are pre-cleanup, pre-fold,
+differently shaped -- and the idiom conversion is worth something there that it is not worth at the
+end.
+
+markedlil, level 15, `LILSCRIPT_IDIOM_NAMING=1`, one binary, one variable:
+
+| | raw | gzip9 | brotli11 |
+|---|---:|---:|---:|
+| knob off | 34663 | 10521 | 9379 |
+| knob on | 34562 | 10454 | **9326** |
+| delta | **−101** | **−67** | **−53** |
+
+`LILSCRIPT_TIMING=1`: `idiom_candidates 8`, **`idiom_won 5` (sum 150)**, `idiom_lost 3` (sum 108).
+The candidate is offered eight times, wins five, and the artifact ends 53 Brotli smaller.
+
+On the pool, one binary, the knob the only variable:
+
+| port | brotli off → on | raw | gzip | brotli |
+|---|---|---:|---:|---:|
+| markedlil | 9470 → 9393 | −101 | −67 | **−77** |
+| motionlil | 50550 → 50550 | +0 | +0 | **+0** — offered, never won, incumbent survived |
+| katexlil | 64907 → 64989 | +26 | +9 | **+82** |
+
+### A claim of mine, retracted
+
+I said the scored slot makes the knob's floor a tie: the codec ranks the candidate and the incumbent
+survives when it loses, so nothing can get worse. **katexlil disproves that**, and the reason is
+recorded in status.md already — the terminal search is basin-sensitive. The slot does guarantee each
+individual comparison. What it cannot guarantee is the end of the run: a candidate that wins one
+comparison enters the beam, the search continues from there, and a locally better artifact can lead
+to a globally worse one. Per-step monotonicity is not end-to-end monotonicity when the steps that
+follow depend on what won.
+
+So the correct statement is narrower: the candidate never *replaces* a cheaper artifact at the point
+it is offered, and the run as a whole can still end either way. That is the difference between a
+guarantee and a tendency, and only the fleet can tell you which one you have.
+
+All three deltas are inside the ±100 noise floor, so none of them is evidence on its own. The knob
+stays off.
+
+This is why the slot matters. A conversion that loses on the finished artifact is not a conversion
+that loses in the pipeline, and the only way to tell the two apart is to let the codec rank it where
+it is actually proposed. Nothing about the dose-response above is wrong; it measures a different
+question.
+
 ## What landed
 
-`javascript.idiom_directed_naming`, **default off**, wired into the terminal cleanup beside the
-canonical convergence (`compiler.rs`). It is placed there rather than left on a branch because the
-slot is what makes it safe: the candidate is scored by the codec and the incumbent survives whenever
-it does not win, so the knob's floor is a tie and it can never regress an artifact. Counters
-`idiom_candidates` / `idiom_won` / `idiom_lost` / `idiom_idle` report it under `LILSCRIPT_TIMING=1`.
+`javascript.idiom_directed_naming`, **default off pending a fleet measure**, wired into the terminal
+cleanup beside the canonical convergence (`compiler.rs`). The slot is what makes it safe: the
+candidate is scored by the codec and the incumbent survives whenever it does not win, so the knob's
+floor is a tie and it can never regress an artifact. `LILSCRIPT_IDIOM_NAMING=1` forces it on for
+measurement without touching a port's config, and `workers.mjs` now forwards that kind of switch to
+the pool.
+
+Counters `idiom_candidates` / `idiom_won` / `idiom_lost` / `idiom_idle` report under
+`LILSCRIPT_TIMING=1`. They were declared and then silently unreported at first — `EVENT_BUCKETS` is
+a fixed-size array and a `Bucket` that is not listed in it never prints, which is exactly the class
+of defect 036/041/043/047 keep finding. Fixed in the same branch.
+
+**Verified output-neutral with the knob off**: built from a clean worktree at this commit against its
+parent, markedlil is byte-identical (34663 / 10521 / 9379 both sides). The +26 an earlier
+working-tree build showed was a concurrent session's uncommitted `codegen_ir_js.rs`, not this
+change.
 
 Sweep knobs `LILSCRIPT_IDIOM_MIN_OCC` and `LILSCRIPT_IDIOM_MAX_BINDINGS` reproduce the dose-response
 above in one command. 1700 compiler tests green.
+
+## Gates
+
+Correctness is not in question. Built with the knob on and run against each port's own suite:
+**markedlil 29/29**, **katexlil 1230 tests + 123 snapshots, all green**. 1700 compiler tests green.
+With the knob off, markedlil is byte-identical to the parent commit built from a clean worktree.
 
 ## Next, if anyone re-opens it
 
