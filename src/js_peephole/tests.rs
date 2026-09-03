@@ -1,6 +1,6 @@
 use super::folds::{
     fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
-    fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
+    fold_fresh_empty_object_assign, fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
     fold_single_use_temporaries, fold_statement_assignments_into_first_use,
     fold_typeof_identifier_caches,
@@ -3909,4 +3909,17 @@ fn borrowed_pushes_onto_an_array_literal_become_method_calls() {
     assert!(folded.contains("Array.prototype.push.call(b,7)"), "{folded}");
     assert!(folded.contains("Array.prototype.push.call(c,8)"), "{folded}");
     assert_eq!(count, 2, "{folded}");
+}
+
+#[test]
+fn a_literal_with_properties_absorbs_the_writes_that_follow() {
+    let source = "function f(a,b){let d={p:1};let e={t:\"elem\",v:a};d.children=[e,b];return d}function g(a){let d={p:a};a=9;d.k=1;return d}function h(a){let d={p:a};let x=k(a);d.k=x;return d}function k(a){return a*2}console.log(JSON.stringify([f(1,2),g(3),h(4)]))";
+    let (folded, _) = fold_fresh_empty_object_assign(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("d={p:1,children:[e,b]}"), "{folded}");
+    // `a` is reassigned between the literal that reads it and the write, so the
+    // literal cannot move down past it
+    assert!(folded.contains("let d={p:a};a=9"), "{folded}");
+    // and a call could observe the object's absence, so that one stays too
+    assert!(folded.contains("let d={p:a};let x=k(a)"), "{folded}");
 }
