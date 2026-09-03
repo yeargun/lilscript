@@ -3,7 +3,7 @@
 **Status: NO EFFECT ABOVE THE NOISE FLOOR, and one claim of mine retracted.** Applied to a finished
 artifact the conversion loses at every dose. Offered as a scored candidate mid-search it wins 5 of 8
 offers on markedlil and the artifact ends −53 Brotli smaller — but on the pool katexlil ends
-**+82 worse**, motionlil exactly level, markedlil −77. Every one of those is inside the ±100 band
+**+82 worse**, motionlil and jquerylil exactly level, markedlil −77. Every one of those is inside the ±100 band
 053 established, so the honest reading is that the knob moves nothing measurable in either
 direction. Default off, and it stays off. Small recurring idioms *are* spelled apart, and
 converging them toward their commonest spelling improves identifier entropy **and** removes novel
@@ -187,7 +187,13 @@ On the pool, one binary, the knob the only variable:
 |---|---|---:|---:|---:|
 | markedlil | 9470 → 9393 | −101 | −67 | **−77** |
 | motionlil | 50550 → 50550 | +0 | +0 | **+0** — offered, never won, incumbent survived |
+| jquerylil | 28436 → 28436 | +0 | +0 | **+0** — same |
 | katexlil | 64907 → 64989 | +26 | +9 | **+82** |
+
+One win, two exact ties, one loss, and the largest of them is 82 bytes against a ±100 floor. The
+two ties are the interesting rows: on both ports the candidate was proposed against every beam
+member and beaten by all of them, so the artifact came out unchanged to the byte. Where the
+candidate cannot help it costs nothing but a codec probe.
 
 ### A claim of mine, retracted
 
