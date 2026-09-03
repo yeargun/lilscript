@@ -26,7 +26,7 @@ and the live `index.html` was fetched and compared byte-for-byte with the local
 | Library | Commit | Pages run | Live URL | Package | npm gate |
 | --- | --- | --- | --- | --- | --- |
 | hast-util-to-htmllil | `f682d3c` | [33648317408](https://github.com/yeargun/hast-util-to-htmllil/actions/runs/33648317408) | https://yeargun.github.io/hast-util-to-htmllil/ | `@itslil/hast-util-to-html@9.0.7` | green |
-| katexlil | `81075a5` | [33682137267](https://github.com/yeargun/katexlil/actions/runs/33682137267) | https://yeargun.github.io/katexlil/ | `@itslil/katex@0.16.24` | green |
+| katexlil | `a1ae355` | [33704077221](https://github.com/yeargun/katexlil/actions/runs/33704077221) | https://yeargun.github.io/katexlil/ | `@itslil/katex@0.16.24` | green |
 | markedlil | `0c3ac40` | [33648261219](https://github.com/yeargun/markedlil/actions/runs/33648261219) | https://yeargun.github.io/markedlil/ | `@itslil/marked@18.0.14` | green |
 | mdast-util-from-markdownlil | `6635a35` | [33648329657](https://github.com/yeargun/mdast-util-from-markdownlil/actions/runs/33648329657) | https://yeargun.github.io/mdast-util-from-markdownlil/ | `@itslil/mdast-util-from-markdown@2.0.4` | green |
 | mdast-util-to-hastlil | `1c0fd2c` | [33648334353](https://github.com/yeargun/mdast-util-to-hastlil/actions/runs/33648334353) | https://yeargun.github.io/mdast-util-to-hastlil/ | `@itslil/mdast-util-to-hast@13.2.1` | green |
