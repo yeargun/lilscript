@@ -38033,4 +38033,69 @@ print(start(0.5));
         assert!(!output.contains("function helper"), "{output}");
         assert!(output.contains("export{"), "{output}");
     }
+
+    /// A nullable host-field read lowers to a plain member access, so its
+    /// absent case is already `undefined` and the `??null` only exists to
+    /// spell it `null`. When nothing downstream can separate the two, the
+    /// normalization is dead weight in the hot path.
+    #[test]
+    fn a_null_tested_host_field_read_drops_its_normalization() {
+        let output = compile_module_with_options(
+            "export extern class Node{string r;Node? n;}\
+             export bool hasNext(Node a){return a.n!=null;}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("??null"), "{output}");
+    }
+
+    /// The same read narrowed by its own test and then used: the uses sit in
+    /// blocks the proving edge dominates, so they cannot observe the absent
+    /// case either.
+    #[test]
+    fn a_host_field_read_used_after_its_null_test_drops_its_normalization() {
+        let output = compile_module_with_options(
+            "export extern class Node{string r;Node? n;}\
+             export string firstOr(Node a,string fallback){Node? next=a.n;if(next!=null){return next.r;}return fallback;}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("??null"), "{output}");
+    }
+
+    /// A strict compare *can* separate `undefined` from `null`, but not against
+    /// an operand whose type says it is neither: the answer is `false` either
+    /// way. Without this the elision loses to the faster reference compare.
+    #[test]
+    fn a_strict_compare_against_a_non_nullable_keeps_the_elision() {
+        let output = compile_module_with_options(
+            "export extern class Node{string r;Node? n;}\
+             export bool sameNext(Node a,Node b){Node? next=a.n;return JS.strictEqual(next,b);}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(!output.contains("??null"), "{output}");
+        assert!(output.contains("==="), "{output}");
+    }
+
+    /// The value leaves the function, so a caller can tell `undefined` from
+    /// `null` and the normalization has to stay.
+    #[test]
+    fn a_returned_host_field_read_keeps_its_normalization() {
+        let output = compile_module_with_options(
+            "export extern class Node{string r;Node? n;}\
+             export Node? passthrough(Node a){return a.n;}",
+            IrJsOptions {
+                mangle_identifiers: false,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("??null"), "{output}");
+    }
 }
