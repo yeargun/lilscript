@@ -41,6 +41,27 @@ pub struct IrJsOptions {
     /// can set this false so those names enter property mangling; host reads
     /// such as `string.length` stay pinned because they are not extern fields.
     pub mangle_extern_fields: bool,
+    /// Which dynamically-keyed properties a closed program owns.
+    ///
+    /// The compiler already derives the surface it must not touch: every
+    /// `HostFieldGet`/`HostFieldSet` property, every `HostCall` method, every
+    /// extern aggregate field, and everything an export can observe. What it
+    /// cannot derive is whether a key it sees only as a string on a `JsValue`
+    /// is one the program invented or one the host will read back.
+    ///
+    /// `UnderscoreSuffix` answers that per property, from the spelling, and is
+    /// the default. `All` answers it once for the program: every remaining key
+    /// is the program's own. That is the contract Closure's ADVANCED mode takes
+    /// with an externs file, except the externs are derived rather than
+    /// written, so it costs a port one line instead of renaming every field.
+    pub owned_js_properties: OwnedJsProperties,
+    /// Property names this program's own API hands to, or takes from, its
+    /// callers: options a caller sets, fields a callback reads off a context
+    /// object, members of a value the program returns. The compiler cannot see
+    /// these -- they are read in code it never compiles -- so a port declares
+    /// them. Everything the platform owns is already covered by
+    /// `js_externs`; this is the part only the port knows.
+    pub preserved_js_properties: &'static AHashSet<String>,
     pub public_aggregate_fields: bool,
     pub named_aggregate_fields: bool,
     pub pool_strings: bool,
@@ -274,6 +295,8 @@ impl Default for IrJsOptions {
             mangle_properties: false,
             mangle_exports: false,
             mangle_extern_fields: true,
+            owned_js_properties: OwnedJsProperties::UnderscoreSuffix,
+            preserved_js_properties: empty_preserved_js_properties(),
             public_aggregate_fields: true,
             named_aggregate_fields: false,
             pool_strings: true,
@@ -1547,6 +1570,24 @@ enum PureHelperActual {
         value: ValueId,
         initializer: JsExpression,
     },
+}
+
+/// The empty preserve list, for every option set that does not declare one.
+/// `IrJsOptions` is `Copy` because the candidate search copies it per
+/// proposal, so the set is borrowed rather than owned.
+pub fn empty_preserved_js_properties() -> &'static AHashSet<String> {
+    static EMPTY: std::sync::OnceLock<AHashSet<String>> = std::sync::OnceLock::new();
+    EMPTY.get_or_init(AHashSet::default)
+}
+
+/// How a program's dynamically-keyed properties are classified for mangling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OwnedJsProperties {
+    /// A key is the program's own only if its spelling says so: `name_`.
+    #[default]
+    UnderscoreSuffix,
+    /// Every key the compiler cannot see the host read is the program's own.
+    All,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -6363,6 +6404,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .iter()
             .map(|name| (*name).to_string())
             .collect::<AHashSet<_>>();
+        // A library's default export is usually an object mirroring its named
+        // exports -- katex ships `{render, renderToString, __parse, ...}` --
+        // and those keys are the same API the export names are. A program that
+        // is keeping the export name `render` is not renaming a property
+        // `render` either, so the two decisions are made together.
+        if !self.options.mangle_exports {
+            stable_property_names.extend(
+                self.module
+                    .exports
+                    .iter()
+                    .map(|export| export.name.to_string()),
+            );
+        }
         if self.options.mangle_extern_fields {
             stable_property_names.extend(extern_field_names.iter().cloned());
         }
@@ -6394,6 +6448,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .filter(|function| function.live)
         {
             let string_constants = function_string_constants(function);
+            // A key written as a literal but read through a computed access has
+            // to keep its spelling: katex builds `{math:{}, text:{}}` and reads
+            // `symbols[mode]`, and renaming one half of that is a wrong
+            // program. A string used only as a static key is safe; one that
+            // goes anywhere else is not.
+            stable_property_names.extend(computed_key_candidate_strings(function));
             for block in &function.blocks {
                 for instruction in &block.instructions {
                     if let ControlFlowOp::HostFieldGet { object, property }
@@ -6415,10 +6475,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if let ControlFlowOp::HostCall { method, .. } = &instruction.op {
                         stable_property_names.insert((*method).to_string());
                     }
+
                     for key in js_member_keys_in_op(&instruction.op, &string_constants) {
                         // Only explicit closed-world mode may coordinate an unowned key
                         // with an owned field that happens to use the same spelling.
-                        if self.options.mangle_extern_fields || !mangleable_internal_js_key(&key) {
+                        // Whether the program may rename a key it invented is a
+                        // separate question from whether extern *aggregate*
+                        // field spellings are a contract, so this no longer
+                        // rides on `mangle_extern_fields`.
+                        if !self.options.owns_js_property(&key) {
                             stable_property_names.insert(key);
                         }
                     }
@@ -6486,11 +6551,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                     }
                     for key in js_member_keys_in_op(&instruction.op, &string_constants) {
-                        if !self.options.mangle_extern_fields
-                            && (mangleable_internal_js_key(&key)
-                                || (self.options.owner_scoped_property_names
-                                    && owned_source_names.contains(key.as_str())))
+                        if (self.options.owns_js_property(&key)
+                            || (!self.options.mangle_extern_fields
+                                && self.options.owner_scoped_property_names
+                                && owned_source_names.contains(key.as_str())))
                             && !stable_property_names.contains(&key)
+                            && !crate::js_externs::is_platform_property(&key)
                         {
                             *frequencies.entry(key).or_insert(0) += loop_weight;
                         }
@@ -24045,6 +24111,37 @@ fn host_field_is_extern_member(
     })
 }
 
+impl IrJsOptions {
+    /// Whether a dynamically-keyed property is the program's to rename, under
+    /// the configured ownership policy. Callers have already established that
+    /// the key is not part of the derived host or export surface.
+    fn owns_js_property(&self, name: &str) -> bool {
+        if self.preserved_js_properties.contains(name) {
+            return false;
+        }
+        match self.owned_js_properties {
+            // The spelling convention stays behind `extern_fields = false`,
+            // which is the setting by which a program says its member
+            // spellings are not a contract with anything outside it. `All` is
+            // its own statement of the same thing and does not need that one.
+            OwnedJsProperties::UnderscoreSuffix => {
+                !self.mangle_extern_fields && mangleable_internal_js_key(name)
+            }
+            // A member reached through `JS.invoke` on an untyped value looks
+            // exactly like one the program invented, so the standard library
+            // and DOM surface has to be named rather than derived.
+            // `__proto__` still changes an object's prototype, and a
+            // one-character name is already at the floor.
+            OwnedJsProperties::All => {
+                name != "__proto__"
+                    && name.len() > 1
+                    && is_js_property_identifier(name)
+                    && !crate::js_externs::is_platform_property(name)
+            }
+        }
+    }
+}
+
 fn mangleable_internal_js_key(name: &str) -> bool {
     // This convention is only consulted when the project explicitly opts into
     // external-field mangling. The default open-world contract never treats a
@@ -24107,6 +24204,71 @@ fn js_member_keys_in_op(
             .collect(),
         _ => Vec::new(),
     }
+}
+
+/// The values an op consumes as a member key, in the same positions
+/// [`js_member_keys_in_op`] reads a spelling from.
+///
+/// A string constant used only here is a static key and may be renamed with the
+/// property it names. The same constant used anywhere else may reach a computed
+/// access -- `symbols[mode]` after `{math:{}}` -- and then its text has to
+/// survive, because renaming one half of that pair is a wrong program.
+fn js_member_key_values_in_op(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
+    match op {
+        ControlFlowOp::IndexGet { index, .. } | ControlFlowOp::IndexSet { index, .. } => {
+            vec![*index]
+        }
+        ControlFlowOp::Intrinsic {
+            intrinsic:
+                Intrinsic::JsGetProperty
+                | Intrinsic::JsDeleteProperty
+                | Intrinsic::JsHasProperty
+                | Intrinsic::JsInProperty
+                | Intrinsic::JsInvoke,
+            args,
+            ..
+        } => args.first().copied().into_iter().collect(),
+        ControlFlowOp::Intrinsic {
+            intrinsic: Intrinsic::JsPlainObject,
+            args,
+            ..
+        } => args.chunks_exact(2).map(|pair| pair[0]).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// String constants whose text must keep its spelling because the value is used
+/// somewhere other than as a member key, and so may reach a computed access.
+fn computed_key_candidate_strings(function: &ControlFlowFunction<'_>) -> AHashSet<String> {
+    let constants = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter_map(|instruction| match (instruction.out, &instruction.op) {
+            (Some(out), ControlFlowOp::Const(ConstValue::String(text))) => {
+                is_js_property_identifier(text).then(|| (out, (*text).to_string()))
+            }
+            _ => None,
+        })
+        .collect::<AHashMap<_, _>>();
+    if constants.is_empty() {
+        return AHashSet::default();
+    }
+    let mut key_uses = AHashMap::<ValueId, usize>::default();
+    for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+        for value in js_member_key_values_in_op(&instruction.op) {
+            *key_uses.entry(value).or_insert(0) += 1;
+        }
+    }
+    let uses = use_counts(function);
+    constants
+        .into_iter()
+        .filter_map(|(value, text)| {
+            let total = uses.get(&value).copied().unwrap_or(0);
+            let as_key = key_uses.get(&value).copied().unwrap_or(0);
+            (total > as_key).then_some(text)
+        })
+        .collect()
 }
 
 fn static_identifier_property(

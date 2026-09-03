@@ -13,6 +13,7 @@ pub mod formatter;
 pub mod interpreter;
 pub mod ir;
 pub mod js_peephole;
+mod js_externs;
 mod js_regex;
 pub mod js_syntax_target;
 pub mod lexer;

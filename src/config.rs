@@ -234,6 +234,23 @@ impl ProjectConfig {
                     .compression_enabled(CompressionDecision::ExportMangling)
             }),
             mangle_extern_fields: self.mangle.extern_fields.unwrap_or(true),
+            preserved_js_properties: match &self.mangle.preserve_properties {
+                // Borrowed rather than owned because `IrJsOptions` is `Copy`:
+                // the candidate search copies it once per proposal. The list is
+                // read from the project's config once per compile.
+                Some(names) if !names.is_empty() => Box::leak(Box::new(
+                    names.iter().cloned().collect::<crate::stable_hash::StableHashSet<String>>(),
+                )),
+                _ => crate::codegen_ir_js::empty_preserved_js_properties(),
+            },
+            owned_js_properties: match self.mangle.internal_properties {
+                Some(InternalProperties::All) => {
+                    crate::codegen_ir_js::OwnedJsProperties::All
+                }
+                Some(InternalProperties::UnderscoreSuffix) | None => {
+                    crate::codegen_ir_js::OwnedJsProperties::UnderscoreSuffix
+                }
+            },
             public_aggregate_fields: matches!(
                 self.javascript.public_aggregate_abi,
                 PublicAggregateAbi::Named
@@ -2128,7 +2145,33 @@ pub struct MangleConfig {
     pub properties: Option<bool>,
     pub exports: Option<bool>,
     pub extern_fields: Option<bool>,
+    /// Which dynamically-keyed properties the program claims as its own, and so
+    /// may have renamed. Only consulted when `extern_fields = false`, because
+    /// that is the setting by which a program says its member spellings are not
+    /// a contract with anything outside it.
+    ///
+    /// `"underscore-suffix"` (the default) claims a property when its spelling
+    /// says so, `name_`. `"all"` claims every key the compiler cannot see the
+    /// host read: the derived surface -- host field reads and writes, host
+    /// method calls, extern aggregate fields, and anything an export can
+    /// observe -- is still preserved exactly. This is Closure ADVANCED's
+    /// externs contract with the externs derived instead of written.
+    pub internal_properties: Option<InternalProperties>,
+    /// Property names this port's public API exchanges with its callers, which
+    /// the compiler cannot see because they are read in code it never compiles:
+    /// options a caller sets on an object it authors, fields a callback reads
+    /// off a context the program hands it, members of a value the program
+    /// returns. The platform surface is already known (`js_externs`); this is
+    /// the part only the port knows.
+    pub preserve_properties: Option<Vec<String>>,
     pub pool_strings: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum InternalProperties {
+    UnderscoreSuffix,
+    All,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
