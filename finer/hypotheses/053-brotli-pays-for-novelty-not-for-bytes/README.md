@@ -39,6 +39,11 @@ function — zero raw change, identical program:
 
 One rename in one function out of ~540 moves Brotli by up to 125 bytes.
 
+The band itself is basin-dependent: re-run on the artifact after the regex fold
+landed, the same six swaps span −35 to +57 instead of −125 to +30. Which is the
+same warning twice — the number a rename is worth is not stable either, so the
+floor is "about ±100", not a constant to subtract.
+
 **A single-build Brotli delta under about 150 bytes is not evidence.** Several
 "wins" in this folder's earlier entries, and most of the per-option table below,
 sit inside that band. This also explains why individual folds behaved as coin
@@ -111,11 +116,74 @@ call interchangeable.
 katexlil: 44 constructor sites → 2, **−898 raw**, Brotli inside noise. 1230
 official tests and 123 snapshots pass; 1688 compiler tests pass.
 
+Fleet, 25 ports on the pool: no port moved outside ±20 Brotli except katexlil
+itself, which went +1,856 → **+1,770** against upstream. micromark +20,
+remark-parse +16, mdast-util-from-markdown +20, mobx / unified / remark-math
+byte-identical. Generic, and it costs nothing anywhere it does not apply.
+
+## Where the gap actually is
+
+With the regex fold landed, katexlil and upstream-Terser's katex are the same
+size raw — 276,737 against 276,701 — and we are 2,468 Brotli bytes behind
+(65,154 against 62,686). So the gap is not bytes. It is what the bytes are.
+
+`scripts/_split.mjs` cuts each artifact into the three things it is made of:
+
+| region | ours raw | ours Brotli | Terser raw | Terser Brotli | Δ |
+|---|---|---|---|---|---|
+| string literals | 92,604 | 22,664 | 87,185 | 23,103 | **−439 ours** |
+| number literals | 43,588 | 9,718 | 44,425 | 9,770 | **−52 ours** |
+| code structure | 140,545 | 30,242 | 145,091 | 27,306 | **+2,936 theirs** |
+
+Our data wins. Our *code* is 4,546 bytes shorter and compresses 2,936 bytes
+worse. `scripts/_ident.mjs` splits that again:
+
+| stream | ours raw | ours Brotli | Terser raw | Terser Brotli | Δ |
+|---|---|---|---|---|---|
+| punctuation + keywords | 75,528 | 13,828 | 79,226 | 12,947 | +881 |
+| identifier occurrences | 86,377 | **17,853** | 86,307 | **15,740** | **+2,113** |
+
+The identifier stream is the same size in both and compresses 2,113 bytes
+worse in ours. Not longer names — the *same* number of bytes of names, arranged
+so they repeat less.
+
+## What that rules out
+
+Measured and dead, so nobody re-opens them:
+
+- **String pooling.** Hoisting repeated literals into short names is an enormous
+  raw win and a Brotli loss: top-10 literals −8,613 raw for −138 Brotli, top-60
+  **+56**, top-400 **+1,265**. `mangle.pool_strings = false` is correct.
+  Brotli already stores the second copy of `"math"` for a few bits; a fresh
+  two-character name is new entropy.
+- **Function-shape duplication.** Both artifacts have the same share of
+  functions whose structural skeleton repeats — 9.6% ours, 9.7% theirs. We are
+  not emitting less regular *shapes*.
+- **The mangling algorithm alone.** Running Terser's mangler over our own
+  finished artifact, with `compress:false` so only names move, is worth −251
+  Brotli. Real, reproducible across rebuilds — unlike the swap and canonical
+  numbers — and worth having, but an eighth of the 2,113.
+
+The last one is the useful negative: if simply adopting Terser's mangler recovers
+an eighth, then most of the identifier-stream gap is not in the names at all. It
+is in the *order and repetition of the references* our codegen emits. Two
+functions that upstream wrote alike, and Terser therefore spells alike, come out
+of SSA spelled differently, because each was specialised against its own
+context. Every such decision is locally shorter and globally less repetitive,
+which is exactly the trade this folder's title names.
+
 ## Next
 
-`collapse_vars` is the only unclaimed item with real content in it. And the
-noise table is not only a warning: canonicalising local names across 329 scopes
-to a fixed sequence is **0 raw and −67 Brotli**, which says name *assignment* is
-an unexploited compressed-size lever. Neither Terser nor Oxc attempts it — they
-both order names by frequency, which optimises raw. Sized in
-[[054]] before it is worth building.
+Two threads, in this order.
+
+1. **Identifier assignment.** −251 is available from Terser's mangler alone, and
+   canonicalising local names across 329 scopes to a fixed sequence is 0 raw and
+   −67 Brotli. Both say assignment is an unexploited lever; neither Terser nor
+   Oxc optimises it for compressed size, so this is where we can be strictly
+   finer rather than merely equal. What remains of the 2,113 after naming is a
+   property of the reference *order* our code emits, which is a codegen
+   question, not a mangler one.
+2. **`collapse_vars`** — the only item on Terser's list with real content behind
+   it (−629 raw): fold a single-use temporary into its one reader so the binding
+   dies. We have SSA and Terser does not, so we should be able to decide this
+   with strictly better information than `reduce_vars` gives it.

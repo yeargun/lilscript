@@ -23835,6 +23835,31 @@ fn normalization_free_host_field_reads(
     if candidates.is_empty() {
         return candidates;
     }
+    // A value whose declared type is not nullable can never be `null` or
+    // `undefined`, so a strict compare against it answers `false` for both and
+    // cannot separate them. This is the type-level counterpart of the dominance
+    // proof below, and it survives the narrowing the optimizer inserts after a
+    // null test, where the dominance proof names the pre-narrowing value.
+    let mut non_nullable = AHashSet::<ValueId>::default();
+    for parameter in &function.params {
+        if !matches!(parameter.ty, Type::Nullable(_)) {
+            non_nullable.insert(parameter.value);
+        }
+    }
+    for block in &function.blocks {
+        for phi in &block.phis {
+            if !matches!(phi.ty, Type::Nullable(_)) {
+                non_nullable.insert(phi.out);
+            }
+        }
+        for instruction in &block.instructions {
+            if let (Some(out), Some(ty)) = (instruction.out, instruction.ty.as_ref()) {
+                if !matches!(ty, Type::Nullable(_)) {
+                    non_nullable.insert(out);
+                }
+            }
+        }
+    }
     let mut truthy_receiver = AHashMap::<ValueId, ValueId>::default();
     let mut non_null_test = AHashMap::<ValueId, ValueId>::default();
     for block in &function.blocks {
@@ -23885,7 +23910,7 @@ fn normalization_free_host_field_reads(
             }
         }
     }
-    let mut uses = AHashMap::<ValueId, Vec<(BlockId, bool)>>::default();
+    let mut uses = AHashMap::<ValueId, Vec<(BlockId, bool, Option<ValueId>)>>::default();
     for block in &function.blocks {
         for phi in &block.phis {
             for (_, value) in &phi.incoming {
@@ -23905,9 +23930,30 @@ fn normalization_free_host_field_reads(
                 } => args.is_empty(),
                 _ => false,
             };
+            // A *strict* compare does separate `undefined` from `null`, but only
+            // when both sides can be nullish. Against an operand already proved
+            // non-nullish the answer is `false` either way, so the candidate
+            // survives if that operand is proved here.
+            let strict_against = match &instruction.op {
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::JsStrictEqual | Intrinsic::JsStrictNotEqual,
+                    receiver: Some(receiver),
+                    args,
+                } if args.len() == 1 => Some((*receiver, args[0])),
+                _ => None,
+            };
             for value in op_values(&instruction.op) {
                 if candidates.contains(&value) {
-                    uses.entry(value).or_default().push((block.id, harmless));
+                    let other = strict_against.and_then(|(lhs, rhs)| {
+                        if lhs == value && rhs != value {
+                            Some(rhs)
+                        } else if rhs == value && lhs != value {
+                            Some(lhs)
+                        } else {
+                            None
+                        }
+                    });
+                    uses.entry(value).or_default().push((block.id, harmless, other));
                 }
             }
         }
@@ -23932,9 +23978,13 @@ fn normalization_free_host_field_reads(
     candidates.retain(|candidate| match uses.get(candidate) {
         // never read: the normalization is dead either way, and dropping it is smaller
         None => true,
-        Some(sites) => sites
-            .iter()
-            .all(|(at, harmless)| *harmless || proven_at(*candidate, *at, function)),
+        Some(sites) => sites.iter().all(|(at, harmless, strict_other)| {
+            *harmless
+                || proven_at(*candidate, *at, function)
+                || strict_other.is_some_and(|other| {
+                    non_nullable.contains(&other) || proven_at(other, *at, function)
+                })
+        }),
     });
     candidates
 }
