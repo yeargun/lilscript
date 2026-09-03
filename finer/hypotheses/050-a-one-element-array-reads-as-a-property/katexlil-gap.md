@@ -120,3 +120,35 @@ Splitting a completed literal declarator out of its list: +169. Stepping the
 object fold by comma element: same. Non-empty array literals absorbing their
 pushes, and inert literals that read a member: fire nowhere in the pipeline.
 `function_spelling = "function"`: +95. Inlining a hoisted numeric constant: −1.
+
+## The other losing ports say the same thing (2026-09-03)
+
+The bottom-up pass was repeated on micromark, which is the biggest cluster of
+losses (micromark, remark-parse, mdast-util-from-markdown and remark share one
+source style) and, unlike katexlil, is an already-*typed* port — `int[] stack =
+[]`, `list.push(...)`, native array literals, 132 typed declarations.
+
+| micromark | ours | upstream Terser | delta |
+|---|---:|---:|---:|
+| whole | 25964 | 22696 | +3268 |
+| glue | 11004 | 10790 | +214 |
+| bodies (112 vs 105 functions) | 14875 | 11869 | **+3006** |
+
+Terser's own compressor over our artifact recovers −333 of that. Function
+pairing: 56 pairs come to **+455**, i.e. ~8 bytes each. So a typed port loses
+the same way an untyped one does — typing is not what separates the lanes.
+
+Two costs that *are* specific to the typed port, both measured:
+
+- **`|0` on int arithmetic**: 130 occurrences against upstream's 3. Removing
+  every one is **−44 Brotli** (raw −260). Range analysis that proved an index
+  stays in int32 would recover it.
+- Explicit `+""` key coercions: 14 sites.
+
+And one thing that is not a code difference at all: three of those ports
+(remark-parse, mdast-util-from-markdown, remark) build with
+`candidate_search = "production"` and no `terminal_codec_probe_limit`, where
+katexlil uses `"always"` with 256. Strengthening both is −26 and −30 on the
+first two; remark measures +628, but that delta is present with this session's
+folds *skipped* as well, so it predates them and belongs to whoever owns that
+port's last compiler bump.
