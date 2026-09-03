@@ -1280,6 +1280,19 @@ pub struct JavaScriptConfig {
     /// (finer 048, one process per variant). Omitted: on for size-first and
     /// balanced, off for performance-first and realistic-performance-first.
     pub truthy_nullable_checks: Option<bool>,
+    /// Offer an idiom-directed naming candidate beside the canonical one: ask
+    /// bindings that take part in a token idiom the artifact repeats for the
+    /// spelling that idiom's commonest occurrence uses, so two scopes writing
+    /// the same idiom write it the same way.
+    ///
+    /// **Default off, and the fleet says leave it off** (059). The candidate is
+    /// scored like every other, so it cannot make an artifact worse -- but it
+    /// has not yet made one better either. Claiming a name displaces the
+    /// canonical sequence behind it, and the displacement is monotone in the
+    /// dose: on jquerylil four claimed bindings cost +21 Brotli, sixteen +35,
+    /// two hundred and fifty-six +130. The knob exists so the next context can
+    /// re-measure it in one flag rather than rebuild the experiment.
+    pub idiom_directed_naming: bool,
     /// Wrap exclusive callees of a named root in a once-run IIFE so those
     /// helpers can reuse short names. Off only for oracles that need the
     /// three-address helper spelling their fixture was written against.
@@ -1381,6 +1394,7 @@ impl Default for JavaScriptConfig {
             local_name_coalescing: true,
             function_scope: None,
             truthy_nullable_checks: None,
+            idiom_directed_naming: false,
             iife_private_callee_clusters: true,
             nested_once_run_helpers: true,
             operand_order_fusion: true,

@@ -3421,9 +3421,14 @@ fn converge_local_names_over_an_artifact_file() {
     };
 
     let tokens = lex(&source).expect("the artifact must lex");
+    // 057: only a template carrying a `${...}` substitution closes the rewrite.
+    // An inert one mentions no binding, so the pass runs straight through it.
     let template_literals = tokens
         .iter()
-        .filter(|token| token.kind == TokenKind::Template)
+        .filter(|token| {
+            token.kind == TokenKind::Template
+                && crate::js_peephole::token::template_has_substitution(token.text)
+        })
         .count();
     let resolution = BindingResolution::new(&tokens);
     let mut scopes = resolution.function_scopes();
@@ -4010,4 +4015,497 @@ fn a_lifted_increment_still_folds_a_plain_bound() {
     assert_eq!(count, 1, "{folded}");
     assert!(folded.contains("for(;++i<n;)"), "{folded}");
     assert_eq!(run_javascript(source), run_javascript(&folded));
+}
+
+// ---------------------------------------------------------------------------
+// 058 — the idiom census.
+//
+// 056 falsified converging whole *function* shapes and found why: ranking names
+// by use count is itself an entropy optimisation, worth about twice the match
+// gain that competes with it. But 056 clustered whole AST nodes at 40 bytes and
+// never looked at the small idioms that recur *across* otherwise-unrelated
+// functions -- `"string"==typeof e`, an arrow header, a loop over a length.
+//
+// Three offline probes over finished text each priced this wrong, and each
+// error was a different illegal assumption:
+//
+//   20,680  treated globals and property names as renameable
+//   11,639  counted sliding windows inside one literal as separate occurrences
+//    5,600  counted occurrences whose bindings share a scope, where two
+//           bindings can never share a name
+//
+// Only the resolver knows the legal set, so the census runs here. It reports
+// both sides of the trade in bytes:
+//
+//   gain    convertible occurrences x span x LAMBDA   (a Brotli match costs the
+//           same at any length, so the whole span converts)
+//   cost    the rise in identifier-byte entropy the conversions cause, which is
+//           what the literal coder charges for flattening the distribution
+//
+// Both are upper bounds on the gain side: conflicts (one binding wanted under
+// two different spellings) are reported separately rather than resolved, since
+// resolving them optimally is the search this census exists to justify.
+
+/// Brotli bytes per byte of novel text, measured in 056 by appending matched
+/// and permuted regions of equal length and histogram to real artifacts.
+const LAMBDA: f64 = 0.43;
+
+#[derive(Clone)]
+struct IdiomOccurrence {
+    start: usize,
+    end: usize,
+    scope: usize,
+    text: String,
+    /// (declaration token, current spelling, occurrences inside the window) per
+    /// wildcard slot, in slot order.
+    slots: Vec<(usize, String, usize)>,
+}
+
+/// The innermost function scope containing each token, or `usize::MAX`.
+fn innermost_function_scope(
+    resolution: &super::binding::BindingResolution,
+    token_count: usize,
+) -> Vec<usize> {
+    let mut owner = vec![usize::MAX; token_count];
+    let mut scopes = resolution.function_scopes();
+    // Widest first, so the innermost scope is written last and wins.
+    scopes.sort_by_key(|(_, start, end)| std::cmp::Reverse(end.saturating_sub(*start)));
+    for (scope, start, end) in scopes {
+        for slot in owner.iter_mut().take(end.min(token_count)).skip(start) {
+            *slot = scope;
+        }
+    }
+    owner
+}
+
+fn shannon_bits(histogram: &[f64; 128]) -> f64 {
+    let total: f64 = histogram.iter().sum();
+    if total <= 0.0 {
+        return 0.0;
+    }
+    -histogram
+        .iter()
+        .filter(|count| **count > 0.0)
+        .map(|count| {
+            let p = count / total;
+            p * p.log2()
+        })
+        .sum::<f64>()
+}
+
+/// 058 — census of small recurring idioms and what converging them would cost.
+/// Reads `LILSCRIPT_IDIOM_INPUT`; passes vacuously when unset.
+#[test]
+fn idiom_census_over_an_artifact_file() {
+    use super::binding::{BindingResolution, Resolution};
+    use super::rename::names_a_function_or_class;
+    use super::rewrite::is_property_identifier;
+    use super::token::TokenKind;
+    use std::collections::HashMap;
+
+    let Some(input) = std::env::var_os("LILSCRIPT_IDIOM_INPUT") else {
+        return;
+    };
+    let source = std::fs::read_to_string(&input).expect("LILSCRIPT_IDIOM_INPUT must be readable");
+    let tokens = lex(&source).expect("the artifact must lex");
+    let resolution = BindingResolution::new(&tokens);
+    let owner = innermost_function_scope(&resolution, tokens.len());
+
+    // A slot is a wildcard only where the rename pass could actually respell it.
+    // Every other identifier -- a free name, a property, a module binding, a
+    // function's own name -- has to match verbatim, or the census prices a
+    // rename that is not ours to make.
+    let renameable: Vec<Option<usize>> = (0..tokens.len())
+        .map(|index| {
+            if tokens[index].kind != TokenKind::Identifier
+                || is_property_identifier(&tokens, index)
+            {
+                return None;
+            }
+            let Resolution::Bound(declaration) = resolution.resolve(index) else {
+                return None;
+            };
+            let scope = *owner.get(declaration)?;
+            if scope == usize::MAX
+                || resolution.scope_index_at(declaration) == 0
+                || !resolution.scope_is_sound(scope)
+                || !resolution.name_is_unambiguous(scope, tokens[declaration].text)
+                || names_a_function_or_class(&tokens, declaration)
+            {
+                return None;
+            }
+            Some(declaration)
+        })
+        .collect();
+
+    // Artifact-wide identifier byte histogram: what the literal coder sees.
+    let mut histogram = [0.0f64; 128];
+    let mut binding_uses = HashMap::<usize, usize>::new();
+    for index in 0..tokens.len() {
+        if tokens[index].kind != TokenKind::Identifier || is_property_identifier(&tokens, index) {
+            continue;
+        }
+        for byte in tokens[index].text.bytes().filter(u8::is_ascii) {
+            histogram[byte as usize] += 1.0;
+        }
+        if let Some(declaration) = renameable[index] {
+            *binding_uses.entry(declaration).or_insert(0) += 1;
+        }
+    }
+    let identifier_bytes: f64 = histogram.iter().sum();
+
+    let mut shapes: HashMap<String, Vec<IdiomOccurrence>> = HashMap::new();
+    for width in 4..=14usize {
+        let mut last_end: HashMap<String, usize> = HashMap::new();
+        for start_index in 0..tokens.len().saturating_sub(width) {
+            let start = tokens[start_index].start;
+            let end = tokens[start_index + width - 1].end;
+            // Under twelve bytes the compressor already carries it; over 220 the
+            // window is a literal table, not an idiom.
+            if end <= start || end - start < 12 || end - start > 220 {
+                continue;
+            }
+            let scope = owner[start_index];
+            if scope == usize::MAX || owner[start_index + width - 1] != scope {
+                continue;
+            }
+            let mut key = String::new();
+            let mut slots = Vec::new();
+            let mut seen: HashMap<usize, usize> = HashMap::new();
+            let mut wildcards = 0usize;
+            for index in start_index..start_index + width {
+                key.push('\u{1}');
+                match renameable[index] {
+                    Some(declaration) => {
+                        let next = seen.len();
+                        let slot = *seen.entry(declaration).or_insert(next);
+                        if slot == next {
+                            slots.push((declaration, tokens[index].text.to_string(), 0));
+                        }
+                        slots[slot].2 += 1;
+                        key.push('#');
+                        key.push_str(&slot.to_string());
+                        wildcards += 1;
+                    }
+                    None => match tokens[index].kind {
+                        TokenKind::Number => key.push('0'),
+                        TokenKind::String => key.push('"'),
+                        TokenKind::Template => key.push('`'),
+                        TokenKind::Regex => key.push('/'),
+                        _ => key.push_str(tokens[index].text),
+                    },
+                }
+            }
+            if wildcards == 0 {
+                continue;
+            }
+            // Occurrences of one shape must not overlap each other.
+            if last_end.get(&key).is_some_and(|previous| start < *previous) {
+                continue;
+            }
+            last_end.insert(key.clone(), end);
+            shapes.entry(key).or_default().push(IdiomOccurrence {
+                start,
+                end,
+                scope,
+                text: source[start..end].to_string(),
+                slots,
+            });
+        }
+    }
+
+    // Rank by the gain converging the shape would buy, then take shapes greedily
+    // so no byte is counted twice.
+    struct Candidate {
+        occurrences: usize,
+        scopes: usize,
+        spellings: usize,
+        span: usize,
+        convertible: Vec<IdiomOccurrence>,
+        target: Vec<String>,
+        sample: String,
+    }
+    let mut ranked = Vec::new();
+    for (_, group) in shapes {
+        if group.len() < 4 {
+            continue;
+        }
+        let mut by_text: HashMap<&str, usize> = HashMap::new();
+        for occurrence in &group {
+            *by_text.entry(occurrence.text.as_str()).or_insert(0) += 1;
+        }
+        let spellings = by_text.len();
+        let target_text = by_text
+            .iter()
+            .max_by_key(|(text, count)| (**count, std::cmp::Reverse(*text)))
+            .map(|(text, _)| (*text).to_string())
+            .unwrap_or_default();
+        let target_slots = group
+            .iter()
+            .find(|occurrence| occurrence.text == target_text)
+            .map(|occurrence| {
+                occurrence
+                    .slots
+                    .iter()
+                    .map(|(_, name, _)| name.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        // A scope already spelling the idiom the target way needs no conversion;
+        // one spelling it differently can adopt the target only because its
+        // bindings are its own. Two occurrences inside one scope share bindings,
+        // so they convert together or not at all.
+        let mut scopes_seen = std::collections::HashSet::new();
+        let convertible: Vec<IdiomOccurrence> = group
+            .iter()
+            .filter(|occurrence| occurrence.text != target_text)
+            .filter(|occurrence| occurrence.slots.len() == target_slots.len())
+            .cloned()
+            .collect();
+        for occurrence in &group {
+            scopes_seen.insert(occurrence.scope);
+        }
+        let span = group.iter().map(|o| o.end - o.start).sum::<usize>() / group.len();
+        if convertible.is_empty() {
+            continue;
+        }
+        ranked.push(Candidate {
+            occurrences: group.len(),
+            scopes: scopes_seen.len(),
+            spellings,
+            span,
+            convertible,
+            target: target_slots,
+            sample: target_text,
+        });
+    }
+    ranked.sort_by(|left, right| {
+        let lv = left.convertible.len() * left.span;
+        let rv = right.convertible.len() * right.span;
+        rv.cmp(&lv).then_with(|| left.sample.cmp(&right.sample))
+    });
+
+    let mut claimed = vec![false; source.len()];
+    let mut wanted: HashMap<usize, String> = HashMap::new();
+    let mut conflicts = 0usize;
+    let mut gain = 0.0f64;
+    let mut novel_bytes = 0usize;
+    let mut converted = 0usize;
+    let mut covered = 0usize;
+    let mut report = Vec::new();
+
+    for candidate in &ranked {
+        let mut taken = Vec::new();
+        for occurrence in &candidate.convertible {
+            if claimed[occurrence.start..occurrence.end].iter().any(|byte| *byte) {
+                continue;
+            }
+            taken.push(occurrence);
+        }
+        if taken.is_empty() {
+            continue;
+        }
+        for occurrence in &taken {
+            // A binding has one name. If any slot here is already committed to a
+            // different spelling by an earlier, more valuable idiom, this
+            // occurrence cannot be converted at all -- crediting it would price a
+            // rename that will not happen. First-come-wins is a greedy lower
+            // bound on the assignment an actual search would find; the blocked
+            // count is what that search would be competing for.
+            let blocked_here = occurrence
+                .slots
+                .iter()
+                .zip(&candidate.target)
+                .any(|((declaration, _, _), target)| {
+                    wanted.get(declaration).is_some_and(|existing| existing != target)
+                });
+            if blocked_here {
+                conflicts += 1;
+                continue;
+            }
+            for byte in claimed[occurrence.start..occurrence.end].iter_mut() {
+                *byte = true;
+            }
+            covered += occurrence.end - occurrence.start;
+            converted += 1;
+            let novel: usize = occurrence
+                .slots
+                .iter()
+                .zip(&candidate.target)
+                .filter(|((_, name, _), target)| name != *target)
+                .map(|((_, name, count), _)| name.len() * count)
+                .sum();
+            novel_bytes += novel;
+            gain += novel as f64 * LAMBDA;
+            for ((declaration, _, _), target) in occurrence.slots.iter().zip(&candidate.target) {
+                wanted.entry(*declaration).or_insert_with(|| target.clone());
+            }
+        }
+        if report.len() < 12 {
+            report.push((
+                taken.len(),
+                candidate.occurrences,
+                candidate.scopes,
+                candidate.spellings,
+                candidate.span,
+                candidate.sample.clone(),
+            ));
+        }
+    }
+
+    // Validation: apply the greedy assignment to the artifact and let the codec
+    // rule on it. The model above is arithmetic over lambda and an entropy
+    // delta; only the encoder settles whether that arithmetic is the truth.
+    //
+    // A rename lands only under the sufficient condition: the target spelling
+    // occurs nowhere in the scope's whole extent, so it can neither capture a
+    // free read nor be captured by a descendant. That refuses renames a full
+    // implementation could make, which keeps this a lower bound on the lower
+    // bound.
+    if let Some(output) = std::env::var_os("LILSCRIPT_IDIOM_OUTPUT") {
+        let scopes = resolution.function_scopes();
+        let extent: HashMap<usize, (usize, usize)> = scopes
+            .iter()
+            .map(|(scope, start, end)| (*scope, (*start, *end)))
+            .collect();
+        let mut spoken: HashMap<usize, std::collections::HashSet<&str>> = HashMap::new();
+        for (scope, start, end) in &scopes {
+            let mut names = std::collections::HashSet::new();
+            for index in *start..(*end).min(tokens.len()) {
+                if tokens[index].kind == TokenKind::Identifier
+                    && !is_property_identifier(&tokens, index)
+                {
+                    names.insert(tokens[index].text);
+                }
+            }
+            spoken.insert(*scope, names);
+        }
+
+        let mut rewrites: Vec<(usize, usize, String)> = Vec::new();
+        let mut applied = 0usize;
+        let mut ordered: Vec<(&usize, &String)> = wanted.iter().collect();
+        ordered.sort();
+        for (declaration, target) in ordered {
+            let current = tokens[*declaration].text;
+            if current == target {
+                continue;
+            }
+            let Some(scope) = owner.get(*declaration).copied() else {
+                continue;
+            };
+            let Some((start, end)) = extent.get(&scope).copied() else {
+                continue;
+            };
+            if spoken
+                .get(&scope)
+                .is_some_and(|names| names.contains(target.as_str()))
+            {
+                continue;
+            }
+            if let Some(names) = spoken.get_mut(&scope) {
+                names.insert(Box::leak(target.clone().into_boxed_str()));
+            }
+            applied += 1;
+            for index in start..end.min(tokens.len()) {
+                if tokens[index].kind != TokenKind::Identifier
+                    || is_property_identifier(&tokens, index)
+                {
+                    continue;
+                }
+                if matches!(resolution.resolve(index), Resolution::Bound(d) if d == *declaration) {
+                    rewrites.push((tokens[index].start, tokens[index].end, target.clone()));
+                }
+            }
+        }
+        rewrites.sort_by_key(|(start, _, _)| *start);
+        rewrites.dedup_by_key(|(start, _, _)| *start);
+        let (rewritten, count) =
+            super::rewrite::apply_token_rewrites(&source, rewrites);
+        std::fs::write(&output, &rewritten).expect("LILSCRIPT_IDIOM_OUTPUT must be writable");
+        println!(
+            "058 applied_bindings={applied} rewrites={count} output={}",
+            std::path::Path::new(&output).display()
+        );
+    }
+
+    // Price the entropy the conversions would cost: move each renamed binding's
+    // occurrences off its current spelling and onto the target one, then read the
+    // change in the identifier stream's first-order entropy.
+    let before = shannon_bits(&histogram);
+    let mut after = histogram;
+    for (declaration, target) in &wanted {
+        let current = tokens[*declaration].text;
+        if current == target {
+            continue;
+        }
+        let uses = binding_uses.get(declaration).copied().unwrap_or(0) as f64;
+        for byte in current.bytes().filter(u8::is_ascii) {
+            after[byte as usize] -= uses;
+        }
+        for byte in target.bytes().filter(u8::is_ascii) {
+            after[byte as usize] += uses;
+        }
+    }
+    for slot in after.iter_mut() {
+        if *slot < 0.0 {
+            *slot = 0.0;
+        }
+    }
+    let entropy_cost = (shannon_bits(&after) - before) * identifier_bytes / 8.0;
+
+    println!(
+        "058 input={} bytes={} tokens={} scopes={} idiom_shapes={} converted={} \
+         bindings_renamed={} conflicts={} covered_bytes={} novel_bytes={} gain={:.0} \
+         entropy_bits={:.4}->{:.4} \
+         entropy_cost={:.0} net={:.0}",
+        std::path::Path::new(&input).display(),
+        source.len(),
+        tokens.len(),
+        resolution.function_scopes().len(),
+        ranked.len(),
+        converted,
+        wanted.len(),
+        conflicts,
+        covered,
+        novel_bytes,
+        gain,
+        before,
+        shannon_bits(&after),
+        entropy_cost,
+        gain - entropy_cost,
+    );
+    for (taken, occurrences, scopes, spellings, span, sample) in report {
+        let excerpt: String = sample.chars().take(58).collect();
+        println!(
+            "  convert {taken:>4} of {occurrences:>4} occ  scopes {scopes:>4}  \
+             spellings {spellings:>4}  {span:>3}B  {excerpt:?}"
+        );
+    }
+}
+
+/// 059 — run both convergence passes over a finished artifact and write each
+/// result, so the codec can rank them the way the terminal cleanup would.
+/// Reads `LILSCRIPT_CONVERGE_INPUT`; passes vacuously when unset.
+#[test]
+fn both_convergence_passes_over_an_artifact_file() {
+    let Some(input) = std::env::var_os("LILSCRIPT_CONVERGE_INPUT") else {
+        return;
+    };
+    let input = std::path::PathBuf::from(input);
+    let source = std::fs::read_to_string(&input).expect("LILSCRIPT_CONVERGE_INPUT must be readable");
+    let out = std::env::var_os("LILSCRIPT_CONVERGE_OUTPUT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| input.with_extension("converge"));
+
+    let (local, local_rewrites) = super::converge_local_names(&source).expect("local pass");
+    let (idiom, idiom_rewrites) =
+        super::rename::converge_idiom_names(&source).expect("idiom pass");
+    std::fs::write(out.with_extension("local.js"), &local).expect("writable");
+    std::fs::write(out.with_extension("idiom.js"), &idiom).expect("writable");
+    println!(
+        "059 local_rewrites={local_rewrites} idiom_rewrites={idiom_rewrites} \
+         local_bytes={} idiom_bytes={}",
+        local.len(),
+        idiom.len()
+    );
 }

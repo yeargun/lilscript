@@ -6271,6 +6271,13 @@ const fn compression_cost_model_name(model: CompressionCostModel) -> &'static st
     }
 }
 
+/// Measurement escape hatch for 059: force the idiom candidate on without
+/// editing every port's config, so the pool can A/B the knob in one run.
+fn idiom_naming_forced() -> bool {
+    static FORCED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *FORCED.get_or_init(|| std::env::var_os("LILSCRIPT_IDIOM_NAMING").is_some())
+}
+
 const fn codec_history_window(model: CompressionCostModel) -> usize {
     match model {
         // Raw-size selection has no history. Retain a bounded proposal without
@@ -7961,6 +7968,57 @@ fn late_javascript_cleanup_finalists(
                 });
             } else {
                 crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
+            }
+        }
+    }
+    // Idiom-directed naming, offered beside the canonical convergence above and
+    // ranked against it by the codec. A repeated token idiom -- `"string"==typeof
+    // e`, an arrow header -- is spelled differently in every scope that writes
+    // it, and asking its bindings for the commonest occurrence's spelling makes
+    // those runs match.
+    //
+    // Off by default and the fleet says so (059): claiming a name displaces the
+    // canonical sequence behind it, and the displacement is monotone in the dose
+    // -- four bindings +21 Brotli on jquerylil, sixteen +35, two hundred and
+    // fifty-six +130. It is wired here rather than left in a branch because the
+    // slot is what makes it safe: the candidate is scored and the incumbent
+    // survives whenever it does not win, so the knob's floor is a tie.
+    if (config.javascript.idiom_directed_naming || idiom_naming_forced())
+        && config.js_options().mangle_identifiers
+        && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        for candidate in beam.clone() {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            crate::timing::IDIOM_CANDIDATES.event(candidate.code.len() as u64);
+            let Ok((converged, rewrites)) =
+                crate::js_peephole::converge_idiom_names(&candidate.code)
+            else {
+                continue;
+            };
+            if rewrites == 0 || converged == candidate.code {
+                crate::timing::IDIOM_IDLE.event(0);
+                continue;
+            }
+            if analyze_generated_javascript(&converged).is_err()
+                || admission.validate(&converged).is_err()
+            {
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                crate::timing::IDIOM_WON.event((candidate.cost - cost) as u64);
+                beam.push(CleanupCandidate {
+                    code: converged,
+                    cost,
+                });
+            } else {
+                crate::timing::IDIOM_LOST.event((cost - candidate.cost) as u64);
             }
         }
     }

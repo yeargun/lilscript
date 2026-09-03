@@ -26,15 +26,57 @@
 
 use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{apply_token_rewrites, is_property_identifier};
-use crate::js_peephole::token::{lex, Token, TokenKind};
+use crate::js_peephole::token::{lex, template_has_substitution, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 use std::collections::{HashMap, HashSet};
 
 pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    converge_names(source, false)
+}
+
+/// Idiom-directed convergence: the same pass, but bindings that take part in a
+/// token idiom the artifact repeats are asked for the spelling that idiom's
+/// commonest occurrence already uses.
+///
+/// A small idiom -- `"string"==typeof e`, an arrow header, a walk over a length
+/// -- recurs across functions that share nothing else, and each occurrence is
+/// spelled by whichever letters its own scope happened to hand out. Measured on
+/// jquerylil: `"string"==typeof e` occurs 65 times over 60 scopes in 22
+/// spellings. Converging them is worth two things at once, which is what
+/// separates this from the positional convergence 059's predecessor falsified:
+/// the differing bytes stop being novel, *and* the commonest spelling is by
+/// construction made of the commonest letters, so the identifier stream's
+/// first-order entropy falls rather than rising.
+///
+/// It is an addition, never an imposition: the caller scores it and keeps the
+/// incumbent whenever it does not win, so its floor is a tie.
+pub(crate) fn converge_idiom_names(source: &str) -> Result<(String, usize), JavaScriptParseError> {
+    converge_names(source, true)
+}
+
+fn converge_names(
+    source: &str,
+    idiom_directed: bool,
+) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
+    // A template token swallows its `${...}` substitutions whole
+    // (`scan_template` in token.rs), so an identifier referenced inside one is
+    // invisible to the resolver: renaming its binding would leave that
+    // occurrence pointing at a spelling that no longer exists. That hazard is
+    // real, but it belongs to templates that *have* a substitution.
+    //
+    // The guard used to ask whether the artifact contained a backtick at all,
+    // which is a much larger question. A template with no substitution is inert
+    // text -- it mentions no binding and can capture none -- so refusing the
+    // artifact for it disables the pass over every scope for nothing. Measured
+    // on katexlil: 24 template literals, **none** holding a substitution, and
+    // all 522 function scopes refused across 250 KB, on a port whose whole
+    // remaining gap is how its identifiers are spelled (053, 056).
     let templates = tokens
         .iter()
-        .filter(|token| token.kind == TokenKind::Template)
+        .filter(|token| {
+            token.kind == TokenKind::Template && template_has_substitution(token.text)
+        })
         .count();
     if templates > 0 {
         crate::timing::RENAME_TEMPLATED.event(templates as u64);
@@ -92,6 +134,12 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
     // Parents first, so an inner scope sees its enclosing bindings' final names.
     scopes.sort_unstable_by_key(|(_, start, end)| (*start, std::cmp::Reverse(*end)));
 
+    let preferences = if idiom_directed {
+        idiom_preferences(&tokens, &resolution)
+    } else {
+        HashMap::new()
+    };
+
     let mut assigned = HashMap::<usize, String>::new();
     let mut rewrites = Vec::<(usize, usize, String)>::new();
 
@@ -139,9 +187,23 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
             }
         }
 
-        // `(parameter position, -uses, declaration)`. Position leads because
+        // `(parameter position, secondary, declaration)`. Position leads because
         // header shape is what repeats: every first parameter is assigned before
         // any second parameter, so same-arity functions converge on one spelling.
+        //
+        // The secondary term decides the *body* bindings, and which term is
+        // right depends on the objective. Ranking by use count minimises the sum
+        // of name lengths, which is what a raw objective wants. Under a
+        // compressing objective a name's length is nearly free after its first
+        // occurrence -- measured: a Brotli match costs the same whatever its
+        // length (eps ~ 0), while novel text costs ~0.43 bytes per byte -- and
+        // what pays instead is that a structurally identical function spells the
+        // same way. Use counts differ between two such functions whenever their
+        // bodies differ at all, so use-count ranking permutes their names apart
+        // exactly where converging them would have paid most. Ordering by first
+        // occurrence is a canonical form: two alpha-equivalent scopes have their
+        // bindings in the same first-occurrence order by construction, so they
+        // receive the same names with no clustering pass at all.
         let mut renameable = Vec::<(usize, usize, usize)>::new();
         let mut position = 0usize;
         for (name, declaration) in declarations {
@@ -159,14 +221,50 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
                 blocked.insert(name.to_string());
                 assigned.insert(declaration, name.to_string());
             } else {
-                let count = uses.get(&declaration).map_or(0, Vec::len);
-                renameable.push((rank, usize::MAX - count, declaration));
+                renameable.push((rank, secondary_rank(&uses, declaration), declaration));
             }
         }
         renameable.sort_unstable();
 
+        // A binding an idiom wants spelled a particular way gets that spelling
+        // when the scope still has it free; the canonical sequence below then
+        // fills every other binding as usual, skipping what was just claimed.
+        // Blocking is already complete at this point -- names the scope keeps,
+        // names it reads from outside, and descendant function names are all in
+        // `blocked` -- so a preference honoured here is legal by the same proof
+        // the canonical path relies on.
+        let mut preferred = HashMap::<usize, String>::new();
+        for (_, _, declaration) in &renameable {
+            let Some(target) = preferences.get(declaration) else {
+                continue;
+            };
+            if is_reserved_word(target) || blocked.contains(target) {
+                continue;
+            }
+            blocked.insert(target.clone());
+            preferred.insert(*declaration, target.clone());
+        }
+
         let mut canonical = CanonicalNames::new(&alphabet);
         for (_, _, declaration) in renameable {
+            if let Some(replacement) = preferred.remove(&declaration) {
+                assigned.insert(declaration, replacement.clone());
+                if replacement != tokens[declaration].text {
+                    for site in uses.get(&declaration).into_iter().flatten() {
+                        rewrites.push((
+                            tokens[*site].start,
+                            tokens[*site].end,
+                            replacement.clone(),
+                        ));
+                    }
+                    rewrites.push((
+                        tokens[declaration].start,
+                        tokens[declaration].end,
+                        replacement,
+                    ));
+                }
+                continue;
+            }
             let name = tokens[declaration].text;
             let replacement = loop {
                 let Some(candidate) = canonical.next_name() else {
@@ -204,6 +302,279 @@ pub(crate) fn converge_local_names(source: &str) -> Result<(String, usize), Java
 }
 
 /// Parameters first in declaration order, then the remaining bindings by
+
+/// Widths of the token windows treated as idioms. Four tokens is the shortest
+/// run worth a match; past ten the windows are literal tables rather than
+/// idioms, and the cost grows with no return.
+const IDIOM_WIDTHS: std::ops::RangeInclusive<usize> = 4..=10;
+/// A window under this many bytes is already carried by the compressor; over the
+/// upper bound it is data, not code.
+const IDIOM_MIN_SPAN: usize = 12;
+const IDIOM_MAX_SPAN: usize = 220;
+/// A shape has to recur before converging it can pay for the rename.
+const IDIOM_MIN_OCCURRENCES: usize = 4;
+
+/// Sweep knobs for 059. `LILSCRIPT_IDIOM_MIN_OCC` raises the recurrence a shape
+/// must show before it may move a name; `LILSCRIPT_IDIOM_MAX_BINDINGS` caps how
+/// many bindings the census is allowed to claim, which bounds how far the
+/// canonical sequence behind them is displaced.
+fn idiom_min_occurrences() -> usize {
+    static VALUE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| {
+        std::env::var("LILSCRIPT_IDIOM_MIN_OCC")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(IDIOM_MIN_OCCURRENCES)
+    })
+}
+
+fn idiom_max_bindings() -> usize {
+    static VALUE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| {
+        std::env::var("LILSCRIPT_IDIOM_MAX_BINDINGS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(usize::MAX)
+    })
+}
+
+/// Which spelling each binding should take so that repeated idioms spell alike.
+///
+/// One linear pass per window width, hashing rather than materialising shapes,
+/// so the whole census is `O(tokens x widths)` with no allocation per window.
+/// Nothing here decides anything: it returns a preference the caller may or may
+/// not be able to honour, and the artifact it produces is scored like any other.
+fn idiom_preferences(
+    tokens: &[Token<'_>],
+    resolution: &BindingResolution,
+) -> HashMap<usize, String> {
+    use std::hash::{Hash as _, Hasher as _};
+
+    // A slot is a wildcard only where this pass could actually respell it. Free
+    // names, properties, module bindings and function names have to match
+    // verbatim or the census counts a rename that is not ours to make.
+    let renameable: Vec<Option<usize>> = (0..tokens.len())
+        .map(|index| {
+            if tokens[index].kind != TokenKind::Identifier
+                || is_property_identifier(tokens, index)
+            {
+                return None;
+            }
+            let Resolution::Bound(declaration) = resolution.resolve(index) else {
+                return None;
+            };
+            let scope = resolution.scope_index_at(declaration);
+            if scope == 0
+                || !resolution.scope_is_sound(scope)
+                || !resolution.name_is_unambiguous(scope, tokens[declaration].text)
+                || names_a_function_or_class(tokens, declaration)
+            {
+                return None;
+            }
+            Some(declaration)
+        })
+        .collect();
+
+    // (start token, width) of every window, grouped by shape then by spelling.
+    struct Shape {
+        occurrences: Vec<(usize, usize)>,
+        spellings: HashMap<u64, usize>,
+        span: usize,
+    }
+    let mut shapes: HashMap<u64, Shape> = HashMap::new();
+
+    for width in IDIOM_WIDTHS {
+        let mut last_end: HashMap<u64, usize> = HashMap::new();
+        for start in 0..tokens.len().saturating_sub(width) {
+            let from = tokens[start].start;
+            let to = tokens[start + width - 1].end;
+            if to <= from || to - from < IDIOM_MIN_SPAN || to - from > IDIOM_MAX_SPAN {
+                continue;
+            }
+            let mut shape = std::collections::hash_map::DefaultHasher::new();
+            let mut spelling = std::collections::hash_map::DefaultHasher::new();
+            let mut slots: Vec<usize> = Vec::new();
+            let mut wildcards = 0usize;
+            for index in start..start + width {
+                match renameable[index] {
+                    Some(declaration) => {
+                        let slot = slots
+                            .iter()
+                            .position(|held| *held == declaration)
+                            .unwrap_or_else(|| {
+                                slots.push(declaration);
+                                slots.len() - 1
+                            });
+                        0u8.hash(&mut shape);
+                        slot.hash(&mut shape);
+                        tokens[index].text.hash(&mut spelling);
+                        wildcards += 1;
+                    }
+                    None => {
+                        // A literal's value differs between two members of one
+                        // idiom far more often than its structure does, and the
+                        // run around it still matches, so only the kind is keyed.
+                        match tokens[index].kind {
+                            TokenKind::Number
+                            | TokenKind::String
+                            | TokenKind::Template
+                            | TokenKind::Regex => {
+                                1u8.hash(&mut shape);
+                                std::mem::discriminant(&tokens[index].kind).hash(&mut shape);
+                            }
+                            _ => {
+                                2u8.hash(&mut shape);
+                                tokens[index].text.hash(&mut shape);
+                            }
+                        }
+                    }
+                }
+            }
+            if wildcards == 0 {
+                continue;
+            }
+            let key = shape.finish();
+            // Occurrences of one shape must not overlap each other, or a window
+            // sliding through a single long literal counts itself many times.
+            if last_end.get(&key).is_some_and(|previous| from < *previous) {
+                continue;
+            }
+            last_end.insert(key, to);
+            let entry = shapes.entry(key).or_insert_with(|| Shape {
+                occurrences: Vec::new(),
+                spellings: HashMap::new(),
+                span: to - from,
+            });
+            entry.occurrences.push((start, width));
+            *entry.spellings.entry(spelling.finish()).or_insert(0) += 1;
+        }
+    }
+
+    // Rank by the novel text converging the shape would remove. Ordering is by
+    // value then by first position, so the result does not depend on hash order.
+    let mut ranked: Vec<(usize, usize, u64)> = shapes
+        .iter()
+        .filter(|(_, shape)| shape.occurrences.len() >= idiom_min_occurrences())
+        .map(|(key, shape)| {
+            let best = shape.spellings.values().copied().max().unwrap_or(0);
+            let convertible = shape.occurrences.len().saturating_sub(best);
+            (convertible * shape.span, shape.occurrences[0].0, *key)
+        })
+        .filter(|(value, _, _)| *value > 0)
+        .collect();
+    ranked.sort_unstable_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
+
+    let slots_of = |start: usize, width: usize| -> Vec<usize> {
+        let mut slots: Vec<usize> = Vec::new();
+        for index in start..start + width {
+            if let Some(declaration) = renameable[index] {
+                if !slots.contains(&declaration) {
+                    slots.push(declaration);
+                }
+            }
+        }
+        slots
+    };
+
+    let mut wanted: HashMap<usize, String> = HashMap::new();
+    let mut claimed: Vec<bool> = vec![false; tokens.len()];
+    for (_, _, key) in ranked {
+        let Some(shape) = shapes.get(&key) else {
+            continue;
+        };
+        let Some((target_spelling, _)) = shape
+            .spellings
+            .iter()
+            .max_by_key(|(spelling, count)| (**count, std::cmp::Reverse(**spelling)))
+        else {
+            continue;
+        };
+        // The names the winning spelling uses, slot by slot.
+        let Some(target) = shape
+            .occurrences
+            .iter()
+            .find(|(start, width)| {
+                let mut spelling = std::collections::hash_map::DefaultHasher::new();
+                for index in *start..*start + *width {
+                    if renameable[index].is_some() {
+                        tokens[index].text.hash(&mut spelling);
+                    }
+                }
+                spelling.finish() == *target_spelling
+            })
+            .map(|(start, width)| {
+                slots_of(*start, *width)
+                    .into_iter()
+                    .map(|declaration| tokens[declaration].text.to_string())
+                    .collect::<Vec<_>>()
+            })
+        else {
+            continue;
+        };
+
+        for (start, width) in &shape.occurrences {
+            if wanted.len() >= idiom_max_bindings() {
+                break;
+            }
+            if claimed[*start..*start + *width].iter().any(|token| *token) {
+                continue;
+            }
+            let slots = slots_of(*start, *width);
+            if slots.len() != target.len() {
+                continue;
+            }
+            // A binding has one name. An occurrence whose slot is already
+            // committed to a different spelling cannot be converted at all, so
+            // it is skipped rather than half-applied.
+            if slots.iter().zip(&target).any(|(declaration, name)| {
+                wanted.get(declaration).is_some_and(|held| held != name)
+            }) {
+                continue;
+            }
+            for token in claimed[*start..*start + *width].iter_mut() {
+                *token = true;
+            }
+            for (declaration, name) in slots.into_iter().zip(&target) {
+                wanted.entry(declaration).or_insert_with(|| name.clone());
+            }
+        }
+    }
+    wanted
+}
+
+/// How body bindings are ranked within a scope. See the ranking site above.
+///
+/// `LILSCRIPT_NAME_ORDER` selects it for A/B measurement: `uses` (the incumbent,
+/// descending use count), `decl` (declaration order) or `first` (order of first
+/// occurrence anywhere in the scope, declaration included).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NameOrder {
+    Uses,
+    Declaration,
+    FirstOccurrence,
+}
+
+fn name_order() -> NameOrder {
+    static ORDER: std::sync::OnceLock<NameOrder> = std::sync::OnceLock::new();
+    *ORDER.get_or_init(|| match std::env::var("LILSCRIPT_NAME_ORDER").as_deref() {
+        Ok("decl") => NameOrder::Declaration,
+        Ok("first") => NameOrder::FirstOccurrence,
+        _ => NameOrder::Uses,
+    })
+}
+
+fn secondary_rank(uses: &HashMap<usize, Vec<usize>>, declaration: usize) -> usize {
+    match name_order() {
+        NameOrder::Uses => usize::MAX - uses.get(&declaration).map_or(0, Vec::len),
+        // `declaration` already tiebreaks the sort, so declaration order needs
+        // no secondary term of its own.
+        NameOrder::Declaration => 0,
+        NameOrder::FirstOccurrence => uses
+            .get(&declaration)
+            .and_then(|sites| sites.iter().copied().min())
+            .map_or(declaration, |first| first.min(declaration)),
+    }
+}
 
 /// The canonical spelling sequence: `a`..`z`, `A`..`Z`, `_`, `$`, then the
 /// two-character combinations. Kept here rather than borrowed from the IR
@@ -271,7 +642,7 @@ fn is_reserved_word(name: &str) -> bool {
 
 /// `.name` on a function or class is observable, so those bindings keep their
 /// spelling however hot they are.
-fn names_a_function_or_class(tokens: &[Token<'_>], declaration: usize) -> bool {
+pub(crate) fn names_a_function_or_class(tokens: &[Token<'_>], declaration: usize) -> bool {
     let mut cursor = declaration;
     if cursor > 0 && tokens[cursor - 1].text == "*" {
         cursor -= 1;
@@ -328,6 +699,39 @@ mod tests {
             out, "function q(e,k){return e+k}function r(e,k){return e-k}",
             "sibling headers must converge"
         );
+    }
+
+    /// 057 — an inert template must not disable the pass. katexlil carries 24
+    /// template literals and not one substitution, and every one of its 522
+    /// function scopes was refused for them.
+    #[test]
+    fn a_template_without_a_substitution_does_not_stop_the_rename() {
+        let source =
+            "var doc=`\\\\hdashline`;function q(elem,key){return elem+key}             function r(key,elem){return key-elem}";
+        let (out, count) = converge_local_names(source).unwrap();
+        assert!(count > 0, "an inert template must not close the rewrite: {out}");
+        assert!(out.contains("`\\\\hdashline`"), "the template text is untouched: {out}");
+        assert!(out.contains("function q(e,k)") && out.contains("function r(e,k)"), "{out}");
+    }
+
+    /// The hazard the guard exists for: the lexer swallows `${...}` whole, so a
+    /// rename cannot see the occurrence inside it. Refusing is still correct.
+    #[test]
+    fn a_template_with_a_substitution_still_stops_the_rename() {
+        let source = "function q(elem,key){return `${elem}:${key}`}                      function r(key,elem){return key-elem}";
+        let (out, count) = converge_local_names(source).unwrap();
+        assert_eq!(count, 0, "a substitution must close the rewrite");
+        assert_eq!(out, source, "the artifact is returned untouched");
+    }
+
+    /// An escaped dollar is a literal, not a substitution.
+    #[test]
+    fn an_escaped_dollar_is_not_a_substitution() {
+        use crate::js_peephole::token::template_has_substitution;
+        assert!(!template_has_substitution("`plain`"));
+        assert!(!template_has_substitution("`\\${notASubstitution}`"));
+        assert!(template_has_substitution("`${x}`"));
+        assert!(template_has_substitution("`a ${x} b`"));
     }
 
     #[test]

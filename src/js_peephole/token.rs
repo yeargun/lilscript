@@ -488,6 +488,30 @@ pub(crate) fn scan_quoted(
     })
 }
 
+/// Whether a template token carries a `${...}` substitution.
+///
+/// A template without one is inert text: it mentions no binding, so no rename
+/// can disturb it and nothing inside it can capture a new spelling. The lexer
+/// does not tokenise substitutions ([`scan_template`] swallows them whole), so
+/// this distinction is what separates the template the rename must refuse from
+/// the template it may ignore. Measured on katexlil: 24 template literals, none
+/// of them holding a substitution, and 522 function scopes refused for them.
+///
+/// `\` escapes the following byte, so `` `\${x}` `` is a literal dollar sign
+/// and not a substitution.
+pub(crate) fn template_has_substitution(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        match bytes[cursor] {
+            b'\\' => cursor += 2,
+            b'$' if bytes.get(cursor + 1) == Some(&b'{') => return true,
+            _ => cursor += 1,
+        }
+    }
+    false
+}
+
 pub(crate) fn scan_template(bytes: &[u8], start: usize) -> Result<usize, JavaScriptParseError> {
     let mut cursor = start + 1;
     while cursor < bytes.len() {
