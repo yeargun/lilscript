@@ -3399,6 +3399,7 @@ fn object_literal_binding<'a>(
     tokens: &'a [Token<'a>],
     matching_close: &[Option<usize>],
     at: usize,
+    allow_non_empty: bool,
 ) -> Option<(usize, &'a str, usize, usize, usize)> {
     let mut cursor = at;
     if matches!(
@@ -3415,6 +3416,9 @@ fn object_literal_binding<'a>(
     }
     let close = matching_close.get(cursor + 2).copied().flatten()?;
     if tokens.get(close + 1).map(|token| token.text) != Some(";") {
+        return None;
+    }
+    if !allow_non_empty && close != cursor + 3 {
         return None;
     }
     Some((at, tokens[cursor].text, close + 2, cursor + 3, close))
@@ -3564,8 +3568,30 @@ fn member_write<'a>(
     None
 }
 
+/// `d={};…;d.k=v` becomes `d={k:v}`.
 pub(crate) fn fold_fresh_empty_object_assign(
     source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_object_assigns(source, false)
+}
+
+/// The same for a literal that already holds properties: `d={p:1};…;d.k=v`
+/// becomes `d={p:1,k:v}`.
+///
+/// Offered as a scored late candidate rather than run in the session. It pays
+/// where it fires — katexlil −104, remark-gfm −182, micromark −43 — but it
+/// moves a binding, and the terminal search is sensitive to that: in the
+/// session it landed posthog in a worse basin for +28 and cost that port its
+/// win. The beam keeps it only where the codec agrees.
+pub(crate) fn absorb_property_writes_into_literals(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    fold_object_assigns(source, true)
+}
+
+fn fold_object_assigns(
+    source: &str,
+    allow_non_empty: bool,
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
@@ -3573,7 +3599,7 @@ pub(crate) fn fold_fresh_empty_object_assign(
     let mut index = 0usize;
     while index < tokens.len() {
         let Some((binding_at, name, mut cursor, literal_from, literal_to)) =
-            object_literal_binding(&tokens, &matching_close, index)
+            object_literal_binding(&tokens, &matching_close, index, allow_non_empty)
         else {
             index += 1;
             continue;

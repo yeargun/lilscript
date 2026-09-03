@@ -731,6 +731,10 @@ pub(crate) fn fold_assigned_truthy_ternaries(
         };
         if identifier_occurs(&tokens, fallback_at, fallback_end + 1, name)
             || name_is_read_after_statement(&tokens, fallback_end + 1, name)
+            // The fallback is only a *primary*; a conditional continuing past it
+            // binds looser than the `||` this becomes, so `(b=a[3])?b:a[2]?x:y`
+            // would turn into `(a[3]||a[2])?x:y` and answer x where it owed a[3].
+            || else_arm_reaches_conditional(&tokens, fallback_end + 1)
         {
             continue;
         }

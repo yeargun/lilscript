@@ -7855,6 +7855,49 @@ fn apply_late_javascript_cleanup(
             }
         }
     }
+    // Literal absorption (050): `d={p:1};…;d.k=v` is one object, and the
+    // builders a port ends in are written that way. It pays where it fires --
+    // katexlil -104, remark-gfm -182, micromark -43 -- but it moves a binding,
+    // and run in the session that landed posthog in a worse basin for +28 and
+    // cost the port its win. Offered here, each artifact keeps it only if the
+    // codec agrees. Gated like the session's empty-literal case: a literal
+    // property is an own property where an assignment goes through whatever
+    // setter the prototype chain offers.
+    if config.javascript.assume_pristine_builtins {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            let Ok((absorbed, rewrites)) =
+                crate::js_peephole::absorb_property_writes_into_literals(&candidate.code)
+            else {
+                continue;
+            };
+            if rewrites == 0 || absorbed == candidate.code {
+                continue;
+            }
+            let code = repair_late_javascript_candidate(absorbed);
+            if analyze_generated_javascript(&code).is_err()
+                || admission.validate(&code).is_err()
+                || beam.iter().any(|existing| existing.code == code)
+            {
+                crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
+                beam.push(CleanupCandidate { code, cost });
+            } else {
+                crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
+            }
+        }
+    }
     // Declaration shaping (047): one `var` per module binding, each initialised
     // `void 0`, is the emitter's faithful spelling of `JsValue x = undef()`
     // globals; Terser's `join_vars` and `unused` take ~−240 Brotli from it on

@@ -2955,6 +2955,11 @@ impl LateJavaScriptCleanupPass {
 /// under Brotli, so the codec decides.
 pub(crate) use folds::spell_regexp_literals;
 
+/// Fold each `d={p:1};…;d.k=v` run into one literal, over the whole finalist.
+/// A scored candidate, not a session fold: it moves a binding, and the terminal
+/// search is sensitive to where bindings sit.
+pub(crate) use folds::absorb_property_writes_into_literals;
+
 pub(crate) fn shape_declarations(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
