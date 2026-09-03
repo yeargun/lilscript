@@ -2987,6 +2987,17 @@ pub(crate) fn fold_ident_ternary_to_or(
             continue;
         }
         let else_end = else_from + simple_or_arm_width(&tokens, else_from);
+        // `||` binds tighter than `?:`, so a conditional anywhere at the top
+        // level of the else arm would capture the whole disjunction:
+        // `x?x:a[2]?p:q` is `x?x:(a[2]?p:q)`, but `x||a[2]?p:q` tests
+        // `x||a[2]`. The arm's first token is not enough to see this -- the
+        // conditional can follow a member, call or operator -- so scan the
+        // arm out to the expression's end. `??` cannot sit unparenthesised
+        // beside `||` at all, and `=>` would swallow the arm as a parameter.
+        if else_arm_reaches_conditional(&tokens, else_end) {
+            cursor += 1;
+            continue;
+        }
         let else_expr = &source[tokens[else_from].start..tokens[else_end - 1].end];
         replacements.push((
             tokens[cursor].start,
@@ -3031,6 +3042,34 @@ fn simple_or_arm(tokens: &[Token<'_>], from: usize) -> bool {
         || tokens
             .get(from)
             .is_some_and(|token| token.kind == TokenKind::String)
+}
+
+/// Whether the else arm continuing at `from` reaches a `?`, `??` or `=>` at
+/// its own top level, before the expression ends.
+fn else_arm_reaches_conditional(tokens: &[Token<'_>], from: usize) -> bool {
+    let mut depth = 0i32;
+    let mut index = from;
+    while index < tokens.len() {
+        let text = tokens[index].text;
+        match text {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            "," | ";" | ":" if depth == 0 => return false,
+            "??" | "=>" if depth == 0 => return true,
+            "?" if depth == 0 => {
+                // `?.` is optional chaining, not a conditional.
+                return tokens.get(index + 1).map(|token| token.text) != Some(".");
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    false
 }
 
 pub(crate) fn fold_or_assignment_parens(

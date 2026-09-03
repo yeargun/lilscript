@@ -208,3 +208,124 @@ fn reads_binding(tokens: &[Token<'_>], from: usize, to: usize, name: &str) -> bo
             && (offset == 0 || !matches!(tokens[from + offset - 1].text, "." | "?."))
     })
 }
+
+/// `Array.prototype.push.call(NAME,ARG)` becomes `NAME.push(ARG)` for a local
+/// the code just assigned an array literal.
+///
+/// The borrow and the method call agree whenever the receiver really is an
+/// array whose `push` still comes from `Array.prototype`: an array literal
+/// settles the first, and `assume_pristine_builtins` the second. The scan
+/// stops at the end of the binding's block, at any reassignment of the name,
+/// and at a nested function, so what it rewrites is only ever the run where
+/// the literal is still the value.
+///
+/// Rewriting the spelling is what lets `fold_fresh_empty_array_pushes` see
+/// these runs at all: it matches `NAME.push(`, which the borrow hides.
+pub(crate) fn fold_array_literal_borrow_pushes(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let mut replacements = Vec::<(usize, usize, String)>::new();
+    let mut index = 0usize;
+    while index + 2 < tokens.len() {
+        let Some(name) = array_literal_binding(&tokens, index) else {
+            index += 1;
+            continue;
+        };
+        let Some(literal_end) = matching_close[index + 2] else {
+            index += 1;
+            continue;
+        };
+        collect_borrow_pushes(&tokens, name, literal_end + 1, &mut replacements);
+        index = literal_end + 1;
+    }
+    let (output, count) = apply_token_rewrites(source, replacements);
+    Ok((output, count))
+}
+
+/// `NAME=[` where the name is being bound or assigned, not read off something.
+fn array_literal_binding<'src>(tokens: &[Token<'src>], index: usize) -> Option<&'src str> {
+    let name = tokens.get(index)?;
+    if name.kind != TokenKind::Identifier {
+        return None;
+    }
+    if index
+        .checked_sub(1)
+        .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+    {
+        return None;
+    }
+    if tokens.get(index + 1)?.text != "=" || tokens.get(index + 2)?.text != "[" {
+        return None;
+    }
+    Some(name.text)
+}
+
+/// Rewrite every borrowed push onto `name` from `start` until the run ends.
+fn collect_borrow_pushes(
+    tokens: &[Token<'_>],
+    name: &str,
+    start: usize,
+    replacements: &mut Vec<(usize, usize, String)>,
+) {
+    let mut depth = 0i32;
+    let mut cursor = start;
+    while cursor < tokens.len() {
+        let token = &tokens[cursor];
+        match token.text {
+            "{" | "(" | "[" => depth += 1,
+            "}" | ")" | "]" => {
+                depth -= 1;
+                if depth < 0 {
+                    return;
+                }
+            }
+            "function" | "=>" | "class" => return,
+            _ => {}
+        }
+        // A reassignment ends the run: the name may no longer hold the array.
+        if token.kind == TokenKind::Identifier
+            && token.text == name
+            && tokens
+                .get(cursor + 1)
+                .is_some_and(|next| matches!(next.text, "=" | "+=" | "??=" | "||=" | "&&="))
+            && !cursor
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+        {
+            return;
+        }
+        if let Some(argument_start) = borrowed_push_receiver(tokens, cursor, name) {
+            replacements.push((
+                tokens[cursor].start,
+                tokens[argument_start].start,
+                format!("{name}.push("),
+            ));
+            // Resume on the call's `(` so the depth count stays balanced.
+            cursor = argument_start - 3;
+            continue;
+        }
+        cursor += 1;
+    }
+}
+
+/// `Array.prototype.push.call(NAME,` — returns the index of the first argument.
+fn borrowed_push_receiver(tokens: &[Token<'_>], index: usize, name: &str) -> Option<usize> {
+    let spelling = [
+        "Array", ".", "prototype", ".", "push", ".", "call", "(", name, ",",
+    ];
+    for (offset, expected) in spelling.iter().enumerate() {
+        if tokens.get(index + offset)?.text != *expected {
+            return None;
+        }
+    }
+    if tokens[index].kind != TokenKind::Identifier
+        || index
+            .checked_sub(1)
+            .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+    {
+        return None;
+    }
+    Some(index + spelling.len())
+}

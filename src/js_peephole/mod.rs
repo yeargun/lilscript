@@ -1078,8 +1078,18 @@ pub fn generated_javascript_static_property_names(
         }
         let previous = index.checked_sub(1).and_then(|index| tokens.get(index));
         let next = tokens.get(index + 1);
-        let static_property = previous.is_some_and(|token| token.text == "[")
+        // `["k"]` is a computed member only when the `[` closes on an
+        // expression; opened anywhere else it is a one-element array literal,
+        // which names no property. Reading `["katex-error"]` as a property let
+        // any newly folded single-string array fail admission as an introduced
+        // name, which discarded the whole late-cleanup candidate.
+        let computed_member = previous.is_some_and(|token| token.text == "[")
             && next.is_some_and(|token| token.text == "]")
+            && index
+                .checked_sub(2)
+                .and_then(|at| tokens.get(at))
+                .is_some_and(bracket_opens_on_expression);
+        let static_property = computed_member
             || next.is_some_and(|token| token.text == ":")
                 && previous.is_some_and(|token| matches!(token.text, "{" | ","));
         if static_property {
@@ -1089,6 +1099,18 @@ pub fn generated_javascript_static_property_names(
         }
     }
     Ok(names.into_iter().collect())
+}
+
+/// Whether a `[` after this token subscripts a value rather than opening an
+/// array literal. Only an expression can be subscripted, so anything that
+/// cannot end one -- an operator, an opening bracket, `return`, `typeof` --
+/// opens a literal instead.
+fn bracket_opens_on_expression(token: &Token<'_>) -> bool {
+    match token.kind {
+        TokenKind::Identifier | TokenKind::Number | TokenKind::String => true,
+        TokenKind::Keyword => matches!(token.text, "this" | "super" | "true" | "false" | "null"),
+        _ => matches!(token.text, ")" | "]"),
+    }
 }
 
 pub fn validate_generated_javascript_syntax_floor(
@@ -2675,6 +2697,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_typeof_identifier_caches)?;
     session.run(fold_coalesced_or_returns)?;
     session.run(flatten_associative_string_concats)?;
+    session.run(fold_constant_string_concatenations)?;
     session.run(fold_known_string_coercions)?;
     session.run(fold_for_false_breaks)?;
     session.run(fold_nullish_index_walks)?;
@@ -2794,6 +2817,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_or_empty_object_assign)?;
     session.run_if(pristine_builtins, fold_fresh_empty_object_assign)?;
     if pristine_builtins {
+        session.run(fold_array_literal_borrow_pushes)?;
         session.repeat(fold_fresh_empty_array_pushes, 4)?;
     }
     session.run(fold_named_class_identity)?;

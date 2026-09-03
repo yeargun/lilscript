@@ -1,5 +1,5 @@
 use super::folds::{
-    fold_common_conditional_arms, fold_early_exit_guards, fold_fresh_empty_array_pushes,
+    fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
     fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
     fold_single_use_temporaries, fold_statement_assignments_into_first_use,
@@ -16,7 +16,7 @@ use super::{
     optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
     fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
     fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
-    fold_for_trailing_increments, fold_self_receiver_calls,
+    fold_for_trailing_increments, fold_self_receiver_calls, fold_constant_string_concatenations,
     fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
@@ -3857,4 +3857,56 @@ fn function_scope_wrapper_refuses_what_it_cannot_prove() {
     // a top-level (module-init) assignment to an exported binding is a one-time value: allowed
     let source = "var a;a=2;function f(){return a}export{a,f}";
     assert!(wrap_module_internals_in_function_scope(source).unwrap().is_ok());
+}
+
+#[test]
+fn adjacent_constant_operands_of_a_concatenation_merge() {
+    let source = "var a=5,r=[\"x\"+\"y\",\" \"+80+\"h400v\",a+\"p\"+\"q\",\"n\"+2+a,a-\"1\"+\"2\",\"m\"+\"n\".length,\"s\"+2*3,typeof \"t\"+\"u\",+\"3\"+\"4\"];console.log(JSON.stringify(r))";
+    let (folded, _) = fold_constant_string_concatenations(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("\"xy\""), "{folded}");
+    assert!(folded.contains("\" 80h400v\""), "{folded}");
+    assert!(folded.contains("a+\"pq\""), "{folded}");
+    assert!(folded.contains("\"n2\"+a"), "{folded}");
+    assert!(folded.contains("a-\"1\"+\"2\""), "{folded}");
+    assert!(folded.contains("\"m\"+\"n\".length"), "{folded}");
+    assert!(folded.contains("\"s\"+2*3"), "{folded}");
+    assert!(folded.contains("typeof \"t\"+\"u\""), "{folded}");
+    assert!(folded.contains("+\"3\"+\"4\""), "{folded}");
+}
+
+#[test]
+fn a_one_element_string_array_is_not_a_static_property() {
+    let literal = "var a=[\"katex-error\"],b=f([\"x-y\"]),c={k:[\"q-r\"]};g(a,b,c)";
+    let names = generated_javascript_static_property_names(literal).expect("names");
+    assert!(!names.iter().any(|name| name.contains('-')), "{names:?}");
+    let member = "var o={\"katex-error\":1},k=o[\"katex-error\"],m=f(1)[\"a-b\"],n=[1][\"c-d\"];g(k,m,n)";
+    let names = generated_javascript_static_property_names(member).expect("names");
+    for expected in ["katex-error", "a-b", "c-d"] {
+        assert!(names.iter().any(|name| name == expected), "{expected} missing from {names:?}");
+    }
+}
+
+#[test]
+fn an_identity_ternary_keeps_a_conditional_else_arm_grouped() {
+    let source = "function f(x,y,p,q){return x?x:y?p:q}var g=(x,y)=>x?x:y,r=[f(0,1,\"p\",\"q\"),f(\"X\",1,\"p\",\"q\"),f(0,0,\"p\",\"q\"),g(0,\"z\"),g(\"a\",\"z\")];console.log(JSON.stringify(r))";
+    let (folded, _) = fold_ident_ternary_to_or(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("return x?x:y?p:q"), "{folded}");
+    assert!(folded.contains("(x,y)=>x||y"), "{folded}");
+    let member = "function h(a,b){return b?b:a[2]?\"s\":\" \"}var m=[h([0,0,0],0),h([0,0,\"t\"],0),h([0,0,0],\"B\")];console.log(JSON.stringify(m))";
+    let (folded, count) = fold_ident_ternary_to_or(member).expect("fold");
+    assert_eq!(run_javascript(member), run_javascript(&folded), "{folded}");
+    assert_eq!(count, 0, "{folded}");
+}
+
+#[test]
+fn borrowed_pushes_onto_an_array_literal_become_method_calls() {
+    let source = "function f(){var o={a:1},a=[],t={type:\"elem\"};Array.prototype.push.call(a,t),t={type:\"kern\"},Array.prototype.push.call(a,t),o.children=a;return o}var b={length:0};Array.prototype.push.call(b,7);var c=[];c=b;Array.prototype.push.call(c,8);console.log(JSON.stringify([f(),b,c]))";
+    let (folded, count) = fold_array_literal_borrow_pushes(source).expect("fold");
+    assert_eq!(run_javascript(source), run_javascript(&folded), "{folded}");
+    assert!(folded.contains("a.push(t),t={type:\"kern\"},a.push(t)"), "{folded}");
+    assert!(folded.contains("Array.prototype.push.call(b,7)"), "{folded}");
+    assert!(folded.contains("Array.prototype.push.call(c,8)"), "{folded}");
+    assert_eq!(count, 2, "{folded}");
 }
