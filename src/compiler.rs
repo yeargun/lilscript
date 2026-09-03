@@ -7700,6 +7700,64 @@ fn repair_late_javascript_candidate(mut code: String) -> String {
     code
 }
 
+/// One spelling of the finalist that the terminal cleanup is considering, with
+/// what the codec charged for it.
+#[derive(Clone)]
+struct CleanupCandidate {
+    code: String,
+    cost: usize,
+}
+
+/// Offer one scored cleanup family: rewrite each beam member, keep what the
+/// codec says is cheaper.
+///
+/// `share` bounds how many probes the family may spend. The families divide the
+/// cleanup's slice between them rather than draining it in order: on katexlil
+/// the shaped-declaration candidate is worth 831 Brotli, and a family placed
+/// ahead of it that offered itself to all eight beam members starved it for
+/// +1356. What a family leaves unspent stays for the next one, so an equal
+/// division costs nothing when families are cheap or refuse early.
+fn offer_cleanup_family(
+    beam: &mut Vec<CleanupCandidate>,
+    codec_budget: &mut TerminalCodecProbeBudget,
+    admission: &JavaScriptArtifactAdmission,
+    cost_model: CompressionCostModel,
+    share: usize,
+    shape: impl Fn(&str) -> Option<String>,
+) -> Result<(), CompileError> {
+    let mut spent = 0usize;
+    for candidate in beam.clone() {
+        if spent >= share || !codec_budget.reserve_work_unit() {
+            break;
+        }
+        spent += 1;
+        let Some(rewritten) = shape(&candidate.code) else {
+            continue;
+        };
+        let code = repair_late_javascript_candidate(rewritten);
+        if code == candidate.code {
+            continue;
+        }
+        if analyze_generated_javascript(&code).is_err()
+            || admission.validate(&code).is_err()
+            || beam.iter().any(|existing| existing.code == code)
+        {
+            crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
+            continue;
+        }
+        let Some(cost) = codec_budget.compressed_size(code.as_bytes(), cost_model)? else {
+            continue;
+        };
+        if cost < candidate.cost {
+            crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
+            beam.push(CleanupCandidate { code, cost });
+        } else {
+            crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
+        }
+    }
+    Ok(())
+}
+
 fn apply_late_javascript_cleanup(
     mut selected: ScoredJavaScriptCandidate,
     config: &ProjectConfig,
@@ -7721,12 +7779,6 @@ fn apply_late_javascript_cleanup(
         return Ok(selected);
     }
     crate::timing::CLEANUP_ENTERED.event(codec_budget.remaining() as u64);
-
-    #[derive(Clone)]
-    struct CleanupCandidate {
-        code: String,
-        cost: usize,
-    }
 
     // Keep enough independently valid spellings for later passes to skip a
     // locally attractive rewrite. Small codec differences can otherwise
@@ -7855,150 +7907,60 @@ fn apply_late_javascript_cleanup(
             }
         }
     }
-    // Literal absorption (050): `d={p:1};…;d.k=v` is one object, and the
-    // builders a port ends in are written that way. It pays where it fires --
-    // katexlil -104, remark-gfm -182, micromark -43 -- but it moves a binding,
-    // and run in the session that landed posthog in a worse basin for +28 and
-    // cost the port its win. Offered here, each artifact keeps it only if the
-    // codec agrees. Gated like the session's empty-literal case: a literal
-    // property is an own property where an assignment goes through whatever
-    // setter the prototype chain offers.
-    if config.javascript.assume_pristine_builtins {
-        let sources = beam.clone();
-        for candidate in sources {
-            if !codec_budget.reserve_work_unit() {
-                break;
-            }
-            let Ok((absorbed, rewrites)) =
-                crate::js_peephole::absorb_property_writes_into_literals(&candidate.code)
-            else {
-                continue;
-            };
-            if rewrites == 0 || absorbed == candidate.code {
-                continue;
-            }
-            let code = repair_late_javascript_candidate(absorbed);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
-                crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
-                continue;
-            }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-            else {
-                continue;
-            };
-            if cost < candidate.cost {
-                crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
-                beam.push(CleanupCandidate { code, cost });
-            } else {
-                crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
-            }
-        }
-    }
-    // Declaration shaping (047): one `var` per module binding, each initialised
-    // `void 0`, is the emitter's faithful spelling of `JsValue x = undef()`
-    // globals; Terser's `join_vars` and `unused` take ~−240 Brotli from it on
-    // katexlil. The joins only exist across declarations, so the per-declaration
-    // pass cannot reach them, and applied unconditionally they lost on two
-    // portfolio ports (naming cascades), so this is a scored candidate offered
-    // on every beam member and kept where it wins. It runs after the local
-    // rename so the rename converges on the original text and its budget is
-    // untouched; the shaped candidates inherit the converged names.
-    {
-        let sources = beam.clone();
-        for candidate in sources {
-            if !codec_budget.reserve_work_unit() {
-                break;
-            }
-            let Ok((shaped, rewrites)) = crate::js_peephole::shape_declarations(&candidate.code)
-            else {
-                continue;
-            };
-            if rewrites == 0 || shaped == candidate.code {
-                continue;
-            }
-            let code = repair_late_javascript_candidate(shaped);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
-                crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
-                continue;
-            }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-            else {
-                continue;
-            };
-            if cost < candidate.cost {
-                crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
-                beam.push(CleanupCandidate { code, cost });
-            } else {
-                crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
-            }
-        }
-    }
-    // Regex literal spelling (047): `new RegExp("…")` → `/…/`, offered last as a scored
-    // candidate under pristine builtins; the compact lexer's `/` certainty is why it is not
-    // an ordinary fold.
-    if config.javascript.assume_pristine_builtins {
-        let sources = beam.clone();
-        for candidate in sources {
-            if !codec_budget.reserve_work_unit() {
-                break;
-            }
-            let Ok((spelled, rewrites)) = crate::js_peephole::spell_regexp_literals(&candidate.code)
-            else {
-                continue;
-            };
-            if rewrites == 0 || spelled == candidate.code {
-                continue;
-            }
-            let code = repair_late_javascript_candidate(spelled);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
-                crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
-                continue;
-            }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-            else {
-                continue;
-            };
-            if cost < candidate.cost {
-                crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
-                beam.push(CleanupCandidate { code, cost });
-            } else {
-                crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
-            }
-        }
-    }
-    // A function bound once and read once costs a declarator for nothing: no
-    // second reference shares the name, and creating a function is pure, so the
-    // literal can move to the site that reads it. The move is not free in
-    // compressed bytes -- a `var X=` prefix repeats well and a lone arrow body
-    // may not -- so it is scored like every other spelling rather than assumed.
+    // The uniform scored families, offered in order, each rewriting every beam
+    // member and keeping what the codec says is cheaper.
     //
-    // Moving the literal drops the name JavaScript infers from the binding, so
-    // this runs only where identifier mangling is already in force. That is not
-    // a loophole but the same policy applied once: a build that mangles has
-    // already replaced every inferred name with a generated one, and no program
-    // can depend on `f.name` being `"B"` rather than `"Deferred"`. A build that
-    // asks for stable identifiers keeps its declarators.
-    if config.js_options().mangle_identifiers {
-        let sources = beam.clone();
-        for candidate in sources {
-            if !codec_budget.reserve_work_unit() {
-                break;
-            }
+    // They divide the cleanup's slice rather than draining it in order. That
+    // slice is eight work units for all of them, so a family that offers itself
+    // to all eight members leaves nothing for the ones behind it -- measured on
+    // katexlil, a family placed ahead of declaration shaping starved a
+    // candidate worth 831 Brotli and cost 1356. An equal share bounds that, and
+    // what a family leaves unspent stays for the next, so cheap families and
+    // early refusals still give the later ones everything they would have had.
+    let pristine = config.javascript.assume_pristine_builtins;
+    let mangles = config.js_options().mangle_identifiers;
+    let families: [(bool, &dyn Fn(&str) -> Option<String>); 4] = [
+        // `d={p:1};…;d.k=v` is one object, and the builders a port ends in are
+        // written that way. Gated like the session's empty-literal case: a
+        // literal property is an own property, where an assignment goes through
+        // whatever setter the prototype chain offers.
+        (pristine, &|code| {
+            crate::js_peephole::absorb_property_writes_into_literals(code)
+                .ok()
+                .filter(|(_, rewrites)| *rewrites > 0)
+                .map(|(absorbed, _)| absorbed)
+        }),
+        // One `var` per module binding, each initialised `void 0`, is the
+        // emitter's faithful spelling of `JsValue x = undef()` globals; the
+        // joins only exist across declarations, so the per-declaration pass
+        // cannot reach them. Applied unconditionally it lost on two portfolio
+        // ports to naming cascades, so it is scored here instead.
+        (true, &|code| {
+            crate::js_peephole::shape_declarations(code)
+                .ok()
+                .filter(|(_, rewrites)| *rewrites > 0)
+                .map(|(shaped, _)| shaped)
+        }),
+        // `new RegExp("…")` → `/…/`; the compact lexer's `/` certainty is why
+        // this is a scored candidate rather than an ordinary fold.
+        (pristine, &|code| {
+            crate::js_peephole::spell_regexp_literals(code)
+                .ok()
+                .filter(|(_, rewrites)| *rewrites > 0)
+                .map(|(spelled, _)| spelled)
+        }),
+        // A function bound once and read once costs a declarator for nothing.
+        // Moving the literal drops the name JavaScript infers from the binding,
+        // so it runs only where identifier mangling is already in force: such a
+        // build has replaced every inferred name with a generated one already.
+        (mangles, &|code| {
             // One move can expose the next: a list that loses its last function
-            // declarator leaves a statement the ordinary passes can fold.
-            let mut inlined = candidate.code.clone();
+            // declarator leaves a statement the ordinary passes can fold. The
+            // result is offered as it stands -- running those passes here was
+            // measured as a loss, buying raw bytes by specializing shapes (on
+            // jQuery a 33-byte Brotli win became 16); the cleanup rounds below
+            // still reach this candidate.
+            let mut inlined = code.to_string();
             let mut moved = 0usize;
             for _ in 0..4 {
                 let Ok((next, count)) = inline_single_use_functions(&inlined) else {
@@ -8010,30 +7972,24 @@ fn apply_late_javascript_cleanup(
                 inlined = next;
                 moved += count;
             }
-            if moved == 0 || inlined == candidate.code {
-                continue;
-            }
-            // The result is offered as it stands. Running the ordinary passes
-            // here was measured as a loss: they buy raw bytes by specializing
-            // shapes, and on jQuery that turned a 33-byte Brotli win into 16.
-            // The cleanup rounds below still reach this candidate if those
-            // passes help it.
-            let code = repair_late_javascript_candidate(inlined);
-            if analyze_generated_javascript(&code).is_err()
-                || admission.validate(&code).is_err()
-                || beam.iter().any(|existing| existing.code == code)
-            {
-                continue;
-            }
-            let Some(cost) =
-                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
-            else {
-                continue;
-            };
-            if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
-            }
+            (moved > 0).then_some(inlined)
+        }),
+    ];
+    let mut enabled = families.iter().filter(|(on, _)| *on).count();
+    for (on, shape) in families {
+        if !on {
+            continue;
         }
+        let share = codec_budget.remaining().div_ceil(enabled);
+        enabled -= 1;
+        offer_cleanup_family(
+            &mut beam,
+            codec_budget,
+            &admission,
+            config.javascript.cost_model,
+            share,
+            shape,
+        )?;
     }
     // Braces and `return` around a body that is only expressions are syntax
     // spent on nothing: `()=>{q();return v}` says what `()=>(q(),v)` says in
