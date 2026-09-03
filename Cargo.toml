@@ -28,6 +28,14 @@ libz-sys = { version = "=1.1.24", features = ["static"] }
 compu-brotli-sys = "=1.1.0"
 sha2 = "0.10"
 semver = { version = "1", features = ["serde"] }
+# The internal token parser remains the hot-path validator for the candidate
+# beam. Oxc is reserved for the scored terminal frontier and final rewrite
+# admission, giving emitted JavaScript a standards-complete syntax gate without
+# multiplying parser work across every proposal (047: a fold that emits a wrong
+# program ships without it).
+oxc_allocator = "=0.143.0"
+oxc_parser = "=0.143.0"
+oxc_span = "=0.143.0"
 
 [lib]
 name = "lilscript"
