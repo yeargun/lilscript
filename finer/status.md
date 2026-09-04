@@ -25,7 +25,7 @@ at measurement: how much of the number is *not* the compiler.
 | remark-parselil | +2922 | 36 | micromark core |
 | mdast-util-from-markdownlil | +2824 | 33 | micromark core — the three share it, so one fix moves ~9 KB |
 | **mobxlil** | **+2641** | **0** | **clean source, real loss.** Was +2771; −130 from 037's search re-deciding. Terser extracts −652 from our artifact (039) |
-| **jquerylil** | **+1196** | **0** | **clean source, real loss.** Was +1825: −663 from 041's local rename, on a build that also carries 040's fix (`animate` runs; the tree `dist/` holds it, uncommitted). 40 header spellings remain against Terser's 24; −540 is the plain-data type (013 → 042) |
+| **jquerylil** | **+1196** | **0** | **clean source, real loss.** Re-measured 2026-09-04 at **+731** against `jquery.min.js` (28176 vs 27445) on the shipped artifact, which was also a *wrong program*: `scrollTop`/`scrollLeft` and `animate` threw (061). 40 header spellings remain against Terser's 24; −540 is the plain-data type (013 → 042) |
 | unifiedlil | +241 | 6 | config exhausted (027); emits 47% more functions, each 29% bigger. +7 from 037, and its HEAD build threw on import |
 | remark-mathlil | +137 | 9 | config exhausted (027) |
 
@@ -60,6 +60,16 @@ pinned lane; Terser, Oxc, esbuild, Vite and Closure do
 ([baseline toolchains](../docs/knowledge/verification/baseline-toolchains.md)).
 
 ## Settled — not re-litigated without a new fact
+
+- **Ambient `this` in a closure is lexical; only a declared function is receiver-bound** (061,
+  2026-09-04). `emits_ordinary_function_expression` forces an ordinary function when the body reads
+  `this`/`arguments`, but only for `FunctionKind::Function`; a source closure falls through and the
+  `"arrow"` spelling gives it the module's `this`. Both spellings parse, so the Oxc admission gate
+  cannot separate them and the search takes whichever is smaller. jquerylil's `scrollTop`/`scrollLeft`
+  threw in the shipped artifact for this reason; **`JS.methodN` is the portable way to ask for a
+  receiver** and is the fix. Extending the guard to closures is *not* the fix — it fails
+  `nested_lexical_js_bindings_keep_the_callback_context`, which pins the lexical rule. Terser guards
+  the same rewrite on `contains_this()` and still ships it as `unsafe_arrows`, off by default.
 
 
 - **katexlil's remaining gap is not a lever, it is a distribution** (050, 2026-09-03). 64958 vs

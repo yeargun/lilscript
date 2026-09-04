@@ -319,6 +319,17 @@ nonconstructible (for example Nano ID's published browser arrows). The
 benchmark verifier checks arity and constructibility before a result is
 eligible, so this setting cannot silently buy bytes by changing that API.
 
+It does, however, change what a bare `this` means inside a **closure**. A body
+that reads the ambient `extern JsValue this` is receiver-bound when it is
+spelled `function` and lexically bound when it is spelled as an arrow, and both
+spellings are valid JavaScript, so no downstream gate separates them. Only a
+declared function is guaranteed receiver-bound
+(`emits_ordinary_function_expression`). Ask for a receiver with `JS.methodN` /
+`JS.methodRest` ([language](language-v0.1.md)), which means the same thing under
+every spelling; reading ambient `this` from a closure and expecting the receiver
+is a bug that only shows up once the search changes the spelling
+(finer/hypotheses/061).
+
 `javascript.public_aggregate_abi` defaults to `"named"`: structs and classes
 that cross a reusable JavaScript boundary use stable named fields, including
 aggregate types reachable through their public fields. `"positional"` emits
