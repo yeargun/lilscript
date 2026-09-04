@@ -80,6 +80,18 @@ const addPass = (pass) => (text) =>
 
 const VARIANTS = {
   base: (t) => t,
+  // Downward variants. Every grid above this line asks "does more effort buy
+  // bytes?"; phase 7 of `migration/` asks the opposite and cheaper question --
+  // **does less effort cost any?** The budget ladder was calibrated against a
+  // cost model that has since changed, and `codec` is 87.7 s of roughly 156 s
+  // of CPU on posthoglil, so a level that ties on bytes and halves the encodes
+  // is worth more than any fold guard.
+  l7: set("optimization_level", "7"),
+  l9: set("optimization_level", "9"),
+  l11: set("optimization_level", "11"),
+  l12: set("optimization_level", "12"),
+  beam6: compose(set("optimization_level", "13"), set("candidate_beam_width", "6")),
+  beam4: compose(set("optimization_level", "13"), set("candidate_beam_width", "4")),
   always: set("candidate_search", '"always"'),
   l13: compose(set("optimization_level", "13"), set("candidate_search", '"always"')),
   l15: compose(set("optimization_level", "15"), set("candidate_search", '"always"')),

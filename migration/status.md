@@ -615,6 +615,44 @@ phases 3 and 6 are correctness and architecture work whose speed benefit is seco
 
 ---
 
+## Phase 7's premise, measured: the budget ladder is miscalibrated
+
+[009](009-phases.md) says the ladder should be *"re-derived from measurement — today's curve is
+calibrated against today's cost model"*. It is, and the direction is the surprising one. Every existing
+grid in `sweep.mjs` asks whether **more** effort buys bytes; the cheaper question is whether **less**
+costs any. Four ports, four levels, one worker each, byte counts from the pinned codec:
+
+| artifact | L9 | L11 | L12 | L13 (shipped) | best |
+|---|---|---|---|---|---|
+| cnlil `cn.raw.js` | 9407 / 24 s | **9331 / 26 s** | 9354 / 26 s | 9366 / 28 s | L11 |
+| posthoglil `posthog.esm.js` | 5697 / 40 s | **5679 / 42 s** | 5723 / 42 s | 5743 / 47 s | L11 |
+| mobxlil `mobx.esm.js` | 15549 / 37 s | **15509 / 41 s** | 15509 / 41 s | 15573 / 57 s | L11 |
+| markedlil `marked.esm.js` | 9537 / 126 s | 9481 / 128 s | 9560 / 129 s | **9421 / 129 s** | L13 |
+
+L11 against the shipped L13:
+
+    cnlil        -35 bytes,  -7% time
+    posthoglil   -64 bytes, -11% time
+    mobxlil      -64 bytes, -28% time
+    markedlil    +60 bytes,  -1% time
+
+**Three of four ports are both smaller and faster at level 11 than at the level they ship.** mobxlil
+pays 28% of its compile time for 64 bytes it does not get.
+
+Read the two columns differently, because they deserve different confidence. The **time** deltas are
+large, monotone and reliable — more search costs more `codec`, which is 87.7 s of ~156 s of CPU. The
+**byte** deltas are 35–64, inside the band a semantically empty perturbation can move
+([D3](001-directives.md)), so the honest claim is not "L11 is 64 bytes better" but the weaker and more
+useful one: **the extra effort at 13 does not reliably buy bytes, and on three of four ports it loses
+them.** Effort is not monotone, which `sweep.mjs`'s own header already warned about for the levels
+above 13; it is equally true below.
+
+This does not change a default here. It is the evidence phase 7 needs before it does, and it says the
+ladder wants re-deriving per port rather than a single global step — which is also why
+`markedlil` disagreeing is a result rather than an inconvenience.
+
+---
+
 ## The fold census, measured on the fleet
 
 `LILSCRIPT_FOLD_REPORT=all` widens the timing report from its top-24 to every
