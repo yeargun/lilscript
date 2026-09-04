@@ -1135,10 +1135,10 @@ impl JsExpressionRoot {
         match self {
             Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => 1,
             Self::Binary(_) => 2,
-            // Structurally 2, 3, 1 and 1+n respectively; all rendered straight
-            // into `code` and dropped. These are what phase 1 has to retain
-            // before a printer can reconstruct the artifact from the tree.
-            Self::Nullish | Self::Conditional | Self::Member | Self::Call => 0,
+            Self::Nullish => 2,
+            Self::Conditional => 3,
+            // Structurally 1 and 1+n; still rendered straight into `code`.
+            Self::Member | Self::Call => 0,
             Self::Atom | Self::Raw => 0,
         }
     }
@@ -1165,6 +1165,14 @@ struct JsExpression {
     normalization_operand: Option<Box<Self>>,
     binary_operands: Option<(Box<Self>, Box<Self>)>,
     unary_operand: Option<Box<Self>>,
+    /// Children retained as a tree rather than rendered away.
+    ///
+    /// Phase 1 of `migration/`: `JsExpressionRoot::retained_arity` says which
+    /// kinds populate this and `grammar_arity` says which still should. A kind
+    /// migrates by cloning its children in here before rendering them, which
+    /// costs a subtree copy today and stops costing anything once the printer
+    /// walks the tree instead of `code`.
+    operands: Vec<Self>,
 }
 
 impl JsExpression {
@@ -1178,6 +1186,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
+            operands: Vec::new(),
         }
     }
 
@@ -1191,6 +1200,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
+            operands: Vec::new(),
         }
     }
 
@@ -1204,6 +1214,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
+            operands: Vec::new(),
         }
     }
 
@@ -1240,6 +1251,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: Some(original_operand),
+            operands: Vec::new(),
         }
     }
 
@@ -1308,14 +1320,19 @@ impl JsExpression {
     }
 
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
+        // Retained before rendering: `at_least` consumes its receiver into
+        // text, which is how every kind used to lose its children.
+        let operands = vec![condition.clone(), then_value.clone(), else_value.clone()];
         let condition = condition.at_least(JsPrecedence::LogicalOr);
         let then_value = then_value.at_least(JsPrecedence::Assignment);
         let else_value = else_value.at_least(JsPrecedence::Assignment);
-        Self::grouped(
+        let mut expression = Self::grouped(
             format!("{condition}?{then_value}:{else_value}"),
             JsPrecedence::Conditional,
             JsExpressionRoot::Conditional,
-        )
+        );
+        expression.operands = operands;
+        expression
     }
 
     fn nullish(mut lhs: Self, rhs: Self) -> Self {
@@ -1346,11 +1363,16 @@ impl JsExpression {
                 value.at_least(JsPrecedence::LogicalOr)
             }
         };
-        Self::grouped(
+        let operands = vec![lhs.clone(), rhs.clone()];
+        let mut expression = Self::grouped(
             format!("{}??{}", nullish_operand(lhs), nullish_operand(rhs)),
             JsPrecedence::LogicalOr,
             JsExpressionRoot::Nullish,
-        )
+        );
+        // After the `??null` collapse above, so the retained left child is the
+        // operand this node actually has -- not the one it was called with.
+        expression.operands = operands;
+        expression
     }
 
     fn comma(expressions: impl IntoIterator<Item = Self>) -> Self {
@@ -1381,6 +1403,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
+            operands: Vec::new(),
         }
     }
 
@@ -1411,6 +1434,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
+            operands: Vec::new(),
         }
     }
 
@@ -1430,6 +1454,7 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
+            operands: Vec::new(),
         }
     }
 
@@ -35825,13 +35850,10 @@ consume(field(JS.object("type", 1), "type"));
             JsExpressionRoot::Binary(IrBinaryOp::Add),
             JsExpressionRoot::IntegerNormalization,
             JsExpressionRoot::NullNormalized,
-        ];
-        let incomplete = [
             JsExpressionRoot::Nullish,
             JsExpressionRoot::Conditional,
-            JsExpressionRoot::Member,
-            JsExpressionRoot::Call,
         ];
+        let incomplete = [JsExpressionRoot::Member, JsExpressionRoot::Call];
         for root in complete {
             assert!(root.tree_is_complete(), "{root:?} should retain its children");
         }

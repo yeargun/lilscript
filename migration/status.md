@@ -230,6 +230,36 @@ for.
 
 ---
 
+## Phase 1 — under way
+
+The target tree is being grown inside `JsExpression` rather than beside it, per the Ratchet method in
+[003](003-target-representation.md): the output path is untouched, so nothing can regress while the
+tree is incomplete.
+
+| kind | operands in the grammar | retained | state |
+|---|---:|---:|---|
+| `Atom`, `Raw` | 0 | 0 | complete |
+| `Unary`, `IntegerNormalization`, `NullNormalized` | 1 | 1 | complete |
+| `Binary` | 2 | 2 | complete |
+| **`Nullish`** | 2 | **2** | **landed this session** |
+| **`Conditional`** | 3 | **3** | **landed this session** |
+| `Member` | 1 | 0 | open |
+| `Call` | variadic | 0 | open |
+
+Eight of ten kinds now keep their children. `the_half_ast_retains_children_for_exactly_these_kinds`
+pins the table in both directions, so closing the last two moves it in the same commit and widening
+any of them fails the build.
+
+Both migrated kinds verified behaviour-neutral: **72/72 at `none`, 72/72 at `maximum`**.
+
+The clone is deliberately wasteful — it copies the child's rendered text, which is the very thing the
+migration deletes. That cost disappears when the printer walks the tree instead of `code`; the owner's
+brief explicitly allows mid-migration regressions, and this is one.
+
+**Next:** `Member` and `Call`, then the printer, then the twin witness under `LILSCRIPT_TWIN=1`.
+
+---
+
 ## Where the work lives
 
 Branch `migration/target-tree`, in a worktree, isolated from the concurrent session:
