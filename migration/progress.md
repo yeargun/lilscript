@@ -12,9 +12,10 @@ Updated 2026-09-04, branch `migration/target-tree`, 37 commits ahead of `main`.
 
 ## Where we are in one line
 
-Phase 0 is green except the frozen baseline; **phase 1 is complete and gated**; phase 2 has its block
-type and the first statement kind on a node; phases 3–8 are not started, and phase 7 has its
-measurement.
+Phase 0 is green except the frozen baseline; **phase 1 is complete and gated**; **phase 2b is
+complete** — `out` is append-only, every edit of already-emitted text is gone and the methods that
+did it are deleted — with 22 statement kinds on nodes and 246 fragment appends still to move; phases
+3–8 are not started, and phase 7 has its measurement.
 
 **The gate is behaviour and end-state compression, not byte-identity** — revised by the owner
 2026-09-04, see [D3](001-directives.md#d3) and [009](009-phases.md#the-gate-vocabulary). A step may
@@ -25,7 +26,7 @@ Brotli and on compile time.
 |---|---|---|
 | 0 — repair the instrument | **6 of 7 items** | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
-| 2 — statements, functions, module | **2a, 2b landed; statement tree started** | BEHAVIOUR + NEUTRAL |
+| 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | not started | — |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
@@ -92,6 +93,7 @@ an operandless `>>>0` `Binary` node — each invisible while `code` was authorit
 | 2a `JsBlock` alias, 63 signatures | **landed** | pure rename — `404ec93` |
 | 2b real type, escapes named | **landed** | no `DerefMut`; `truncate`/`pop`/`remove`/`insert_str`/`replace_range` are named methods — `292803b` |
 | **2b escapes removed** | **landed — 26 → 0** | every edit of already-emitted text is gone; bodies and headers are values, runs are pending lists, terminators are flags |
+| **2b escape methods deleted** | **landed** | `remove`, `insert_str`, `replace_range` are gone from `JsBlock`; `truncate`/`pop` remain only behind the two flag readers |
 | 2b loop-keyword census as counters | **landed** | was a full rescan twice per loop — `292803b`, bounded in `00206f1` |
 | **statements and module as a tree** | **started, 10 kinds** | bindings, `return`/`throw`, loop control, `import`/`export`; the emitter still writes the rest as text |
 | block termination is a fact, not a text read | **landed** | 8 `ends_with(';')` sites → a maintained flag, witnessed — `afacdc1` |

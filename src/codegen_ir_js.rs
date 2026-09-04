@@ -1680,7 +1680,10 @@ impl JsBlock {
         self.push_str(character.encode_utf8(&mut buffer));
     }
 
-    // --- the escapes. Each is named so phase 3 can find every caller. ---
+    // --- the last two edits of already-written text. `remove`, `insert_str`
+    // and `replace_range` are gone with their callers; these two remain only
+    // as the mechanism behind `drop_trailing_semicolon` and
+    // `drop_trailing_bare_return`, which read a flag rather than the text. ---
 
     fn truncate(&mut self, length: usize) {
         if length >= self.text.len() {
@@ -1696,39 +1699,8 @@ impl JsBlock {
         Some(popped)
     }
 
-    fn remove(&mut self, index: usize) -> char {
-        let removed = self.text[index..]
-            .chars()
-            .next()
-            .expect("remove past the end of the block");
-        self.edited(index, index + removed.len_utf8(), 0, |text| {
-            text.remove(index);
-        });
-        removed
-    }
 
-    fn insert_str(&mut self, index: usize, fragment: &str) {
-        self.edited(index, index, fragment.len(), |text| {
-            text.insert_str(index, fragment);
-        });
-    }
 
-    fn replace_range<R: core::ops::RangeBounds<usize>>(&mut self, range: R, replacement: &str) {
-        use core::ops::Bound;
-        let start = match range.start_bound() {
-            Bound::Included(value) => *value,
-            Bound::Excluded(value) => value + 1,
-            Bound::Unbounded => 0,
-        };
-        let end = match range.end_bound() {
-            Bound::Included(value) => value + 1,
-            Bound::Excluded(value) => *value,
-            Bound::Unbounded => self.text.len(),
-        };
-        self.edited(start, end, replacement.len(), |text| {
-            text.replace_range(start..end, replacement);
-        });
-    }
 }
 
 impl core::ops::Deref for JsBlock {
@@ -16255,11 +16227,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             call.push(')');
             if self.options.function_spelling == FunctionSpelling::Function {
-                rendered = function_parameters(&rendered);
-                rendered.insert_str(0, "function");
-                rendered.push_str("{return ");
-                rendered.push_str(&call);
-                rendered.push('}');
+                let parameters = function_parameters(&rendered);
+                rendered = format!("function{parameters}{{return {call}}}");
             } else {
                 rendered.push_str("=>");
                 rendered.push_str(&call);
