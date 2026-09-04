@@ -605,7 +605,7 @@ const ARRAY_PROTOTYPE_ALIAS_METHODS: [&str; 11] = [
     "concat",
 ];
 
-fn emit_let_item(out: &mut String, started: &mut bool) {
+fn emit_let_item(out: &mut JsBlock, started: &mut bool) {
     if *started {
         out.push(',');
     } else {
@@ -614,7 +614,7 @@ fn emit_let_item(out: &mut String, started: &mut bool) {
     }
 }
 
-fn finish_let_list(out: &mut String, started: bool) {
+fn finish_let_list(out: &mut JsBlock, started: bool) {
     if started {
         out.push(';');
     }
@@ -1400,6 +1400,17 @@ impl JsExpressionRoot {
         }
     }
 }
+
+/// The text of a JavaScript block under construction.
+///
+/// Phase 2a of `migration/`: an alias today, so this commit is a pure rename and
+/// rebases against a concurrent session without a semantic conflict. Phase 2b
+/// makes it a real type whose API is *append*, and moves each way of reaching
+/// back into already-emitted text -- `truncate`, `pop`, `replace_range`,
+/// `insert_str`, `remove`, `ends_with` -- onto a named method that is deleted as
+/// its last caller goes. Those are the sites phase 3's invariant forbids: no
+/// production path may re-read emitted text to make a decision.
+type JsBlock = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct JsExpression {
@@ -3388,7 +3399,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_sunk_entry_function(
         &mut self,
         instruction: &ControlFlowInstruction<'src>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<bool, CodegenError> {
         let ControlFlowOp::Closure { function, .. } = instruction.op else {
             return Ok(false);
@@ -5505,7 +5516,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_dynamic_module_exports(
         &self,
         module_id: u32,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let module = self
             .module
@@ -5546,7 +5557,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
-    fn emit_module_preamble(&mut self, out: &mut String) -> Result<(), CodegenError> {
+    fn emit_module_preamble(&mut self, out: &mut JsBlock) -> Result<(), CodegenError> {
         self.emit_foreign_imports(out);
         let owned_globals = self
             .module
@@ -5563,7 +5574,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_top_level_lets(
         &mut self,
-        out: &mut String,
+        out: &mut JsBlock,
         predeclared_globals: &[SymbolId],
     ) -> Result<(), CodegenError> {
         let mut started = false;
@@ -5584,7 +5595,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
-    fn emit_pooled_literals(&self, out: &mut String, started: &mut bool) {
+    fn emit_pooled_literals(&self, out: &mut JsBlock, started: &mut bool) {
         for (value, name) in &self.pooled_strings {
             emit_let_item(out, started);
             out.push_str(name);
@@ -5698,7 +5709,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_unreachable_terminator(
         &self,
         last: Option<&ControlFlowInstruction<'_>>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) {
         if last.is_some_and(|instruction| self.instruction_is_js_throw(instruction)) {
             return;
@@ -5708,7 +5719,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_js_adapter_factories(
         &self,
-        out: &mut String,
+        out: &mut JsBlock,
         started: &mut bool,
     ) -> Result<(), CodegenError> {
         for convention in JsCallingConvention::ALL {
@@ -5791,7 +5802,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_js_host_aliases(
         &mut self,
-        out: &mut String,
+        out: &mut JsBlock,
         started: &mut bool,
     ) -> Result<(), CodegenError> {
         let aliases = self
@@ -5882,7 +5893,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
-    fn emit_foreign_imports(&self, out: &mut String) {
+    fn emit_foreign_imports(&self, out: &mut JsBlock) {
         for import in &self.module.foreign_imports {
             if import.specifiers.is_empty() {
                 out.push_str("import");
@@ -5917,7 +5928,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
-    fn emit_external_export_aliases(&self, out: &mut String) -> Result<(), CodegenError> {
+    fn emit_external_export_aliases(&self, out: &mut JsBlock) -> Result<(), CodegenError> {
         let mut aliases = self.external_export_aliases.iter().collect::<Vec<_>>();
         aliases.sort_unstable_by_key(|(symbol, _)| symbol.0);
         for (symbol, alias) in aliases {
@@ -5930,7 +5941,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
-    fn emit_entry_body(&mut self, out: &mut String) -> Result<(), CodegenError> {
+    fn emit_entry_body(&mut self, out: &mut JsBlock) -> Result<(), CodegenError> {
         let entry = self.function(self.module.entry)?.clone();
         let restored_loop_captures = std::mem::replace(
             &mut self.loop_captured_closures,
@@ -5950,7 +5961,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         result
     }
 
-    fn emit_named_exports(&self, names: &AHashSet<String>, out: &mut String) {
+    fn emit_named_exports(&self, names: &AHashSet<String>, out: &mut JsBlock) {
         if names.is_empty() {
             return;
         }
@@ -5969,14 +5980,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out.push_str("};");
     }
 
-    fn emit_exports(&self, out: &mut String) -> Result<(), CodegenError> {
+    fn emit_exports(&self, out: &mut JsBlock) -> Result<(), CodegenError> {
         self.emit_exports_excluding(&AHashSet::default(), out)
     }
 
     fn emit_exports_excluding(
         &self,
         already_exported: &AHashSet<String>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let mut runtime_exports = Vec::<(&str, &str)>::new();
         for export in &self.module.exports {
@@ -6294,7 +6305,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.coalesce_js_host_alias_names();
     }
 
-    fn emit_array_prototype_aliases(&self, out: &mut String, started: &mut bool) {
+    fn emit_array_prototype_aliases(&self, out: &mut JsBlock, started: &mut bool) {
         if self.array_prototype_method_aliases.is_empty() {
             return;
         }
@@ -6381,7 +6392,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.js_window_binding = Some(self.top_level_mangler.next_name());
     }
 
-    fn emit_js_window_binding(&self, out: &mut String, started: &mut bool) {
+    fn emit_js_window_binding(&self, out: &mut JsBlock, started: &mut bool) {
         let Some(name) = &self.js_window_binding else {
             return;
         };
@@ -7815,7 +7826,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &self,
         function: &ControlFlowFunction<'src>,
         context: &LocalNames,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let Some(aliases) = self.js_calling_aliases.get(&function.id) else {
             return Ok(());
@@ -7905,7 +7916,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_function(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let previous = self.emitting_function.replace(function.id);
         let result = self.emit_function_inner(function, out);
@@ -7916,7 +7927,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_function_inner(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         if !self.function_is_inlined(function) {
             if let Some(&index) = self.named_cluster_by_root.get(&function.id) {
@@ -7979,7 +7990,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_cluster_helpers(
         &mut self,
         helpers: &[FunctionId],
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let unnamed = helpers
             .iter()
@@ -8000,7 +8011,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         root: &ControlFlowFunction<'src>,
         helpers: &[FunctionId],
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let outer = self.function_name(root.id)?.to_string();
         self.assign_cluster_helper_names(&[root.id], helpers, &[&outer])?;
@@ -8026,7 +8037,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_named_callee_cluster(
         &mut self,
         index: usize,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         if !self.emitted_named_clusters.insert(index) {
             return Ok(());
@@ -8070,7 +8081,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_nested_once_run_helpers(
         &mut self,
         host: FunctionId,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let Some(helpers) = self.nested_once_run_helpers.get(&host).cloned() else {
             return Ok(());
@@ -8401,7 +8412,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         name: String,
         anonymous_expression: bool,
         class_member: bool,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let previous = self.emitting_function.replace(function.id);
         self.emitting_js_scopes.push(function.id);
@@ -8418,7 +8429,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         name: String,
         anonymous_expression: bool,
         class_member: bool,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let public_abi = self.function_has_public_abi(function.id);
         let calling_convention = self.js_calling_conventions.get(&function.id).copied();
@@ -8726,7 +8737,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
     }
 
-    fn emit_identity_observed_classes(&mut self, out: &mut String) -> Result<(), CodegenError> {
+    fn emit_identity_observed_classes(&mut self, out: &mut JsBlock) -> Result<(), CodegenError> {
         let mut classes = self
             .module
             .classes
@@ -8748,7 +8759,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_named_identity_class(
         &mut self,
         class: &'src str,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let binding = self.identity_class_binding(class)?.to_string();
         let mut constructor = None;
@@ -8918,7 +8929,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_function_group(
         &mut self,
         functions: &[FunctionId],
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         if self.options.function_layout == FunctionLayout::Source {
             for function in functions {
@@ -9454,7 +9465,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         function: &ControlFlowFunction<'src>,
         wrapped: bool,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let local_mangler = self.local_mangler(function);
         let context = LocalNames::new(
@@ -9480,7 +9491,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         wrapped: bool,
         mut context: LocalNames,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         context.inline_declarations = true;
         if wrapped {
@@ -9912,7 +9923,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         predeclared: bool,
         context: &LocalNames,
         cache: &mut ExpressionCache,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         match &instruction.op {
             ControlFlowOp::CaughtException => return Ok(()),
@@ -10344,7 +10355,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         predeclared: bool,
         context: &LocalNames,
         cache: &mut ExpressionCache,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<bool, CodegenError> {
         if self.options.mutation_spelling == MutationSpelling::Assignment {
             return Ok(false);
@@ -10455,7 +10466,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_state_machine(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let local_mangler = self.local_mangler(function);
         let context = LocalNames::new(
@@ -10480,7 +10491,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         function: &ControlFlowFunction<'src>,
         context: LocalNames,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         out.push('{');
         self.emit_nested_once_run_helpers(function.id, out)?;
@@ -10675,7 +10686,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         function: &ControlFlowFunction<'src>,
         wrapped: bool,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let local_mangler = self.local_mangler(function);
         let mut context = LocalNames::new(
@@ -10702,7 +10713,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         function: &ControlFlowFunction<'src>,
         wrapped: bool,
         context: LocalNames,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         if wrapped {
             out.push('{');
@@ -10754,7 +10765,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         uses: &AHashMap<ValueId, usize>,
         cache: &mut ExpressionCache,
         visited: &mut AHashSet<BlockId>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<PathEnd, CodegenError> {
         loop {
             if Some(current) == stop {
@@ -11925,7 +11936,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         uses: &AHashMap<ValueId, usize>,
         cache: &mut ExpressionCache,
         visited: &mut AHashSet<BlockId>,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<Option<BlockId>, CodegenError> {
         let mut trial_cache = cache.clone();
         let mut state = ExpressionRegionState::new(visited.clone());
@@ -11995,7 +12006,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         uses: &AHashMap<ValueId, usize>,
         cache: &mut ExpressionCache,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let Some(cone) = header_expression_region_cone(function, header) else {
             return Ok(());
@@ -12873,7 +12884,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         uses: &AHashMap<ValueId, usize>,
         context: &LocalNames,
         cache: &mut ExpressionCache,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let edge_value = self
             .options
@@ -12951,7 +12962,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &self,
         cache: &mut ExpressionCache,
         context: &LocalNames,
-        out: &mut String,
+        out: &mut JsBlock,
         retained: Option<ValueId>,
     ) -> Result<(), CodegenError> {
         let retained =
@@ -12974,7 +12985,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         to: u32,
         context: &LocalNames,
         cache: &mut ExpressionCache,
-        out: &mut String,
+        out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let copies = function.blocks[to as usize]
             .phis
@@ -16153,7 +16164,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(rendered)
     }
 
-    fn push_named_literal_key(&self, out: &mut String, property: &str) {
+    fn push_named_literal_key(&self, out: &mut JsBlock, property: &str) {
         if property == "__proto__" {
             out.push('[');
             out.push_str(&render_property_key_literal(
@@ -16525,7 +16536,7 @@ fn function_writes_global(
 }
 
 fn emit_chunk_imports(
-    out: &mut String,
+    out: &mut JsBlock,
     current: usize,
     files: &[String],
     imports: &AHashMap<usize, AHashSet<String>>,
@@ -16791,7 +16802,7 @@ fn conditional_assignment_expression<'a>(
         .then_some((then_target, then_value, else_target, else_value))
 }
 
-fn push_logical_operand(out: &mut String, value: &str, parent: IrBinaryOp) {
+fn push_logical_operand(out: &mut JsBlock, value: &str, parent: IrBinaryOp) {
     let needs_parentheses = logical_operand_needs_parentheses(value, parent);
     if needs_parentheses {
         out.push('(');
@@ -16896,7 +16907,7 @@ fn bitwise_arithmetic_elides_coercion(
     }
 }
 
-fn try_rewrite_arrow_expression_body(out: &mut String, body_start: usize) {
+fn try_rewrite_arrow_expression_body(out: &mut JsBlock, body_start: usize) {
     if body_start >= out.len() || !out[body_start..].starts_with('{') {
         return;
     }
@@ -16921,7 +16932,7 @@ fn try_rewrite_arrow_expression_body(out: &mut String, body_start: usize) {
 
 /// A concise arrow body starting with `{` would parse as a block statement, so an object
 /// literal keeps parentheses. Two bytes still beat spelling out `{return ;}`.
-fn push_concise_arrow_body(out: &mut String, expression: &str) {
+fn push_concise_arrow_body(out: &mut JsBlock, expression: &str) {
     if expression.starts_with('{') {
         out.push('(');
         out.push_str(expression);
@@ -17018,7 +17029,7 @@ fn expression_has_top_level_statement_break(expression: &str) -> bool {
     depth != 0
 }
 
-fn inject_public_int_param_coercions(out: &mut String, function_start: usize, params: &[String]) {
+fn inject_public_int_param_coercions(out: &mut JsBlock, function_start: usize, params: &[String]) {
     let body = &out[function_start..];
     let Some(relative) = body.find('{') else {
         return;
@@ -17472,7 +17483,7 @@ fn expression_statement(expression: JsExpression) -> String {
     }
 }
 
-fn close_statement_block(out: &mut String, elide_terminal_semicolon: bool) {
+fn close_statement_block(out: &mut JsBlock, elide_terminal_semicolon: bool) {
     // Call only at an emitter-owned StatementList boundary. A blind `;}`
     // rewrite could erase the required body of `if(test);` or `for(;;);`.
     if elide_terminal_semicolon && out.ends_with(';') {
@@ -17893,7 +17904,7 @@ fn peek_merge_return_expression(
         .then(|| expression.at_least(JsPrecedence::Conditional))
 }
 
-fn push_return_conditional(out: &mut String, condition: &str, then_ret: &str, else_ret: &str) {
+fn push_return_conditional(out: &mut JsBlock, condition: &str, then_ret: &str, else_ret: &str) {
     out.push_str("return ");
     out.push_str(&parenthesize_ternary_test(condition));
     out.push('?');
@@ -17987,7 +17998,7 @@ fn compact_top_level_expression_statements(output: &str) -> Option<String> {
     Some(compact)
 }
 
-fn emit_for_open(out: &mut String, initializer: Option<&str>) {
+fn emit_for_open(out: &mut JsBlock, initializer: Option<&str>) {
     if let Some(initializer) = initializer {
         if !for_initializer_is_identifier_assigns(initializer) {
             let names = for_initializer_assigned_names(initializer);
@@ -18009,7 +18020,7 @@ fn emit_for_open(out: &mut String, initializer: Option<&str>) {
     }
 }
 
-fn push_for_initializer(out: &mut String, initializer: &str) {
+fn push_for_initializer(out: &mut JsBlock, initializer: &str) {
     if for_initializer_is_identifier_assigns(initializer) {
         out.push_str("var ");
     }
@@ -18133,7 +18144,7 @@ fn trailing_expression_statement(output: &str) -> Option<(usize, &str)> {
     })
 }
 
-fn push_conditional_arm(out: &mut String, expression: &str) {
+fn push_conditional_arm(out: &mut JsBlock, expression: &str) {
     let grouped = split_top_level_comma(expression).is_some();
     if grouped {
         out.push('(');
@@ -18800,7 +18811,7 @@ fn object_literal_key(source_key: &str, quote: StringQuote) -> String {
     render_property_key_literal(source_key, quote)
 }
 
-fn push_object_literal_key(out: &mut String, source_key: &str, quote: StringQuote) {
+fn push_object_literal_key(out: &mut JsBlock, source_key: &str, quote: StringQuote) {
     out.push_str(&object_literal_key(source_key, quote));
 }
 
@@ -20910,7 +20921,7 @@ fn emit_binding_prefix(
     context: &LocalNames,
     value: ValueId,
     predeclared: bool,
-    out: &mut String,
+    out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
     if context.claim_declaration(value)? {
         out.push_str(if predeclared { "var " } else { "let " });
@@ -20924,7 +20935,7 @@ fn emit_bound_value(
     expression: JsExpression,
     predeclared: bool,
     cache: &mut ExpressionCache,
-    out: &mut String,
+    out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
     let name = context.value_name(dest)?.to_string();
     materialize_cache_before_binding_write(context, &name, predeclared, cache, out)?;
@@ -20936,7 +20947,7 @@ fn emit_bound_value_without_cache_flush(
     dest: ValueId,
     expression: JsExpression,
     predeclared: bool,
-    out: &mut String,
+    out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
     let name = context.value_name(dest)?;
     let value = strip_outer_parens(expression);
@@ -22376,7 +22387,7 @@ fn positive_counter_condition(
 }
 
 fn rewrite_guarded_decrement_loop(
-    out: &mut String,
+    out: &mut JsBlock,
     loop_body_open: Option<usize>,
     counter: &str,
 ) -> bool {
@@ -23267,7 +23278,7 @@ fn materialize_cache_before_callee_code(
     op: &ControlFlowOp<'_>,
     predeclared: bool,
     cache: &mut ExpressionCache,
-    out: &mut String,
+    out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
     if !op_can_execute_callee_code(op) {
         return Ok(());
@@ -23311,7 +23322,7 @@ fn materialize_cache_before_object_member_write(
     property: Option<&str>,
     predeclared: bool,
     cache: &mut ExpressionCache,
-    out: &mut String,
+    out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
     let Some(name) = context.value_names.get(&object) else {
         return Ok(());
@@ -23351,7 +23362,7 @@ fn materialize_cache_before_binding_write(
     name: &str,
     predeclared: bool,
     cache: &mut ExpressionCache,
-    out: &mut String,
+    out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
     if !cache
         .values()
