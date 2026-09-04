@@ -7,8 +7,8 @@ Numbers taken on the orchestrator host are **triage, not evidence**
 ([D5](001-directives.md#d5--compiles-run-on-the-pool-not-on-this-host)). Nothing here has been
 through a fleet A/B yet.
 
-**Gate state: `cargo test --release --lib` is 1,710 passed / 0 failed / 1 ignored** with every change
-below applied, alongside the other session's in-flight edits.
+**Gate state: `cargo test --release --lib` is 1,705 passed / 0 failed / 1 ignored**, `tests/cases`
+72/72 at `none` and 72/72 at `maximum`, and **phase 1 is complete and gated** — see below.
 
 **First real `portgate` run (markedlil, `optimization_level = 15`):** `trust: ok`, 406 s, seven
 artifacts, **suite passes with zero failing tests**. Its timing line independently reproduces the
@@ -339,6 +339,27 @@ sufficient to reproduce the emitted expression text.** `code` is now provably a 
 
 **Not yet true of statements or module structure** — that is phase 2, and it is the much larger
 surface: the emitter writes statements straight into a `String`.
+
+### Proved on a real port, not only on `tests/cases`
+
+cnlil (1,591 lines of LilScript, 26.8 KB of emitted JavaScript, ~300 scored candidates per compile),
+built by the pre-inversion commit `0081beb` and by phase-1-complete `b31c5d6`:
+
+| artifact | bytes | |
+|---|---:|---|
+| `cn.raw.js` | 26,823 | **identical** |
+| `index.js` | 26,824 | **identical** |
+| `index.cjs` | 26,892 | **identical** |
+| `lite.js`, `lite.raw.js`, `lite.cjs`, `index.d.ts`, `lite.d.ts` | — | **identical** |
+
+**8 of 8 byte-identical.** Compile time 76.2 s → 76.6 s, which is the same number on this host.
+
+Then the same port under `LILSCRIPT_TWIN=1`: **it compiles clean**, so every expression node in a
+real 26.8 KB artifact reproduces its own text from its children. 78.3 s, so the witness costs about
+2%. (`build.mjs` uses `spawnSync` with no `env` override, so the variable does reach the compiler —
+checked, because a witness that silently did not run would have looked exactly like this.)
+
+Both cnlil runs wrote into the port's `dist/`, which was restored to `76a975f` afterwards.
 
 ---
 
