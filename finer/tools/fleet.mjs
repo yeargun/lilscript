@@ -24,6 +24,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { cpus } from "node:os"
+import { baselines } from "./baselines.mjs"
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const siblings = resolve(repo, "..")
@@ -42,41 +43,11 @@ const slots = Number(flag("slots", Math.max(1, Math.floor(totalCores / 2))))
 const coresPerSlot = Math.max(1, Math.floor(totalCores / slots))
 const buildTimeoutMs = Number(flag("timeout", 45 * 60)) * 1000
 
-// Upstream baselines. `terserBrotli` values come from the markdown-stack
-// harness, which minifies the real npm graph with a pinned Terser and measures
-// it with this same codec, so they are directly comparable. A port with no
-// entry here is measured but not judged — a missing baseline is reported as
-// such rather than guessed at, because a wrong comparison is worse than none.
-const BASELINES = {
-  jquerylil: { artifact: "dist/jquery.esm.js", upstream: join(repo, "benchmarks/popular/node_modules/jquery/dist/jquery.min.js") },
-  markedlil: { artifact: "dist/marked.esm.js", upstream: join(repo, "benchmarks/popular/node_modules/marked/marked.min.js") },
-  mobxlil: { artifact: "dist/mobx.esm.js", upstream: join(repo, "benchmarks/popular/node_modules/mobx/dist/mobx.esm.production.min.js") },
-  motionlil: { artifact: "dist/full.js", upstream: join(repo, "benchmarks/popular/node_modules/motion/dist/motion.js") },
-  // posthoglil's bar is the official kernel through Vite 8 / Oxc with mangling on,
-  // measured by the port's own site harness with this same codec (site/results.json,
-  // row `kernel-oxc-mangle`). Terser lands one byte behind it at 5626, so Oxc is the
-  // one to beat.
-  posthoglil: { artifact: "dist/posthog.esm.js", terserBrotli: 5622 },
-  // zodlil ships a closer-world build as its primary, compared against the official
-  // graph minified by Terser with mangling on (site/results.json, `official-terser-mangle`).
-  zodlil: { artifact: "dist/zod.core.js", terserBrotli: 52561 },
-  katexlil: { artifact: "dist/katex.esm.js", terserBrotli: 63137 },
-  micromarklil: { artifact: "dist/micromark.esm.js", terserBrotli: 22776 },
-  "mdast-util-from-markdownlil": { artifact: "dist/from-markdown.esm.js", terserBrotli: 23279 },
-  "mdast-util-to-hastlil": { artifact: "dist/to-hast.esm.js", terserBrotli: 5016 },
-  "hast-util-to-htmllil": { artifact: "dist/to-html.esm.js", terserBrotli: 9839 },
-  "remark-parselil": { artifact: "dist/remark-parse.esm.js", terserBrotli: 23283 },
-  "remark-rehypelil": { artifact: "dist/remark-rehype.esm.js", terserBrotli: 5061 },
-  "remark-gfmlil": { artifact: "dist/remark-gfm.esm.js", terserBrotli: 11238 },
-  "remark-mathlil": { artifact: "dist/remark-math.esm.js", terserBrotli: 2150 },
-  "remark-breakslil": { artifact: "dist/remark-breaks.esm.js", terserBrotli: 1198 },
-  "rehype-stringifylil": { artifact: "dist/rehype-stringify.esm.js", terserBrotli: 9886 },
-  rehypelil: { artifact: "dist/rehype.esm.js", terserBrotli: 55080 },
-  remarklil: { artifact: "dist/remark.esm.js", terserBrotli: 32551 },
-  unifiedlil: { artifact: "dist/unified.esm.js", terserBrotli: 4425 },
-  "rehype-katexlil": { artifact: "dist/rehype-katex.esm.js", terserBrotli: 113063 },
-  "react-markdownlil": { artifact: "dist/react-markdown.esm.js", terserBrotli: 31092 },
-}
+// Upstream baselines live in baselines.mjs so every tool that judges a port
+// reads the same table. A port with no entry here is measured but not judged —
+// a missing baseline is reported as such rather than guessed at, because a
+// wrong comparison is worse than none.
+const BASELINES = baselines(repo)
 
 function discoverPorts() {
   const requested = flag("ports", null)
@@ -168,10 +139,25 @@ if (!has("measure") && has("workers")) {
   // and brings dist/ back; its last-build.json carries the per-port outcome.
   process.stderr.write(`building ${ports.length} ports on the ${flag("vmss", "lilscript-workers")} pool\n`)
   const workersTool = join(repo, "finer", "tools", "workers.mjs")
-  const upArgs = ["up", ...(flag("worker-count", null) ? [flag("worker-count")] : [])]
+  // Forward the flags that make an A/B possible. Without them this branch
+  // always built with target/release/lilscript and always wrote into each
+  // port's working-tree dist/ -- the two things an A/B under concurrent
+  // sessions must never do, so the one-command pool path could not measure a
+  // compiler change at all.
+  const passThrough = ["compiler", "dist-dir", "log-dir", "instances", "per-worker", "vmss", "rg", "user"]
+  const forwarded = passThrough.flatMap((name) => {
+    const value = flag(name, null)
+    return value == null ? [] : [`--${name}`, value]
+  })
+  const upArgs = ["up", ...(flag("worker-count", null) ? [flag("worker-count")] : []), ...forwarded]
   spawnSync(process.execPath, [workersTool, ...upArgs], { stdio: ["ignore", "inherit", "inherit"] })
-  const r = spawnSync(process.execPath, [workersTool, "build", "--ports", ports.join(","), "--timeout", String(Math.round(buildTimeoutMs / 1000))], { stdio: ["ignore", "inherit", "inherit"] })
-  const lastPath = join(repo, "finer", "out", "workers", "last-build.json")
+  const r = spawnSync(process.execPath, [workersTool, "build", "--ports", ports.join(","), "--timeout", String(Math.round(buildTimeoutMs / 1000)), ...forwarded], { stdio: ["ignore", "inherit", "inherit"] })
+  // Read the arm's own outcome when one was requested; the shared path is
+  // overwritten by whichever arm finished last.
+  const armLogDir = flag("log-dir", null)
+  const lastPath = armLogDir
+    ? join(resolve(armLogDir), "last-build.json")
+    : join(repo, "finer", "out", "workers", "last-build.json")
   const last = existsSync(lastPath) ? JSON.parse(readFileSync(lastPath, "utf8")).results : {}
   builds = ports.map((port) => ({ port, ok: !!last[port]?.ok, seconds: last[port]?.seconds ?? 0, error: last[port]?.ok ? null : (last[port]?.error ?? (r.status === 0 ? "not built" : "workers.mjs failed")) }))
   if (has("down")) spawnSync(process.execPath, [workersTool, "down"], { stdio: ["ignore", "inherit", "inherit"] })

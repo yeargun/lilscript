@@ -218,6 +218,13 @@ coordinator cannot express the required interaction.
 Dependencies: phase 2 and green identity gates. This is the remaining `arch-05`
 work.
 
+Execution design, sequencing, and per-phase gates for this phase live in
+[`migration/`](../../../migration/index.md). That folder is subordinate to this
+plan's rules of execution and does not relax any gate below; it adds the target
+representation design, the disposition of all 139 folds, the correctness matrix,
+the build-pool contract, and a blocking Phase 0 that repairs the measurement
+instrument before any of this work begins.
+
 Work:
 
 1. Represent only constructs emitted by `src/codegen_ir_js.rs`, with resolved

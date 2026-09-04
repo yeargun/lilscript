@@ -1100,12 +1100,27 @@ fn evaluate_integer_instruction(
                     false,
                 )
             }
+            // The range describes the value *after* its `|0`, which is where
+            // the declared `int` comes from, and 0..=65535 is exact there.
+            //
+            // The coercion itself is NOT elidable. `String.prototype.charCodeAt`
+            // returns NaN for any index outside `[0, length)`, and `I32Range`
+            // has no way to say "or NaN" -- so eliding `|0` on the strength of
+            // this range turns a source-correct 0 into NaN. It did:
+            // `int codeAt(string t, int i) { return t.charCodeAt(i); }` printed
+            // NaN for `codeAt("ab", -1)` under the default `priority =
+            // "size-first"`, and 0 with `integer_coercions = true`.
+            //
+            // Eliding here needs a proof that the index is in bounds, which is
+            // a real analysis (the loop-bound facts below are the start of it),
+            // not a property of the intrinsic. Until that exists, keep the
+            // coercion: a size knob may not decide what the program computes.
             Intrinsic::StringCharCodeAt => (
                 Some(I32Range {
                     min: 0,
                     max: 65_535,
                 }),
-                true,
+                false,
             ),
             Intrinsic::IntImul => (Some(I32Range::FULL), false),
             _ => (Some(I32Range::FULL), false),

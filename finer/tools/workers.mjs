@@ -34,6 +34,7 @@
 // worker is retried once on another; a worker that stops answering is
 // dropped for the run. Wall clock is logged, never a result (objective.md §8).
 import { spawn, spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, appendFileSync } from "node:fs"
 import { dirname, join, resolve, basename } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -58,6 +59,18 @@ const COMPILER = resolve(flag("compiler", join(repo, "target", "release", "lilsc
 const CODEC = join(repo, "target", "release", "lilscript-codec")
 const BUILD_TIMEOUT_S = Number(flag("timeout", 5400))
 const PER_WORKER = Math.max(1, Number(flag("per-worker", 2)))
+// Per-arm build logs. Defaults to the shared directory so existing invocations
+// are unchanged; an A/B must pass `--log-dir` for each arm or arm B truncates
+// arm A's timing evidence.
+const LOG_DIR = resolve(flag("log-dir", outDir))
+
+/** Does this port's build script honour `--force`? Only katexlil does today. */
+function portAcceptsForce(port) {
+  const script = join(siblings, port, "scripts", "build.mjs")
+  if (!existsSync(script)) return false
+  const text = readFileSync(script, "utf8")
+  return text.includes('"--force"') || text.includes("'--force'")
+}
 // The pool lives on a private subnet whose addresses are reused when a scale
 // set is recreated, so host keys change under the same IP; known_hosts would
 // then refuse every new worker. No host verification on this subnet.
@@ -231,7 +244,12 @@ function sync(workers = running(discover()), ports = null) {
 
 /** Build one port on one worker and bring its dist/ back. */
 async function buildOn(w, port) {
-  const logFile = join(outDir, `${port}.log`)
+  // Arm-scoped, because `<port>.log` is truncated at the start of every build:
+  // running an A/B without `--log-dir` destroys arm A's LILSCRIPT_TIMING line,
+  // which is the only record of what the build cost. Bytes survive an A/B
+  // through --dist-dir; the compile-cost evidence did not until this existed.
+  const logFile = join(LOG_DIR, `${port}.log`)
+  mkdirSync(LOG_DIR, { recursive: true })
   writeFileSync(logFile, `# ${port} on ${w.ip} (${VMSS}/${w.id}) ${new Date().toISOString()}\n`)
   // The heartbeat is what the worker's idle watchdog reads (worker-provision.sh).
   // A giant (level 15, `always`: 038 measured jquery ≈ 87% parallel) takes the
@@ -245,11 +263,24 @@ async function buildOn(w, port) {
     .filter(([name]) => !["LILSCRIPT_ROOT", "LILSCRIPT_COMPILER", "LILSCRIPT_TIMING"].includes(name))
     .map(([name, value]) => `${name}='${String(value).replace(/'/g, "'\\''")}'`)
     .join(" ")
-  const script = `touch ~/${REMOTE}/.heartbeat; cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${lanes} > 0 ? $(nproc) / ${lanes} : 1 )) LILSCRIPT_TIMING=1 ${forwarded} && node scripts/build.mjs --compile; status=$?; touch ~/${REMOTE}/.heartbeat; exit $status`
+  // katexlil's build script caches on mtime and skips compilation entirely
+  // unless `--force`; rsync preserves times, so on a worker it "builds" in
+  // under a second and publishes the artifact it was already carrying. That
+  // shipped a false byte-identical row in 060. Pass --force wherever the script
+  // accepts it, and let `build` refuse a compile that never printed a timing line.
+  const buildFlags = portAcceptsForce(port) ? "--compile --force" : "--compile"
+  const script = `touch ~/${REMOTE}/.heartbeat; cd ~/${REMOTE}/${port} && export LILSCRIPT_ROOT=~/${REMOTE}/lilscript LILSCRIPT_COMPILER=~/${REMOTE}/lilscript/target/release/lilscript RAYON_NUM_THREADS=$(( $(nproc) / ${lanes} > 0 ? $(nproc) / ${lanes} : 1 )) LILSCRIPT_TIMING=1 ${forwarded} && node scripts/build.mjs ${buildFlags}; status=$?; touch ~/${REMOTE}/.heartbeat; exit $status`
   const started = Date.now()
   const r = await sshAsync(w.ip, script, { timeoutS: BUILD_TIMEOUT_S, logFile })
   const seconds = (Date.now() - started) / 1000
   if (r.code !== 0) return { ok: false, seconds, error: r.signal ? `killed (${r.signal}) after ${seconds.toFixed(0)}s` : r.tail.trim().slice(-600) }
+  // A build that exits 0 without printing a timing line did not invoke the
+  // compiler. Report it as a failure rather than as a fast success: a skipped
+  // compile silently makes both arms of an A/B the same artifact.
+  const compiled = readFileSync(logFile, "utf8").includes("lilscript-timing {")
+  if (!compiled) {
+    return { ok: false, seconds, skipped: true, error: `no lilscript-timing line after ${seconds.toFixed(1)}s: the compiler was never invoked (stale artifact or an mtime cache)` }
+  }
   const distDir = flag("dist-dir", null)
   const target = distDir ? join(resolve(distDir), port) : join(siblings, port, "dist")
   mkdirSync(target, { recursive: true })
@@ -278,7 +309,23 @@ async function build(workers, ports) {
   }
   // PER_WORKER lanes per worker: each lane pulls the next port off the shared queue.
   await Promise.all(workers.flatMap((w) => Array.from({ length: PER_WORKER }, () => worker(w))))
-  writeFileSync(join(outDir, "last-build.json"), JSON.stringify({ at: new Date().toISOString(), results }, null, 2))
+  // Record WHICH compiler produced these artifacts. 28 Claude processes and 13
+  // worktrees share this checkout, so another session running
+  // `cargo build --release` between arm A and arm B silently makes an A/B a
+  // comparison of two unknown binaries. A digest turns that into a detectable
+  // mistake instead of a wrong conclusion.
+  const record = {
+    at: new Date().toISOString(),
+    compiler: { path: COMPILER, sha256: existsSync(COMPILER) ? createHash("sha256").update(readFileSync(COMPILER)).digest("hex") : null },
+    vmss: VMSS,
+    logDir: LOG_DIR,
+    results,
+  }
+  const serialized = JSON.stringify(record, null, 2)
+  writeFileSync(join(outDir, "last-build.json"), serialized)
+  // Arm-scoped copy, so a later comparison reads the arm's own outcome rather
+  // than whichever arm happened to finish last.
+  if (LOG_DIR !== outDir) writeFileSync(join(LOG_DIR, "last-build.json"), serialized)
   return results
 }
 

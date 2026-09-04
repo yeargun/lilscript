@@ -35666,27 +35666,36 @@ consume(field(JS.object("type", 1), "type"));
         assert!(!inclusive.contains("++"), "{inclusive}");
     }
 
+    /// `charCodeAt` keeps its `|0` unless the index is proven in bounds, and
+    /// nothing proves that here.
+    ///
+    /// This previously asserted the opposite, under the name `..._when_proven`,
+    /// on a source that proves nothing: `read()` returns a `string` of unknown
+    /// length, so `read().charCodeAt(0)` is NaN whenever it returns `""`.
+    /// `NaN|0` is `0`, so eliding the coercion turned a source-correct `0` into
+    /// `NaN` — under the *default* `priority = "size-first"`:
+    ///
+    ///     int codeAt(string t, int i) { return t.charCodeAt(i); }
+    ///     print(codeAt("ab", -1));   // printed NaN, must print 0
+    ///
+    /// The range 0..=65535 remains exact for the value *after* its `|0`, which
+    /// is where the declared `int` comes from; only the elidability was wrong.
     #[test]
-    fn elides_char_code_at_integer_normalization_when_proven() {
+    fn keeps_char_code_at_integer_normalization_without_a_bounds_proof() {
         let source = "extern string read();print(read().charCodeAt(0));";
-        let elided = compile_with_options(source, IrJsOptions::default());
-        assert!(elided.contains("charCodeAt("), "{elided}");
-        assert!(
-            !elided.contains("charCodeAt(0)|0"),
-            "expected elided |0 after charCodeAt: {elided}"
-        );
-
-        let normalized = compile_with_options(
-            source,
+        for options in [
+            IrJsOptions::default(),
             IrJsOptions {
                 elide_safe_integer_coercions: false,
                 ..IrJsOptions::default()
             },
-        );
-        assert!(
-            normalized.contains("charCodeAt(0)|0"),
-            "expected |0 when elision is disabled: {normalized}"
-        );
+        ] {
+            let output = compile_with_options(source, options);
+            assert!(
+                output.contains("charCodeAt(0)|0"),
+                "charCodeAt may be NaN out of bounds, so the |0 is load-bearing: {output}"
+            );
+        }
     }
 
     #[test]

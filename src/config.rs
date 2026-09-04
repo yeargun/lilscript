@@ -2308,11 +2308,28 @@ pub fn load_project_config(
     })
 }
 
+/// The directory a project-config search starts from, for an input that is a
+/// file rather than a directory.
+///
+/// `Path::parent()` of a bare relative filename is `Some("")`, not `None`, and
+/// the empty path does not canonicalize. Treating that as "no project config"
+/// made `lilscript main.lil` silently drop every setting in the
+/// `lilscript.toml` sitting beside it while `lilscript ./main.lil` honoured it —
+/// two different programs from one source, with no diagnostic. Every key was
+/// affected, including `function_spelling` (which rebinds `this`) and
+/// `strip_console` (which decides whether the program produces output at all).
+fn config_search_parent(input: &Path) -> &Path {
+    match input.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    }
+}
+
 fn discover(input: &Path) -> Option<PathBuf> {
     let start = if input.is_dir() {
         input
     } else {
-        input.parent().unwrap_or_else(|| Path::new("."))
+        config_search_parent(input)
     };
     let mut directory = start.canonicalize().ok()?;
     loop {
@@ -2329,6 +2346,26 @@ fn discover(input: &Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A bare relative filename must find the same project config as the same
+    /// file spelled `./name`. `Path::parent()` returns `Some("")` for the bare
+    /// spelling, and the empty path does not canonicalize, so treating it as
+    /// "no config" silently dropped every setting -- including the two that
+    /// change what the program *means*: `function_spelling`, which rebinds
+    /// `this`, and `strip_console`, which decides whether it produces output.
+    #[test]
+    fn a_bare_filename_searches_the_same_directory_as_a_dotted_one() {
+        assert_eq!(config_search_parent(Path::new("main.lil")), Path::new("."));
+        assert_eq!(config_search_parent(Path::new("./main.lil")), Path::new("."));
+        assert_eq!(
+            config_search_parent(Path::new("ports/main.lil")),
+            Path::new("ports")
+        );
+        assert_eq!(
+            config_search_parent(Path::new("/abs/ports/main.lil")),
+            Path::new("/abs/ports")
+        );
+    }
 
     #[test]
     fn parses_typed_compiler_resource_limits() {
