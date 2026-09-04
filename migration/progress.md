@@ -90,7 +90,7 @@ an operandless `>>>0` `Binary` node — each invisible while `code` was authorit
 | 2a `JsBlock` alias, 63 signatures | **landed** | pure rename — `404ec93` |
 | 2b real type, escapes named | **landed** | no `DerefMut`; `truncate`/`pop`/`remove`/`insert_str`/`replace_range` are named methods — `292803b` |
 | 2b loop-keyword census as counters | **landed** | was a full rescan twice per loop — `292803b`, bounded in `00206f1` |
-| **statements and module as a tree** | **started, 8 kinds** | bindings, `return`/`throw`, loop control, `import`/`export`; the emitter still writes the rest as text |
+| **statements and module as a tree** | **started, 9 kinds** | bindings, `return`/`throw`, loop control, `import`/`export`; the emitter still writes the rest as text |
 | block termination is a fact, not a text read | **landed** | 8 `ends_with(';')` sites → a maintained flag, witnessed — `afacdc1` |
 
 `00206f1` is worth reading before the next perf change: the first counter implementation was
@@ -108,12 +108,12 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **289** |
-| statement nodes (`push_statement`) | 0 | **14** |
+| fragment appends (`push_str`) | 324 | **284** |
+| statement nodes (`push_statement`) | 0 | **16** |
 | escapes into emitted text | 26 | **16** |
 
-`JsStatement` has eight kinds — `Declaration`, `Binding`, `Return`, `Throw`, `Break`, `Continue`,
-`Import`, `Export` — and each holds its **children**, not their text. Phase 3 can delete `code` when
+`JsStatement` has nine kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
+`Break`, `Continue`, `Import`, `Export` — and each holds its **children**, not their text. Phase 3 can delete `code` when
 the fragment column reaches the handful that genuinely emit sub-statement syntax.
 
 Each family moved so far has found a disagreement the text was hiding: two `return` sites differed on

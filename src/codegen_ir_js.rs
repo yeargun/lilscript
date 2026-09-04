@@ -6234,11 +6234,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut aliases = self.external_export_aliases.iter().collect::<Vec<_>>();
         aliases.sort_unstable_by_key(|(symbol, _)| symbol.0);
         for (symbol, alias) in aliases {
-            out.push_str("const ");
-            out.push_str(alias);
-            out.push('=');
-            out.push_str(self.global_name(*symbol)?);
-            out.push(';');
+            out.push_statement(JsStatement::Binding {
+                keyword: Some("const "),
+                name: alias.clone(),
+                value: JsExpression::raw(self.global_name(*symbol)?, JsPrecedence::Primary),
+            });
         }
         Ok(())
     }
@@ -18328,14 +18328,10 @@ fn emit_for_open(out: &mut JsBlock, initializer: Option<&str>) {
         if !for_initializer_is_identifier_assigns(initializer) {
             let names = for_initializer_assigned_names(initializer);
             if !names.is_empty() {
-                out.push_str("var ");
-                for (index, name) in names.iter().enumerate() {
-                    if index != 0 {
-                        out.push(',');
-                    }
-                    out.push_str(name);
-                }
-                out.push(';');
+                out.push_statement(JsStatement::DeclarationGroup {
+                    keyword: "var ",
+                    names: names.iter().map(|name| (*name).to_string()).collect(),
+                });
             }
         }
     }
@@ -21282,6 +21278,11 @@ enum JsStatement {
     },
     /// `export{a,b as c};`
     Export { bindings: Vec<JsModuleBinding> },
+    /// `var a,b,c;` -- a declaration group with no initialisers.
+    DeclarationGroup {
+        keyword: &'static str,
+        names: Vec<String>,
+    },
 }
 
 /// One `name` or `name as alias` inside an import or export clause.
@@ -21343,6 +21344,9 @@ impl JsStatement {
             }
             Self::Export { bindings } => {
                 format!("export{{{}}};", JsModuleBinding::clause(&bindings))
+            }
+            Self::DeclarationGroup { keyword, names } => {
+                format!("{keyword}{};", names.join(","))
             }
         }
     }
