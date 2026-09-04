@@ -1425,6 +1425,14 @@ struct JsBlock {
     text: String,
     for_opens: usize,
     while_opens: usize,
+    /// The counts this block started with, for a block made by `nested()`.
+    ///
+    /// A child block inherits its parent's loop-keyword counts so that
+    /// `LoopSpelling::Auto` sees the whole artifact, not just the body being
+    /// written. The invariant the witness checks is therefore
+    /// `counts == inherited + counts(text)`, not `counts == counts(text)` --
+    /// the first commit of `nested()` got that wrong and the witness said so.
+    inherited: (usize, usize),
     /// Whether the block currently ends in `;`.
     ///
     /// Statement termination is a *structural* fact about a block, and asking
@@ -1432,6 +1440,12 @@ struct JsBlock {
     /// production path may re-read emitted text to make a decision. Cheap to
     /// read either way -- the point is that the block now answers it.
     ends_with_semicolon: bool,
+    /// Whether the last statement appended was a bare `return;`.
+    ///
+    /// A function tail that ends this way has a redundant statement, and the
+    /// emitter used to find it by `ends_with("return;")` on the text. The
+    /// block knows because every bare return comes through `push_statement`.
+    trailing_bare_return: bool,
 }
 
 /// The longest needle the counters track. No edit can change whether a needle
@@ -1483,7 +1497,32 @@ impl JsBlock {
             text: String::new(),
             for_opens: self.for_opens,
             while_opens: self.while_opens,
+            inherited: (self.for_opens, self.while_opens),
             ends_with_semicolon: false,
+            trailing_bare_return: false,
+        }
+    }
+
+    /// Remove a trailing `;` if there is one. Reads the flag, not the text.
+    fn drop_trailing_semicolon(&mut self) {
+        if self.ends_with_semicolon() {
+            self.pop();
+        }
+    }
+
+    /// Remove a trailing bare `return;` if there is one. Reads the flag, not
+    /// the text; the witness checks the two agree.
+    fn drop_trailing_bare_return(&mut self) {
+        if twin_witness_enabled() {
+            assert_eq!(
+                self.trailing_bare_return,
+                self.text.ends_with("return;"),
+                "block trailing-return flag drifted from the text"
+            );
+        }
+        if self.trailing_bare_return {
+            let length = self.text.len() - "return;".len();
+            self.truncate(length);
         }
     }
 
@@ -1509,10 +1548,10 @@ impl JsBlock {
             assert_eq!(
                 (self.for_opens, self.while_opens),
                 (
-                    self.text.matches("for(").count(),
-                    self.text.matches("while(").count()
+                    self.inherited.0 + self.text.matches("for(").count(),
+                    self.inherited.1 + self.text.matches("while(").count()
                 ),
-                "block keyword counters drifted from the text"
+                "block keyword counters drifted from inherited + text"
             );
         }
         (self.for_opens, self.while_opens)
@@ -1600,9 +1639,10 @@ impl JsBlock {
         self.for_opens = self.for_opens + after_for - before_for;
         self.while_opens = self.while_opens + after_while - before_while;
         // An edit can land anywhere, including on the last byte, so the
-        // termination flag is recomputed rather than reasoned about. These are
-        // the rare paths; appends are the hot one.
+        // termination flags are recomputed rather than reasoned about. These
+        // are the rare paths; appends are the hot one.
         self.ends_with_semicolon = self.text.ends_with(';');
+        self.trailing_bare_return = self.text.ends_with("return;");
     }
 
     fn push_str(&mut self, fragment: &str) {
@@ -1611,6 +1651,9 @@ impl JsBlock {
         }
         self.count_appended(fragment);
         self.ends_with_semicolon = fragment.ends_with(';');
+        // Any append that is not itself a bare return ends one; the one that
+        // is sets the flag again after this, in `push_statement_with`.
+        self.trailing_bare_return = false;
         self.text.push_str(fragment);
     }
 
@@ -1626,8 +1669,10 @@ impl JsBlock {
     }
 
     fn push_statement_with(&mut self, statement: JsStatement, options: JsStatementOptions) {
+        let bare_return = matches!(statement, JsStatement::Return { value: None });
         let rendered = statement.render(options);
         self.push_str(&rendered);
+        self.trailing_bare_return = bare_return;
     }
 
     fn push(&mut self, character: char) {
@@ -1718,11 +1763,14 @@ impl From<String> for JsBlock {
         let for_opens = count_needle(text.as_bytes(), b"for(");
         let while_opens = count_needle(text.as_bytes(), b"while(");
         let ends_with_semicolon = text.ends_with(';');
+        let trailing_bare_return = text.ends_with("return;");
         Self {
             text,
             for_opens,
             while_opens,
+            inherited: (0, 0),
             ends_with_semicolon,
+            trailing_bare_return,
         }
     }
 }
@@ -2787,8 +2835,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if self.module_output {
             self.emit_exports(&mut out)?;
         }
-        if self.options.elide_block_terminal_semicolons && out.ends_with_semicolon() {
-            out.pop();
+        if self.options.elide_block_terminal_semicolons {
+            out.drop_trailing_semicolon();
         }
         // The boundary: past here it is an artifact, not a block under
         // construction, so the counters have nothing left to answer.
@@ -11075,9 +11123,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &mut visited,
             out,
         )?;
-        if out.ends_with("return;") {
-            out.truncate(out.len() - "return;".len());
-        }
+        // A function whose body falls off the end after a bare `return;` has a
+        // statement that does nothing; the block knows it emitted one.
+        out.drop_trailing_bare_return();
         if wrapped {
             close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
@@ -17889,8 +17937,8 @@ fn expression_statement(expression: JsExpression) -> String {
 fn close_statement_block(out: &mut JsBlock, elide_terminal_semicolon: bool) {
     // Call only at an emitter-owned StatementList boundary. A blind `;}`
     // rewrite could erase the required body of `if(test);` or `for(;;);`.
-    if elide_terminal_semicolon && out.ends_with_semicolon() {
-        out.pop();
+    if elide_terminal_semicolon {
+        out.drop_trailing_semicolon();
     }
     out.push('}');
 }
@@ -21485,8 +21533,8 @@ impl JsStatement {
     /// This is `close_statement_block` as a value rather than as a mutation of
     /// somebody else's buffer.
     fn close_branch(mut branch: JsBlock, options: JsStatementOptions) -> String {
-        if options.elide_block_terminal_semicolons && branch.ends_with_semicolon() {
-            branch.pop();
+        if options.elide_block_terminal_semicolons {
+            branch.drop_trailing_semicolon();
         }
         branch.push('}');
         branch.into_string()
