@@ -2029,6 +2029,20 @@ impl JsExpression {
         );
     }
 
+    /// Whether evaluating this expression could be observable.
+    ///
+    /// Answered from the tree phase 1 built, rather than by searching the text
+    /// for `(`: a call is a `Call` node, and a `Raw` node is opaque so it counts
+    /// as observable. Conservative in the safe direction -- a false `true` costs
+    /// a candidate, a false `false` costs a program.
+    fn may_have_effects(&self) -> bool {
+        match self.root {
+            JsExpressionRoot::Call | JsExpressionRoot::Raw => true,
+            JsExpressionRoot::Atom => false,
+            _ => self.operands.iter().any(Self::may_have_effects),
+        }
+    }
+
     fn at_least(self, minimum: JsPrecedence) -> String {
         if self.precedence < minimum || (minimum >= JsPrecedence::Call && self.looks_like_block()) {
             self.grouped_code()
@@ -12350,6 +12364,33 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if value_is_incoming_to_other_phi(function, phi.out) {
                     return Ok(None);
                 }
+                // The region's expression can reach the emitted artifact twice
+                // -- once materialised for this phi, once inlined at its use --
+                // so an observable operation inside it would happen twice.
+                // Duplicating a pure expression only costs bytes, which the
+                // search already scores; duplicating a call changes the program.
+                //
+                // Live-8 in `migration/status.md`: a `bool` selector whose
+                // condition was `probe(a)&&..||probe(b)` ran both probes twice,
+                // and the `none` lane -- the ablation control -- was the one
+                // that shipped it.
+                let effectful_region = {
+                    let mut trial = cache.clone();
+                    let mut trial_state = state.clone();
+                    self.render_conditional_region(
+                        function,
+                        header,
+                        merge_block,
+                        phi,
+                        context,
+                        &mut trial,
+                        &mut trial_state,
+                    )?
+                    .is_some_and(|rendered| rendered.expression.may_have_effects())
+                };
+                if effectful_region {
+                    return Ok(None);
+                }
                 // Recovery can run before a deferred incoming definition. Do not
                 // let that expression read the phi result's still-stale JS slot.
                 let result_name = context.value_name(phi.out)?;
@@ -18712,7 +18753,7 @@ struct RenderedExpressionRegion {
     expression: JsExpression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ExpressionRegionState {
     visited: AHashSet<BlockId>,
     blocks: AHashSet<BlockId>,
@@ -36292,8 +36333,16 @@ consume(field(JS.object("type", 1), "type"));
             "extern int read();bool value=false;if(read() == 1){value=false;}else{value=true;}print(value);",
         );
         assert_eq!(inversion.matches("read()").count(), 1, "{inversion}");
+        // The effect count above is what this test is named for and it is
+        // untouched. The list below is a set of accepted *spellings*, and
+        // `1!=read()` -- the constant-operand swap of `read()!=1`, which the
+        // ternary alternatives already allow in swapped form -- joined it when
+        // the local-phi region gained its duplication guard. That guard made
+        // this path agree with what the shipped configuration already emitted
+        // for the same program, at the same 30 bytes.
         assert!(
             inversion.contains("read()!=1")
+                || inversion.contains("1!=read()")
                 || inversion.contains("read()==1?!1:!0")
                 || inversion.contains("1==read()?!1:!0"),
             "{inversion}"

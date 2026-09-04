@@ -501,11 +501,86 @@ the `class Unused` line, which nothing references, and the `none` lane prints 2.
 scheduled *before* the `v21` it reads, once inlined at the use. So a value was scheduled ahead of its
 own operand and then rematerialised, and the rematerialisation duplicated a call.
 
-Not fixed here. It is an IR scheduling defect in the lane that is supposed to do no scheduling at all,
-and it wants its own investigation rather than a guess at the end of a long session.
+### Live-8, traced to a single option and fixed
+
+It is not an IR scheduling defect. Bisected, the whole thing hangs off one emitter option:
+
+| step | result |
+|---|---|
+| `LILSCRIPT_SKIP_FOLDS` over all 124 folds | still wrong — **not** a peephole fold |
+| `optimization_level` 0–4 / 5+ | correct / wrong — level 5 is where the search budget first reaches it |
+| delta-debug over the 34 `optimizations` | **`expression-phi-region-variants` + `local-phi-expression-region-variants`, together** |
+| `candidate_search = "off"` + `local_phi_expression_regions = true` | **wrong on its own** |
+
+So the family flipping the flag is a red herring too — it is why setting the option to `false` in config
+changed nothing, but the defect is in the emitter path the option opens. And the candidate dump is
+blunt about the consequence: of **137 scored candidates, 10 were wrong programs**, and the search chose
+one, because duplicating `probe(..)&&..||probe(..)?v21-1:v21+1` *compresses well*. The wrong artifact
+was larger raw and smaller Brotli. A size-first search with no semantic gate will take that trade every
+time.
+
+The region is rendered once, cached for its single use, and then reaches the artifact **twice** — once
+materialised, once inlined — so anything observable inside it happens twice.
+
+**The fix uses the tree phase 1 built.** `JsExpression::may_have_effects()` answers the question
+structurally — a `Call` node is observable, a `Raw` node is opaque so it counts as observable, an
+`Atom` is not — rather than by searching the rendered text for `(`. A local-phi region whose expression
+may have effects is not proposed:
+
+    let effectful_region = { /* render into a trial cache */ }
+        .is_some_and(|rendered| rendered.expression.may_have_effects());
+    if effectful_region { return Ok(None); }
+
+Duplicating a *pure* expression only costs bytes, which the search already scores. Duplicating a call
+changes the program, so that candidate is never built — legality by construction at the proposal site,
+which is where [004](004-legality-by-construction.md) says it belongs.
+
+One unit test moved: `collapses_boolean_phi_identities_without_dropping_effects` asserts an effect count
+(unchanged, still one `read()`) and a list of accepted spellings. The guard makes that path emit
+`1!=read()` — which is **exactly what the shipped configuration already emitted for the same program, at
+the same 30 bytes**, and the constant-operand swap of a spelling the list already allows in its ternary
+form. The spelling joined the list; the effect assertion was not touched.
+
+**It costs nothing.** Two fleet arms over six ports, scored with the pinned codec:
+
+    net Brotli (live-8 fixed − 68801c4): 0 over 5 ports
+    jquerylil 28678, markedlil 9431, mobxlil 15573, posthoglil 5706, zodlil 32603 — all identical
+
+Ten wrong candidates per compile stop being built, and not one byte moves.
 
 `clang` is absent on this host, so the harness cannot run its `--target all` arm here. The JS lanes
 and the oracle were compared directly instead, which is what found this.
+
+---
+
+## The fleet is the test runner now
+
+The owner's directive, mid-migration: *"testing takes lots of time... the vm infra we have, strong
+machines, they must get used for parallel compilation/testing... the CICD behaviour must be leaner."*
+
+`workers.mjs check` runs the case matrix on the pool instead of on this host. Six `Standard_D16als_v7`
+workers, 96 vCPUs, one contiguous shard each:
+
+    node finer/tools/workers.mjs check [--ports a,b]
+
+    [workers] checking 72 cases x 2 lanes across 6 worker(s)
+    [workers] 144 of 144 case-lanes pass
+    real 0m11.4s
+
+**Eleven seconds**, against minutes on this burstable host — and the host is free for editing while it
+runs. Two things had to change for it to be honest and lean:
+
+**The first run reported 72 of 144 passing, every `maximum` lane failing.** Not a regression: the
+workers have no `lilscript.toml`, and config discovery walks up from the *input*, so every optimized
+compile silently used defaults — `strip_console` on, every `print` stripped, every program empty. The
+repository's own `lilscript.toml` now travels with the tests and **both lanes name their config
+explicitly**. Discovery is never load-bearing in a harness. This is the third time this trap has cost
+time in one session; it is worth stating as a rule.
+
+**`check` and `build` bring the pool up themselves.** The workers deallocate on an idle timer, which is
+what keeps them cheap, so "none running" is the normal state a run starts from rather than an error to
+report back to the caller. `--log-dir` also creates its directory, instead of failing at the last write
+of a twenty-minute A/B.
 
 ---
 
