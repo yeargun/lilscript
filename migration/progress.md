@@ -183,4 +183,19 @@ one trap worth more than all of them: copied from cnlil, its config carried `str
 every `print` was stripped and the artifact ran clean while asserting **nothing**. That is the third
 convincingly-empty pass this session has produced from an inherited or discovered config.
 
+    # and the sharper one: 18 configurations, one answer, 43 s
+    cd ~/probelil && node scripts/configs.mjs
+
+`scripts/configs.mjs` builds the probe under 18 configurations — levels 0/5/9/15, `candidate_search`
+off/always, three cost models, three priorities, the peephole disabled, both function spellings, beam
+1 and 32, and the phi-region option that carried live-8 — and demands they all print the same 32
+lines. A feature-dense program has exactly one correct output, so **any configuration that disagrees
+has found a wrong program**, which is precisely how live-8 announced itself. The artifacts range 2,522 B
+to 3,309 B, so those configurations really are emitting different programs.
+
+The probe also carries a regression block for every defect that has shipped: live-8's side-effecting
+selection (asserting *two* probe calls, the only possible answer), `this` escaping its object through
+an arrow, bug 7's generic-with-a-func-typed-parameter, the two folds that deleted live bindings, and
+`charCodeAt` out of range where `NaN|0` must be 0.
+
 Do **not** build the 27-port fleet.

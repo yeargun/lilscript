@@ -41,7 +41,15 @@ import { dirname, join, resolve, basename } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
-const siblings = resolve(repo, "..")
+// The port checkouts sit beside the repository -- except when this tool runs from
+// a git worktree, where "beside the repository" is a scratch directory with no
+// ports in it. `--siblings` (or `LILSCRIPT_SIBLINGS`) names where they really
+// are, so a worktree can drive the pool without a copy of the tree next to it.
+const siblings = resolve(
+  process.argv.includes("--siblings")
+    ? process.argv[process.argv.indexOf("--siblings") + 1]
+    : (process.env.LILSCRIPT_SIBLINGS ?? resolve(repo, "..")),
+)
 const outDir = join(repo, "finer", "out", "workers")
 mkdirSync(outDir, { recursive: true })
 
