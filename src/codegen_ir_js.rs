@@ -1088,6 +1088,53 @@ enum JsPrecedence {
     Primary,
 }
 
+/// Render a node from its children -- the one place a migrated kind's text is
+/// formed.
+///
+/// Phase 1 of `migration/` inverts the half-AST: `code` stops being *authored*
+/// by each constructor and becomes *derived* from the tree. A kind is migrated
+/// when its constructor builds its operands and calls this to produce `code`,
+/// at which point `code` is a cache of the tree rather than a second, competing
+/// description of the program -- and can eventually be deleted.
+///
+/// `None` means the kind has not been inverted yet and still authors its own
+/// text. That set is the remaining phase 1 work, and it is what
+/// `render_owns_the_text_for_migrated_kinds` pins.
+fn render(root: JsExpressionRoot, operands: &[JsExpression]) -> Option<String> {
+    match root {
+        JsExpressionRoot::Conditional => {
+            let [condition, then_value, else_value] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{}?{}:{}",
+                condition.clone().at_least(JsPrecedence::LogicalOr),
+                then_value.clone().at_least(JsPrecedence::Assignment),
+                else_value.clone().at_least(JsPrecedence::Assignment)
+            ))
+        }
+        JsExpressionRoot::Nullish => {
+            let [lhs, rhs] = operands else {
+                return None;
+            };
+            // ECMAScript intentionally rejects an unparenthesised `??` operand
+            // rooted at `&&` or `||`, despite their nearby precedence levels.
+            let operand = |value: &JsExpression| {
+                if matches!(
+                    value.root,
+                    JsExpressionRoot::Binary(IrBinaryOp::And | IrBinaryOp::Or)
+                ) {
+                    value.clone().grouped_code()
+                } else {
+                    value.clone().at_least(JsPrecedence::LogicalOr)
+                }
+            };
+            Some(format!("{}??{}", operand(lhs), operand(rhs)))
+        }
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum JsExpressionRoot {
     Atom,
@@ -1337,18 +1384,12 @@ impl JsExpression {
     }
 
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
-        // Retained before rendering: `at_least` consumes its receiver into
-        // text, which is how every kind used to lose its children.
-        let operands = vec![condition.clone(), then_value.clone(), else_value.clone()];
-        let condition = condition.at_least(JsPrecedence::LogicalOr);
-        let then_value = then_value.at_least(JsPrecedence::Assignment);
-        let else_value = else_value.at_least(JsPrecedence::Assignment);
-        let expression = Self::grouped(
-            format!("{condition}?{then_value}:{else_value}"),
-            JsPrecedence::Conditional,
-            JsExpressionRoot::Conditional,
-        );
-        expression.with_operands(operands)
+        let operands = vec![condition, then_value, else_value];
+        // Derived, not authored: `render` is the only place this text is formed.
+        let code = render(JsExpressionRoot::Conditional, &operands)
+            .expect("render covers Conditional");
+        Self::grouped(code, JsPrecedence::Conditional, JsExpressionRoot::Conditional)
+            .with_operands(operands)
     }
 
     fn nullish(mut lhs: Self, rhs: Self) -> Self {
@@ -1367,27 +1408,12 @@ impl JsExpression {
                 lhs = Self::raw(without_null, JsPrecedence::LogicalOr);
             }
         }
-        // ECMAScript intentionally rejects an unparenthesized `??` operand
-        // rooted at `&&` or `||`, despite their nearby precedence levels.
-        let nullish_operand = |value: Self| {
-            if matches!(
-                value.root,
-                JsExpressionRoot::Binary(IrBinaryOp::And | IrBinaryOp::Or)
-            ) {
-                value.grouped_code()
-            } else {
-                value.at_least(JsPrecedence::LogicalOr)
-            }
-        };
-        let operands = vec![lhs.clone(), rhs.clone()];
-        let expression = Self::grouped(
-            format!("{}??{}", nullish_operand(lhs), nullish_operand(rhs)),
-            JsPrecedence::LogicalOr,
-            JsExpressionRoot::Nullish,
-        );
-        // After the `??null` collapse above, so the retained left child is the
-        // operand this node actually has -- not the one it was called with.
-        expression.with_operands(operands)
+        // Built after the `??null` collapse above, so the retained left child is
+        // the operand this node actually has -- not the one it was called with.
+        let operands = vec![lhs, rhs];
+        let code = render(JsExpressionRoot::Nullish, &operands).expect("render covers Nullish");
+        Self::grouped(code, JsPrecedence::LogicalOr, JsExpressionRoot::Nullish)
+            .with_operands(operands)
     }
 
     fn comma(expressions: impl IntoIterator<Item = Self>) -> Self {
