@@ -1468,6 +1468,25 @@ impl JsBlock {
         &self.text
     }
 
+    /// An empty block that inherits this one's loop-keyword counts.
+    ///
+    /// `LoopSpelling::Auto` reuses whichever keyword the artifact already has
+    /// more of, because a repeated keyword compresses. It asks the block it is
+    /// writing into -- so a body buffered into a *fresh* block sees zero of
+    /// each and picks `while` where the enclosing artifact would have said
+    /// `for`. Inheriting keeps the answer the same.
+    ///
+    /// The counts stay correct afterwards: the enclosing block counts the
+    /// rendered body when it is appended, so nothing is double-counted there.
+    fn nested(&self) -> Self {
+        Self {
+            text: String::new(),
+            for_opens: self.for_opens,
+            while_opens: self.while_opens,
+            ends_with_semicolon: false,
+        }
+    }
+
     fn into_string(self) -> String {
         self.text
     }
@@ -11768,7 +11787,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             };
                             out.push_str("if(");
                             out.push_str(&condition);
-                            out.push_str(")do{");
+                            out.push_str(")do");
                             Some(condition)
                         } else if let Some(update_clause) = &update_clause {
                             emit_for_open(out, for_initializer.as_deref());
@@ -11780,7 +11799,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                             out.push(';');
                             out.push_str(update_clause);
-                            out.push_str("){");
+                            out.push(')');
                             None
                         } else if compact_loop {
                             if reuse_for_spelling {
@@ -11797,24 +11816,43 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             if reuse_for_spelling {
                                 out.push(';');
                             }
-                            out.push_str("){");
+                            out.push(')');
                             None
                         } else {
-                            out.push_str("for(;;){");
-                            out.push_str(&header_output);
-                            out.push_str("if(");
-                            if body_on_true {
-                                out.push_str(&negated_condition);
-                            } else {
-                                out.push_str(&condition);
-                            }
-                            out.push_str("){");
-                            out.push_str(&exit_output);
-                            out.push_str("break}");
+                            out.push_str("for(;;)");
                             None
                         };
-                        let loop_body_open = (compact_loop && !do_loop).then_some(out.len() - 1);
-                        let loop_body_content_start = compact_loop.then_some(out.len());
+                        // Every variant's body now goes into its own block. The
+                        // two remembered offsets into `out` are gone; the only
+                        // one left is computed *after* the body is appended, for
+                        // the guarded-decrement rewrite, which still reads the
+                        // header and body as one span.
+                        let mut body_output = out.nested();
+                        if !compact_loop && !do_loop {
+                            // The `for(;;)` shape carries its test inside the
+                            // body: header, then `if(exit){..break}`.
+                            body_output.push_str(&header_output);
+                            let test = if body_on_true {
+                                negated_condition.clone()
+                            } else {
+                                condition.clone()
+                            };
+                            let mut exit_branch = JsBlock::new();
+                            exit_branch.push_str(&exit_output);
+                            exit_branch.push_str("break");
+                            body_output.push_statement_with(
+                                JsStatement::If {
+                                    condition: test,
+                                    then_branch: JsBranch::braced(exit_branch),
+                                    else_branch: None,
+                                },
+                                JsStatementOptions {
+                                    elide_block_terminal_semicolons: self
+                                        .options
+                                        .elide_block_terminal_semicolons,
+                                },
+                            );
+                        }
 
                         let continue_target = update.unwrap_or(header);
                         let nested_loop = LoopContext {
@@ -11834,7 +11872,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             uses,
                             &mut body_cache,
                             &mut body_visited,
-                            out,
+                            &mut body_output,
                         )?;
                         if body_end == PathEnd::ReachedStop && update_clause.is_none() {
                             if let Some(update_block) = update {
@@ -11849,38 +11887,42 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     uses,
                                     &mut update_cache,
                                     &mut update_visited,
-                                    out,
+                                    &mut body_output,
                                 )?;
                             }
                         }
                         let mut compacted_loop_body = false;
-                        if self.options.comma_expressions {
-                            if let Some(body_start) = loop_body_content_start {
-                                if let Some(compact) =
-                                    compact_top_level_expression_statements(&out[body_start..])
-                                {
-                                    out.replace_range(body_start.., &compact);
-                                    compacted_loop_body = true;
-                                }
+                        if self.options.comma_expressions && compact_loop {
+                            if let Some(compact) =
+                                compact_top_level_expression_statements(&body_output)
+                            {
+                                body_output = JsBlock::from(compact);
+                                compacted_loop_body = true;
                             }
                         }
+                        let braceless = compact_loop
+                            && !do_loop
+                            && (compacted_loop_body || is_braceless_statement(&body_output));
+                        // Where the body starts once appended. `rewrite_guarded_decrement_loop`
+                        // still needs header and body contiguous, so it gets the
+                        // position rather than the block -- and it is the last
+                        // reader of an offset here.
+                        let loop_body_open = (compact_loop && !do_loop).then_some(out.len());
+                        out.push_str(
+                            &JsBranch {
+                                block: body_output,
+                                braceless,
+                            }
+                            .render(JsStatementOptions {
+                                elide_block_terminal_semicolons: self
+                                    .options
+                                    .elide_block_terminal_semicolons,
+                            }),
+                        );
                         if let Some(condition) = do_condition {
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
-                            );
                             out.push_str("while(");
                             out.push_str(&condition);
                             out.push_str(");");
-                        } else if loop_body_open.is_some_and(|open| {
-                            compacted_loop_body || is_braceless_statement(&out[open + 1..])
-                        }) {
-                            out.remove(loop_body_open.expect("checked loop body opening"));
-                        } else {
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
-                            );
                         }
                         if let Some(counter) = rotation_counter {
                             rewrite_guarded_decrement_loop(
@@ -11935,7 +11977,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         // appending to. A separate block makes "the body" a value,
                         // and the offsets stop existing rather than becoming
                         // correct.
-                        let mut body_output = JsBlock::new();
+                        let mut body_output = out.nested();
 
                         let nested_loop = LoopContext {
                             header,
@@ -12013,7 +12055,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out.push(')');
                         // As for `for-in`: the body is a value, not a span of a
                         // buffer somebody else is still appending to.
-                        let mut body_output = JsBlock::new();
+                        let mut body_output = out.nested();
 
                         let nested_loop = LoopContext {
                             header,
