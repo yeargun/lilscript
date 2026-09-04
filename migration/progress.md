@@ -96,6 +96,26 @@ an operandless `>>>0` `Binary` node — each invisible while `code` was authorit
 `00206f1` is worth reading before the next perf change: the first counter implementation was
 byte-identical and **23% slower**, and only a stopwatch could have caught it.
 
+### The number phase 2 is driving down
+
+Phase 1 worked because the gap was written down as a table and closed one row at a time. Phase 2's
+equivalent is the count of places that assemble a statement out of text fragments instead of building
+a node. It is static and `grep`-able, so it cannot drift:
+
+    grep -c 'out\.push_str('  src/codegen_ir_js.rs     # fragment appends
+    grep -c 'out\.push_statement(' src/codegen_ir_js.rs # statement nodes
+    grep -c 'out\.\(truncate\|pop\|remove\|insert_str\|replace_range\)(' src/codegen_ir_js.rs
+
+| | at 2b | now |
+|---|---:|---:|
+| fragment appends (`push_str`) | 324 | **304** |
+| statement nodes (`push_statement`) | 0 | **11** |
+| escapes into emitted text | 26 | **16** |
+
+`JsStatement` has five kinds — `Declaration`, `Binding`, `Return`, `Throw`, `Break`, `Continue` — and
+each holds its **children**, not their text. Phase 3 can delete `code` when the fragment column
+reaches the handful that genuinely emit sub-statement syntax.
+
 ---
 
 ## Phases 3–8 — not started

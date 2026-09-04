@@ -1595,6 +1595,18 @@ impl JsBlock {
         self.text.push_str(fragment);
     }
 
+    /// Append a complete statement.
+    ///
+    /// Phase 2's direction of travel: a block is a *list of statements* that
+    /// currently keeps itself as text, and every site that moves from
+    /// `push_str` fragments to `push_statement` is one less place a statement
+    /// can be spelled wrong. Rendering still happens immediately -- phase 3 is
+    /// where the list stops being flattened on the way in.
+    fn push_statement(&mut self, statement: JsStatement) {
+        let rendered = statement.render();
+        self.push_str(&rendered);
+    }
+
     fn push(&mut self, character: char) {
         let mut buffer = [0u8; 4];
         self.push_str(character.encode_utf8(&mut buffer));
@@ -9962,12 +9974,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             Some(Terminator::Return(None)) => {}
             Some(Terminator::Throw(value)) => {
-                out.push_str(
-                    &JsStatement::Throw {
+                out.push_statement(JsStatement::Throw {
                         value: take_value(*value, &context, &mut cache)?,
-                    }
-                    .render(),
-                );
+                    });
             }
             Some(Terminator::Unreachable) => {
                 self.emit_unreachable_terminator(block.instructions.last(), out);
@@ -10953,18 +10962,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let returned = (!context.is_js_undefined(*value))
                         .then(|| take_value(*value, &context, &mut cache))
                         .transpose()?;
-                    out.push_str(&JsStatement::Return { value: returned }.render());
+                    out.push_statement(JsStatement::Return { value: returned });
                 }
                 Terminator::Return(None) => {
-                    out.push_str(&JsStatement::Return { value: None }.render());
+                    out.push_statement(JsStatement::Return { value: None });
                 }
                 Terminator::Throw(value) => {
-                    out.push_str(
-                        &JsStatement::Throw {
+                    out.push_statement(JsStatement::Throw {
                             value: take_value(*value, &context, &mut cache)?,
-                        }
-                        .render(),
-                    );
+                        });
                 }
                 Terminator::Try { .. } => {
                     return Err(CodegenError::new(
@@ -12162,7 +12168,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     if let Some(loop_context) = loop_context {
                         if *target == loop_context.exit {
-                            out.push_str("break;");
+                            out.push_statement(JsStatement::Break);
                             return Ok(PathEnd::Terminated);
                         }
                         if *target == loop_context.continue_target {
@@ -12183,7 +12189,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     )?;
                                 }
                             }
-                            out.push_str("continue;");
+                            out.push_statement(JsStatement::Continue);
                             return Ok(PathEnd::Terminated);
                         }
                     }
@@ -12193,22 +12199,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let returned = (!context.is_js_undefined(*value))
                         .then(|| take_value(*value, context, cache))
                         .transpose()?;
-                    out.push_str(&JsStatement::Return { value: returned }.render());
+                    out.push_statement(JsStatement::Return { value: returned });
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Return(None) => {
                     if function.kind != FunctionKind::Entry {
-                        out.push_str(&JsStatement::Return { value: None }.render());
+                        out.push_statement(JsStatement::Return { value: None });
                     }
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Throw(value) => {
-                    out.push_str(
-                        &JsStatement::Throw {
+                    out.push_statement(JsStatement::Throw {
                             value: take_value(*value, context, cache)?,
-                        }
-                        .render(),
-                    );
+                        });
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Try { .. } => {
@@ -21283,6 +21286,9 @@ enum JsStatement {
     Return { value: Option<JsExpression> },
     /// `throw v;`.
     Throw { value: JsExpression },
+    /// `break;` and `continue;` -- the loop-control grammar, complete.
+    Break,
+    Continue,
 }
 
 impl JsStatement {
@@ -21307,6 +21313,8 @@ impl JsStatement {
                 format!("return {};", strip_outer_parens(value))
             }
             Self::Throw { value } => format!("throw {};", strip_outer_parens(value)),
+            Self::Break => "break;".to_string(),
+            Self::Continue => "continue;".to_string(),
         }
     }
 }
@@ -21351,19 +21359,16 @@ fn emit_bound_value_without_cache_flush(
     // "the same name" means at this boundary.
     if strip_outer_parens(expression.clone()) == name {
         if context.claim_declaration(dest)? {
-            out.push_str(&JsStatement::Declaration { keyword, name }.render());
+            out.push_statement(JsStatement::Declaration { keyword, name });
         }
         return Ok(());
     }
     let keyword = context.claim_declaration(dest)?.then_some(keyword);
-    out.push_str(
-        &JsStatement::Binding {
+    out.push_statement(JsStatement::Binding {
             keyword,
             name,
             value: expression,
-        }
-        .render(),
-    );
+        });
     Ok(())
 }
 
