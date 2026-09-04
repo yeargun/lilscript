@@ -1425,6 +1425,13 @@ struct JsBlock {
     text: String,
     for_opens: usize,
     while_opens: usize,
+    /// Whether the block currently ends in `;`.
+    ///
+    /// Statement termination is a *structural* fact about a block, and asking
+    /// the text for it is the pattern phase 3's invariant forbids: no
+    /// production path may re-read emitted text to make a decision. Cheap to
+    /// read either way -- the point is that the block now answers it.
+    ends_with_semicolon: bool,
 }
 
 /// The longest needle the counters track. No edit can change whether a needle
@@ -1463,6 +1470,18 @@ impl JsBlock {
 
     fn into_string(self) -> String {
         self.text
+    }
+
+    /// Whether the last statement is terminated, without searching the text.
+    fn ends_with_semicolon(&self) -> bool {
+        if twin_witness_enabled() {
+            assert_eq!(
+                self.ends_with_semicolon,
+                self.text.ends_with(';'),
+                "block termination flag drifted from the text"
+            );
+        }
+        self.ends_with_semicolon
     }
 
     /// How many `for(` and `while(` the block contains, without searching it.
@@ -1561,10 +1580,18 @@ impl JsBlock {
         let (after_for, after_while) = self.window_counts(lo, hi);
         self.for_opens = self.for_opens + after_for - before_for;
         self.while_opens = self.while_opens + after_while - before_while;
+        // An edit can land anywhere, including on the last byte, so the
+        // termination flag is recomputed rather than reasoned about. These are
+        // the rare paths; appends are the hot one.
+        self.ends_with_semicolon = self.text.ends_with(';');
     }
 
     fn push_str(&mut self, fragment: &str) {
+        if fragment.is_empty() {
+            return;
+        }
         self.count_appended(fragment);
+        self.ends_with_semicolon = fragment.ends_with(';');
         self.text.push_str(fragment);
     }
 
@@ -1655,10 +1682,12 @@ impl From<String> for JsBlock {
     fn from(text: String) -> Self {
         let for_opens = count_needle(text.as_bytes(), b"for(");
         let while_opens = count_needle(text.as_bytes(), b"while(");
+        let ends_with_semicolon = text.ends_with(';');
         Self {
             text,
             for_opens,
             while_opens,
+            ends_with_semicolon,
         }
     }
 }
@@ -2723,7 +2752,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if self.module_output {
             self.emit_exports(&mut out)?;
         }
-        if self.options.elide_block_terminal_semicolons && out.ends_with(';') {
+        if self.options.elide_block_terminal_semicolons && out.ends_with_semicolon() {
             out.pop();
         }
         // The boundary: past here it is an artifact, not a block under
@@ -6240,7 +6269,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let mut names = names.iter().collect::<Vec<_>>();
         names.sort_unstable();
-        if !out.is_empty() && !out.ends_with(';') {
+        if !out.is_empty() && !out.ends_with_semicolon() {
             out.push(';');
         }
         out.push_str("export{");
@@ -6284,7 +6313,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if runtime_exports.is_empty() {
             return Ok(());
         }
-        if !out.is_empty() && !out.ends_with(';') {
+        if !out.is_empty() && !out.ends_with_semicolon() {
             out.push(';');
         }
         out.push_str("export{");
@@ -8300,7 +8329,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let result = self.emit_function_body(root, String::new(), true, false, out);
         self.loop_captured_closures = restored_loop_captures;
         result?;
-        if !out.ends_with(';') {
+        if !out.ends_with_semicolon() {
             out.push(';');
         }
         out.push_str("})();");
@@ -8343,7 +8372,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let result = self.emit_function_body(&root, String::new(), true, false, out);
             self.loop_captured_closures = restored_loop_captures;
             result?;
-            if !out.ends_with(';') {
+            if !out.ends_with_semicolon() {
                 out.push(';');
             }
         }
@@ -8380,7 +8409,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.emit_cluster_helpers(helpers, &mut out)?;
         out.push_str("return ");
         out.push_str(&expression);
-        if !out.ends_with(';') {
+        if !out.ends_with_semicolon() {
             out.push(';');
         }
         out.push_str("})()");
@@ -8986,7 +9015,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         if arrow_binding {
             try_rewrite_arrow_expression_body(out, body_start);
-            if !out.ends_with(';') {
+            if !out.ends_with_semicolon() {
                 out.push(';');
             }
         }
@@ -17792,7 +17821,7 @@ fn expression_statement(expression: JsExpression) -> String {
 fn close_statement_block(out: &mut JsBlock, elide_terminal_semicolon: bool) {
     // Call only at an emitter-owned StatementList boundary. A blind `;}`
     // rewrite could erase the required body of `if(test);` or `for(;;);`.
-    if elide_terminal_semicolon && out.ends_with(';') {
+    if elide_terminal_semicolon && out.ends_with_semicolon() {
         out.pop();
     }
     out.push('}');
