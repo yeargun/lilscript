@@ -1131,7 +1131,71 @@ fn render(root: JsExpressionRoot, operands: &[JsExpression]) -> Option<String> {
             };
             Some(format!("{}??{}", operand(lhs), operand(rhs)))
         }
-        _ => None,
+        JsExpressionRoot::NullNormalized => {
+            // Arity 1: the `null` is part of the spelling, not a child.
+            let [value] = operands else {
+                return None;
+            };
+            Some(format!("{}??null", value.clone().at_least(JsPrecedence::LogicalOr)))
+        }
+        JsExpressionRoot::Unary(operator) => {
+            let [operand] = operands else {
+                return None;
+            };
+            // `- -x` and `+ +x` would lex as `--x` / `++x`, a different
+            // production entirely, so those two need a grouping the
+            // precedence comparison does not ask for.
+            let token_collision = (operator == "-" && operand.code.starts_with('-'))
+                || (operator == "+" && operand.code.starts_with('+'));
+            let text = if operand.precedence < JsPrecedence::Unary || token_collision {
+                operand.clone().grouped_code()
+            } else {
+                operand.code.clone()
+            };
+            Some(format!("{operator}{text}"))
+        }
+        JsExpressionRoot::Binary(op) => {
+            let [lhs, rhs] = operands else {
+                return None;
+            };
+            let lhs = lhs.clone().binary_operand(op, BinaryOperandSide::Left);
+            let rhs = rhs.clone().binary_operand(op, BinaryOperandSide::Right);
+            let rhs = token_safe_binary_rhs(op, rhs);
+            Some(format!("{lhs}{}{rhs}", binary_operator(op)))
+        }
+        JsExpressionRoot::IntegerNormalization => {
+            let [value] = operands else {
+                return None;
+            };
+            let rendered = value
+                .clone()
+                .binary_operand(IrBinaryOp::BitOr, BinaryOperandSide::Left);
+            Some(format!("{rendered}|0"))
+        }
+        JsExpressionRoot::Call => {
+            // Variadic: operands[0] is the callee, operands[1..] the arguments.
+            let [callee, arguments @ ..] = operands else {
+                return None;
+            };
+            let mut code = callee.clone().at_least(JsPrecedence::Call);
+            code.push('(');
+            for (index, argument) in arguments.iter().enumerate() {
+                if index != 0 {
+                    code.push(',');
+                }
+                code.push_str(&argument.clone().at_least(JsPrecedence::Assignment));
+            }
+            code.push(')');
+            Some(code)
+        }
+        // `Atom` and `Raw` are leaves: their text is the datum, not a
+        // rendering of children. `Member` and `Index` carry a property name
+        // and an emitter flag that are not yet part of the node -- see
+        // `migration/003-target-representation.md`.
+        JsExpressionRoot::Atom
+        | JsExpressionRoot::Raw
+        | JsExpressionRoot::Member
+        | JsExpressionRoot::Index => None,
     }
 }
 
@@ -1180,11 +1244,10 @@ impl JsExpressionRoot {
 
     /// How many operands the current half-AST actually *retains*.
     ///
-    /// `JsExpression` is a `String` that drags a partial tree: only three child
-    /// links exist (`unary_operand`, `binary_operands`, `normalization_operand`),
-    /// because every constructor renders its children through `at_least`, which
-    /// consumes them into text. So a `Conditional` node has three operands in the
-    /// grammar and keeps none of them.
+    /// `JsExpression` began as a `String` dragging a partial tree: three child
+    /// links existed as separate fields, because every other constructor
+    /// rendered its children through `at_least`, which consumes them into text.
+    /// A `Conditional` node had three operands in the grammar and kept none.
     ///
     /// **The gap between this and `grammar_arity` is the migration's work list.**
     /// It is written down, and pinned by a test, so that closing it is a
@@ -1226,10 +1289,7 @@ struct JsExpression {
     /// Wrapping operations deliberately clear this so an access is only
     /// recovered when `?.` has exactly the same value boundary as the IR op.
     optional_access_code: Option<String>,
-    normalization_operand: Option<Box<Self>>,
-    binary_operands: Option<(Box<Self>, Box<Self>)>,
-    unary_operand: Option<Box<Self>>,
-    /// Children retained as a tree rather than rendered away.
+    /// Every child of this node, in grammar order. The one owner.
     ///
     /// Phase 1 of `migration/`: `JsExpressionRoot::retained_arity` says which
     /// kinds populate this and `grammar_arity` says which still should. A kind
@@ -1247,9 +1307,6 @@ impl JsExpression {
             precedence: JsPrecedence::Primary,
             root: JsExpressionRoot::Atom,
             optional_access_code: None,
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: None,
             operands: Vec::new(),
         }
     }
@@ -1261,9 +1318,6 @@ impl JsExpression {
             precedence,
             root: JsExpressionRoot::Raw,
             optional_access_code: None,
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: None,
             operands: Vec::new(),
         }
     }
@@ -1275,9 +1329,6 @@ impl JsExpression {
             precedence,
             root,
             optional_access_code: None,
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: None,
             operands: Vec::new(),
         }
     }
@@ -1290,32 +1341,23 @@ impl JsExpression {
         // expressions. Preserve this relationship in the expression tree so
         // it is canonical before any JavaScript text is emitted.
         if operator == "!" && operand.root == JsExpressionRoot::Unary("!") {
-            if let Some(inner) = operand.unary_operand.as_deref() {
+            if let Some(inner) = operand.unary_operand() {
                 if inner.root == JsExpressionRoot::Unary("!") {
-                    if let Some(base) = inner.unary_operand.as_deref() {
+                    if let Some(base) = inner.unary_operand() {
                         return Self::unary("!", base.clone());
                     }
                 }
             }
         }
-        let original_operand = Box::new(operand.clone());
-        let token_collision = (operator == "-" && operand.code.starts_with('-'))
-            || (operator == "+" && operand.code.starts_with('+'));
-        let operand = if operand.precedence < JsPrecedence::Unary || token_collision {
-            operand.grouped_code()
-        } else {
-            operand.code
-        };
+        let root = JsExpressionRoot::Unary(operator);
+        let operands = vec![operand];
         Self {
-            code: format!("{operator}{operand}"),
+            code: render(root, &operands).expect("render covers Unary"),
             ungrouped: None,
             precedence: JsPrecedence::Unary,
-            root: JsExpressionRoot::Unary(operator),
+            root,
             optional_access_code: None,
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: Some(original_operand),
-            operands: Vec::new(),
+            operands,
         }
     }
 
@@ -1328,19 +1370,18 @@ impl JsExpression {
                     || js_atom_is_number_literal(code)
             }
             JsExpressionRoot::Unary("void") => true,
-            JsExpressionRoot::Unary("!") => self
-                .unary_operand
-                .as_deref()
-                .is_some_and(Self::is_constant_literal),
+            JsExpressionRoot::Unary("!") => {
+                self.unary_operand().is_some_and(Self::is_constant_literal)
+            }
             _ => false,
         }
     }
 
     fn without_explicit_tostring(self) -> Self {
         if self.root == JsExpressionRoot::Binary(IrBinaryOp::Add) {
-            if let Some((lhs, rhs)) = &self.binary_operands {
+            if let Some((lhs, rhs)) = self.binary_operands() {
                 if is_empty_string_literal(&rhs.code) {
-                    return lhs.as_ref().clone();
+                    return lhs.clone();
                 }
             }
         }
@@ -1370,17 +1411,10 @@ impl JsExpression {
         {
             core::mem::swap(&mut lhs, &mut rhs);
         }
-        let operands = (Box::new(lhs.clone()), Box::new(rhs.clone()));
-        let lhs = lhs.binary_operand(op, BinaryOperandSide::Left);
-        let rhs = rhs.binary_operand(op, BinaryOperandSide::Right);
-        let rhs = token_safe_binary_rhs(op, rhs);
-        let mut expression = Self::grouped(
-            format!("{lhs}{}{rhs}", binary_operator(op)),
-            js_binary_precedence(op),
-            JsExpressionRoot::Binary(op),
-        );
-        expression.binary_operands = Some(operands);
-        expression
+        let root = JsExpressionRoot::Binary(op);
+        let operands = vec![lhs, rhs];
+        let code = render(root, &operands).expect("render covers Binary");
+        Self::grouped(code, js_binary_precedence(op), root).with_operands(operands)
     }
 
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
@@ -1427,26 +1461,14 @@ impl JsExpression {
 
     fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
         // operands[0] is the callee; operands[1..] are the arguments in order.
-        let mut operands = vec![callee.clone()];
-        let mut code = callee.at_least(JsPrecedence::Call);
-        code.push('(');
-        for (index, argument) in args.into_iter().enumerate() {
-            if index != 0 {
-                code.push(',');
-            }
-            operands.push(argument.clone());
-            code.push_str(&argument.at_least(JsPrecedence::Assignment));
-        }
-        code.push(')');
+        let mut operands = vec![callee];
+        operands.extend(args);
         Self {
-            code,
+            code: render(JsExpressionRoot::Call, &operands).expect("render covers Call"),
             ungrouped: None,
             precedence: JsPrecedence::Call,
             root: JsExpressionRoot::Call,
             optional_access_code: None,
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: None,
             operands,
         }
     }
@@ -1476,9 +1498,6 @@ impl JsExpression {
             precedence: JsPrecedence::Member,
             root: JsExpressionRoot::Member,
             optional_access_code: Some(format!("{object}?.{property}")),
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: None,
             operands,
         }
     }
@@ -1497,26 +1516,28 @@ impl JsExpression {
             precedence: JsPrecedence::Member,
             root: JsExpressionRoot::Index,
             optional_access_code: Some(format!("{object}?.[{index}]")),
-            normalization_operand: None,
-            binary_operands: None,
-            unary_operand: None,
             operands,
         }
     }
 
     fn integer_normalization(value: Self) -> Self {
         let optional_access_code = value.optional_access_code.clone();
-        let rendered = value
-            .clone()
-            .binary_operand(IrBinaryOp::BitOr, BinaryOperandSide::Left);
-        let mut normalized = Self::grouped(
-            format!("{rendered}|0"),
-            JsPrecedence::BitOr,
-            JsExpressionRoot::IntegerNormalization,
-        );
+        let root = JsExpressionRoot::IntegerNormalization;
+        let operands = vec![value];
+        let code = render(root, &operands).expect("render covers IntegerNormalization");
+        let mut normalized =
+            Self::grouped(code, JsPrecedence::BitOr, root).with_operands(operands);
         normalized.optional_access_code = optional_access_code;
-        normalized.normalization_operand = Some(Box::new(value));
         normalized
+    }
+
+    /// `value??null`: LilScript's canonical absent value at a JavaScript
+    /// boundary where the host would have produced `undefined`.
+    fn null_normalized(value: Self) -> Self {
+        let root = JsExpressionRoot::NullNormalized;
+        let operands = vec![value];
+        let code = render(root, &operands).expect("render covers NullNormalized");
+        Self::grouped(code, JsPrecedence::LogicalOr, root).with_operands(operands)
     }
 
     fn into_optional_access(self) -> Option<Self> {
@@ -1542,6 +1563,33 @@ impl JsExpression {
         );
         self.operands = operands;
         self
+    }
+
+    /// The operand of a unary node, or `None` for any other kind.
+    ///
+    /// These three were separate `Option<Box<Self>>` fields, so a node could
+    /// carry a child list that disagreed with its own kind. They are now
+    /// projections of `operands`, which makes that unrepresentable.
+    fn unary_operand(&self) -> Option<&Self> {
+        matches!(self.root, JsExpressionRoot::Unary(_))
+            .then(|| self.operands.first())
+            .flatten()
+    }
+
+    fn binary_operands(&self) -> Option<(&Self, &Self)> {
+        if !matches!(self.root, JsExpressionRoot::Binary(_)) {
+            return None;
+        }
+        match self.operands.as_slice() {
+            [lhs, rhs] => Some((lhs, rhs)),
+            _ => None,
+        }
+    }
+
+    fn normalization_operand(&self) -> Option<&Self> {
+        (self.root == JsExpressionRoot::IntegerNormalization)
+            .then(|| self.operands.first())
+            .flatten()
     }
 
     fn at_least(self, minimum: JsPrecedence) -> String {
@@ -1584,11 +1632,10 @@ impl JsExpression {
     /// instead of relying on a later JavaScript peephole pass.
     fn normalized_for_condition(self) -> Self {
         if self.root == JsExpressionRoot::Unary("!") {
-            if let Some(operand) = self.unary_operand.as_deref() {
+            if let Some(operand) = self.unary_operand() {
                 if operand.root == JsExpressionRoot::Unary("!") {
                     return operand
-                        .unary_operand
-                        .as_deref()
+                        .unary_operand()
                         .cloned()
                         .map(JsExpression::normalized_for_condition)
                         .expect("unary expressions carry their operand");
@@ -1603,11 +1650,11 @@ impl JsExpression {
                 JsExpressionRoot::Binary(op) => op,
                 _ => unreachable!(),
             };
-            if let Some((lhs, rhs)) = self.binary_operands {
+            if let Some((lhs, rhs)) = self.binary_operands() {
                 return Self::binary(
                     op,
-                    (*lhs).normalized_for_condition(),
-                    (*rhs).normalized_for_condition(),
+                    lhs.clone().normalized_for_condition(),
+                    rhs.clone().normalized_for_condition(),
                 );
             }
         }
@@ -1630,14 +1677,15 @@ impl JsExpression {
         }
         if self.root == JsExpressionRoot::Unary("!") {
             return self
-                .unary_operand
-                .map(|operand| operand.into_minimal())
+                .unary_operand()
+                .cloned()
+                .map(Self::into_minimal)
                 .expect("unary expressions carry their operand");
         }
         if let JsExpressionRoot::Binary(operator) = self.root {
             if let Some(inverse) = inverse_comparison(operator) {
-                if let Some((lhs, rhs)) = self.binary_operands {
-                    return Self::binary(inverse, *lhs, *rhs).into_minimal();
+                if let Some((lhs, rhs)) = self.binary_operands() {
+                    return Self::binary(inverse, lhs.clone(), rhs.clone()).into_minimal();
                 }
             }
         }
@@ -1648,8 +1696,8 @@ impl JsExpression {
         if self.root != JsExpressionRoot::IntegerNormalization {
             return self;
         }
-        self.normalization_operand
-            .map(|operand| *operand)
+        self.normalization_operand()
+            .cloned()
             .expect("integer normalization expressions carry their operand")
     }
 
@@ -13137,11 +13185,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     // after one, so nothing can tell it from `null`.
                     Ok(indexed)
                 } else if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
-                    Ok(JsExpression::grouped(
-                        format!("{indexed}??null"),
-                        JsPrecedence::LogicalOr,
-                        JsExpressionRoot::NullNormalized,
-                    ))
+                    Ok(JsExpression::null_normalized(indexed))
                 } else {
                     Ok(self.coalesce_absent_to_null(indexed))
                 }
@@ -13541,11 +13585,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     )
                 };
                 if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
-                    JsExpression::grouped(
-                        format!("{member}??null"),
-                        JsPrecedence::LogicalOr,
-                        JsExpressionRoot::NullNormalized,
-                    )
+                    JsExpression::null_normalized(member)
                 } else {
                     self.coalesce_absent_to_null(member)
                 }
@@ -35902,10 +35942,9 @@ consume(field(JS.object("type", 1), "type"));
     /// The half-AST's completeness, pinned.
     ///
     /// Four of the ten expression kinds render their children into text and
-    /// keep none: `Nullish` (2 operands), `Conditional` (3), `Member` (1) and
-    /// `Call` (variadic). That gap is why a printer cannot reconstruct the
-    /// artifact from the tree today, and it is the work phase 1 of
-    /// `migration/` has to close.
+    /// kept none. That gap is closed: every kind now retains what the grammar
+    /// gives it, which is what makes a printer able to reconstruct the artifact
+    /// from the tree rather than read it off `code`.
     ///
     /// This test fails when the gap changes in either direction. Closing one is
     /// progress and should move the numbers here in the same commit; widening
