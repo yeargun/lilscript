@@ -6209,36 +6209,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_foreign_imports(&self, out: &mut JsBlock) {
         for import in &self.module.foreign_imports {
-            if import.specifiers.is_empty() {
-                out.push_str("import");
-                out.push_str(&render_module_specifier(
-                    import.source,
-                    self.options.string_quote,
-                ));
-                out.push(';');
-                continue;
-            }
-            out.push_str("import{");
-            for (index, specifier) in import.specifiers.iter().enumerate() {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(specifier.imported);
-                let local = self
-                    .foreign_import_names
-                    .get(specifier.local)
-                    .map_or(specifier.local, String::as_str);
-                if specifier.imported != local {
-                    out.push_str(" as ");
-                    out.push_str(local);
-                }
-            }
-            out.push_str("}from");
-            out.push_str(&render_module_specifier(
-                import.source,
-                self.options.string_quote,
-            ));
-            out.push(';');
+            let bindings = import
+                .specifiers
+                .iter()
+                .map(|specifier| {
+                    let local = self
+                        .foreign_import_names
+                        .get(specifier.local)
+                        .map_or(specifier.local, String::as_str);
+                    JsModuleBinding {
+                        name: specifier.imported.to_string(),
+                        alias: (specifier.imported != local).then(|| local.to_string()),
+                    }
+                })
+                .collect();
+            out.push_statement(JsStatement::Import {
+                bindings,
+                source: render_module_specifier(import.source, self.options.string_quote),
+            });
         }
     }
 
@@ -6284,14 +6272,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !out.is_empty() && !out.ends_with_semicolon() {
             out.push(';');
         }
-        out.push_str("export{");
-        for (index, name) in names.iter().enumerate() {
-            if index != 0 {
-                out.push(',');
-            }
-            out.push_str(name);
-        }
-        out.push_str("};");
+        out.push_statement(JsStatement::Export {
+            bindings: names
+                .iter()
+                .map(|name| JsModuleBinding {
+                    name: (*name).clone(),
+                    alias: None,
+                })
+                .collect(),
+        });
     }
 
     fn emit_exports(&self, out: &mut JsBlock) -> Result<(), CodegenError> {
@@ -6328,18 +6317,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !out.is_empty() && !out.ends_with_semicolon() {
             out.push(';');
         }
-        out.push_str("export{");
-        for (index, (internal, public)) in runtime_exports.iter().enumerate() {
-            if index != 0 {
-                out.push(',');
-            }
-            out.push_str(internal);
-            if internal != public {
-                out.push_str(" as ");
-                out.push_str(public);
-            }
-        }
-        out.push('}');
+        out.push_statement(JsStatement::Export {
+            bindings: runtime_exports
+                .iter()
+                .map(|(internal, public)| JsModuleBinding {
+                    name: (*internal).to_string(),
+                    alias: (internal != public).then(|| (*public).to_string()),
+                })
+                .collect(),
+        });
         Ok(())
     }
 
@@ -21289,6 +21275,40 @@ enum JsStatement {
     /// `break;` and `continue;` -- the loop-control grammar, complete.
     Break,
     Continue,
+    /// `import"src";` or `import{a,b as c}from"src";`
+    Import {
+        bindings: Vec<JsModuleBinding>,
+        source: String,
+    },
+    /// `export{a,b as c};`
+    Export { bindings: Vec<JsModuleBinding> },
+}
+
+/// One `name` or `name as alias` inside an import or export clause.
+///
+/// Imports and exports spell the same list in opposite directions, which the
+/// three emitters that build one had each rediscovered separately.
+#[derive(Debug, Clone)]
+struct JsModuleBinding {
+    name: String,
+    alias: Option<String>,
+}
+
+impl JsModuleBinding {
+    fn render(&self) -> String {
+        match &self.alias {
+            Some(alias) => format!("{} as {alias}", self.name),
+            None => self.name.clone(),
+        }
+    }
+
+    fn clause(bindings: &[Self]) -> String {
+        bindings
+            .iter()
+            .map(Self::render)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
 }
 
 impl JsStatement {
@@ -21315,6 +21335,15 @@ impl JsStatement {
             Self::Throw { value } => format!("throw {};", strip_outer_parens(value)),
             Self::Break => "break;".to_string(),
             Self::Continue => "continue;".to_string(),
+            Self::Import { bindings, source } if bindings.is_empty() => {
+                format!("import{source};")
+            }
+            Self::Import { bindings, source } => {
+                format!("import{{{}}}from{source};", JsModuleBinding::clause(&bindings))
+            }
+            Self::Export { bindings } => {
+                format!("export{{{}}};", JsModuleBinding::clause(&bindings))
+            }
         }
     }
 }
