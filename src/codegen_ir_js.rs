@@ -1343,13 +1343,12 @@ impl JsExpression {
         let condition = condition.at_least(JsPrecedence::LogicalOr);
         let then_value = then_value.at_least(JsPrecedence::Assignment);
         let else_value = else_value.at_least(JsPrecedence::Assignment);
-        let mut expression = Self::grouped(
+        let expression = Self::grouped(
             format!("{condition}?{then_value}:{else_value}"),
             JsPrecedence::Conditional,
             JsExpressionRoot::Conditional,
         );
-        expression.operands = operands;
-        expression
+        expression.with_operands(operands)
     }
 
     fn nullish(mut lhs: Self, rhs: Self) -> Self {
@@ -1381,15 +1380,14 @@ impl JsExpression {
             }
         };
         let operands = vec![lhs.clone(), rhs.clone()];
-        let mut expression = Self::grouped(
+        let expression = Self::grouped(
             format!("{}??{}", nullish_operand(lhs), nullish_operand(rhs)),
             JsPrecedence::LogicalOr,
             JsExpressionRoot::Nullish,
         );
         // After the `??null` collapse above, so the retained left child is the
         // operand this node actually has -- not the one it was called with.
-        expression.operands = operands;
-        expression
+        expression.with_operands(operands)
     }
 
     fn comma(expressions: impl IntoIterator<Item = Self>) -> Self {
@@ -1498,6 +1496,26 @@ impl JsExpression {
     fn into_optional_access(self) -> Option<Self> {
         self.optional_access_code
             .map(|code| Self::raw(code, JsPrecedence::Member))
+    }
+
+    /// Attach this node's children, checking them against the encoding table.
+    ///
+    /// One place attaches operands, so a kind cannot quietly disagree with
+    /// `grammar_arity` -- which is what happened to `Member`, whose arity was 1
+    /// or 2 depending on which constructor made it. Under `release-assert` (see
+    /// Cargo.toml) this fires in an optimised build, so the fleet can run it.
+    fn with_operands(mut self, operands: Vec<Self>) -> Self {
+        debug_assert!(
+            self.root
+                .grammar_arity()
+                .is_none_or(|arity| arity == operands.len()),
+            "{:?} takes {:?} operands, given {}",
+            self.root,
+            self.root.grammar_arity(),
+            operands.len()
+        );
+        self.operands = operands;
+        self
     }
 
     fn at_least(self, minimum: JsPrecedence) -> String {
