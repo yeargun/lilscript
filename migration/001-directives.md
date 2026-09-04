@@ -45,22 +45,39 @@ had two, and "did this stage run" had none.
 A design that adds a second owner for anything — even temporarily, even for one phase — must say so
 explicitly, name the reconciling check, and name the commit that deletes it.
 
-## D3 — Compression is a hard constraint, and byte-identity is the only clean proof
+## D3 — Working code first, then compression; byte-identity is evidence, not a gate
 
-26 ports and 181 built artifacts are the non-regression surface ([008](008-fleet.md)). Their Brotli
-numbers must not degrade, and neither must their runtime performance.
+26 ports and 181 built artifacts are the non-regression surface ([008](008-fleet.md)). What must hold,
+in order:
 
-The measurement law that makes this hard: **a semantically empty change moves Brotli by roughly
-−125..+30 bytes**, and the entire 121-fold text layer is worth **189 bytes** on markedlil. An
-artifact-level byte diff therefore *cannot* distinguish "the tree emits the same program" from "the
-tree silently lost an optimization." Both look like noise.
+1. **The ports must work.** The case matrix and the port suites pass, and the failing set never grows.
+2. **Brotli must not degrade** — measured when the migration is finalized, not at every step.
+3. **Compile time must be the same or better** — likewise, at the end.
 
-The consequence is not negotiable:
+> **Revised 2026-09-04, by the owner, and the revision matters.** This directive used to read
+> *"byte-identity is the only clean proof"*, and required every neutral step to prove it. The owner's
+> instruction is the opposite: *"we dont need exact byte sameness in the outputs... our goal is, the
+> codes shouldnt get broken, must pass tests, shouldnt degrade in terms of brotli compression"*, and
+> a multi-step migration is allowed to regress in the middle. **Do not reinstate the stricter gate.**
+>
+> What the old text got right is kept below as a *reading rule*, because the measurement law did not
+> change — only what we do about it.
 
-- A step that intends no byte change must prove **byte-identity**, not byte-similarity.
-- A step that intends a byte change must isolate that change to a **single scored decision**, with
-  its own registry row, defaulted off, and its own fleet A/B.
-- "Within the noise floor" is never an acceptance criterion for a step that claimed to be neutral.
+The measurement law: **a semantically empty change moves Brotli by roughly −125..+30 bytes**, and the
+entire 121-fold text layer is worth **189 bytes** on markedlil. So an artifact-level byte diff cannot
+distinguish "the tree emits the same program" from "the tree silently lost an optimization". That is
+why byte-identity was attractive — and it is why a small delta is **not by itself a reason to stop**.
+
+How to act on that now:
+
+- Byte-identity, when a step happens to achieve it, is worth **reporting**: it is the strongest
+  evidence a step was neutral, and it costs nothing to check. It is not a pass condition.
+- A delta inside the noise band is **accepted and recorded**, not treated as an alarm. If several such
+  steps accumulate in one direction, that is the signal to look — a trend, not a single row.
+- A step that intends a byte change still isolates it to a **single scored decision**, with its own
+  registry row, defaulted off, and its own fleet A/B. That part is unchanged: a deliberate change
+  should be attributable.
+- **Behaviour is the gate that never relaxes.** A step may cost bytes; it may not cost correctness.
 
 This inherits, and does not weaken, rule 2 of
 [planned-migration.md](../docs/knowledge/migration/planned-migration.md#rules-of-execution):

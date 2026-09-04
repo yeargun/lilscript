@@ -15,11 +15,16 @@ Updated 2026-09-04, branch `migration/target-tree`, 37 commits ahead of `main`.
 Phase 0 is green except the frozen baseline; **phase 1 is complete and gated**; phase 2 has its block
 type but not its statement tree; phases 3–8 are not started, and phase 7 has its measurement.
 
+**The gate is behaviour and end-state compression, not byte-identity** — revised by the owner
+2026-09-04, see [D3](001-directives.md#d3) and [009](009-phases.md#the-gate-vocabulary). A step may
+move bytes; it may not break a program. Only the *finished* migration has to be same-or-better on
+Brotli and on compile time.
+
 | Phase | State | Gate met |
 |---|---|---|
 | 0 — repair the instrument | **6 of 7 items** | — |
-| 1 — the tree exists, proved against the incumbent | **complete** | IDENTICAL + witness + BEHAVIOUR |
-| 2 — statements, functions, module | **2a, 2b landed; statement tree not started** | IDENTICAL + BEHAVIOUR |
+| 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
+| 2 — statements, functions, module | **2a, 2b landed; statement tree not started** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | not started | — |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
@@ -68,8 +73,9 @@ Both open items are language/fleet-rule decisions, not bug fixes, and neither bl
 | render options are a printer parameter | **landed** | `JsRenderOptions`; 57 hand-threaded copies removed — `697c735` |
 | twin witness + negative control | **landed** | `LILSCRIPT_TWIN=1`; corruption caught 53 of 72 — `b31c5d6` |
 
-**Gate:** 44 of 44 artifacts byte-identical across cnlil, posthoglil, markedlil; all three clean under
-`LILSCRIPT_TWIN=1`; compile time +0.3% / +0.4% / +0.006%.
+**Gate:** BEHAVIOUR + NEUTRAL, met with room to spare — 44 of 44 artifacts came out byte-identical
+across cnlil, posthoglil and markedlil, all three clean under `LILSCRIPT_TWIN=1`, compile time
++0.3% / +0.4% / +0.006%. Identity is reported because it was achieved, not because it was required.
 
 Three latent defects fell out of doing it: `NullNormalized`, the `Member`/`Index` tag collision, and
 an operandless `>>>0` `Binary` node — each invisible while `code` was authoritative.
@@ -122,7 +128,7 @@ Taken this session, on the pool, and they contradict two things the plan assumed
 
 ## How to check the state yourself
 
-    node finer/tools/workers.mjs check          # 144 case-lanes on the pool, ~11 s
+    node finer/tools/workers.mjs check          # 144 case-lanes on the pool, ~11 s -- THE gate
     node finer/tools/workers.mjs check --ports cnlil,markedlil
     cargo test --release --lib                  # 1,706 tests
     LILSCRIPT_TWIN=1 <compile>                  # the expression tree reproduces its own text

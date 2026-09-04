@@ -12,17 +12,37 @@ ordering, that is noted.
 
 ## The gate vocabulary
 
-Three kinds of gate, and a phase declares which one it is claiming **before** it runs:
+> **Revised 2026-09-04 by the owner.** This section used to make **IDENTICAL** — every artifact
+> byte-identical — the required gate for phases 1–4 and 6, and said flatly that "there is no 'within
+> the noise floor' gate". The instruction is the opposite: *"we dont need exact byte sameness in the
+> outputs... the codes shouldnt get broken, must pass tests, shouldnt degrade in terms of brotli
+> compression"*, and a multi-step migration may regress in the middle as long as the finished one does
+> not. The table below is the revised vocabulary. See [D3](001-directives.md#d3).
+
+Every phase claims **BEHAVIOUR**. It additionally declares how it expects bytes to move, **before** it
+runs:
 
 | Gate | Means | Used by |
 |---|---|---|
-| **IDENTICAL** | every artifact in the sweep matrix is byte-identical to the incumbent | phases 1–4, 6 |
-| **DECLARED** | named configs may move bytes; every other config is IDENTICAL | phase 5, 7 |
-| **BEHAVIOUR** | the failing-test set per port is unchanged or smaller | every phase |
+| **BEHAVIOUR** | the case matrix passes and the failing-test set per port is unchanged or smaller | **every phase, always** |
+| **NEUTRAL** | no *intended* byte change; a delta inside the noise band is accepted and recorded | phases 1–4, 6 |
+| **DECLARED** | named configs may move bytes, each isolated to one scored decision with its own A/B | phases 5, 7 |
+| **IDENTICAL** | every artifact byte-identical — *reported when achieved, never required* | — |
 
-There is no "within the noise floor" gate. The perturbation band for a semantically empty change is
-roughly −125..+30 Brotli and the whole text layer is worth 189 bytes, so a neutral phase that moves
-bytes has changed the program, not its spelling. Treat it as a correctness alarm.
+Three things follow, and they are the whole difference from the old rule:
+
+- **A phase does not fail for moving bytes.** The perturbation band for a semantically empty change is
+  roughly −125..+30 Brotli and the whole text layer is worth 189 bytes on markedlil, so a small delta
+  cannot be told apart from noise either way. Record it and continue. What earns a look is a *trend*:
+  several NEUTRAL steps moving the same direction.
+- **A phase does fail for breaking a program.** BEHAVIOUR never relaxes. Bytes are recoverable in a
+  later phase; a wrong program shipped to a port is not.
+- **The end state is what must be same-or-better**, on both Brotli and compile time — not each
+  intermediate step. A phase that trades bytes for the structure a later phase needs is doing its job.
+
+`fleet-compare.mjs --require-identical-unless-declared` still exists and is still the sharpest
+instrument available; it is now something a phase may *choose* to run for evidence, not something
+every phase must pass.
 
 **Canaries** (fast, clean, typed, high signal): cnlil, markedlil, posthoglil.
 **Must-pass before a phase is done**: jquerylil, mobxlil, zodlil (at its shipped config), katexlil.
@@ -67,7 +87,7 @@ Two things the review caught and this phase must honour:
   ledger entry that retires later as its own commit with its own A/B. Otherwise every quirk surfaces
   mid-migration as unexplained drift with no owner.
 
-**Gate:** IDENTICAL (trivially — the output path did not move) + the witness passes on all 61 configs
+**Gate:** BEHAVIOUR + NEUTRAL (trivially — the output path did not move) + the witness passes on all 61 configs
 + BEHAVIOUR.
 **Rollback:** delete the tree constructors. Nothing depended on them.
 
@@ -86,7 +106,7 @@ The 63 `out: &mut String` signatures move onto a block type. **Split into two co
 This is deliberately unglamorous. It is also where a single 38,325-line sweep would collide with the
 other sessions editing this file, so the mechanical/semantic split is the whole point.
 
-**Gate:** IDENTICAL + witness + BEHAVIOUR.
+**Gate:** BEHAVIOUR + NEUTRAL + witness.
 **Rollback:** 2b reverts to the alias; 2a is a pure rename.
 
 ---
@@ -123,7 +143,7 @@ running counters / recorded boundaries.
 modelled is a design finding, not a variant. Keep it behind a `cfg` feature until the phase ends so a
 concurrent merge cannot reintroduce one, then delete it.
 
-**Gate:** IDENTICAL + BEHAVIOUR + the fold-deletion protocol
+**Gate:** BEHAVIOUR + NEUTRAL + the fold-deletion protocol
 ([007](007-fold-disposition.md#what-delete-has-to-prove)) for all 22.
 **Rollback:** this is the first irreversible phase. Rollback is a revert of the phase branch, which
 is why 1 and 2 must be fully green first.
@@ -143,8 +163,9 @@ threaded through the traversal context, not cached.
 
 **Consumes:** G6 (int32 coercions — 1,554 lines become a field test) and unblocks G4, G5, G10, G11.
 
-**Gate:** IDENTICAL — delivering a fact must not change what is emitted. A byte change here means a
-pass started using the fact, which belongs in phase 6 with its own measurement.
+**Gate:** BEHAVIOUR + NEUTRAL — delivering a fact should not change what is emitted, so a byte change
+here is a signal to check that a pass started *using* the fact, which belongs in phase 6 with its own
+measurement. It is a prompt to look, not a failure.
 **Rollback:** annotations are additive; passes that consume them land later.
 
 ---
@@ -165,7 +186,7 @@ A/B: `NameOrdering::{EmissionWalk, FrequencyDesc, IdiomConverged}` and `Reservat
 **Deletes:** `rename.rs`, the token-level `BindingResolution`, the third `Mangler`, and
 `rename_ambiguous` (14/14 on cnlil).
 
-**Gate:** DECLARED — `EmissionWalk` is IDENTICAL on all 61 configs; each other ordering is a separate
+**Gate:** DECLARED — `EmissionWalk` is the anchor and should reproduce the incumbent on all 61 configs; each other ordering is a separate
 A/B. Plus the **name-request-order trace** gate: a diff in the `(order, name)` sequence fails the
 phase *even when bytes match* ([005](005-printer-and-naming.md#the-determinism-trap)).
 **Rollback:** every new ordering is off by default; reverting is a config default, not a code revert.
@@ -187,7 +208,7 @@ G8 (loop headers) is high value despite being hard: carrying `Latch` from
 `ControlShape::Loop { update }` closes two of the three shipped wrong-program folds by construction.
 
 **Gate:** per group — `active == 0` for every fold on every config with the fold still enabled,
-IDENTICAL, unchanged scored-candidate count, then a separate deletion commit with no byte change.
+NEUTRAL, unchanged scored-candidate count, then a separate deletion commit.
 **Rollback:** per group, and the two-commit protocol means the emitter change and the deletion revert
 independently.
 
@@ -205,7 +226,7 @@ re-entry/caching decision may **never** change bytes.
 **Watch:** `selection_metrics` is part of the thread-invariance contract and this phase changes it.
 Re-baseline as part of the gate, declared in advance.
 
-**Gate:** DECLARED for the budget change (its own A/B); IDENTICAL for the sharing change at fixed
+**Gate:** DECLARED for the budget change (its own A/B); NEUTRAL for the sharing change at fixed
 budgets. Plus D9 resource reporting per port.
 **Rollback:** budgets are config; sharing reverts to per-candidate emission.
 
