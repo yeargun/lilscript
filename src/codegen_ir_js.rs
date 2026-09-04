@@ -11359,14 +11359,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     return Ok(PathEnd::Terminated);
                                 }
                             }
-                            out.push_str("if(");
-                            out.push_str(&combined);
-                            out.push_str(")return");
-                            if !guard.returned.is_empty() {
-                                out.push(' ');
-                                out.push_str(guard.returned);
-                            }
-                            out.push(';');
+                            let mut returned = JsBlock::new();
+                            returned.push_statement(JsStatement::Return {
+                                value: (!guard.returned.is_empty()).then(|| {
+                                    JsExpression::raw(guard.returned, JsPrecedence::Comma)
+                                }),
+                            });
+                            out.push_statement_with(
+                                JsStatement::If {
+                                    condition: combined.clone().into_string(),
+                                    then_branch: JsBranch::compact(returned),
+                                    else_branch: None,
+                                },
+                                JsStatementOptions {
+                                    elide_block_terminal_semicolons: self
+                                        .options
+                                        .elide_block_terminal_semicolons,
+                                },
+                            );
                         } else if then_output.is_empty()
                             && self.options.conditional_expressions
                             && self.options.allows(JsSyntaxFeature::NullishCoalescing)
@@ -11533,19 +11543,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     out.push_str(&rewrite_optional_method_or_assign(&combined));
                                     out.push(';');
                                 } else {
-                                    out.push_str("if(");
-                                    out.push_str(&condition);
-                                    if is_braceless_statement(&then_output) {
-                                        out.push(')');
-                                        out.push_str(&then_output);
-                                    } else {
-                                        out.push_str("){");
-                                        out.push_str(&then_output);
-                                        close_statement_block(
-                                            out,
-                                            self.options.elide_block_terminal_semicolons,
-                                        );
-                                    }
+                                    out.push_statement_with(
+                                        JsStatement::If {
+                                            condition: condition.clone(),
+                                            then_branch: JsBranch::compact(then_output),
+                                            else_branch: None,
+                                        },
+                                        JsStatementOptions {
+                                            elide_block_terminal_semicolons: self
+                                                .options
+                                                .elide_block_terminal_semicolons,
+                                        },
+                                    );
                                 }
                             }
                         } else if then_output.is_empty() {
