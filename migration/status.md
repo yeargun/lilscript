@@ -230,33 +230,37 @@ for.
 
 ---
 
-## Phase 1 — under way
+## Phase 1 — the expression tree is complete
 
-The target tree is being grown inside `JsExpression` rather than beside it, per the Ratchet method in
-[003](003-target-representation.md): the output path is untouched, so nothing can regress while the
-tree is incomplete.
+Grown inside `JsExpression` rather than beside it, per the Ratchet method in
+[003](003-target-representation.md): the rendering path is untouched and `code` stays authoritative,
+so nothing can regress while the printer does not exist yet.
 
-| kind | operands in the grammar | retained | state |
-|---|---:|---:|---|
-| `Atom`, `Raw` | 0 | 0 | complete |
-| `Unary`, `IntegerNormalization`, `NullNormalized` | 1 | 1 | complete |
-| `Binary` | 2 | 2 | complete |
-| **`Nullish`** | 2 | **2** | **landed this session** |
-| **`Conditional`** | 3 | **3** | **landed this session** |
-| `Member` | 1 | 0 | open |
-| `Call` | variadic | 0 | open |
+**All ten expression kinds now retain the operands the grammar gives them.** The pin test's
+`incomplete` list is empty.
 
-Eight of ten kinds now keep their children. `the_half_ast_retains_children_for_exactly_these_kinds`
-pins the table in both directions, so closing the last two moves it in the same commit and widening
-any of them fails the build.
+| kind | grammar | retained |
+|---|---:|---:|
+| `Atom`, `Raw` | 0 | 0 |
+| `Unary`, `IntegerNormalization`, `NullNormalized` | 1 | 1 |
+| `Member` | 1 | **1** |
+| `Binary`, `Nullish`, **`Index`** | 2 | **2** |
+| `Conditional` | 3 | **3** |
+| `Call` | variadic | **callee + args** |
 
-Both migrated kinds verified behaviour-neutral: **72/72 at `none`, 72/72 at `maximum`**.
+**Writing the table down immediately found a defect.** `member()` and `index()` both used
+`JsExpressionRoot::Member`, so a Member node's arity was 1 or 2 depending on which constructor made
+it — `o.k` has one child, `o[k]` has two, and nothing could tell them apart. That is precisely the
+ambiguity a printer cannot survive. `Index` is now its own tag; the single consumer means "the
+receiver is a member access", true of both forms, so it matches on either.
 
-The clone is deliberately wasteful — it copies the child's rendered text, which is the very thing the
-migration deletes. That cost disappears when the printer walks the tree instead of `code`; the owner's
-brief explicitly allows mid-migration regressions, and this is one.
+Verified behaviour-neutral at every step: **72/72 at `none`, 72/72 at `maximum`, 1,705 unit tests**.
 
-**Next:** `Member` and `Call`, then the printer, then the twin witness under `LILSCRIPT_TWIN=1`.
+The clones are deliberately wasteful — they copy the child's rendered text, which is the very thing
+the migration deletes. That cost disappears when the printer walks the tree instead of `code`.
+
+**Next:** the printer, then the twin witness under `LILSCRIPT_TWIN=1` asserting it reproduces `code`
+byte for byte. At that point phase 1's gate — "the tree reproduces the incumbent" — is met.
 
 ---
 
