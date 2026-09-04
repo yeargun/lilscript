@@ -1,6 +1,8 @@
 # Migration status
 
-Parent: [index](index.md). Volatile: rewritten as work lands. Plan: [009](009-phases.md).
+Parent: [index](index.md). Plan: [009](009-phases.md).
+**State lives in [progress](progress.md)** — this file is the long-form evidence behind it. Where the
+two disagree, `progress.md` is right: it is updated in the same commit as the work.
 Updated 2026-09-04.
 
 Numbers taken on the orchestrator host are **triage, not evidence**
@@ -32,9 +34,9 @@ exactly what `fleet-compare.mjs --require-identical-unless-declared` now exists 
 | 0.1 assertions are real | **landed** | `[profile.release]` (explicit, `debug-assertions = false`) and `[profile.release-assert]` in `Cargo.toml`; manifest validated |
 | 0.2 ports are a gate | **landed, smoke-tested** | `finer/tools/portgate.mjs`; posthoglil recorded `trust: ok` in 139 s, 22 artifacts with SHA-256 + Brotli, 4 timing lines parsed |
 | 0.3 differential is generative | **landed** | `--random-seed` on `lilscript-differential`; seed printed before work starts; `scripts/verify.sh` uses it, `LILSCRIPT_DIFFERENTIAL_SEED` replays |
-| 0.3b domain extended to classes/closures | **not started** | the domain where every known miscompile lives |
+| 0.3b domain extended to classes/closures | **landed** | the reference interpreter models instances, `super`, `this` and lexical capture; it found live-8 within minutes |
 | 0.4 baseline frozen | **not started** | needs the pool and the F-gaps below |
-| 0.5 live bugs fixed | **6 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
+| 0.5 live bugs fixed | **6 of 8** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
 
 ### Fleet gaps ([008](008-fleet.md))
 
@@ -109,7 +111,8 @@ binding or is an expression, not both.
 
 ## Live wrong programs
 
-Seven found, all reproduced. Three fire in a **default** configuration.
+Eight found, all reproduced. Three fire in a **default** configuration. Six are fixed; the two open
+ones are language and fleet-rule decisions rather than bug fixes, and neither blocks a later phase.
 
 | # | Wrong program | State |
 |---|---|---|
@@ -117,9 +120,10 @@ Seven found, all reproduced. Three fire in a **default** configuration.
 | 2 | closure `this`/`arguments` rebound by arrow spelling | open — diagnosed in 061; the port fix landed (`jquerylil 81250cb`), the compiler fix is a fleet-rule change and wants its own folder. **The obvious fix is wrong** — see [004 §2](004-legality-by-construction.md) |
 | 3 | `lilscript.toml` silently ignored for a bare relative filename | **fixed** — `config_search_parent` + regression test |
 | 4 | `charCodeAt` out of range yields `NaN` instead of `0` under the default `size-first` | **fixed** — `StringCharCodeAt` keeps its post-coercion range but is no longer elidable |
-| 5 | `preset = "none"` deletes a module global's binding while a use renders its name | open — two disjoint declaration paths in `codegen_ir_js.rs`. **This is the optimizer-ablation control lane `verify-matrix.sh` runs every case through** |
+| 5 | `preset = "none"` deletes a module global's binding while a use renders its name | **fixed** — it was *two* independent fold miscompiles, both found by `LILSCRIPT_SKIP_FOLDS` bisection and both refused conservatively rather than repaired with a cleverer guess |
 | 6 | `JS.number(x["length"])` loses its `ToNumber` under the default `size-first` | **fixed** — and the fix had to go at the *scored family's admission predicate*, not the option default: turning `elide_length_tonumber` off was not enough because the `length-to-number-elision` family flips it back on a candidate and the search takes the shorter, wrong spelling. See [004 §2b](004-legality-by-construction.md) |
 | 7 | `optional_constructor_callback` fails to compile: "SSA value 3 has no emitted name" | **fixed** — a two-use value was classified inlinable, so it got no name; the skip now applies only to a genuine single use, and never to a parameter |
+| 8 | a local-phi expression region duplicates a side-effecting condition, so `preset = "none"` runs a call twice | **fixed** — found by 0.3b within minutes of the domain existing; the guard is `JsExpression::may_have_effects()` at the proposal site, and it costs 0 Brotli over six ports |
 
 Five of the seven were personally reproduced in this session; 6 and 7 carry an agent's repro and
 command line and have not been re-run here.
@@ -151,19 +155,14 @@ it was held by a conditional rather than by a type.
 
 ---
 
-## Not started
+## What is next
 
-Phases 1–8 ([009](009-phases.md)). Phase 1 cannot begin until Phase 0's remaining items are green —
-that is the whole point of [D4](001-directives.md#d4--repair-the-instrument-before-trusting-it), and
-five open wrong programs is not a repaired instrument.
+Superseded — see [progress](progress.md) for the live table. The three items this section recommended
+have all landed (0.5 bugs 5 and 7, 0.3b, and the fleet gaps); what remains of phase 0 is **0.4**,
+freezing the baseline across all 61 configs on the pool.
 
-Recommended next three, in order:
-
-1. **Finish 0.5.** Bugs 5 and 7 are compile-time/control-lane defects that block trusting any
-   measurement. Bug 5 in particular invalidates the ablation control.
-2. **0.3b**, extending the differential evaluator to classes, closures and prototypes. Cheap relative
-   to its value: it is the only mechanism that could have caught any of the seven.
-3. **0.4**, freezing the baseline across all 61 configs on the pool, once F2 lands.
+The measurement below reorders what comes after it: **phase 7 is where compile time is**, and phases
+3 and 6 are correctness and architecture work whose speed benefit is second-order.
 
 ---
 

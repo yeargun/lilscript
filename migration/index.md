@@ -113,6 +113,18 @@ credit-drained burstable host and are **triage, not evidence** —
 
 ---
 
+## Where the work has got to
+
+**[progress.md](progress.md) is the state of this migration** — one table per phase, updated in the
+same commit as the work it describes. Read it first. [status.md](status.md) is the long-form evidence
+behind it: measurements, repros, and the things that turned out not to be true.
+
+The two sections below were written before any of it started. They are kept as written, because a
+plan that quietly edits its own premises cannot be checked against what happened -- but the first of
+them is now substantially out of date, and `progress.md` says how.
+
+---
+
 ## Two things to be honest about before starting
 
 **The instrument is broken.** The release gate runs zero port suites. 18 of 25 ports never rebuild
