@@ -167,6 +167,69 @@ Recommended next three, in order:
 
 ---
 
+## First real pool measurement
+
+Two workers (`10.1.0.19`, `10.1.0.20`) brought up from the deallocated pool, arm-isolated per
+[008](008-fleet.md), with the F1–F5 fixes exercised for the first time.
+
+**The pool argument, measured rather than asserted:**
+
+| port | on a pool worker | on this host |
+|---|---:|---:|
+| cnlil | **33 s** | exceeded a 120 s timeout |
+| posthoglil | **63 s** | 139 s (portgate) |
+| markedlil | **133 s** | 406 s (portgate) |
+
+Roughly 3× on the ports that complete here at all, and the difference is larger for the ones that do
+not. Arm A: 3 ok, 0 failed.
+
+**F4 and F5 confirmed working.** Arm A's `lilscript-timing` survived arm B — previously arm B
+truncated it — and the two arms carry distinct compiler digests (`e32a0e38b23f` against
+`93e1698d206c`), so the run cannot silently be a comparison of one binary with itself.
+
+A third independent confirmation of the idle-fold ratio, this time from a pool worker: **cnlil,
+11,117 idle against 2,438 active fold calls — 82%**. Measured earlier at 77.5% (markedlil, by hand)
+and 77.7% (markedlil, via `portgate`).
+
+---
+
+## The A/B: what the six correctness fixes cost
+
+Incumbent `54e1948` against candidate `152b830`, both built here, both dispatched to the pool with
+`--compiler` / `--dist-dir` / `--log-dir`, measured on this host with the pinned codec. Compiler
+digests `e32a0e38b23f` and `93e1698d206c` — different, and recorded, so the run cannot be a
+comparison of one binary with itself.
+
+| port | artifact | incumbent | candidate | Δ Brotli |
+|---|---|---:|---:|---:|
+| markedlil | `marked.esm.js` *(scored)* | 9,470 | 9,431 | **−39** |
+| markedlil | `marked.raw.js` | 9,379 | 9,380 | +1 |
+| markedlil | `marked.closed.js` | 9,285 | 9,292 | +7 |
+| markedlil | `marked.bytes.js` | 9,917 | 9,934 | +17 |
+| markedlil | `marked.gzip.js` | 9,419 | 9,438 | +19 |
+| markedlil | `marked.umd.js` | 10,185 | 10,231 | +46 |
+| cnlil | `cn.raw.js` | 9,390 | 9,366 | **−24** |
+| cnlil | `index.js` | 9,372 | 9,371 | −1 |
+| cnlil | `lite.js` | 113 | 113 | **identical** |
+| posthoglil | `autocapture.esm.js` | 3,178 | 3,178 | **identical** |
+| posthoglil | `autocapture.raw.js` | 3,097 | 3,097 | **identical** |
+| posthoglil | `error-tracking.esm.js` | 6,569 | 6,569 | **identical** |
+
+**Twelve artifacts: four byte-identical, and every other movement between −39 and +46 — inside the
+±100 noise floor.** markedlil's scored artifact and both cnlil artifacts got *smaller*. Two of the
+six fixes (`charCodeAt`'s `|0` and the `.length` ToNumber) *add* coercions, and they still cost
+nothing measurable.
+
+Compile time, arm A → arm B on the same workers: cnlil 33→34 s, posthoglil 63→70 s, markedlil
+133→135 s. Unchanged to marginally slower, within run-to-run variance on a shared pool.
+
+**So on the measured set, correctness came free.** This is three ports of 26 and is not the full
+sweep the plan requires before a phase is declared done — but it is the first number in this project
+taken with arm-isolated binaries, per-arm telemetry and recorded digests, which is what F1–F5 were
+for.
+
+---
+
 ## Where the work lives
 
 Branch `migration/target-tree`, in a worktree, isolated from the concurrent session:
