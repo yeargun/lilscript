@@ -12010,9 +12010,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out.push_str(element);
                         out.push_str(" of ");
                         out.push_str(&iterable);
-                        out.push_str("){");
-                        let body_open = out.len() - 1;
-                        let body_start = out.len();
+                        out.push(')');
+                        // As for `for-in`: the body is a value, not a span of a
+                        // buffer somebody else is still appending to.
+                        let mut body_output = JsBlock::new();
 
                         let nested_loop = LoopContext {
                             header,
@@ -12031,25 +12032,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             uses,
                             &mut body_cache,
                             &mut body_visited,
-                            out,
+                            &mut body_output,
                         )?;
                         let mut compacted_body = false;
                         if self.options.comma_expressions {
                             if let Some(compact) =
-                                compact_top_level_expression_statements(&out[body_start..])
+                                compact_top_level_expression_statements(&body_output)
                             {
-                                out.replace_range(body_start.., &compact);
+                                body_output = JsBlock::from(compact);
                                 compacted_body = true;
                             }
                         }
-                        if compacted_body || is_braceless_statement(&out[body_start..]) {
-                            out.remove(body_open);
-                        } else {
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
-                            );
-                        }
+                        let braceless = compacted_body || is_braceless_statement(&body_output);
+                        out.push_str(
+                            &JsBranch {
+                                block: body_output,
+                                braceless,
+                            }
+                            .render(JsStatementOptions {
+                                elide_block_terminal_semicolons: self
+                                    .options
+                                    .elide_block_terminal_semicolons,
+                            }),
+                        );
                         cache.clear();
                         current = exit;
                         continue;

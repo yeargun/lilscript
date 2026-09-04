@@ -110,7 +110,7 @@ a node. It is static and `grep`-able, so it cannot drift:
 |---|---:|---:|
 | fragment appends (`push_str`) | 324 | **263** |
 | statement nodes (`push_statement`) | 0 | **21** |
-| escapes into emitted text | 26 | **14** |
+| escapes into emitted text | 26 | **12** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
 `Break`, `Continue`, `Import`, `Export`, `If` — and each holds its **children**, not their text.
