@@ -1603,7 +1603,11 @@ impl JsBlock {
     /// can be spelled wrong. Rendering still happens immediately -- phase 3 is
     /// where the list stops being flattened on the way in.
     fn push_statement(&mut self, statement: JsStatement) {
-        let rendered = statement.render();
+        self.push_statement_with(statement, JsStatementOptions::UNUSED);
+    }
+
+    fn push_statement_with(&mut self, statement: JsStatement, options: JsStatementOptions) {
+        let rendered = statement.render(options);
         self.push_str(&rendered);
     }
 
@@ -11578,19 +11582,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 }
                             }
                         } else {
-                            out.push_str("if(");
-                            out.push_str(&condition);
-                            out.push_str("){");
-                            out.push_str(&then_output);
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
-                            );
-                            out.push_str("else{");
-                            out.push_str(&else_output);
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
+                            out.push_statement_with(
+                                JsStatement::If {
+                                    condition: condition.clone(),
+                                    then_branch: then_output,
+                                    else_branch: Some(else_output),
+                                },
+                                JsStatementOptions {
+                                    elide_block_terminal_semicolons: self
+                                        .options
+                                        .elide_block_terminal_semicolons,
+                                },
                             );
                         }
                         cache.clear();
@@ -21283,6 +21285,35 @@ enum JsStatement {
         keyword: &'static str,
         names: Vec<String>,
     },
+    /// `if(c){..}` and `if(c){..}else{..}`, always braced.
+    ///
+    /// The branches arrive as finished blocks because the emitter builds them
+    /// into their own `JsBlock` before it knows which shape to wrap them in.
+    /// That is a phase 3 seam, not a phase 2 one: when a block holds statements
+    /// rather than text, these become child statement lists.
+    If {
+        condition: String,
+        then_branch: JsBlock,
+        else_branch: Option<JsBlock>,
+    },
+}
+
+/// Render options for statements, mirroring `JsRenderOptions` for expressions.
+///
+/// `elide_block_terminal_semicolons` decides whether a block's last `;` is kept
+/// before its `}`. It is an emitter setting the search varies, so it belongs to
+/// the printer and not to the node -- the same argument, and the same shape, as
+/// `elide_call_chain_parentheses`.
+#[derive(Debug, Clone, Copy)]
+struct JsStatementOptions {
+    elide_block_terminal_semicolons: bool,
+}
+
+impl JsStatementOptions {
+    /// For kinds whose spelling provably consults no option.
+    const UNUSED: Self = Self {
+        elide_block_terminal_semicolons: false,
+    };
 }
 
 /// One `name` or `name as alias` inside an import or export clause.
@@ -21313,7 +21344,19 @@ impl JsModuleBinding {
 }
 
 impl JsStatement {
-    fn render(self) -> String {
+    /// A brace-closed branch: drop the trailing `;` when asked, then close.
+    ///
+    /// This is `close_statement_block` as a value rather than as a mutation of
+    /// somebody else's buffer.
+    fn close_branch(mut branch: JsBlock, options: JsStatementOptions) -> String {
+        if options.elide_block_terminal_semicolons && branch.ends_with_semicolon() {
+            branch.pop();
+        }
+        branch.push('}');
+        branch.into_string()
+    }
+
+    fn render(self, options: JsStatementOptions) -> String {
         match self {
             Self::Declaration { keyword, name } => format!("{keyword}{name};"),
             Self::Binding {
@@ -21347,6 +21390,19 @@ impl JsStatement {
             }
             Self::DeclarationGroup { keyword, names } => {
                 format!("{keyword}{};", names.join(","))
+            }
+            Self::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let mut out = format!("if({condition}){{");
+                out.push_str(&Self::close_branch(then_branch, options));
+                if let Some(else_branch) = else_branch {
+                    out.push_str("else{");
+                    out.push_str(&Self::close_branch(else_branch, options));
+                }
+                out
             }
         }
     }
