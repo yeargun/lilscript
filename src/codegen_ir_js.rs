@@ -9825,9 +9825,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let block = &function.blocks[0];
         let uses = &context.use_counts;
         let mut cache = ExpressionCache::default();
-        let mut previous_binding = false;
-        let mut joined_binding_names = AHashSet::<String>::default();
-        let mut previous_expressions = None::<(usize, Vec<JsExpression>)>;
+        // Two runs of statements are held back rather than written and then
+        // edited. A run of `let` declarators becomes one `let a=..,b=..;`; a run
+        // of comma-eligible expression statements becomes one `a,b,c;`, or is
+        // absorbed into a trailing `return`. Before this, each run was written
+        // to `out` as it arrived and then *repaired* -- pop the `;`, push a `,`;
+        // remember an offset, `truncate` back to it, re-emit -- which is three
+        // of the escapes phase 3 forbids, and an absolute offset into a buffer
+        // held across a recursive emit.
+        let mut pending_lets = None::<PendingLets>;
+        let mut pending_run = Vec::<JsExpression>::new();
         let phi_edge = self.options.phi_edge_value_forwarding;
         let fuse_with_next = block
             .instructions
@@ -9851,9 +9858,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut index = 0;
         while index < block.instructions.len() {
-            if self.emit_sunk_entry_function(&block.instructions[index], out)? {
-                previous_binding = false;
-                previous_expressions = None;
+            // Emitted into its own block so the pending runs can be flushed
+            // *before* it, in program order, only when it actually wrote.
+            let mut sunk = out.nested();
+            if self.emit_sunk_entry_function(&block.instructions[index], &mut sunk)? {
+                flush_pending_lets(out, &mut pending_lets);
+                flush_pending_run(out, &mut pending_run);
+                out.push_str(&sunk);
             }
             let mut statement = JsBlock::new();
             if let Some((consumed, batched)) = self.batched_property_assign_statement(
@@ -9886,91 +9897,92 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     continue;
                 }
             }
-            let binding = is_single_binding_statement(&statement);
-            let binding_name = let_declarator_name(&statement).map(str::to_string);
-            let statement_start = out.len();
-            if previous_binding && binding {
-                if binding_name
-                    .as_ref()
-                    .is_some_and(|name| joined_binding_names.contains(name))
-                {
-                    out.push_str(&statement[4..]);
-                } else {
-                    out.pop();
-                    out.push(',');
-                    out.push_str(&statement[4..]);
-                }
-            } else if self.options.comma_expressions
-                && previous_expressions.is_some()
-                && is_comma_eligible_statement(&statement)
-            {
-                let (start, mut expressions) = previous_expressions
-                    .take()
-                    .expect("comma expression candidate was checked");
-                expressions.push(JsExpression::raw(
-                    statement
-                        .strip_suffix(';')
-                        .expect("eligible expression statements end in semicolons"),
-                    JsPrecedence::Assignment,
-                ));
-                out.truncate(start);
-                out.push_str(&JsExpression::comma(expressions.clone()).into_minimal());
-                out.push(';');
-                previous_expressions = Some((start, expressions));
-            } else {
-                out.push_str(&statement);
-            }
-            if binding {
-                if !previous_binding {
-                    joined_binding_names.clear();
-                }
-                if let Some(name) = binding_name {
-                    joined_binding_names.insert(name);
+            if is_single_binding_statement(&statement) {
+                flush_pending_run(out, &mut pending_run);
+                // `let a=1;` arrives as text; the declarator is what follows the
+                // keyword, minus the terminator.
+                let declarator = &statement[4..statement.len() - 1];
+                let name = let_declarator_name(&statement).map(str::to_string);
+                match &mut pending_lets {
+                    Some(group) => {
+                        if name.as_ref().is_some_and(|name| group.names.contains(name)) {
+                            // A name declared twice in one run. The original
+                            // emitted the second as a bare `name=v;` after the
+                            // group, and then let the *next* declarator join
+                            // onto that assignment with a comma -- so this
+                            // reproduces exactly that text. It looks like a
+                            // latent defect (a `let` joined onto a plain
+                            // assignment declares nothing), and it is kept
+                            // rather than fixed here because nothing has
+                            // shown it firing; it is now one place to look.
+                            group.text.push(';');
+                        } else {
+                            group.text.push(',');
+                        }
+                        group.text.push_str(declarator);
+                        group.names.extend(name);
+                    }
+                    None => {
+                        pending_lets = Some(PendingLets {
+                            text: statement[..statement.len() - 1].to_string(),
+                            names: name.into_iter().collect(),
+                        });
+                    }
                 }
             } else {
-                joined_binding_names.clear();
-            }
-            previous_binding = binding;
-            if !binding && is_comma_eligible_statement(&statement) && previous_expressions.is_none()
-            {
-                previous_expressions = Some((
-                    statement_start,
-                    vec![JsExpression::raw(
+                flush_pending_lets(out, &mut pending_lets);
+                if is_comma_eligible_statement(&statement) {
+                    pending_run.push(JsExpression::raw(
                         statement
                             .strip_suffix(';')
                             .expect("eligible expression statements end in semicolons"),
                         JsPrecedence::Assignment,
-                    )],
-                ));
-            } else if binding || !is_comma_eligible_statement(&statement) {
-                previous_expressions = None;
+                    ));
+                    // Fusion is an option; without it every eligible statement
+                    // stands alone, which a run of one flushes as.
+                    if !self.options.comma_expressions {
+                        flush_pending_run(out, &mut pending_run);
+                    }
+                } else {
+                    flush_pending_run(out, &mut pending_run);
+                    out.push_str(&statement);
+                }
             }
+        }
+        // The runs end at the terminator. A `return v` may absorb the expression
+        // run into its own sequence; nothing else does, so flush ahead of it.
+        flush_pending_lets(out, &mut pending_lets);
+        let run_absorbable = self.options.comma_expressions
+            && matches!(
+                block.terminator.as_ref(),
+                Some(Terminator::Return(Some(value))) if !context.is_js_undefined(*value)
+            );
+        if !run_absorbable {
+            flush_pending_run(out, &mut pending_run);
         }
         match block.terminator.as_ref() {
             Some(Terminator::Return(Some(value))) => {
                 if !context.is_js_undefined(*value) {
                     let returned = strip_outer_parens(take_value(*value, &context, &mut cache)?);
-                    let return_sequence = self
-                        .options
-                        .comma_expressions
-                        .then(|| previous_expressions.take())
-                        .flatten();
-                    if let Some((start, mut expressions)) = return_sequence {
+                    let mut expressions = std::mem::take(&mut pending_run);
+                    let value = if expressions.is_empty() {
+                        JsExpression::raw(returned, JsPrecedence::Assignment)
+                    } else {
                         // These are adjacent emitter-produced expression
                         // statements screened by `is_comma_eligible_statement`.
                         // Moving them into the return's parenthesized sequence
                         // preserves their order, effects, and the final value,
-                        // while enabling a concise arrow body later.
+                        // while enabling a concise arrow body later. The
+                        // grouping is kept explicitly: `return (a,b,c);` is what
+                        // the arrow-body rewrite downstream looks for, and the
+                        // node would otherwise strip it as redundant.
                         expressions.push(JsExpression::raw(returned, JsPrecedence::Assignment));
-                        out.truncate(start);
-                        out.push_str("return ");
-                        out.push_str(&JsExpression::comma(expressions).grouped_code());
-                        out.push(';');
-                    } else {
-                        out.push_str("return ");
-                        out.push_str(&returned);
-                        out.push(';');
-                    }
+                        JsExpression::raw(
+                            JsExpression::comma(expressions).grouped_code(),
+                            JsPrecedence::Primary,
+                        )
+                    };
+                    out.push_statement(JsStatement::Return { value: Some(value) });
                 }
             }
             Some(Terminator::Return(None)) if function.kind != FunctionKind::Entry => {
@@ -21360,6 +21372,30 @@ enum JsStatement {
         then_branch: JsBranch,
         else_branch: Option<JsBranch>,
     },
+}
+
+/// A run of consecutive `let` declarators, held back until the run ends.
+struct PendingLets {
+    /// `let a=1,b=2` -- everything but the terminator.
+    text: String,
+    names: AHashSet<String>,
+}
+
+fn flush_pending_lets(out: &mut JsBlock, pending: &mut Option<PendingLets>) {
+    if let Some(group) = pending.take() {
+        out.push_str(&group.text);
+        out.push(';');
+    }
+}
+
+/// A run of one is the statement itself: `comma` of a single expression is
+/// that expression, so the text is unchanged from emitting it alone.
+fn flush_pending_run(out: &mut JsBlock, run: &mut Vec<JsExpression>) {
+    if run.is_empty() {
+        return;
+    }
+    out.push_str(&JsExpression::comma(std::mem::take(run)).into_minimal());
+    out.push(';');
 }
 
 /// One arm of an `if`, and whether it may drop its braces.
