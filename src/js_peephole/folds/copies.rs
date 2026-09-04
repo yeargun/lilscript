@@ -957,9 +957,37 @@ fn fold_single_use_literals(
             }
             let name = tokens[name_at].text;
             let stop = literal_end + 1;
-            let scope_start = enclosing_block_start(&matching_close, name_at)
-                .map(|open| open + 1)
-                .unwrap_or(0);
+            let enclosing_open = enclosing_block_start(&matching_close, name_at);
+            // A declarator in a `for (...)` / `while (...)` header has the
+            // header's `(` as its nearest enclosing bracket, so `scope_end` is
+            // that header's `)` and every use in the LOOP BODY falls outside the
+            // scan. The binding then looks single-use when it is not:
+            //
+            //     for (var values = ["A","B","C"], i = 0; i < values.length; ++i)
+            //         result += values[i];
+            //
+            // folded the literal into `values.length`, deleted the declarator,
+            // and left `values[i]` referring to nothing -- a ReferenceError, and
+            // a mismatch on the canonical case `31_string_array` at
+            // `preset = "none"`.
+            //
+            // The body's extent is not recoverable from bracket matching alone
+            // (it may be a braced block or a single statement), so refuse rather
+            // than guess. A missed fold costs bytes; a missed use is a wrong
+            // program.
+            if enclosing_open.is_some_and(|open| {
+                tokens[open].text == "("
+                    && open
+                        .checked_sub(1)
+                        .is_some_and(|keyword| matches!(tokens[keyword].text, "for" | "while"))
+            }) {
+                if tokens[stop].text == ";" {
+                    break;
+                }
+                name_at = stop + 1;
+                continue;
+            }
+            let scope_start = enclosing_open.map(|open| open + 1).unwrap_or(0);
             let scope_end = enclosing_block_end(&matching_close, name_at).unwrap_or(tokens.len());
             let Some(uses) = collect_binding_uses(
                 &tokens,

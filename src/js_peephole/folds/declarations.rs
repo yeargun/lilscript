@@ -965,7 +965,27 @@ pub(crate) fn remove_unused_standalone_vars(
                                 })
                     })
                     .count();
-                (occurrences == 1).then_some((remove_start, remove_end))
+                // A template literal is ONE token, so `${a}` inside it is not an
+                // `Identifier` and this scan could not see it. `int a = 1;
+                // print(`${a}`);` therefore looked like a binding with a single
+                // occurrence -- its own declarator -- and the declaration was
+                // deleted, leaving `console.log(`${a}`)` to throw
+                // ReferenceError. Two of the 72 canonical cases (16_templates,
+                // 31_string_array) failed this way at `preset = "none"`, which
+                // is the optimizer-ablation control lane `verify-matrix.sh` runs
+                // every case through.
+                //
+                // Deliberately conservative: any mention of the name as a word
+                // anywhere in a template's text counts, including inside its
+                // literal segments rather than only its `${...}` substitutions.
+                // Over-counting a use only forgoes a removal; under-counting one
+                // emits a wrong program.
+                let template_mentions = tokens[first..scope_end]
+                    .iter()
+                    .filter(|token| token.kind == TokenKind::Template)
+                    .filter(|token| template_text_mentions_word(token.text, name))
+                    .count();
+                (occurrences == 1 && template_mentions == 0).then_some((remove_start, remove_end))
             },
         );
         let Some((start, end)) = candidate else {
@@ -975,6 +995,27 @@ pub(crate) fn remove_unused_standalone_vars(
         removed += 1;
     }
     Ok((output, removed))
+}
+
+/// Whether a template literal's raw text mentions `name` as a whole word.
+///
+/// A template is a single token, so a binding referenced only from a `${...}`
+/// substitution is invisible to an identifier-token scan. This is the
+/// conservative test that keeps such a binding alive: it does not distinguish
+/// substitution text from literal text, because a false "used" costs one
+/// missed removal while a false "unused" deletes a live declaration.
+fn template_text_mentions_word(text: &str, name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let bytes = text.as_bytes();
+    let word = name.as_bytes();
+    let boundary = |byte: u8| !(byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$');
+    text.match_indices(name).any(|(at, _)| {
+        let before = at.checked_sub(1).map_or(true, |index| boundary(bytes[index]));
+        let after = bytes.get(at + word.len()).copied().map_or(true, boundary);
+        before && after
+    })
 }
 
 /// A declarator is removable when nothing observes dropping its initializer.

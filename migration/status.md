@@ -34,7 +34,7 @@ exactly what `fleet-compare.mjs --require-identical-unless-declared` now exists 
 | 0.3 differential is generative | **landed** | `--random-seed` on `lilscript-differential`; seed printed before work starts; `scripts/verify.sh` uses it, `LILSCRIPT_DIFFERENTIAL_SEED` replays |
 | 0.3b domain extended to classes/closures | **not started** | the domain where every known miscompile lives |
 | 0.4 baseline frozen | **not started** | needs the pool and the F-gaps below |
-| 0.5 live bugs fixed | **4 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
+| 0.5 live bugs fixed | **6 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
 
 ### Fleet gaps ([008](008-fleet.md))
 
@@ -123,6 +123,27 @@ Seven found, all reproduced. Three fire in a **default** configuration.
 
 Five of the seven were personally reproduced in this session; 6 and 7 carry an agent's repro and
 command line and have not been re-run here.
+
+**A fourth and a fifth fold miscompile.** The project had three on record. Bug 5 turned out to be
+*two* independent ones, both found by `LILSCRIPT_SKIP_FOLDS` bisection in minutes:
+
+- `remove_unused_standalone_vars` — a template literal is one token, so `${a}` was not an
+  `Identifier` and a live binding looked dead (`16_templates`).
+- `fold_single_use_literal_bindings` — a declarator inside a `for (...)` header has the header's `(`
+  as its nearest enclosing bracket, so `scope_end` is the header's `)` and **every use in the loop
+  body is outside the scan**. `for (var values = [...], i = 0; i < values.length; ++i) result +=
+  values[i]` folded the literal into `values.length`, deleted the declarator, and left `values[i]`
+  referring to nothing (`31_string_array`).
+
+Both are "structure guessed from tokens", and both were refused conservatively rather than repaired
+with a cleverer guess: a missed fold costs bytes, a missed use is a wrong program.
+
+**The original claim.** This one — a template literal read as
+a single opaque token, so a live binding looked dead — is exactly the class the certification pass
+predicted ("identity/liveness lost because a template literal is one opaque token") and it was found
+by bisection in minutes once `LILSCRIPT_SKIP_FOLDS` was pointed at it. **The three known miscompiles
+were never the whole set**, which is the argument for the generative harness in 0.3b rather than for
+auditing folds one at a time.
 
 **Four share one class:** a profitability knob silently changed legality. That is the boundary
 `JavaScriptCompilationContract` / `JavaScriptOptimizationObjective` exists to hold, and in each case
