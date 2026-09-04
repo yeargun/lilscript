@@ -1100,6 +1100,58 @@ enum JsExpressionRoot {
     NullNormalized,
 }
 
+impl JsExpressionRoot {
+    /// How many operands this kind has *in the JavaScript grammar*.
+    /// `None` is variadic (a call's callee plus its arguments).
+    ///
+    /// This is the encoding table the target-tree migration needs: one place
+    /// that says what a node kind is made of, rather than the knowledge being
+    /// spread across the constructors. See `migration/003-target-representation.md`.
+    const fn grammar_arity(self) -> Option<usize> {
+        match self {
+            Self::Atom | Self::Raw => Some(0),
+            Self::Unary(_)
+            | Self::IntegerNormalization
+            | Self::NullNormalized
+            | Self::Member => Some(1),
+            Self::Binary(_) | Self::Nullish => Some(2),
+            Self::Conditional => Some(3),
+            Self::Call => None,
+        }
+    }
+
+    /// How many operands the current half-AST actually *retains*.
+    ///
+    /// `JsExpression` is a `String` that drags a partial tree: only three child
+    /// links exist (`unary_operand`, `binary_operands`, `normalization_operand`),
+    /// because every constructor renders its children through `at_least`, which
+    /// consumes them into text. So a `Conditional` node has three operands in the
+    /// grammar and keeps none of them.
+    ///
+    /// **The gap between this and `grammar_arity` is the migration's work list.**
+    /// It is written down, and pinned by a test, so that closing it is a
+    /// deliberate edit with a visible diff rather than an invisible drift.
+    const fn retained_arity(self) -> usize {
+        match self {
+            Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => 1,
+            Self::Binary(_) => 2,
+            // Structurally 2, 3, 1 and 1+n respectively; all rendered straight
+            // into `code` and dropped. These are what phase 1 has to retain
+            // before a printer can reconstruct the artifact from the tree.
+            Self::Nullish | Self::Conditional | Self::Member | Self::Call => 0,
+            Self::Atom | Self::Raw => 0,
+        }
+    }
+
+    /// Whether this kind's children survive construction.
+    const fn tree_is_complete(self) -> bool {
+        match self.grammar_arity() {
+            Some(arity) => arity == self.retained_arity(),
+            None => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct JsExpression {
     code: String,
@@ -35751,6 +35803,51 @@ consume(field(JS.object("type", 1), "type"));
             !output.is_empty(),
             "a generic callback parameter must not fail to name a value: {output}"
         );
+    }
+
+    /// The half-AST's completeness, pinned.
+    ///
+    /// Four of the ten expression kinds render their children into text and
+    /// keep none: `Nullish` (2 operands), `Conditional` (3), `Member` (1) and
+    /// `Call` (variadic). That gap is why a printer cannot reconstruct the
+    /// artifact from the tree today, and it is the work phase 1 of
+    /// `migration/` has to close.
+    ///
+    /// This test fails when the gap changes in either direction. Closing one is
+    /// progress and should move the numbers here in the same commit; widening
+    /// one is a regression that would otherwise be invisible.
+    #[test]
+    fn the_half_ast_retains_children_for_exactly_these_kinds() {
+        let complete = [
+            JsExpressionRoot::Atom,
+            JsExpressionRoot::Raw,
+            JsExpressionRoot::Unary("!"),
+            JsExpressionRoot::Binary(IrBinaryOp::Add),
+            JsExpressionRoot::IntegerNormalization,
+            JsExpressionRoot::NullNormalized,
+        ];
+        let incomplete = [
+            JsExpressionRoot::Nullish,
+            JsExpressionRoot::Conditional,
+            JsExpressionRoot::Member,
+            JsExpressionRoot::Call,
+        ];
+        for root in complete {
+            assert!(root.tree_is_complete(), "{root:?} should retain its children");
+        }
+        for root in incomplete {
+            assert!(
+                !root.tree_is_complete(),
+                "{root:?} now retains its children -- update the table and the migration status"
+            );
+        }
+        // The grammar table is the part that must never be wrong, because a
+        // printer will walk it.
+        assert_eq!(JsExpressionRoot::Conditional.grammar_arity(), Some(3));
+        assert_eq!(JsExpressionRoot::Nullish.grammar_arity(), Some(2));
+        assert_eq!(JsExpressionRoot::Member.grammar_arity(), Some(1));
+        assert_eq!(JsExpressionRoot::Call.grammar_arity(), None);
+        assert_eq!(JsExpressionRoot::Atom.grammar_arity(), Some(0));
     }
 
     /// `charCodeAt` keeps its `|0` unless the index is proven in bounds, and
