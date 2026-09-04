@@ -13,7 +13,8 @@ Updated 2026-09-04, branch `migration/target-tree`, 37 commits ahead of `main`.
 ## Where we are in one line
 
 Phase 0 is green except the frozen baseline; **phase 1 is complete and gated**; phase 2 has its block
-type but not its statement tree; phases 3–8 are not started, and phase 7 has its measurement.
+type and the first statement kind on a node; phases 3–8 are not started, and phase 7 has its
+measurement.
 
 **The gate is behaviour and end-state compression, not byte-identity** — revised by the owner
 2026-09-04, see [D3](001-directives.md#d3) and [009](009-phases.md#the-gate-vocabulary). A step may
@@ -24,7 +25,7 @@ Brotli and on compile time.
 |---|---|---|
 | 0 — repair the instrument | **6 of 7 items** | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
-| 2 — statements, functions, module | **2a, 2b landed; statement tree not started** | BEHAVIOUR + NEUTRAL |
+| 2 — statements, functions, module | **2a, 2b landed; statement tree started** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | not started | — |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
@@ -89,7 +90,8 @@ an operandless `>>>0` `Binary` node — each invisible while `code` was authorit
 | 2a `JsBlock` alias, 63 signatures | **landed** | pure rename — `404ec93` |
 | 2b real type, escapes named | **landed** | no `DerefMut`; `truncate`/`pop`/`remove`/`insert_str`/`replace_range` are named methods — `292803b` |
 | 2b loop-keyword census as counters | **landed** | was a full rescan twice per loop — `292803b`, bounded in `00206f1` |
-| **statements and module as a tree** | **not started** | the actual phase 2; the emitter still writes statements into a string |
+| **statements and module as a tree** | **started** | `JsStatement` exists; the value binding is the first kind to move — `afacdc1`+ |
+| block termination is a fact, not a text read | **landed** | 8 `ends_with(';')` sites → a maintained flag, witnessed — `afacdc1` |
 
 `00206f1` is worth reading before the next perf change: the first counter implementation was
 byte-identical and **23% slower**, and only a stopwatch could have caught it.

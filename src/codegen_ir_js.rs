@@ -21253,6 +21253,50 @@ fn unstable_values(
     }
 }
 
+/// A JavaScript statement as a node, rather than as text appended to a block.
+///
+/// Phase 2 of `migration/`. The expression tree is complete and prints itself
+/// ([progress](../migration/progress.md)); statements are still written straight
+/// into a `JsBlock`, which is why phase 3 cannot delete `code` yet. This is the
+/// first kind to move, chosen because it is the commonest statement the emitter
+/// produces and because it has a small, closed grammar.
+///
+/// It follows the rule phase 1 arrived at the hard way: the node holds its
+/// **children**, not their text, and `render` is the only place the text is
+/// formed. Holding a rendered `String` here would repeat exactly the defect the
+/// expression migration existed to remove.
+#[derive(Debug, Clone)]
+enum JsStatement {
+    /// `var x;` or `let x;` -- a declaration with no initialiser.
+    Declaration {
+        keyword: &'static str,
+        name: String,
+    },
+    /// `var x=v;`, `let x=v;`, or `x=v;` when the name is already declared.
+    Binding {
+        keyword: Option<&'static str>,
+        name: String,
+        value: JsExpression,
+    },
+}
+
+impl JsStatement {
+    fn render(self) -> String {
+        match self {
+            Self::Declaration { keyword, name } => format!("{keyword}{name};"),
+            Self::Binding {
+                keyword,
+                name,
+                value,
+            } => format!(
+                "{}{name}={};",
+                keyword.unwrap_or(""),
+                strip_outer_parens(value)
+            ),
+        }
+    }
+}
+
 fn emit_binding_prefix(
     context: &LocalNames,
     value: ValueId,
@@ -21285,21 +21329,27 @@ fn emit_bound_value_without_cache_flush(
     predeclared: bool,
     out: &mut JsBlock,
 ) -> Result<(), CodegenError> {
-    let name = context.value_name(dest)?;
-    let value = strip_outer_parens(expression);
-    if value == name {
+    let name = context.value_name(dest)?.to_string();
+    let keyword = if predeclared { "var " } else { "let " };
+    // A binding whose value is its own name is a declaration, not an
+    // assignment: `let x=x` is not what was meant, and the emitter has always
+    // collapsed it. The check reads the rendered value because that is what
+    // "the same name" means at this boundary.
+    if strip_outer_parens(expression.clone()) == name {
         if context.claim_declaration(dest)? {
-            out.push_str(if predeclared { "var " } else { "let " });
-            out.push_str(name);
-            out.push(';');
+            out.push_str(&JsStatement::Declaration { keyword, name }.render());
         }
         return Ok(());
     }
-    emit_binding_prefix(context, dest, predeclared, out)?;
-    out.push_str(name);
-    out.push('=');
-    out.push_str(&value);
-    out.push(';');
+    let keyword = context.claim_declaration(dest)?.then_some(keyword);
+    out.push_str(
+        &JsStatement::Binding {
+            keyword,
+            name,
+            value: expression,
+        }
+        .render(),
+    );
     Ok(())
 }
 
