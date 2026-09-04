@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 34% nodes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 40% nodes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -60,10 +60,12 @@ scored with the pinned codec, provenance recorded per arm:
 | markedlil `marked.esm.js` | 9,470 | 9,431 | **−39** |
 | zodlil `zod.core.js` | 32,489 | 32,603 | **+114** |
 
-Net **+75** over the two verification ports, mid-migration. Under the revised gate that is recorded,
-not alarming; zodlil's +114 is outside the noise band on its own and wants attributing to a commit
-before the migration is called finished. The end condition is: both of these at or below the
-`54e1948` column.
+Net **+75** over the two verification ports, mid-migration. zodlil's +114 is **attributed**: every
+landmark commit from `0081beb` onward already measures 32,603, so the whole delta sits between
+`54e1948` and `0081beb` — the phase 0 correctness fixes (the `.length` ToNumber elision that was two
+programs, the two folds that deleted live bindings). Those bytes were what the wrong programs were
+"saving". The end condition is: both of these at or below the `54e1948` column when the migration is
+finished — which for zodlil means winning back 114 bytes honestly.
 
 ### Live wrong programs
 
@@ -130,7 +132,7 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **246** |
+| fragment appends (`push_str`) | 324 | **241** |
 | statement nodes (`push_statement`) | 0 | **22** |
 | escapes into emitted text | 26 | **0** |
 
@@ -151,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **~34% of statement bytes arrive as nodes** (probe and cnlil alike, a floor -- child blocks still append as `Raw`) | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **40% of statement bytes arrive as nodes** (probe, shipped config; child blocks now join their parent's list through `push_block`) | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |

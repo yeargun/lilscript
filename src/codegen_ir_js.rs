@@ -1767,6 +1767,25 @@ impl JsBlock {
         }
     }
 
+    /// Append a finished child block: its text, and its statement list.
+    ///
+    /// `push_str(&child)` appended the same text but recorded it as one `Raw`,
+    /// so a body full of nodes was counted as text at every join and the
+    /// parent's list knew nothing of the child's. The child's list is cloned
+    /// in; the counters and flags are updated exactly as for the text.
+    fn push_block(&mut self, child: &JsBlock) {
+        if child.text.is_empty() {
+            return;
+        }
+        self.count_appended(&child.text);
+        self.ends_with_semicolon = child.ends_with_semicolon;
+        self.trailing_bare_return = child.trailing_bare_return;
+        self.text.push_str(&child.text);
+        self.statements.extend(child.statements.iter().cloned());
+        // Not counted here: the child's pushes already counted this text when
+        // it was created, and moving it is not creating it.
+    }
+
     fn push(&mut self, character: char) {
         let mut buffer = [0u8; 4];
         self.push_str(character.encode_utf8(&mut buffer));
@@ -9217,7 +9236,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             debug_assert!(public_int_params.is_empty(), "coercions on a concise arrow body");
             push_concise_arrow_body(out, &expression);
         } else if public_int_params.is_empty() {
-            out.push_str(&body);
+            out.push_block(&body);
         } else {
             let body = body.into_string();
             // Public `int` parameters that feed a loop phi are coerced on
@@ -10058,7 +10077,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if self.emit_sunk_entry_function(&block.instructions[index], &mut sunk)? {
                 flush_pending_lets(out, &mut pending_lets);
                 flush_pending_run(out, &mut pending_run);
-                out.push_str(&sunk);
+                out.push_block(&sunk);
             }
             let mut statement = JsBlock::new();
             if let Some((consumed, batched)) = self.batched_property_assign_statement(
@@ -10139,7 +10158,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                 } else {
                     flush_pending_run(out, &mut pending_run);
-                    out.push_str(&statement);
+                    out.push_block(&statement);
                 }
             }
         }
@@ -11500,7 +11519,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 }
                                 out.push_str(target);
                                 out.push('=');
-                                out.push_str(&value);
+                                out.push_block(&value);
                                 out.push_str(trailing);
                                 out.push(';');
                             }
@@ -12040,14 +12059,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         if !compact_loop && !do_loop {
                             // The `for(;;)` shape carries its test inside the
                             // body: header, then `if(exit){..break}`.
-                            body_output.push_str(&header_output);
+                            body_output.push_block(&header_output);
                             let test = if body_on_true {
                                 negated_condition.clone()
                             } else {
                                 condition.clone()
                             };
                             let mut exit_branch = JsBlock::new();
-                            exit_branch.push_str(&exit_output);
+                            exit_branch.push_block(&exit_output);
                             exit_branch.push_str("break");
                             body_output.push_statement_with(
                                 JsStatement::If {
@@ -12125,7 +12144,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 );
                             }
                         }
-                        out.push_str(&loop_header);
+                        out.push_block(&loop_header);
                         out.push_str(
                             &JsBranch {
                                 block: body_output,
