@@ -1427,9 +1427,30 @@ struct JsBlock {
     while_opens: usize,
 }
 
-/// The longest needle the counters track, minus one: the most characters of the
-/// previous fragment that can still be part of a match completed by the next.
-const JS_BLOCK_COUNTED_OVERLAP: usize = "while(".len() - 1;
+/// The longest needle the counters track. No edit can change whether a needle
+/// matches unless that needle lies within this many bytes of the edit, which is
+/// what bounds every counter update below.
+const JS_BLOCK_NEEDLE_SPAN: usize = "while(".len();
+
+/// Occurrences of `needle` in `haystack`, non-overlapping and left to right --
+/// the same count `str::matches` gives, on bytes, so no slice has to land on a
+/// character boundary. Both needles are ASCII and neither can overlap itself.
+fn count_needle(haystack: &[u8], needle: &[u8]) -> usize {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return 0;
+    }
+    let mut count = 0;
+    let mut index = 0;
+    while index + needle.len() <= haystack.len() {
+        if &haystack[index..index + needle.len()] == needle {
+            count += 1;
+            index += needle.len();
+        } else {
+            index += 1;
+        }
+    }
+    count
+}
 
 impl JsBlock {
     fn new() -> Self {
@@ -1459,36 +1480,87 @@ impl JsBlock {
         (self.for_opens, self.while_opens)
     }
 
-    /// Count the needles a fragment completes, including any straddling the
+    /// Count the needles a fragment brings, including any completed across the
     /// join with what is already there.
+    ///
+    /// Allocation-free and bounded by the fragment: this runs on every append,
+    /// so anything proportional to the artifact would reintroduce, in a less
+    /// visible place, exactly the quadratic scan it exists to remove.
     fn count_appended(&mut self, fragment: &str) {
         if fragment.is_empty() {
             return;
         }
-        let carry = self.text.len().saturating_sub(JS_BLOCK_COUNTED_OVERLAP);
-        // A `char_indices` floor keeps the slice on a character boundary; the
-        // needles are ASCII, so no match is lost by starting later.
-        let carry = self.text[..self.text.len()]
-            .char_indices()
-            .map(|(index, _)| index)
-            .find(|index| *index >= carry)
-            .unwrap_or(self.text.len());
-        let joined = &self.text[carry..];
-        let before_for = joined.matches("for(").count();
-        let before_while = joined.matches("while(").count();
-        let mut window = String::with_capacity(joined.len() + fragment.len());
-        window.push_str(joined);
-        window.push_str(fragment);
-        self.for_opens += window.matches("for(").count() - before_for;
-        self.while_opens += window.matches("while(").count() - before_while;
+        self.for_opens += count_needle(fragment.as_bytes(), b"for(");
+        self.while_opens += count_needle(fragment.as_bytes(), b"while(");
+
+        // Needles wholly inside the existing text, and wholly inside the
+        // fragment, are already counted. What is left is the ones that straddle
+        // the join, and those live in a window of bounded size.
+        let text = self.text.as_bytes();
+        let tail = &text[text.len().saturating_sub(JS_BLOCK_NEEDLE_SPAN - 1)..];
+        if tail.is_empty() {
+            return;
+        }
+        let head = &fragment.as_bytes()[..fragment.len().min(JS_BLOCK_NEEDLE_SPAN - 1)];
+        let mut joined = [0u8; 2 * (JS_BLOCK_NEEDLE_SPAN - 1)];
+        joined[..tail.len()].copy_from_slice(tail);
+        joined[tail.len()..tail.len() + head.len()].copy_from_slice(head);
+        let joined = &joined[..tail.len() + head.len()];
+        for (needle, counter) in [
+            (b"for(".as_slice(), &mut self.for_opens),
+            (b"while(".as_slice(), &mut self.while_opens),
+        ] {
+            let mut index = 0;
+            while index + needle.len() <= joined.len() {
+                let straddles = index < tail.len() && index + needle.len() > tail.len();
+                if &joined[index..index + needle.len()] == needle {
+                    if straddles {
+                        *counter += 1;
+                    }
+                    index += needle.len();
+                } else {
+                    index += 1;
+                }
+            }
+        }
     }
 
-    /// Recount from scratch. Every method that edits text already written goes
-    /// through here, which is what keeps the counters exact without asking each
-    /// of those sites to reason about what it disturbed.
-    fn recount(&mut self) {
-        self.for_opens = self.text.matches("for(").count();
-        self.while_opens = self.text.matches("while(").count();
+    /// Adjust the counters for an edit that replaced `text[range]` with
+    /// `replacement_len` bytes, given the counts taken over the affected window
+    /// beforehand.
+    ///
+    /// A needle whose match changes must contain a byte the edit touched, so it
+    /// starts no earlier than `JS_BLOCK_NEEDLE_SPAN` before the edit and ends no
+    /// later than `JS_BLOCK_NEEDLE_SPAN` after it. Recounting that window is
+    /// bounded work; recounting the artifact is not, and these methods are
+    /// called inside loop emission.
+    fn edit_window(&self, start: usize, end: usize) -> (usize, usize) {
+        (
+            start.saturating_sub(JS_BLOCK_NEEDLE_SPAN),
+            (end + JS_BLOCK_NEEDLE_SPAN).min(self.text.len()),
+        )
+    }
+
+    fn window_counts(&self, lo: usize, hi: usize) -> (usize, usize) {
+        let window = &self.text.as_bytes()[lo..hi];
+        (
+            count_needle(window, b"for("),
+            count_needle(window, b"while("),
+        )
+    }
+
+    /// Apply an edit through a closure, recounting only the window it can
+    /// disturb. `end` is the end of the edited span before the edit, and
+    /// `replacement_len` its length after.
+    fn edited(&mut self, start: usize, end: usize, replacement_len: usize, edit: impl FnOnce(&mut String)) {
+        let (lo, hi) = self.edit_window(start, end);
+        let (before_for, before_while) = self.window_counts(lo, hi);
+        let trailing = hi - end;
+        edit(&mut self.text);
+        let hi = (start + replacement_len + trailing).min(self.text.len());
+        let (after_for, after_while) = self.window_counts(lo, hi);
+        self.for_opens = self.for_opens + after_for - before_for;
+        self.while_opens = self.while_opens + after_while - before_while;
     }
 
     fn push_str(&mut self, fragment: &str) {
@@ -1504,30 +1576,51 @@ impl JsBlock {
     // --- the escapes. Each is named so phase 3 can find every caller. ---
 
     fn truncate(&mut self, length: usize) {
-        self.text.truncate(length);
-        self.recount();
+        if length >= self.text.len() {
+            return;
+        }
+        let end = self.text.len();
+        self.edited(length, end, 0, |text| text.truncate(length));
     }
 
     fn pop(&mut self) -> Option<char> {
-        let popped = self.text.pop();
-        self.recount();
-        popped
+        let popped = self.text.chars().next_back()?;
+        self.truncate(self.text.len() - popped.len_utf8());
+        Some(popped)
     }
 
     fn remove(&mut self, index: usize) -> char {
-        let removed = self.text.remove(index);
-        self.recount();
+        let removed = self.text[index..]
+            .chars()
+            .next()
+            .expect("remove past the end of the block");
+        self.edited(index, index + removed.len_utf8(), 0, |text| {
+            text.remove(index);
+        });
         removed
     }
 
     fn insert_str(&mut self, index: usize, fragment: &str) {
-        self.text.insert_str(index, fragment);
-        self.recount();
+        self.edited(index, index, fragment.len(), |text| {
+            text.insert_str(index, fragment);
+        });
     }
 
     fn replace_range<R: core::ops::RangeBounds<usize>>(&mut self, range: R, replacement: &str) {
-        self.text.replace_range(range, replacement);
-        self.recount();
+        use core::ops::Bound;
+        let start = match range.start_bound() {
+            Bound::Included(value) => *value,
+            Bound::Excluded(value) => value + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(value) => value + 1,
+            Bound::Excluded(value) => *value,
+            Bound::Unbounded => self.text.len(),
+        };
+        self.edited(start, end, replacement.len(), |text| {
+            text.replace_range(start..end, replacement);
+        });
     }
 }
 
@@ -1560,13 +1653,13 @@ impl From<&str> for JsBlock {
 
 impl From<String> for JsBlock {
     fn from(text: String) -> Self {
-        let mut block = Self {
+        let for_opens = count_needle(text.as_bytes(), b"for(");
+        let while_opens = count_needle(text.as_bytes(), b"while(");
+        Self {
             text,
-            for_opens: 0,
-            while_opens: 0,
-        };
-        block.recount();
-        block
+            for_opens,
+            while_opens,
+        }
     }
 }
 

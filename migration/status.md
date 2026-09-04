@@ -363,6 +363,57 @@ Both cnlil runs wrote into the port's `dist/`, which was restored to `76a975f` a
 
 ---
 
+## Phase 2 — the block is a type, not a `String`
+
+**2a** ([`404ec93`](.)) is `type JsBlock = String` and the 63 `out: &mut String` signatures. A pure
+rename, so it rebases against the concurrent session without a semantic conflict.
+
+**2b** makes it real: the text plus the facts about that text the emitter used to recover by
+searching it. `Deref<Target = str>` gives every read-only use; there is deliberately **no `DerefMut`**,
+so nothing can append behind the counters' back.
+
+### The census, and the trap under it
+
+`LoopSpelling::Auto` picks which loop keyword to reuse — a real Brotli decision, it wants whichever
+spelling the artifact already has — and it decided by running
+
+    out.matches("for(").count() > out.matches("while(").count()
+
+at *every loop*, rescanning the whole artifact so far, twice. Quadratic in the output, and one of the
+two confirmed superlinearities in [009](009-phases.md).
+
+**The first fix made it 23% slower.** Maintaining the counters naively — a `String` allocated per
+append to look at the join, and a full recount after every `truncate`/`pop` — cost more than the scan
+it replaced, because appends are the hot path and `pop` runs per statement in the semicolon elision.
+Measured on cnlil: **76.2 s → 94.1 s**, artifacts byte-identical throughout, so nothing but a
+stopwatch would have caught it.
+
+The counters are now bounded on both sides. An append scans the fragment plus a fixed join window on
+a stack array; an edit recounts only the window it can disturb, since a needle whose match changes
+must contain a byte the edit touched and no needle is longer than `"while("`.
+
+| commit | cnlil compile | artifacts |
+|---|---:|---|
+| `0081beb` before phase 1 | 76.0 / 76.3 s | baseline |
+| `404ec93` phase 1 complete + 2a | 76.6 s | **8 of 8 identical** |
+| `292803b` 2b, naive counters | 94.1 / 94.2 s | 8 of 8 identical |
+| 2b, bounded counters | **76.2 / 76.5 / 76.4 s** | **8 of 8 identical** |
+
+So **phase 1's operand clones cost 0.5%** — the tree is very nearly free even while `code` is still
+being built beside it — and the whole regression was the counter maintenance.
+
+The counters are checked rather than trusted: under `LILSCRIPT_TWIN=1`, `loop_keyword_counts` asserts
+against a fresh scan. 144 runs (72 cases × both lanes), 0 failures.
+
+### The escapes are now named
+
+Every way of reaching back into emitted text — `truncate`, `pop`, `remove`, `insert_str`,
+`replace_range` — is a method on the type rather than one of 583 indistinguishable string operations,
+so phase 3 can find every caller with `grep` rather than judgement. `into_string()` marks each place
+block text stops being a block and becomes an artifact or an expression.
+
+---
+
 ## Where the work lives
 
 Branch `migration/target-tree`, in a worktree, isolated from the concurrent session:
