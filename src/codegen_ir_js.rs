@@ -639,7 +639,7 @@ fn js_array_prototype_borrow(intrinsic: Intrinsic) -> Option<(&'static str, &'st
 
 const FUNCTION_LAYOUT_NGRAM_LIMIT: usize = 4_096;
 
-fn compression_similarity_order(segments: &[String], exact_limit: usize) -> Vec<usize> {
+fn compression_similarity_order(segments: &[JsBlock], exact_limit: usize) -> Vec<usize> {
     let count = segments.len();
     if count < 3 {
         return (0..count).collect();
@@ -658,7 +658,7 @@ fn compression_similarity_order(segments: &[String], exact_limit: usize) -> Vec<
     }
 }
 
-fn compression_similarities(segments: &[String]) -> Vec<Vec<usize>> {
+fn compression_similarities(segments: &[JsBlock]) -> Vec<Vec<usize>> {
     let count = segments.len();
     let profiles = segments
         .iter()
@@ -689,7 +689,7 @@ fn compression_similarities(segments: &[String]) -> Vec<Vec<usize>> {
 /// compressor's backward-reference window. The exact compressor still scores
 /// this proposal against source and adjacency-only layouts in `compiler.rs`.
 fn compression_window_order(
-    segments: &[String],
+    segments: &[JsBlock],
     window_bytes: usize,
     exact_limit: usize,
 ) -> Vec<usize> {
@@ -698,7 +698,7 @@ fn compression_window_order(
         return (0..count).collect();
     }
     let similarities = compression_similarities(segments);
-    let lengths = segments.iter().map(String::len).collect::<Vec<_>>();
+    let lengths = segments.iter().map(|segment| segment.len()).collect::<Vec<_>>();
     let source = (0..count).collect::<Vec<_>>();
 
     let mut strongest = None::<(usize, usize, usize)>;
@@ -1401,16 +1401,180 @@ impl JsExpressionRoot {
     }
 }
 
-/// The text of a JavaScript block under construction.
+/// The text of a JavaScript block under construction, and the facts about it
+/// that the emitter would otherwise recover by searching the text.
 ///
-/// Phase 2a of `migration/`: an alias today, so this commit is a pure rename and
-/// rebases against a concurrent session without a semantic conflict. Phase 2b
-/// makes it a real type whose API is *append*, and moves each way of reaching
-/// back into already-emitted text -- `truncate`, `pop`, `replace_range`,
-/// `insert_str`, `remove`, `ends_with` -- onto a named method that is deleted as
-/// its last caller goes. Those are the sites phase 3's invariant forbids: no
-/// production path may re-read emitted text to make a decision.
-type JsBlock = String;
+/// Phase 2b of `migration/`. Appending is the API; every way of reaching back
+/// into already-emitted text is a *named* method, so the set phase 3 has to
+/// remove is `grep`-able rather than spread across 583 indistinguishable string
+/// operations. `Deref<Target = str>` gives the read-only uses, and there is
+/// deliberately **no `DerefMut`** -- a mutation that bypassed these methods would
+/// silently invalidate the counters below.
+///
+/// The counters exist because `LoopSpelling::Auto` decided which loop keyword to
+/// reuse by running
+///
+///     out.matches("for(").count() > out.matches("while(").count()
+///
+/// at every loop, which rescans the whole artifact so far, twice, per loop --
+/// quadratic in the output, and named in `009-phases.md` as one of the two
+/// confirmed superlinearities. Maintaining them costs a bounded scan of each
+/// appended fragment.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct JsBlock {
+    text: String,
+    for_opens: usize,
+    while_opens: usize,
+}
+
+/// The longest needle the counters track, minus one: the most characters of the
+/// previous fragment that can still be part of a match completed by the next.
+const JS_BLOCK_COUNTED_OVERLAP: usize = "while(".len() - 1;
+
+impl JsBlock {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn as_str(&self) -> &str {
+        &self.text
+    }
+
+    fn into_string(self) -> String {
+        self.text
+    }
+
+    /// How many `for(` and `while(` the block contains, without searching it.
+    fn loop_keyword_counts(&self) -> (usize, usize) {
+        if twin_witness_enabled() {
+            assert_eq!(
+                (self.for_opens, self.while_opens),
+                (
+                    self.text.matches("for(").count(),
+                    self.text.matches("while(").count()
+                ),
+                "block keyword counters drifted from the text"
+            );
+        }
+        (self.for_opens, self.while_opens)
+    }
+
+    /// Count the needles a fragment completes, including any straddling the
+    /// join with what is already there.
+    fn count_appended(&mut self, fragment: &str) {
+        if fragment.is_empty() {
+            return;
+        }
+        let carry = self.text.len().saturating_sub(JS_BLOCK_COUNTED_OVERLAP);
+        // A `char_indices` floor keeps the slice on a character boundary; the
+        // needles are ASCII, so no match is lost by starting later.
+        let carry = self.text[..self.text.len()]
+            .char_indices()
+            .map(|(index, _)| index)
+            .find(|index| *index >= carry)
+            .unwrap_or(self.text.len());
+        let joined = &self.text[carry..];
+        let before_for = joined.matches("for(").count();
+        let before_while = joined.matches("while(").count();
+        let mut window = String::with_capacity(joined.len() + fragment.len());
+        window.push_str(joined);
+        window.push_str(fragment);
+        self.for_opens += window.matches("for(").count() - before_for;
+        self.while_opens += window.matches("while(").count() - before_while;
+    }
+
+    /// Recount from scratch. Every method that edits text already written goes
+    /// through here, which is what keeps the counters exact without asking each
+    /// of those sites to reason about what it disturbed.
+    fn recount(&mut self) {
+        self.for_opens = self.text.matches("for(").count();
+        self.while_opens = self.text.matches("while(").count();
+    }
+
+    fn push_str(&mut self, fragment: &str) {
+        self.count_appended(fragment);
+        self.text.push_str(fragment);
+    }
+
+    fn push(&mut self, character: char) {
+        let mut buffer = [0u8; 4];
+        self.push_str(character.encode_utf8(&mut buffer));
+    }
+
+    // --- the escapes. Each is named so phase 3 can find every caller. ---
+
+    fn truncate(&mut self, length: usize) {
+        self.text.truncate(length);
+        self.recount();
+    }
+
+    fn pop(&mut self) -> Option<char> {
+        let popped = self.text.pop();
+        self.recount();
+        popped
+    }
+
+    fn remove(&mut self, index: usize) -> char {
+        let removed = self.text.remove(index);
+        self.recount();
+        removed
+    }
+
+    fn insert_str(&mut self, index: usize, fragment: &str) {
+        self.text.insert_str(index, fragment);
+        self.recount();
+    }
+
+    fn replace_range<R: core::ops::RangeBounds<usize>>(&mut self, range: R, replacement: &str) {
+        self.text.replace_range(range, replacement);
+        self.recount();
+    }
+}
+
+impl core::ops::Deref for JsBlock {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.text
+    }
+}
+
+impl core::fmt::Display for JsBlock {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter.write_str(&self.text)
+    }
+}
+
+impl core::fmt::Write for JsBlock {
+    fn write_str(&mut self, fragment: &str) -> core::fmt::Result {
+        self.push_str(fragment);
+        Ok(())
+    }
+}
+
+impl From<&str> for JsBlock {
+    fn from(text: &str) -> Self {
+        Self::from(text.to_string())
+    }
+}
+
+impl From<String> for JsBlock {
+    fn from(text: String) -> Self {
+        let mut block = Self {
+            text,
+            for_opens: 0,
+            while_opens: 0,
+        };
+        block.recount();
+        block
+    }
+}
+
+impl From<JsBlock> for String {
+    fn from(block: JsBlock) -> Self {
+        block.text
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct JsExpression {
@@ -2383,7 +2547,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let entry = self.function(self.module.entry)?.clone();
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
-        let mut out = String::new();
+        let mut out = JsBlock::new();
         self.emit_foreign_imports(&mut out);
         let owned_globals = self
             .module
@@ -2455,7 +2619,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if self.options.elide_block_terminal_semicolons && out.ends_with(';') {
             out.pop();
         }
-        Ok(out)
+        // The boundary: past here it is an artifact, not a block under
+        // construction, so the counters have nothing left to answer.
+        Ok(out.into_string())
     }
 
     fn prepare(&mut self) {
@@ -5454,7 +5620,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
         let mut output = Vec::with_capacity(unit_files.len());
         for unit in 0..unit_files.len() {
-            let mut code = String::new();
+            let mut code = JsBlock::new();
             emit_chunk_imports(
                 &mut code,
                 unit,
@@ -5488,7 +5654,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             output.push(IrJsChunk {
                 file_name: unit_files[unit].clone(),
-                code,
+                code: code.into_string(),
                 dependencies: {
                     let mut files = imports[unit]
                         .iter()
@@ -8103,7 +8269,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         helpers: &[FunctionId],
         expression: String,
     ) -> Result<String, CodegenError> {
-        let mut out = String::from("(function(){");
+        let mut out = JsBlock::from("(function(){");
         self.emit_cluster_helpers(helpers, &mut out)?;
         out.push_str("return ");
         out.push_str(&expression);
@@ -8111,7 +8277,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push(';');
         }
         out.push_str("})()");
-        Ok(out)
+        Ok(out.into_string())
     }
 
     fn exclusive_recursive_iife_for_value(
@@ -8210,14 +8376,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &mut self.loop_captured_closures,
             loop_captured_closures(&function),
         );
-        let mut rendered = String::new();
+        let mut rendered = JsBlock::new();
         let result = self.emit_function_body(&function, String::new(), true, false, &mut rendered);
         self.loop_captured_closures = restored_loop_captures;
         result?;
         let rendered = if helpers.is_empty() {
-            rendered
+            rendered.into_string()
         } else {
-            self.wrap_cluster_iife(&helpers, rendered)?
+            self.wrap_cluster_iife(&helpers, rendered.into_string())?
         };
         Ok(JsExpression::raw(rendered, JsPrecedence::Call))
     }
@@ -8941,7 +9107,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut segments = Vec::with_capacity(functions.len());
         for function in functions {
             let function = self.function(*function)?.clone();
-            let mut code = String::new();
+            let mut code = JsBlock::new();
             self.emit_function(&function, &mut code)?;
             segments.push(code);
         }
@@ -9532,7 +9698,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 previous_binding = false;
                 previous_expressions = None;
             }
-            let mut statement = String::new();
+            let mut statement = JsBlock::new();
             if let Some((consumed, batched)) = self.batched_property_assign_statement(
                 function,
                 block,
@@ -9692,7 +9858,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         fuse_with_next: &[bool],
-    ) -> Result<Option<(usize, String)>, CodegenError> {
+    ) -> Result<Option<(usize, JsBlock)>, CodegenError> {
         if !self.options.assume_pristine_builtins {
             return Ok(None);
         }
@@ -9756,7 +9922,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if pairs.is_empty() || (seeded && last_assign == start) {
             return Ok(None);
         }
-        let mut rendered = String::new();
+        let mut rendered = JsBlock::new();
         for index in prefix.into_iter().chain(deferred) {
             self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)?;
             self.emit_linear_instruction(
@@ -9771,7 +9937,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &mut rendered,
             )?;
         }
-        let mut literal = String::from("{");
+        let mut literal = JsBlock::from(String::from("{"));
         for (index, (key, value)) in pairs.iter().enumerate() {
             if index != 0 {
                 literal.push(',');
@@ -9807,7 +9973,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         fuse_with_next: &[bool],
-    ) -> Result<Option<(usize, String)>, CodegenError> {
+    ) -> Result<Option<(usize, JsBlock)>, CodegenError> {
         if let Some(fused) = self.fresh_object_literal_statement(
             block,
             start,
@@ -9864,7 +10030,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if pairs.len() < self.options.batch_property_assign_minimum.max(2) {
             return Ok(None);
         }
-        let mut rendered = String::new();
+        let mut rendered = JsBlock::new();
         for index in deferred {
             // The normal linear walk emits a declaration immediately before a
             // closure selected by `sink_entry_function_declarations`. A
@@ -10860,7 +11026,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         let mut then_visited = visited.clone();
                         let mut then_cache = cache.clone();
-                        let mut then_output = String::new();
+                        let mut then_output = JsBlock::new();
                         self.emit_structured_path(
                             function,
                             then_block,
@@ -10874,7 +11040,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         )?;
                         let mut else_visited = visited.clone();
                         let mut else_cache = cache.clone();
-                        let mut else_output = String::new();
+                        let mut else_output = JsBlock::new();
                         self.emit_structured_path(
                             function,
                             else_block,
@@ -10893,7 +11059,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             .then(|| merge_conditional_assignments(&then_output, &else_output))
                             .flatten()
                         {
-                            let mut value = String::new();
+                            let mut value = JsBlock::new();
                             let nullish_source = nullish_merge_source(
                                 function,
                                 header,
@@ -11039,7 +11205,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_str(name);
                                 out.push(';');
                             }
-                            let mut combined = String::new();
+                            let mut combined = JsBlock::new();
                             push_logical_operand(&mut combined, &condition, IrBinaryOp::And);
                             combined.push_str("&&");
                             push_logical_operand(&mut combined, &guard.condition, IrBinaryOp::And);
@@ -11150,7 +11316,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         } else {
                                             fused.push_str(rhs);
                                         }
-                                        deferred_merge = Some((phi_out, fused));
+                                        deferred_merge = Some((phi_out, JsBlock::from(fused)));
                                     } else {
                                         out.push_str(source_name);
                                         out.push_str("??(");
@@ -11206,7 +11372,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     .then(|| compact_sequence_expression(&then_output))
                                     .flatten()
                                 {
-                                    let mut combined = String::new();
+                                    let mut combined = JsBlock::new();
                                     if condition_was_negated {
                                         push_logical_operand(
                                             &mut combined,
@@ -11321,7 +11487,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "loop condition does not branch to its body and exit",
                             )
                         })?;
-                        let mut header_output = String::new();
+                        let mut header_output = JsBlock::new();
                         if condition_block != header {
                             let outer_shape = ControlShape::Loop {
                                 header,
@@ -11396,7 +11562,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let loop_condition_is_constant_true = (body_on_true
                             && is_true_literal(&condition))
                             || (body_on_false && is_false_literal(&condition));
-                        let mut exit_output = String::new();
+                        let mut exit_output = JsBlock::new();
                         let mut exit_cache = cache.clone();
                         self.emit_phi_edge_cached(
                             function,
@@ -11414,7 +11580,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 if let Some(update_block) = update {
                                     let mut update_visited = AHashSet::default();
                                     let mut update_cache = AHashMap::default();
-                                    let mut update_output = String::new();
+                                    let mut update_output = JsBlock::new();
                                     let update_end = self.emit_structured_path(
                                         function,
                                         update_block,
@@ -11439,7 +11605,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             && update_clause.is_none()
                             && match self.options.loop_spelling {
                                 LoopSpelling::Auto => {
-                                    out.matches("for(").count() > out.matches("while(").count()
+                                    // Was `out.matches("for(").count() >
+                                    // out.matches("while(").count()`, which
+                                    // rescanned the whole artifact so far,
+                                    // twice, at every loop. The block keeps
+                                    // both counts as it is written.
+                                    let (for_opens, while_opens) = out.loop_keyword_counts();
+                                    for_opens > while_opens
                                 }
                                 LoopSpelling::While => false,
                                 LoopSpelling::For => true,
@@ -13323,7 +13495,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .ok_or_else(|| {
                         CodegenError::new(instruction.span, "missing boundary struct layout")
                     })?;
-                let mut rendered = String::from("{");
+                let mut rendered = JsBlock::from(String::from("{"));
                 for (index, (field, value)) in layout.fields.iter().zip(fields).enumerate() {
                     if index != 0 {
                         rendered.push(',');
@@ -13636,7 +13808,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .chain(&self.module.classes)
                     .find(|layout| layout.name == *name)
                     .filter(|_| self.class_uses_named_fields(name));
-                let mut rendered = String::from(if named.is_some() { "{" } else { "[" });
+                let mut rendered = JsBlock::from(String::from(if named.is_some() { "{" } else { "[" }));
                 for (index, item) in values.iter().enumerate() {
                     if index != 0 {
                         rendered.push(',');
@@ -15953,7 +16125,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let ordinary_function = recursive_name.is_some()
                         || self.emits_ordinary_function_expression(&function, calling_convention);
                     if ordinary_function {
-                        let mut body = String::from("{");
+                        let mut body = JsBlock::from(String::from("{"));
                         self.emit_calling_convention_aliases(&function, &context, &mut body)?;
                         body.push_str("return ");
                         body.push_str(&expression);
@@ -15966,13 +16138,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             named_function_expression_head(recursive_name.as_deref(), &parameters)
                         ));
                     }
-                    let mut rendered = format!("{parameters}=>");
+                    let mut rendered = JsBlock::from(format!("{parameters}=>"));
                     push_concise_arrow_body(&mut rendered, &expression);
-                    return Ok(rendered);
+                    return Ok(rendered.into_string());
                 }
             }
             context.inline_declarations = true;
-            let mut body = String::new();
+            let mut body = JsBlock::new();
             if can_structure(&function) {
                 self.emit_structured_with_context(&function, true, context, &mut body)?;
             } else {
@@ -16000,7 +16172,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .all(|instruction| context.instruction_can_defer(instruction));
         if !expression_closure {
             let parameters = self.render_closure_parameter_list(&function, &context)?;
-            let mut body = String::new();
+            let mut body = JsBlock::new();
             self.emit_single_block_with_context(&function, true, context, &mut body)?;
             return Ok(
                 if recursive_name.is_some()
@@ -16050,14 +16222,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let parameters = self.render_closure_parameter_list(&function, &context)?;
         let ordinary_function = recursive_name.is_some()
             || self.emits_ordinary_function_expression(&function, calling_convention);
-        let mut rendered = if ordinary_function {
+        let mut rendered = JsBlock::from(if ordinary_function {
             format!(
                 "{}{{",
                 named_function_expression_head(recursive_name.as_deref(), &parameters)
             )
         } else {
             format!("{parameters}=>")
-        };
+        });
         if ordinary_function {
             self.emit_calling_convention_aliases(&function, &context, &mut rendered)?;
             rendered.push_str(&prefix);
@@ -16073,7 +16245,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             rendered.push_str(&returned);
             rendered.push('}');
         }
-        Ok(rendered)
+        Ok(rendered.into_string())
     }
 
     fn default_class_value(&self, class: &str, boundary: bool) -> Result<String, CodegenError> {
@@ -16090,7 +16262,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })?;
         let named = (boundary && self.options.public_aggregate_fields)
             || self.class_uses_named_fields(class);
-        let mut value = String::from(if named { "{" } else { "[" });
+        let mut value = JsBlock::from(String::from(if named { "{" } else { "[" }));
         for (index, field) in layout.fields.iter().enumerate() {
             if index != 0 {
                 value.push(',');
@@ -16107,7 +16279,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ));
         }
         value.push(if named { '}' } else { ']' });
-        Ok(value)
+        Ok(value.into_string())
     }
 
     fn render_inlined_class_value(
@@ -16140,7 +16312,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })?;
         let named = (boundary && self.options.public_aggregate_fields)
             || self.class_uses_named_fields(class);
-        let mut rendered = String::from(if named { "{" } else { "[" });
+        let mut rendered = JsBlock::from(String::from(if named { "{" } else { "[" }));
         for (position, field) in layout.fields.iter().enumerate() {
             if position != 0 {
                 rendered.push(',');
@@ -16161,7 +16333,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         rendered.push(if named { '}' } else { ']' });
-        Ok(rendered)
+        Ok(rendered.into_string())
     }
 
     fn push_named_literal_key(&self, out: &mut JsBlock, property: &str) {
@@ -18080,7 +18252,7 @@ fn for_initializer_is_identifier_assigns(initializer: &str) -> bool {
     }
 }
 
-fn take_trailing_expression_statements(output: &mut String) -> Option<String> {
+fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
     let mut expressions = Vec::new();
     while let Some((start, expression)) = trailing_expression_statement(output) {
         expressions.push(expression.to_string());
@@ -27058,7 +27230,7 @@ fn render_string_literal(value: &str, quote: StringQuote) -> String {
         let Ok(decoded) = serde_json::from_str::<String>(&format!("\"{value}\"")) else {
             return format!("\"{value}\"");
         };
-        let mut rendered = String::with_capacity(decoded.len() + 2);
+        let mut rendered = String::new();
         rendered.push('`');
         let mut pending_dollar = false;
         for character in decoded.chars() {
@@ -27084,7 +27256,7 @@ fn render_string_literal(value: &str, quote: StringQuote) -> String {
     let Ok(decoded) = serde_json::from_str::<String>(&encoded) else {
         return encoded;
     };
-    let mut rendered = String::with_capacity(decoded.len() + 2);
+    let mut rendered = String::new();
     rendered.push('\'');
     for character in decoded.chars() {
         match character {
@@ -29278,10 +29450,10 @@ mod tests {
     #[test]
     fn clusters_similar_function_declarations_with_dynamic_programming() {
         let segments = vec![
-            "function warmA(a){return a*a+a*17+a%11}".to_string(),
-            "function coldA(a){return a^a>>>3^987654321}".to_string(),
-            "function warmB(a){return a*a+a*19+a%13}".to_string(),
-            "function coldB(a){return a^a>>>5^987654323}".to_string(),
+            JsBlock::from("function warmA(a){return a*a+a*17+a%11}"),
+            JsBlock::from("function coldA(a){return a^a>>>3^987654321}"),
+            JsBlock::from("function warmB(a){return a*a+a*19+a%13}"),
+            JsBlock::from("function coldB(a){return a^a>>>5^987654323}"),
         ];
 
         let order = compression_similarity_order(&segments, 13);
@@ -29319,10 +29491,10 @@ mod tests {
         let unrelated = format!("function filler(a){{return a+{}}}", "q".repeat(160));
         let repeated_right = format!("function right(a){{return a+{}+a*a}}", "x".repeat(48));
         let segments = vec![
-            repeated_left,
-            unrelated,
-            repeated_right,
-            "function tail(a){return a^987654321}".to_string(),
+            JsBlock::from(repeated_left),
+            JsBlock::from(unrelated),
+            JsBlock::from(repeated_right),
+            JsBlock::from("function tail(a){return a^987654321}"),
         ];
 
         let order = compression_window_order(&segments, 128, 13);
@@ -29330,7 +29502,7 @@ mod tests {
 
         assert_eq!(position(0).abs_diff(position(2)), 1, "{order:?}");
         let similarities = compression_similarities(&segments);
-        let lengths = segments.iter().map(String::len).collect::<Vec<_>>();
+        let lengths = segments.iter().map(|segment| segment.len()).collect::<Vec<_>>();
         assert!(
             window_path_score(&order, &similarities, &lengths, 128)
                 > window_path_score(&[0, 1, 2, 3], &similarities, &lengths, 128)
@@ -37196,15 +37368,15 @@ consume(field(JS.object("type", 1), "type"));
             compact_top_level_expression_statements("a=read();return a;"),
             None
         );
-        let mut prefix = "function f(){var x;x=read();y=x+1;".to_string();
+        let mut prefix = JsBlock::from("function f(){var x;x=read();y=x+1;");
         assert_eq!(
             take_trailing_expression_statements(&mut prefix).as_deref(),
             Some("x=read(),y=x+1")
         );
-        assert_eq!(prefix, "function f(){var x;");
-        let mut declaration = "function f(){var x=read();".to_string();
+        assert_eq!(prefix.as_str(), "function f(){var x;");
+        let mut declaration = JsBlock::from("function f(){var x=read();");
         assert_eq!(take_trailing_expression_statements(&mut declaration), None);
-        assert_eq!(declaration, "function f(){var x=read();");
+        assert_eq!(declaration.as_str(), "function f(){var x=read();");
 
         let output = compile_with_options(
             "extern int read();int value=0;int total=0;for(int index=0;index<4;index++){value=read();total+=value;if(value>2){total+=1;}}print(total);",
