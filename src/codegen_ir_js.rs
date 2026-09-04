@@ -1081,6 +1081,10 @@ enum JsPrecedence {
     NewWithoutArgs,
     Call,
     Member,
+    /// `o[k]`. Distinct from `Member` because it has a second child: the tag
+    /// used to cover both, so the arity of a `Member` node was 1 or 2 depending
+    /// on which constructor made it, and no printer could tell them apart.
+    Index,
     Primary,
 }
 
@@ -1093,6 +1097,13 @@ enum JsExpressionRoot {
     Conditional,
     Call,
     Member,
+    /// `o[k]`. Distinct from `Member` because it has a second child.
+    ///
+    /// The tag used to cover both, so a `Member` node's arity was 1 or 2
+    /// depending on which constructor made it and no printer could tell them
+    /// apart. The one place that reads this tag means "the receiver is a member
+    /// access", which both forms are, so it matches on either.
+    Index,
     IntegerNormalization,
     Raw,
     /// An ordinary property/index read followed by `??null`, used to model
@@ -1114,7 +1125,7 @@ impl JsExpressionRoot {
             | Self::IntegerNormalization
             | Self::NullNormalized
             | Self::Member => Some(1),
-            Self::Binary(_) | Self::Nullish => Some(2),
+            Self::Binary(_) | Self::Nullish | Self::Index => Some(2),
             Self::Conditional => Some(3),
             Self::Call => None,
         }
@@ -1135,19 +1146,25 @@ impl JsExpressionRoot {
         match self {
             Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => 1,
             Self::Binary(_) => 2,
-            Self::Nullish => 2,
+            Self::Nullish | Self::Index => 2,
             Self::Conditional => 3,
-            // Structurally 1 and 1+n; still rendered straight into `code`.
-            Self::Member | Self::Call => 0,
+            Self::Member => 1,
+            // Variadic: callee plus arguments, all retained.
+            Self::Call => 0,
             Self::Atom | Self::Raw => 0,
         }
     }
 
     /// Whether this kind's children survive construction.
     const fn tree_is_complete(self) -> bool {
-        match self.grammar_arity() {
-            Some(arity) => arity == self.retained_arity(),
-            None => false,
+        match self {
+            // Variadic, and `call` retains callee plus every argument, so the
+            // fixed-arity comparison below does not apply.
+            Self::Call => true,
+            _ => match self.grammar_arity() {
+                Some(arity) => arity == self.retained_arity(),
+                None => false,
+            },
         }
     }
 }
@@ -1385,12 +1402,15 @@ impl JsExpression {
     }
 
     fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
+        // operands[0] is the callee; operands[1..] are the arguments in order.
+        let mut operands = vec![callee.clone()];
         let mut code = callee.at_least(JsPrecedence::Call);
         code.push('(');
         for (index, argument) in args.into_iter().enumerate() {
             if index != 0 {
                 code.push(',');
             }
+            operands.push(argument.clone());
             code.push_str(&argument.at_least(JsPrecedence::Assignment));
         }
         code.push(')');
@@ -1403,11 +1423,12 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
-            operands: Vec::new(),
+            operands,
         }
     }
 
     fn member(object: Self, property: &str, elide_call_chain_parentheses: bool) -> Self {
+        let operands = vec![object.clone()];
         let object = if object.precedence == JsPrecedence::Primary
             && object
                 .ungrouped
@@ -1434,11 +1455,12 @@ impl JsExpression {
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
-            operands: Vec::new(),
+            operands,
         }
     }
 
     fn index(object: Self, index: Self, elide_call_chain_parentheses: bool) -> Self {
+        let operands = vec![object.clone(), index.clone()];
         let object = object.at_least(if elide_call_chain_parentheses {
             JsPrecedence::Call
         } else {
@@ -1449,12 +1471,12 @@ impl JsExpression {
             code: format!("{object}[{index}]"),
             ungrouped: None,
             precedence: JsPrecedence::Member,
-            root: JsExpressionRoot::Member,
+            root: JsExpressionRoot::Index,
             optional_access_code: Some(format!("{object}?.[{index}]")),
             normalization_operand: None,
             binary_operands: None,
             unary_operand: None,
-            operands: Vec::new(),
+            operands,
         }
     }
 
@@ -14613,7 +14635,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     })
                 {
                     let this_arg = args[0];
-                    if receiver.root == JsExpressionRoot::Member {
+                    if matches!(
+                        receiver.root,
+                        JsExpressionRoot::Member | JsExpressionRoot::Index
+                    ) {
                         return self.render_call(receiver, &args[1..], context, cache);
                     }
                     if let Some(property) =
@@ -35852,8 +35877,11 @@ consume(field(JS.object("type", 1), "type"));
             JsExpressionRoot::NullNormalized,
             JsExpressionRoot::Nullish,
             JsExpressionRoot::Conditional,
+            JsExpressionRoot::Member,
+            JsExpressionRoot::Index,
+            JsExpressionRoot::Call,
         ];
-        let incomplete = [JsExpressionRoot::Member, JsExpressionRoot::Call];
+        let incomplete: [JsExpressionRoot; 0] = [];
         for root in complete {
             assert!(root.tree_is_complete(), "{root:?} should retain its children");
         }
@@ -35868,6 +35896,7 @@ consume(field(JS.object("type", 1), "type"));
         assert_eq!(JsExpressionRoot::Conditional.grammar_arity(), Some(3));
         assert_eq!(JsExpressionRoot::Nullish.grammar_arity(), Some(2));
         assert_eq!(JsExpressionRoot::Member.grammar_arity(), Some(1));
+        assert_eq!(JsExpressionRoot::Index.grammar_arity(), Some(2));
         assert_eq!(JsExpressionRoot::Call.grammar_arity(), None);
         assert_eq!(JsExpressionRoot::Atom.grammar_arity(), Some(0));
     }
