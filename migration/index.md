@@ -42,6 +42,8 @@ So the thesis is not "the text layer is slow." It is:
 
 1. **Correctness by construction.** The wrong-program classes this compiler has already shipped must
    become *unrepresentable*, not better-guarded. A design that relocates a conditional has failed.
+   Certified against **34 known classes**: 21 unrepresentable, 8 caught by the build, 3 detected at
+   runtime, **2 still possible** — and the two are named rather than aggregated.
    → [001 D1](001-directives.md#d1--correctness-by-construction-not-by-conditional), [004](004-legality-by-construction.md)
 2. **Compression must not degrade.** 26 ports, 181 artifacts, 61 config files. Byte-identity is the
    only clean proof, because a semantically empty change moves Brotli by −125..+30 and every neutral
@@ -120,8 +122,9 @@ row has already been published from a skipped compile. **Nothing in this reposit
 that a compiler change preserves the shipped libraries' behaviour** — which is exactly how three fold
 miscompiles shipped. Phase 0 is not preamble; it is the precondition.
 
-**Two wrong programs are shipping right now**, both found by reading and both reproduced in under a
-minute: the optimizer rewrites user `extern` declarations by matching their source spelling against
+**Seven wrong programs were found, all reproduced; three fixed so far.** Among them: the release gate
+was **red at HEAD** — `optional_constructor_callback` failed to compile, and `verify-matrix.sh` runs
+every case under `set -eu` — and two more fire in the *default* configuration. Two examples: the optimizer rewrites user `extern` declarations by matching their source spelling against
 105 hardcoded names, and `function_spelling = "arrow"` turns a working program into a
 `ReferenceError` because a legality check was conjoined with the wrong `FunctionKind`. Neither is
 caught by any existing gate. They are documented in [002](002-the-instrument.md) not as bugs to fix

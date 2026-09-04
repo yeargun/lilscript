@@ -34,7 +34,7 @@ exactly what `fleet-compare.mjs --require-identical-unless-declared` now exists 
 | 0.3 differential is generative | **landed** | `--random-seed` on `lilscript-differential`; seed printed before work starts; `scripts/verify.sh` uses it, `LILSCRIPT_DIFFERENTIAL_SEED` replays |
 | 0.3b domain extended to classes/closures | **not started** | the domain where every known miscompile lives |
 | 0.4 baseline frozen | **not started** | needs the pool and the F-gaps below |
-| 0.5 live bugs fixed | **3 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
+| 0.5 live bugs fixed | **4 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
 
 ### Fleet gaps ([008](008-fleet.md))
 
@@ -118,7 +118,7 @@ Seven found, all reproduced. Three fire in a **default** configuration.
 | 3 | `lilscript.toml` silently ignored for a bare relative filename | **fixed** — `config_search_parent` + regression test |
 | 4 | `charCodeAt` out of range yields `NaN` instead of `0` under the default `size-first` | **fixed** — `StringCharCodeAt` keeps its post-coercion range but is no longer elidable |
 | 5 | `preset = "none"` deletes a module global's binding while a use renders its name | open — two disjoint declaration paths in `codegen_ir_js.rs`. **This is the optimizer-ablation control lane `verify-matrix.sh` runs every case through** |
-| 6 | `JS.number(x["length"])` loses its `ToNumber` under the default `size-first` | open — the field's own doc comment admits `.length` is not always a number |
+| 6 | `JS.number(x["length"])` loses its `ToNumber` under the default `size-first` | **fixed** — and the fix had to go at the *scored family's admission predicate*, not the option default: turning `elide_length_tonumber` off was not enough because the `length-to-number-elision` family flips it back on a candidate and the search takes the shorter, wrong spelling. See [004 §2b](004-legality-by-construction.md) |
 | 7 | `optional_constructor_callback` fails to compile: "SSA value 3 has no emitted name" | **fixed** — a two-use value was classified inlinable, so it got no name; the skip now applies only to a genuine single use, and never to a parameter |
 
 Five of the seven were personally reproduced in this session; 6 and 7 carry an agent's repro and
@@ -143,6 +143,17 @@ Recommended next three, in order:
 2. **0.3b**, extending the differential evaluator to classes, closures and prototypes. Cheap relative
    to its value: it is the only mechanism that could have caught any of the seven.
 3. **0.4**, freezing the baseline across all 61 configs on the pool, once F2 lands.
+
+---
+
+## Where the work lives
+
+Branch `migration/target-tree`, in a worktree, isolated from the concurrent session:
+
+| commit | what |
+|---|---|
+| `fe51558` | Phase 0 — the instrument: profiles, `portgate.mjs`, random differential seed, fleet F1/F3/F4/F5, `fleet-compare.mjs`, config-discovery and `charCodeAt` fixes |
+| `5fc2aac` | the naming fix that unblocks the release gate |
 
 ---
 

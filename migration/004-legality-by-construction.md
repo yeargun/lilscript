@@ -82,6 +82,33 @@ is a real, measurable cost and it is a fleet-rule change — 061 correctly says 
 folder". It is a byte cost paid for a meaning guarantee, which is the trade
 [D1](001-directives.md#d1--correctness-by-construction-not-by-conditional) requires.
 
+### 2b. …and turning the option off is not enough
+
+Worth recording separately, because it changes where the fix belongs.
+
+`JS.number(x["length"])` loses its `ToNumber` under the default `priority = "size-first"`:
+`{length: "3"}` makes `lengthOf(host) + 1.0` evaluate to `"31"` instead of `4`. The emitter option
+is `elide_length_tonumber`, and its own doc comment stated the hazard outright — *"`.length` is not
+always a number, so candidate search scores both."*
+
+That sentence is the bug. It delegates a **legality** question to a search that ranks by **bytes**.
+Both spellings are valid JavaScript, the codec cannot tell them apart, and the shorter one is the
+wrong one.
+
+Setting the option to `false` in `js_options()` did **not** fix it. The decision registry carries a
+`length-to-number-elision` family whose expander *flips* the field on a candidate, so the search
+re-proposed the eliding spelling and took it again. The fix had to go at the family's **admission
+predicate** — the place that answers "is this a legal axis at all" — not at the option's default.
+
+The general rule, and the reason this belongs in the design rather than in a patch:
+
+> A scored axis may only offer alternatives that denote the **same program**. Closing an unsound axis
+> means closing its *admission*, because an option default is only the starting point the search
+> moves away from.
+
+Under the new design this is structural: a `SpellChoice` is by construction a choice among renderings
+of one `Shape` node, so an axis that changes meaning has no way to be expressed as one.
+
 ### 3. Structure guessed from tokens — the loop latch
 
 **Today.** Two of the three shipped wrong-program folds are loop-header reconstructions

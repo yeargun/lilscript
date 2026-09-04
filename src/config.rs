@@ -285,9 +285,25 @@ impl ProjectConfig {
             ordinary_record_literals: false,
             elide_safe_integer_coercions: !self.javascript.keep_integer_coercions(),
             elide_safe_string_coercions: !self.javascript.keep_integer_coercions(),
-            elide_length_tonumber: self
-                .javascript
-                .compression_enabled(CompressionDecision::LengthToNumberElision),
+            // Never. `JS.number(x["length"])` is an explicit ToNumber on an
+            // *untyped* host value, and `.length` there can be anything --
+            // `{length: "3"}` is an ordinary object. Eliding the coercion turns
+            // `lengthOf(host) + 1.0` from 4 into the string "31".
+            //
+            // The field's own doc said ".length is not always a number, so
+            // candidate search scores both", which delegates a legality question
+            // to a search that ranks by BYTES. Both spellings are valid
+            // JavaScript, so the search cannot tell them apart and always picks
+            // the shorter, wrong one -- and `LengthToNumberElision` is enabled
+            // for `SizeFirst`, the default priority.
+            //
+            // There is no sound case on this path: a typed `T[]` or `string`
+            // length reaches emission as `Intrinsic::ArrayLength`, not as
+            // `JsNumber` over a `HostFieldGet`/`IndexGet`, so
+            // `value_is_length_member` matches only the untyped reads. Re-enabling
+            // it needs a typed-receiver proof, which would make it a different
+            // decision with a different name.
+            elide_length_tonumber: false,
             compact_boolean_literals: self
                 .javascript
                 .compression_enabled(CompressionDecision::CompactBooleanLiterals),
@@ -683,11 +699,21 @@ impl ProjectConfig {
             )
     }
 
+    /// Never. This is not a spelling axis, it is two different programs.
+    ///
+    /// The `length-to-number-elision` family flips `elide_length_tonumber` on a
+    /// candidate, so turning the option off in `js_options()` is not enough --
+    /// the search re-proposes the eliding spelling and takes it because it is
+    /// shorter. Both spellings are valid JavaScript, so the codec cannot tell
+    /// them apart, and `{length: "3"}` makes them mean 4 and "31" respectively.
+    ///
+    /// A scored axis may only offer alternatives that denote the *same*
+    /// program; a legality question may not be delegated to a search that ranks
+    /// by bytes. The family row stays in `SCORED_EMISSION_FAMILIES` (removing it
+    /// would move the declared family count and read as a removed compression
+    /// family) but it is never admitted.
     pub fn js_length_to_number_elision_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::LengthToNumberElision)
+        false
     }
 
     pub fn js_scalar_replacement_variants_enabled(&self) -> bool {
@@ -2527,8 +2553,13 @@ shared_min_imports = 3
         assert!(size.js_options().pool_strings);
         assert!(size.js_options().elide_safe_integer_coercions);
         assert!(size.js_options().elide_safe_string_coercions);
-        assert!(size.js_options().elide_length_tonumber);
-        assert!(size.js_length_to_number_elision_variants_enabled());
+        // Never enabled, at any priority: `.length` on an untyped host value is
+        // not necessarily a number, so dropping the ToNumber is a wrong program
+        // rather than a smaller one. `LengthToNumberElision` stays listed for
+        // `size-first` -- removing it from the family list would show up as a
+        // removed compression family -- but the emitter option it feeds is off.
+        assert!(!size.js_options().elide_length_tonumber);
+        assert!(!size.js_length_to_number_elision_variants_enabled());
         assert!(size
             .javascript
             .removed_size_first_compression_families()
