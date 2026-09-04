@@ -1100,7 +1100,93 @@ enum JsPrecedence {
 /// `None` means the kind has not been inverted yet and still authors its own
 /// text. That set is the remaining phase 1 work, and it is what
 /// `render_owns_the_text_for_migrated_kinds` pins.
-fn render(root: JsExpressionRoot, operands: &[JsExpression]) -> Option<String> {
+/// The emitter settings a node's *spelling* depends on.
+///
+/// This is a parameter of the printer, never a field of the node. The compiler
+/// scores hundreds of complete artifacts per compile, and two of them may differ
+/// by exactly this flag over one identical program -- so a tree that stored it
+/// could not be shared between candidates, which is the whole point of having a
+/// tree. See `migration/006-candidate-derivation.md`.
+#[derive(Debug, Clone, Copy)]
+struct JsRenderOptions {
+    elide_call_chain_parentheses: bool,
+}
+
+impl JsRenderOptions {
+    /// For kinds whose spelling provably consults no option. Passing this is a
+    /// claim, checked by `render` never reading the field for those kinds.
+    const UNUSED: Self = Self {
+        elide_call_chain_parentheses: false,
+    };
+}
+
+/// The receiver text shared by `o.p`, `o[k]` and both of their `?.` spellings,
+/// so a node's two renderings cannot disagree about how far to parenthesise.
+fn access_receiver(
+    object: &JsExpression,
+    root: JsExpressionRoot,
+    options: JsRenderOptions,
+) -> String {
+    // `1..toString()` is the only spelling of a member access on a numeric
+    // literal that lexes; `1[0]` needs no such help, so the guard is
+    // deliberately not applied to an index.
+    if root == JsExpressionRoot::Member
+        && object.precedence == JsPrecedence::Primary
+        && object
+            .ungrouped
+            .as_deref()
+            .unwrap_or(&object.code)
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_digit)
+    {
+        return object.clone().grouped_code();
+    }
+    object
+        .clone()
+        .at_least(if options.elide_call_chain_parentheses {
+            JsPrecedence::Call
+        } else {
+            JsPrecedence::Member
+        })
+}
+
+/// The `?.` spelling of a property or index read, for the kinds that have one.
+fn render_optional_access(
+    root: JsExpressionRoot,
+    operands: &[JsExpression],
+    options: JsRenderOptions,
+) -> Option<String> {
+    match root {
+        JsExpressionRoot::Member => {
+            let [object, property] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{}?.{}",
+                access_receiver(object, root, options),
+                property.code
+            ))
+        }
+        JsExpressionRoot::Index => {
+            let [object, index] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{}?.[{}]",
+                access_receiver(object, root, options),
+                index.clone().at_least(JsPrecedence::Assignment)
+            ))
+        }
+        _ => None,
+    }
+}
+
+fn render(
+    root: JsExpressionRoot,
+    operands: &[JsExpression],
+    options: JsRenderOptions,
+) -> Option<String> {
     match root {
         JsExpressionRoot::Conditional => {
             let [condition, then_value, else_value] = operands else {
@@ -1188,14 +1274,32 @@ fn render(root: JsExpressionRoot, operands: &[JsExpression]) -> Option<String> {
             code.push(')');
             Some(code)
         }
-        // `Atom` and `Raw` are leaves: their text is the datum, not a
-        // rendering of children. `Member` and `Index` carry a property name
-        // and an emitter flag that are not yet part of the node -- see
-        // `migration/003-target-representation.md`.
-        JsExpressionRoot::Atom
-        | JsExpressionRoot::Raw
-        | JsExpressionRoot::Member
-        | JsExpressionRoot::Index => None,
+        JsExpressionRoot::Member => {
+            // Arity 2. The property name is a child, as it is in the grammar
+            // (`MemberExpression . IdentifierName`) and in every production JS
+            // AST; it was previously a `&str` argument that reached the text
+            // without passing through the node at all.
+            let [object, property] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{}.{}",
+                access_receiver(object, root, options),
+                property.code
+            ))
+        }
+        JsExpressionRoot::Index => {
+            let [object, index] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{}[{}]",
+                access_receiver(object, root, options),
+                index.clone().at_least(JsPrecedence::Assignment)
+            ))
+        }
+        // Leaves: their text is the datum, not a rendering of children.
+        JsExpressionRoot::Atom | JsExpressionRoot::Raw => None,
     }
 }
 
@@ -1232,11 +1336,10 @@ impl JsExpressionRoot {
     const fn grammar_arity(self) -> Option<usize> {
         match self {
             Self::Atom | Self::Raw => Some(0),
-            Self::Unary(_)
-            | Self::IntegerNormalization
-            | Self::NullNormalized
-            | Self::Member => Some(1),
-            Self::Binary(_) | Self::Nullish | Self::Index => Some(2),
+            Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => Some(1),
+            // `Member`'s second operand is the property name, which the
+            // grammar makes a child (`MemberExpression . IdentifierName`).
+            Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
             Self::Conditional => Some(3),
             Self::Call => None,
         }
@@ -1256,9 +1359,8 @@ impl JsExpressionRoot {
         match self {
             Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => 1,
             Self::Binary(_) => 2,
-            Self::Nullish | Self::Index => 2,
+            Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
-            Self::Member => 1,
             // Variadic: callee plus arguments, all retained.
             Self::Call => 0,
             Self::Atom | Self::Raw => 0,
@@ -1352,7 +1454,7 @@ impl JsExpression {
         let root = JsExpressionRoot::Unary(operator);
         let operands = vec![operand];
         Self {
-            code: render(root, &operands).expect("render covers Unary"),
+            code: render(root, &operands, JsRenderOptions::UNUSED).expect("render covers Unary"),
             ungrouped: None,
             precedence: JsPrecedence::Unary,
             root,
@@ -1413,14 +1515,14 @@ impl JsExpression {
         }
         let root = JsExpressionRoot::Binary(op);
         let operands = vec![lhs, rhs];
-        let code = render(root, &operands).expect("render covers Binary");
+        let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers Binary");
         Self::grouped(code, js_binary_precedence(op), root).with_operands(operands)
     }
 
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
         let operands = vec![condition, then_value, else_value];
         // Derived, not authored: `render` is the only place this text is formed.
-        let code = render(JsExpressionRoot::Conditional, &operands)
+        let code = render(JsExpressionRoot::Conditional, &operands, JsRenderOptions::UNUSED)
             .expect("render covers Conditional");
         Self::grouped(code, JsPrecedence::Conditional, JsExpressionRoot::Conditional)
             .with_operands(operands)
@@ -1445,7 +1547,7 @@ impl JsExpression {
         // Built after the `??null` collapse above, so the retained left child is
         // the operand this node actually has -- not the one it was called with.
         let operands = vec![lhs, rhs];
-        let code = render(JsExpressionRoot::Nullish, &operands).expect("render covers Nullish");
+        let code = render(JsExpressionRoot::Nullish, &operands, JsRenderOptions::UNUSED).expect("render covers Nullish");
         Self::grouped(code, JsPrecedence::LogicalOr, JsExpressionRoot::Nullish)
             .with_operands(operands)
     }
@@ -1464,7 +1566,7 @@ impl JsExpression {
         let mut operands = vec![callee];
         operands.extend(args);
         Self {
-            code: render(JsExpressionRoot::Call, &operands).expect("render covers Call"),
+            code: render(JsExpressionRoot::Call, &operands, JsRenderOptions::UNUSED).expect("render covers Call"),
             ungrouped: None,
             precedence: JsPrecedence::Call,
             root: JsExpressionRoot::Call,
@@ -1474,48 +1576,33 @@ impl JsExpression {
     }
 
     fn member(object: Self, property: &str, elide_call_chain_parentheses: bool) -> Self {
-        let operands = vec![object.clone()];
-        let object = if object.precedence == JsPrecedence::Primary
-            && object
-                .ungrouped
-                .as_deref()
-                .unwrap_or(&object.code)
-                .as_bytes()
-                .first()
-                .is_some_and(u8::is_ascii_digit)
-        {
-            object.grouped_code()
-        } else {
-            object.at_least(if elide_call_chain_parentheses {
-                JsPrecedence::Call
-            } else {
-                JsPrecedence::Member
-            })
+        let root = JsExpressionRoot::Member;
+        let options = JsRenderOptions {
+            elide_call_chain_parentheses,
         };
+        let operands = vec![object, Self::atom(property)];
         Self {
-            code: format!("{object}.{property}"),
+            code: render(root, &operands, options).expect("render covers Member"),
             ungrouped: None,
             precedence: JsPrecedence::Member,
-            root: JsExpressionRoot::Member,
-            optional_access_code: Some(format!("{object}?.{property}")),
+            root,
+            optional_access_code: render_optional_access(root, &operands, options),
             operands,
         }
     }
 
     fn index(object: Self, index: Self, elide_call_chain_parentheses: bool) -> Self {
-        let operands = vec![object.clone(), index.clone()];
-        let object = object.at_least(if elide_call_chain_parentheses {
-            JsPrecedence::Call
-        } else {
-            JsPrecedence::Member
-        });
-        let index = index.at_least(JsPrecedence::Assignment);
+        let root = JsExpressionRoot::Index;
+        let options = JsRenderOptions {
+            elide_call_chain_parentheses,
+        };
+        let operands = vec![object, index];
         Self {
-            code: format!("{object}[{index}]"),
+            code: render(root, &operands, options).expect("render covers Index"),
             ungrouped: None,
             precedence: JsPrecedence::Member,
-            root: JsExpressionRoot::Index,
-            optional_access_code: Some(format!("{object}?.[{index}]")),
+            root,
+            optional_access_code: render_optional_access(root, &operands, options),
             operands,
         }
     }
@@ -1524,7 +1611,7 @@ impl JsExpression {
         let optional_access_code = value.optional_access_code.clone();
         let root = JsExpressionRoot::IntegerNormalization;
         let operands = vec![value];
-        let code = render(root, &operands).expect("render covers IntegerNormalization");
+        let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers IntegerNormalization");
         let mut normalized =
             Self::grouped(code, JsPrecedence::BitOr, root).with_operands(operands);
         normalized.optional_access_code = optional_access_code;
@@ -1536,7 +1623,7 @@ impl JsExpression {
     fn null_normalized(value: Self) -> Self {
         let root = JsExpressionRoot::NullNormalized;
         let operands = vec![value];
-        let code = render(root, &operands).expect("render covers NullNormalized");
+        let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers NullNormalized");
         Self::grouped(code, JsPrecedence::LogicalOr, root).with_operands(operands)
     }
 
@@ -15205,16 +15292,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsExpression::atom("10")
                 };
                 let receiver = if matches!(intrinsic, Intrinsic::IntToUnsignedString) {
-                    JsExpression::grouped(
-                        format!(
-                            "{}>>>0",
-                            receiver.binary_operand(
-                                IrBinaryOp::UnsignedShiftRight,
-                                BinaryOperandSide::Left,
-                            )
-                        ),
-                        JsPrecedence::Shift,
-                        JsExpressionRoot::Binary(IrBinaryOp::UnsignedShiftRight),
+                    // Was hand-rendered as `format!("{}>>>0", ..)` under a
+                    // `Binary` tag with **no operands**, so `binary_operands()`
+                    // returned `None` for a node that plainly has two -- the
+                    // same defect `NullNormalized` had. `binary` produces the
+                    // identical text and the node the tag promises.
+                    JsExpression::binary(
+                        IrBinaryOp::UnsignedShiftRight,
+                        receiver,
+                        JsExpression::atom("0"),
                     )
                 } else {
                     receiver
@@ -35978,7 +36064,8 @@ consume(field(JS.object("type", 1), "type"));
         // printer will walk it.
         assert_eq!(JsExpressionRoot::Conditional.grammar_arity(), Some(3));
         assert_eq!(JsExpressionRoot::Nullish.grammar_arity(), Some(2));
-        assert_eq!(JsExpressionRoot::Member.grammar_arity(), Some(1));
+        // 2, not 1: the property name is a child, as it is in the grammar.
+        assert_eq!(JsExpressionRoot::Member.grammar_arity(), Some(2));
         assert_eq!(JsExpressionRoot::Index.grammar_arity(), Some(2));
         assert_eq!(JsExpressionRoot::Call.grammar_arity(), None);
         assert_eq!(JsExpressionRoot::Atom.grammar_arity(), Some(0));

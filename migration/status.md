@@ -248,19 +248,75 @@ so nothing can regress while the printer does not exist yet.
 | `Conditional` | 3 | **3** |
 | `Call` | variadic | **callee + args** |
 
+### `code` is now derived, not authored
+
+The tree being *complete* is necessary but not sufficient: as long as each constructor also wrote its
+own text, the program had two descriptions that could drift, and a printer added beside them would
+have been a third. So the constructors were inverted rather than mirrored — they build the node and
+call the printer to obtain `code`:
+
+    fn conditional(condition, then_value, else_value) -> Self {
+        let operands = vec![condition, then_value, else_value];
+        let code = render(JsExpressionRoot::Conditional, &operands, ..)...;
+        Self::grouped(code, ..).with_operands(operands)
+    }
+
+`code` is now a *cache of the tree*, which is what lets it be deleted in phase 3 rather than kept in
+sync forever. **`render` owns every kind except `Atom` and `Raw`**, which are leaves whose text is the
+datum rather than a rendering of children.
+
+Two things fell out of doing this, neither of which was visible before:
+
+**The arity table was checked only against constructors that opted in.** `NullNormalized` was built
+at two sites as `grouped(format!("{indexed}??null"), .., NullNormalized)` with **no operands at all**,
+while `retained_arity` claimed it kept one — the `with_operands` assertion could not fire because
+those sites never called it. The real gate is now that `render(..).expect("render covers X")` panics
+on a malformed child list at construction, for every kind `render` covers. Coverage is the invariant;
+the table documents it.
+
+**The child list had three owners.** `unary_operand`, `binary_operands` and `normalization_operand`
+were separate `Option<Box<Self>>` fields sitting beside `operands`, so a node could carry children
+that disagreed with its own kind. They are now projections of `operands`, which makes the
+disagreement unrepresentable rather than merely unlikely ([004](004-legality-by-construction.md)).
+
+**The emitter flag was 57 hand-threaded copies of one option.** `elide_call_chain_parentheses` was
+passed to `member()` and `index()` at 57 call sites, always as `self.options.elide_call_chain_parentheses`.
+It is now `JsRenderOptions`, a parameter of the *printer* — which is where it belongs and where it
+has to be: the compiler scores hundreds of complete artifacts per compile, and two of them may differ
+by exactly this flag over one identical program, so a tree that stored it could not be shared between
+candidates ([006](006-candidate-derivation.md)). Kinds that provably consult no option pass
+`JsRenderOptions::UNUSED`.
+
+**`Member` gained its property name as a child.** It was a `&str` argument that reached the text
+without passing through the node at all, so a printer walking the tree could not have recovered it.
+The grammar makes it a child (`MemberExpression . IdentifierName`) and so does every production JS
+AST; `Member` is arity 2 now. The `?.` spelling — a second authored rendering of the same node — moved
+into `render_optional_access` alongside it, so a node's two spellings cannot disagree about how far to
+parenthesise.
+
 **Writing the table down immediately found a defect.** `member()` and `index()` both used
 `JsExpressionRoot::Member`, so a Member node's arity was 1 or 2 depending on which constructor made
 it — `o.k` has one child, `o[k]` has two, and nothing could tell them apart. That is precisely the
 ambiguity a printer cannot survive. `Index` is now its own tag; the single consumer means "the
 receiver is a member access", true of both forms, so it matches on either.
 
-Verified behaviour-neutral at every step: **72/72 at `none`, 72/72 at `maximum`, 1,705 unit tests**.
+### Neutrality, proved the way [D3](001-directives.md#d3--byte-identity-is-the-only-clean-neutrality-proof) asks
+
+Not "within noise" — byte-identical. Every `tests/cases/*.lil` compiled at `maximum` by the previous
+commit's binary and by the new one, artifacts compared with `cmp`:
+
+| step | artifacts differing | behaviour (`none` / `maximum`) | unit tests |
+|---|---:|---|---:|
+| one owner for children, `code` derived for 7 kinds | **0 of 72** | 0 fail / 0 fail | 1,705 |
+| `Member` and `Index` derived | **0 of 72** | 0 fail / 0 fail | 1,705 |
 
 The clones are deliberately wasteful — they copy the child's rendered text, which is the very thing
 the migration deletes. That cost disappears when the printer walks the tree instead of `code`.
 
-**Next:** the printer, then the twin witness under `LILSCRIPT_TWIN=1` asserting it reproduces `code`
-byte for byte. At that point phase 1's gate — "the tree reproduces the incumbent" — is met.
+**Next:** the twin witness under `LILSCRIPT_TWIN=1`. It is only meaningful now: a printer that fell
+back to `code` for any kind would compare equal to itself and prove nothing, whereas `render` deriving
+every non-leaf kind makes the comparison real. After that, phase 2 — statements and module structure,
+the much larger surface.
 
 ---
 
