@@ -286,6 +286,36 @@ pub fn record_fold(name: &'static str, idle: bool, elapsed_nanos: u64) {
 
 /// The folds that spent the most time proving they had nothing to do, worst
 /// first. `None` when telemetry is off.
+/// Raw statement bytes by the `codegen_ir_js.rs` line that pushed them.
+/// Populated only under `LILSCRIPT_TWIN=1`; `raw_site_report` ranks them.
+static RAW_SITES: std::sync::Mutex<Option<std::collections::BTreeMap<u32, (u64, u64)>>> =
+    std::sync::Mutex::new(None);
+
+pub fn raw_site(line: u32, bytes: u64) {
+    if let Ok(mut sites) = RAW_SITES.lock() {
+        let entry = sites.get_or_insert_with(Default::default).entry(line).or_insert((0, 0));
+        entry.0 += 1;
+        entry.1 += bytes;
+    }
+}
+
+/// The push sites that still emit raw text, largest first: `line calls bytes`.
+pub fn raw_site_report(limit: usize) -> Option<String> {
+    let sites = RAW_SITES.lock().ok()?;
+    let sites = sites.as_ref()?;
+    let total: u64 = sites.values().map(|(_, bytes)| bytes).sum();
+    let mut rows = sites.iter().collect::<Vec<_>>();
+    rows.sort_by(|left, right| right.1 .1.cmp(&left.1 .1));
+    let mut out = format!("raw-sites total {total} bytes over {} sites\n", sites.len());
+    for (line, (calls, bytes)) in rows.into_iter().take(limit) {
+        out.push_str(&format!(
+            "{bytes:>10}  {:>5.1}%  {calls:>8} calls  codegen_ir_js.rs:{line}\n",
+            100.0 * *bytes as f64 / total.max(1) as f64
+        ));
+    }
+    Some(out)
+}
+
 pub fn idle_fold_report(limit: usize) -> Option<String> {
     // `LILSCRIPT_FOLD_REPORT=all` (or a count) widens the default top-N.
     // The fold-deletion protocol in `migration/007-fold-disposition.md` needs

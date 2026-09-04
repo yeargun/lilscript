@@ -1708,6 +1708,9 @@ impl JsBlock {
         self.trailing_bare_return = self.text.ends_with("return;");
     }
 
+    /// `#[track_caller]` so the raw-byte census can name the call site: phase
+    /// 3's remaining work is a ranked list of these, by bytes, on a real port.
+    #[track_caller]
     fn push_str(&mut self, fragment: &str) {
         if fragment.is_empty() {
             return;
@@ -1734,6 +1737,8 @@ impl JsBlock {
         }
         if twin_witness_enabled() {
             crate::timing::STATEMENT_RAW.event(fragment.len() as u64);
+            let site = std::panic::Location::caller();
+            crate::timing::raw_site(site.line(), fragment.len() as u64);
         }
     }
 
@@ -1786,6 +1791,9 @@ impl JsBlock {
         // it was created, and moving it is not creating it.
     }
 
+    /// Also `#[track_caller]`, so a one-byte push is charged to whoever pushed
+    /// it rather than to this line.
+    #[track_caller]
     fn push(&mut self, character: char) {
         let mut buffer = [0u8; 4];
         self.push_str(character.encode_utf8(&mut buffer));
@@ -9493,7 +9501,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ),
         };
         for index in order {
-            out.push_str(&segments[index]);
+            out.push_block(&segments[index]);
         }
         Ok(())
     }
@@ -10809,8 +10817,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let expression = self.render_instruction_op(instruction, context, cache)?;
         let Some(out_value) = instruction.out else {
             if !expression.is_empty() {
-                out.push_str(&expression_statement(expression));
-                out.push(';');
+                out.push_statement(JsStatement::Expression { value: expression });
             }
             return Ok(());
         };
@@ -10819,8 +10826,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let allow_fuse = fuse_with_next;
         if use_count == 0 {
             if op_has_side_effects(&instruction.op) || observable_evaluation {
-                out.push_str(&expression_statement(expression));
-                out.push(';');
+                out.push_statement(JsStatement::Expression { value: expression });
             }
         } else if !context.is_stored(out_value)
             && ((!nested_observable && use_count == 1 && op_can_defer(&instruction.op))
@@ -21563,6 +21569,10 @@ enum JsStatement {
         keyword: &'static str,
         names: Vec<String>,
     },
+    /// `e;` -- an expression evaluated for its effect. The commonest statement
+    /// there is, and the last kind to get a node: 28.6% of all raw statement
+    /// bytes on the probe came from its two push sites.
+    Expression { value: JsExpression },
     /// Text the emitter has not made a node of yet. Every `push_str` lands
     /// here; phase 3's work is making this variant unreachable.
     Raw(String),
@@ -21599,8 +21609,9 @@ fn flush_pending_run(out: &mut JsBlock, run: &mut Vec<JsExpression>) {
     if run.is_empty() {
         return;
     }
-    out.push_str(&JsExpression::comma(std::mem::take(run)).into_minimal());
-    out.push(';');
+    out.push_statement(JsStatement::Expression {
+        value: JsExpression::comma(std::mem::take(run)),
+    });
 }
 
 /// One arm of an `if`, and whether it may drop its braces.
@@ -21732,6 +21743,10 @@ impl JsStatement {
             Self::DeclarationGroup { keyword, names } => {
                 format!("{keyword}{};", names.join(","))
             }
+            // The statement-position rule lives with the statement: an
+            // expression that *starts* with `function`, `async function` or
+            // `class` would parse as a declaration, so it is grouped.
+            Self::Expression { value } => format!("{};", expression_statement(value)),
             Self::Raw(text) => text,
             Self::If {
                 condition,

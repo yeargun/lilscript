@@ -101,6 +101,9 @@ fn main() {
         if let Some(folds) = lilscript::timing::idle_fold_report(24) {
             eprint!("{folds}");
         }
+        if let Some(sites) = lilscript::timing::raw_site_report(30) {
+            eprint!("{sites}");
+        }
     }
     report_store_census();
 }
