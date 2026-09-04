@@ -12,7 +12,8 @@ Updated 2026-09-04, branch `migration/target-tree`, 37 commits ahead of `main`.
 
 ## Where we are in one line
 
-Phase 0 is green except the frozen baseline; **phase 1 is complete and gated**; **phase 2b is
+**Phase 0 is complete** (the baseline frozen on the two verification ports); **phase 1 is complete and
+gated**; **phase 2b is
 complete** — `out` is append-only, every edit of already-emitted text is gone and the methods that
 did it are deleted — with 22 statement kinds on nodes and 246 fragment appends still to move; phases
 3–8 are not started, and phase 7 has its measurement.
@@ -24,10 +25,10 @@ Brotli and on compile time.
 
 | Phase | State | Gate met |
 |---|---|---|
-| 0 — repair the instrument | **6 of 7 items** | — |
+| 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | not started | — |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 34% nodes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -44,9 +45,25 @@ Brotli and on compile time.
 | 0.2 ports are a gate | **landed** | `finer/tools/portgate.mjs`; posthoglil `trust: ok` — `fe51558` |
 | 0.3 differential is generative | **landed** | `--random-seed`, seed printed before work — `fe51558` |
 | 0.3b domain reaches classes/closures | **landed** | reference interpreter models instances, `super`, `this`, lexical capture — `6d0a741` |
-| 0.4 baseline frozen across 61 configs | **not started** | needs a pool run and F2 |
+| 0.4 baseline frozen | **landed, narrowed** | the pre-migration compiler `54e1948` on the two verification ports, table below; the 61-config version is not going to be run (owner: do not build the fleet) |
 | 0.5 live wrong programs | **6 of 9 fixed** | table below |
 | F1–F5 fleet gaps | **landed** (F2 partial) | `fleet-tests.mjs` still to promote |
+
+### The frozen baseline (0.4)
+
+The number the finished migration is measured against. Pre-migration compiler `54e1948` -- the
+commit this branch grew from -- against HEAD, both arms built on the pool from the same sources,
+scored with the pinned codec, provenance recorded per arm:
+
+| port | `54e1948` | HEAD | Δ Brotli |
+|---|---:|---:|---:|
+| markedlil `marked.esm.js` | 9,470 | 9,431 | **−39** |
+| zodlil `zod.core.js` | 32,489 | 32,603 | **+114** |
+
+Net **+75** over the two verification ports, mid-migration. Under the revised gate that is recorded,
+not alarming; zodlil's +114 is outside the noise band on its own and wants attributing to a commit
+before the migration is called finished. The end condition is: both of these at or below the
+`54e1948` column.
 
 ### Live wrong programs
 
@@ -134,7 +151,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | phase 2's statement tree | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **~34% of statement bytes arrive as nodes** (probe and cnlil alike, a floor -- child blocks still append as `Raw`) | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |

@@ -119,6 +119,11 @@ pub static BINDINGS: Bucket = Bucket::new("bindings");
 /// asks again. `bytes` is the block length it rescanned each time, so this
 /// bucket measures the second superlinearity named in `migration/009-phases.md`.
 pub static TRAILING_SCAN: Bucket = Bucket::new("trailing_scan");
+/// Phase 3's progress: bytes of emitted statements that arrived as nodes,
+/// and bytes that arrived as raw text fragments. Counted only under
+/// `LILSCRIPT_TWIN=1`, where the list is also checked against the text.
+pub static STATEMENT_NODE: Bucket = Bucket::new("stmt_node");
+pub static STATEMENT_RAW: Bucket = Bucket::new("stmt_raw");
 /// Peephole folds that rewrote nothing, and the time they spent proving it.
 /// A fold whose enabling syntax is absent from the artifact still pays a full
 /// scan, so this bucket measures the ceiling on guard-based skipping.
@@ -206,7 +211,9 @@ const BYTE_BUCKETS: [&Bucket; 17] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 27] = [
+const EVENT_BUCKETS: [&Bucket; 29] = [
+    &STATEMENT_NODE,
+    &STATEMENT_RAW,
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,
     &CLEANUP_SKIPPED,

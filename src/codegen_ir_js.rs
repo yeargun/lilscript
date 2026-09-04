@@ -1420,9 +1420,37 @@ impl JsExpressionRoot {
 /// quadratic in the output, and named in `009-phases.md` as one of the two
 /// confirmed superlinearities. Maintaining them costs a bounded scan of each
 /// appended fragment.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// One entry of a block's statement list: the node, how it was rendered, and
+/// whether its trailing `;` was dropped afterwards (the block-close elision).
+#[derive(Debug, Clone)]
+struct EmittedStatement {
+    statement: JsStatement,
+    options: JsStatementOptions,
+    dropped_semicolon: bool,
+}
+
+impl EmittedStatement {
+    fn render(&self) -> String {
+        let mut rendered = self.statement.clone().render(self.options);
+        if self.dropped_semicolon && rendered.ends_with(';') {
+            rendered.pop();
+        }
+        rendered
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 struct JsBlock {
+    /// The text. Phase 3 of `migration/`: this is now a *cache* of
+    /// `statements`, exactly as `JsExpression::code` became a cache of the
+    /// expression tree in phase 1. `LILSCRIPT_TWIN=1` asserts at every block
+    /// boundary that rendering the list reproduces it. Phase 3 completes when
+    /// the printer walks the list and this field is deleted.
     text: String,
+    /// What the block is made of. A `push_statement` appends the node; a
+    /// `push_str` appends -- or extends -- a `JsStatement::Raw`, so the share
+    /// of the artifact that still arrives as text is a number, not a feeling.
+    statements: Vec<EmittedStatement>,
     for_opens: usize,
     while_opens: usize,
     /// The counts this block started with, for a block made by `nested()`.
@@ -1495,6 +1523,7 @@ impl JsBlock {
     fn nested(&self) -> Self {
         Self {
             text: String::new(),
+            statements: Vec::new(),
             for_opens: self.for_opens,
             while_opens: self.while_opens,
             inherited: (self.for_opens, self.while_opens),
@@ -1504,6 +1533,10 @@ impl JsBlock {
     }
 
     /// Remove a trailing `;` if there is one. Reads the flag, not the text.
+    ///
+    /// On the list this is a *rendering* decision recorded on the last
+    /// statement, not an edit of it: the node is intact and knows its `;` was
+    /// dropped at the block close.
     fn drop_trailing_semicolon(&mut self) {
         if self.ends_with_semicolon() {
             self.pop();
@@ -1522,12 +1555,42 @@ impl JsBlock {
         }
         if self.trailing_bare_return {
             let length = self.text.len() - "return;".len();
+            // `truncate` drops the whole `Return { value: None }` from the list,
+            // because the cut lands exactly at its start.
             self.truncate(length);
         }
     }
 
     fn into_string(self) -> String {
+        if twin_witness_enabled() {
+            self.witness_list_reproduces_text();
+        }
         self.text
+    }
+
+    /// Phase 3's gate, executable: the statement list, rendered, is the text.
+    fn witness_list_reproduces_text(&self) {
+        let rendered = self
+            .statements
+            .iter()
+            .map(EmittedStatement::render)
+            .collect::<String>();
+        assert_eq!(
+            rendered, self.text,
+            "block statement list does not reproduce its text"
+        );
+    }
+
+    /// Bytes of this block's text that arrived as statement nodes, and bytes
+    /// that arrived as raw fragments. The ratio is phase 3's progress.
+    fn node_and_raw_bytes(&self) -> (usize, usize) {
+        self.statements.iter().fold((0, 0), |(node, raw), emitted| {
+            let len = emitted.render().len();
+            match emitted.statement {
+                JsStatement::Raw(_) => (node, raw + len),
+                _ => (node + len, raw),
+            }
+        })
     }
 
     /// Whether the last statement is terminated, without searching the text.
@@ -1655,6 +1718,23 @@ impl JsBlock {
         // is sets the flag again after this, in `push_statement_with`.
         self.trailing_bare_return = false;
         self.text.push_str(fragment);
+        // Fragments run together into one `Raw`: `var `, `x`, `=`, `1`, `;` is
+        // one piece of text the emitter has not yet made a node of, not five.
+        match self.statements.last_mut() {
+            Some(EmittedStatement {
+                statement: JsStatement::Raw(raw),
+                dropped_semicolon: false,
+                ..
+            }) => raw.push_str(fragment),
+            _ => self.statements.push(EmittedStatement {
+                statement: JsStatement::Raw(fragment.to_string()),
+                options: JsStatementOptions::UNUSED,
+                dropped_semicolon: false,
+            }),
+        }
+        if twin_witness_enabled() {
+            crate::timing::STATEMENT_RAW.event(fragment.len() as u64);
+        }
     }
 
     /// Append a complete statement.
@@ -1670,9 +1750,21 @@ impl JsBlock {
 
     fn push_statement_with(&mut self, statement: JsStatement, options: JsStatementOptions) {
         let bare_return = matches!(statement, JsStatement::Return { value: None });
-        let rendered = statement.render(options);
-        self.push_str(&rendered);
+        let rendered = statement.clone().render(options);
+        // Append the text through `count_appended` and the flags, but record
+        // the node rather than a `Raw` of its rendering.
+        self.count_appended(&rendered);
+        self.ends_with_semicolon = rendered.ends_with(';');
+        self.text.push_str(&rendered);
+        self.statements.push(EmittedStatement {
+            statement,
+            options,
+            dropped_semicolon: false,
+        });
         self.trailing_bare_return = bare_return;
+        if twin_witness_enabled() {
+            crate::timing::STATEMENT_NODE.event(rendered.len() as u64);
+        }
     }
 
     fn push(&mut self, character: char) {
@@ -1691,6 +1783,52 @@ impl JsBlock {
         }
         let end = self.text.len();
         self.edited(length, end, 0, |text| text.truncate(length));
+        // The list follows the text. Whole statements past the cut go; a
+        // statement the cut lands inside becomes a `Raw` of what survived.
+        // This is what keeps `take_trailing_expression_statements` -- the last
+        // caller that edits a block's text -- honest with the witness until
+        // it, too, works on the list.
+        let mut kept = 0usize;
+        let mut count = 0usize;
+        for emitted in &self.statements {
+            let len = emitted.render().len();
+            if kept + len > length {
+                break;
+            }
+            kept += len;
+            count += 1;
+        }
+        // The statement the cut lands in: if it is a node losing exactly its
+        // trailing `;`, that is the block-close elision and the node stays
+        // intact with `dropped_semicolon` set. Anything else becomes a `Raw`
+        // of what survived.
+        let mut tail = None;
+        if let Some(cut) = self.statements.get(count) {
+            let rendered = cut.render();
+            let survives = &self.text[kept..length];
+            if !matches!(cut.statement, JsStatement::Raw(_))
+                && rendered.ends_with(';')
+                && survives == &rendered[..rendered.len() - 1]
+            {
+                let mut cut = cut.clone();
+                cut.dropped_semicolon = true;
+                tail = Some(cut);
+            } else if !survives.is_empty() {
+                tail = Some(EmittedStatement {
+                    statement: JsStatement::Raw(survives.to_string()),
+                    options: JsStatementOptions::UNUSED,
+                    dropped_semicolon: false,
+                });
+            }
+        } else if kept < length {
+            tail = Some(EmittedStatement {
+                statement: JsStatement::Raw(self.text[kept..length].to_string()),
+                options: JsStatementOptions::UNUSED,
+                dropped_semicolon: false,
+            });
+        }
+        self.statements.truncate(count);
+        self.statements.extend(tail);
     }
 
     fn pop(&mut self) -> Option<char> {
@@ -1736,8 +1874,18 @@ impl From<String> for JsBlock {
         let while_opens = count_needle(text.as_bytes(), b"while(");
         let ends_with_semicolon = text.ends_with(';');
         let trailing_bare_return = text.ends_with("return;");
+        let statements = if text.is_empty() {
+            Vec::new()
+        } else {
+            vec![EmittedStatement {
+                statement: JsStatement::Raw(text.clone()),
+                options: JsStatementOptions::UNUSED,
+                dropped_semicolon: false,
+            }]
+        };
         Self {
             text,
+            statements,
             for_opens,
             while_opens,
             inherited: (0, 0),
@@ -21396,6 +21544,9 @@ enum JsStatement {
         keyword: &'static str,
         names: Vec<String>,
     },
+    /// Text the emitter has not made a node of yet. Every `push_str` lands
+    /// here; phase 3's work is making this variant unreachable.
+    Raw(String),
     /// `if(c){..}`, `if(c)s;`, and either with an `else`.
     ///
     /// The branches arrive as finished blocks because the emitter builds them
@@ -21562,6 +21713,7 @@ impl JsStatement {
             Self::DeclarationGroup { keyword, names } => {
                 format!("{keyword}{};", names.join(","))
             }
+            Self::Raw(text) => text,
             Self::If {
                 condition,
                 then_branch,

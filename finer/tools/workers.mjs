@@ -393,6 +393,11 @@ async function build(workers, ports) {
   // Arm-scoped copy, so a later comparison reads the arm's own outcome rather
   // than whichever arm happened to finish last.
   if (LOG_DIR !== outDir) writeFileSync(join(LOG_DIR, "last-build.json"), serialized)
+  // And beside the artifacts: `fleet-compare` looks for an arm's provenance in
+  // its dist dir first, and falls back to the shared file -- which is whichever
+  // arm ran last, so two arms compared without this both "reported" the same
+  // compiler and the tool warned it was comparing nothing.
+  if (distDir) { mkdirSync(distDir, { recursive: true }); writeFileSync(join(distDir, "last-build.json"), serialized) }
   return results
 }
 
