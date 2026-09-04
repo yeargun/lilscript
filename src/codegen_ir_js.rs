@@ -18362,6 +18362,7 @@ fn trailing_expression_statement(output: &str) -> Option<(usize, &str)> {
     if !output.ends_with(';') {
         return None;
     }
+    let _timing = crate::timing::TRAILING_SCAN.scope(output.len());
     let bytes = output.as_bytes();
     let mut statement_start = 0usize;
     let mut candidate = None;

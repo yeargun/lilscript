@@ -99,9 +99,24 @@ Delete `code`. The printer is now the only producer of bytes, and it is a pure t
 *unreachable*, not merely unnecessary ([005](005-printer-and-naming.md), [007](007-fold-disposition.md)).
 Also deletes `repair_fused_keyword_identifiers` and the 3,904 lines of `keyword_space_tests.rs`.
 
-**Also here, because they are byte-neutral and pure win:** the loop-spelling substring census and
-`take_trailing_expression_statements` become running counters / recorded boundaries. These are the
-confirmed superlinearity, and there is no reason to carry them further.
+**Also here:** the loop-spelling substring census and `take_trailing_expression_statements` become
+running counters / recorded boundaries.
+
+> **Corrected 2026-09-04, by measurement.** This paragraph called both of them "the confirmed
+> superlinearity". Only one of them is worth anything. The census landed in phase 2b and is real —
+> it rescanned the whole artifact twice per loop. `take_trailing_expression_statements` is **not**:
+> instrumented as `trailing_scan` and measured on posthoglil, it is **5.1 ms across 165 calls and
+> 0.72 MB rescanned**, against 31.2 s of wall time — 0.016%. It is quadratic in shape and irrelevant
+> in size, because the blocks it rescans are function bodies, not the artifact.
+>
+> It still moves in phase 3, but for the invariant below (no production path re-reads emitted text),
+> **not** for speed, and it should not be prioritised as if it were a performance fix.
+>
+> The same run says where compile time actually goes, per compile of posthoglil (CPU across threads,
+> against 31.2 s wall): **codec 87.7 s**, **emit 60.1 s over 1,246 emissions**, peephole 8.3 s,
+> analyze 8.3 s, lex 3.1 s over 28,801 tokenizations, optimize 1.3 s. The candidate search's Brotli
+> encodes dominate everything else, which is [phase 7](#phase-7--candidate-derivation-and-budgets),
+> not phase 3.
 
 **Invariant:** no production path re-reads emitted text to make a decision.
 **Constraint:** no `Raw` / escape-hatch variant survives in the node enum. A construct that cannot be

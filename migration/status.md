@@ -380,7 +380,8 @@ spelling the artifact already has — and it decided by running
     out.matches("for(").count() > out.matches("while(").count()
 
 at *every loop*, rescanning the whole artifact so far, twice. Quadratic in the output, and one of the
-two confirmed superlinearities in [009](009-phases.md).
+two superlinearities [009](009-phases.md) named. (The other one, `take_trailing_expression_statements`,
+turned out not to matter — see below.)
 
 **The first fix made it 23% slower.** Maintaining the counters naively — a `String` allocated per
 append to look at the join, and a full recount after every `truncate`/`pop` — cost more than the scan
@@ -443,6 +444,37 @@ Every way of reaching back into emitted text — `truncate`, `pop`, `remove`, `i
 `replace_range` — is a method on the type rather than one of 583 indistinguishable string operations,
 so phase 3 can find every caller with `grep` rather than judgement. `into_string()` marks each place
 block text stops being a block and becomes an artifact or an expression.
+
+---
+
+## Where compile time actually goes
+
+`trailing_scan` was added to `timing.rs` to settle whether
+`take_trailing_expression_statements` deserved the same treatment as the loop census. It does not,
+and [009](009-phases.md) has been corrected: measured on posthoglil, it is **5.1 ms across 165 calls
+and 0.72 MB rescanned**, against 31.2 s of wall time — **0.016%**. Quadratic in shape, irrelevant in
+size, because the blocks it rescans are function bodies rather than the artifact. It still moves in
+phase 3, for the "no production path re-reads emitted text" invariant, but not as a performance fix.
+
+The same run is the first honest picture of the cost model. One `npm run build` of posthoglil, CPU
+across threads, against **31.2 s wall**:
+
+| bucket | CPU | calls |
+|---|---:|---:|
+| `codec` | **87.7 s** | Brotli-11 / gzip-9 of whole artifacts |
+| `emit` | **60.1 s** | 1,246 emissions |
+| `peephole` | 8.3 s | |
+| `analyze` | 8.3 s | |
+| `lex` | 3.1 s | 28,801 tokenizations |
+| `optimize` | 1.3 s | |
+| `cleanup` | 7.8 ms | |
+| `trailing_scan` | 5.1 ms | 165 |
+
+**The candidate search's own scoring dominates everything the text layer does, by an order of
+magnitude.** Every fold, lex and cleanup in the peephole together is 19.7 s against 147.8 s for
+emit-plus-codec. That reorders the value of the remaining phases: phase 7 (candidates derive from a
+shared base instead of re-emitting, and the budget ladder re-derived) is where compile time is, and
+phases 3 and 6 are correctness and architecture work whose speed benefit is second-order.
 
 ---
 

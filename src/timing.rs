@@ -113,6 +113,12 @@ pub static CLOSERS: Bucket = Bucket::new("closers");
 pub static REGIONS: Bucket = Bucket::new("regions");
 pub static SCOPES: Bucket = Bucket::new("scopes");
 pub static BINDINGS: Bucket = Bucket::new("bindings");
+/// `trailing_expression_statement`, which re-lexes a whole emitted block from
+/// byte 0 -- tracking quotes, escapes and delimiter nesting -- only to find
+/// where its last statement begins, and is called in a loop that truncates and
+/// asks again. `bytes` is the block length it rescanned each time, so this
+/// bucket measures the second superlinearity named in `migration/009-phases.md`.
+pub static TRAILING_SCAN: Bucket = Bucket::new("trailing_scan");
 /// Peephole folds that rewrote nothing, and the time they spent proving it.
 /// A fold whose enabling syntax is absent from the artifact still pays a full
 /// scan, so this bucket measures the ceiling on guard-based skipping.
@@ -178,7 +184,8 @@ pub static RENAME_TEMPLATED: Bucket = Bucket::new("rename_templated");
 pub static RENAME_UNSOUND: Bucket = Bucket::new("rename_unsound");
 pub static RENAME_AMBIGUOUS: Bucket = Bucket::new("rename_ambiguous");
 
-const BYTE_BUCKETS: [&Bucket; 16] = [
+const BYTE_BUCKETS: [&Bucket; 17] = [
+    &TRAILING_SCAN,
     &ADMISSION,
     &DIRECT_VALIDATE,
     &PROBE_DROPPED,
