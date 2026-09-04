@@ -16,6 +16,7 @@
 //   node finer/tools/workers.mjs build --ports a,b   # build those ports on the pool, copy dist/ back
 //   node finer/tools/workers.mjs fleet [--down]      # up, sync, build every port, measure, [down]
 //   node finer/tools/workers.mjs run '<shell>'       # run a command on every running worker
+//   node finer/tools/workers.mjs check [--ports a,b] # the case matrix, sharded across workers (+ those ports)
 //
 // Options: --compiler <path> (default target/release/lilscript), --rg, --vmss,
 // --user, --timeout <s> per port build (default 5400), --no-sync, --measure,
@@ -63,6 +64,10 @@ const PER_WORKER = Math.max(1, Number(flag("per-worker", 2)))
 // are unchanged; an A/B must pass `--log-dir` for each arm or arm B truncates
 // arm A's timing evidence.
 const LOG_DIR = resolve(flag("log-dir", outDir))
+// An arm's log directory is named on the command line and may not exist yet;
+// creating it here means an A/B does not fail at the last write of a 20-minute
+// build, which is when it used to.
+mkdirSync(LOG_DIR, { recursive: true })
 
 /** Does this port's build script honour `--force`? Only katexlil does today. */
 function portAcceptsForce(port) {
@@ -242,6 +247,60 @@ function sync(workers = running(discover()), ports = null) {
   })
 }
 
+/** The `tests/` tree the case matrix needs: cases, their goldens, and the lane configs. */
+function syncTests(workers) {
+  return workers.filter((w) => {
+    ssh(w.ip, `mkdir -p ~/${REMOTE}/lilscript/tests`, { timeoutS: 20 })
+    if (!rsync([join(repo, "tests") + "/", `${USER}@${w.ip}:~/${REMOTE}/lilscript/tests/`]).ok) return false
+    // The repository's own `lilscript.toml` *is* the optimized lane. It has to
+    // travel, and both lanes have to name their config on the command line:
+    // config discovery walks up from the input, so a worker without this file
+    // silently compiles with defaults -- `strip_console` on, every `print`
+    // stripped, every program empty and "passing" nothing.
+    return rsync([join(repo, "lilscript.toml"), `${USER}@${w.ip}:~/${REMOTE}/lilscript/`]).ok
+  })
+}
+
+/**
+ * Run the `tests/cases` matrix on the pool instead of on this host.
+ *
+ * Both lanes of every case is 144 compiles; serially here that is the slowest
+ * part of a change, and it is embarrassingly parallel. Each worker gets a
+ * contiguous shard and reports one line per failure, so the summary is the same
+ * whether it ran on one machine or six.
+ */
+async function check(workers, cases) {
+  const shards = workers.map(() => [])
+  cases.forEach((name, index) => shards[index % workers.length].push(name))
+  const script = (names) => `
+set -u
+cd ~/${REMOTE}/lilscript
+L=target/release/lilscript
+for n in ${names.join(" ")}; do
+  for lane in none maximum; do
+    cfg="--config lilscript.toml"
+    [ "$lane" = none ] && cfg="--config tests/config/no-optimization.toml"
+    out=$($L $cfg tests/cases/$n.lil --target js -o /tmp/$n.$lane.js 2>&1)
+    if [ -n "$out" ]; then echo "FAIL $n $lane compile"; continue; fi
+    if ! diff -q <(node /tmp/$n.$lane.js 2>&1) tests/cases/$n.out >/dev/null 2>&1; then
+      echo "FAIL $n $lane behaviour"
+    fi
+  done
+done
+echo "SHARD_DONE $(hostname)"`
+  const runs = await Promise.all(
+    workers.map((w, index) =>
+      sshAsync(w.ip, script(shards[index]), { timeoutS: 3600 }).then((r) => ({ w, ...r })),
+    ),
+  )
+  const failures = []
+  for (const r of runs) {
+    if (!r.tail.includes("SHARD_DONE")) failures.push(`${r.w.ip}: shard did not finish (${r.tail.slice(-200)})`)
+    for (const line of r.tail.split("\n")) if (line.startsWith("FAIL ")) failures.push(line)
+  }
+  return failures
+}
+
 /** Build one port on one worker and bring its dist/ back. */
 async function buildOn(w, port) {
   // Arm-scoped, because `<port>.log` is truncated at the start of every build:
@@ -356,11 +415,38 @@ async function main() {
       for (const w of running(discover())) { const r = ssh(w.ip, script, { timeoutS: 600 }); console.log(`--- ${w.id} ${w.ip}\n${r.out}${r.err ? "\n" + r.err : ""}`) }
       break
     }
+    case "check": {
+      // Bring the pool up rather than telling the caller to. The workers
+      // deallocate themselves when idle, which is what keeps them cheap, so
+      // "none running" is the normal state a run starts from, not an error.
+      let workers = running(discover())
+      if (!workers.length) workers = up()
+      if (!workers.length) fail("no worker reachable")
+      const ports = (flag("ports", "") || "").split(",").filter(Boolean)
+      if (!has("no-sync")) workers = await sync(workers, ports)
+      workers = syncTests(workers)
+      if (!workers.length) fail("no worker took the tests/ tree")
+      const cases = readdirSync(join(repo, "tests", "cases"))
+        .filter((n) => n.endsWith(".lil"))
+        .map((n) => n.slice(0, -4))
+      log(`checking ${cases.length} cases x 2 lanes across ${workers.length} worker(s)`)
+      const failures = await check(workers, cases)
+      for (const line of failures) log(line)
+      log(`${cases.length * 2 - failures.length} of ${cases.length * 2} case-lanes pass`)
+      let portFailures = 0
+      if (ports.length) {
+        const results = await build(workers, ports)
+        portFailures = Object.values(results).filter((r) => !r.ok).length
+        log(`ports: ${Object.keys(results).length - portFailures} ok, ${portFailures} failed`)
+      }
+      process.exit(failures.length + portFailures ? 1 : 0)
+    }
     case "build": {
       const ports = (flag("ports", "") || "").split(",").filter(Boolean)
       if (!ports.length) fail("build needs --ports a,b")
       let workers = running(discover())
-      if (!workers.length) fail("no running worker; `workers.mjs up` first")
+      if (!workers.length) workers = up()
+      if (!workers.length) fail("no worker reachable")
       if (!has("no-sync")) workers = await sync(workers, ports)
       const results = await build(workers, ports)
       const bad = Object.entries(results).filter(([, r]) => !r.ok)
