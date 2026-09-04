@@ -280,6 +280,16 @@ pub fn record_fold(name: &'static str, idle: bool, elapsed_nanos: u64) {
 /// The folds that spent the most time proving they had nothing to do, worst
 /// first. `None` when telemetry is off.
 pub fn idle_fold_report(limit: usize) -> Option<String> {
+    // `LILSCRIPT_FOLD_REPORT=all` (or a count) widens the default top-N.
+    // The fold-deletion protocol in `migration/007-fold-disposition.md` needs
+    // *every* fold's idle/active split across every port, not the noisiest
+    // two dozen: a fold is only deletable when its active count is zero
+    // everywhere, and a truncated report cannot show that.
+    let limit = match std::env::var("LILSCRIPT_FOLD_REPORT").as_deref() {
+        Ok("all") => usize::MAX,
+        Ok(value) => value.parse().unwrap_or(limit),
+        Err(_) => limit,
+    };
     let profile = FOLD_PROFILE.lock().ok()?;
     let profile = profile.as_ref()?;
     let mut rows = profile.iter().collect::<Vec<_>>();

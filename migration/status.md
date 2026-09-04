@@ -615,6 +615,45 @@ phases 3 and 6 are correctness and architecture work whose speed benefit is seco
 
 ---
 
+## The fold census, measured on the fleet
+
+`LILSCRIPT_FOLD_REPORT=all` widens the timing report from its top-24 to every
+fold, which is what [007](007-fold-disposition.md)'s deletion protocol needs: a fold is only deletable
+when its **active count is zero everywhere**, and a truncated report cannot show that. Four ports
+profiled in parallel on the pool:
+
+**53 of 128 folds never fired once**, 48 of them across all four ports. The idlest, by CPU spent
+proving nothing:
+
+| fold | idle CPU | calls |
+|---|---:|---:|
+| `fold_undefined_defaults_into_formals` | 1,101 ms | 2,270 |
+| `fold_forwarding_call_wrappers` | 639 ms | 1,223 |
+| `fold_arguments_slice_to_rest` | 407 ms | 1,639 |
+| `fold_guarded_assign_into_call_predicate` | 281 ms | 668 |
+| `fold_arguments_length_eq_zero_to_not` | 250 ms | 680 |
+
+Per-port idle-fold CPU, and the never-active share of it:
+
+| port | idle-fold CPU | never active |
+|---|---:|---:|
+| cnlil | 3,972 ms | 1,861 ms (47%) |
+| markedlil | 19,358 ms | 7,601 ms (39%) |
+| mobxlil | 20,889 ms | 2,295 ms (11%) |
+| posthoglil | 8,084 ms | 4,647 ms (58%) |
+
+**But this is not where the time is, and the census is what proves it.** On posthoglil the whole
+peephole is 8.3 s against emit 60.1 s and codec 87.7 s; the never-active folds are 4.6 s of roughly
+156 s of CPU — **about 3%**. Guarding all 48 is a real, safe win and it is nowhere near the lever that
+`codec` is. Recorded here so phase 6 spends its effort in proportion.
+
+Two cautions on reading the table. "Never active on four ports" is not "unreachable": several of these
+folds exist for syntax these ports never write (`hoist_async_arrow_method_bodies`,
+`drop_pure_regex_expression_statements`), so deletion still needs the protocol's full-config evidence.
+And jquerylil and zodlil did not produce a profile in this run, so the census is four ports, not six.
+
+---
+
 ## Where the work lives
 
 Branch `migration/target-tree`, in a worktree, isolated from the concurrent session:
