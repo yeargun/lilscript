@@ -313,10 +313,32 @@ commit's binary and by the new one, artifacts compared with `cmp`:
 The clones are deliberately wasteful — they copy the child's rendered text, which is the very thing
 the migration deletes. That cost disappears when the printer walks the tree instead of `code`.
 
-**Next:** the twin witness under `LILSCRIPT_TWIN=1`. It is only meaningful now: a printer that fell
-back to `code` for any kind would compare equal to itself and prove nothing, whereas `render` deriving
-every non-leaf kind makes the comparison real. After that, phase 2 — statements and module structure,
-the much larger surface.
+### The twin witness — phase 1's gate, met
+
+`LILSCRIPT_TWIN=1` turns on `witness_reproducible_from_tree`, which rebuilds each node **from its
+children alone, never reading its own `code`**, and asserts the result matches — `code`, `ungrouped`
+and `optional_access_code` alike, since all three are renderings a printer would have to derive.
+
+The rebuild goes through the *constructors* rather than through `render` directly, so the
+canonicalisations they apply (`!!!x` is `!x`, the constant-operand swap on `==`) are checked for
+idempotence at the same time: one that fired twice would change the text.
+
+| lane | expressions reproduced from the tree |
+|---|---|
+| `none` | **72 of 72 cases** |
+| `maximum` | **72 of 72 cases** |
+
+**Negative control**, because a witness that cannot fail proves nothing: corrupting one arm of the
+rebuild (`Binary`'s right operand replaced by `atom("0")`) made it **fail 53 of the 72** cases. It
+fires. The corruption was then reverted and the artifacts re-checked byte-identical.
+
+Off, the witness costs one `OnceLock` load, and the artifacts are byte-identical with it compiled in.
+
+This is the statement phase 1 set out to earn: **the expression tree, plus the printer's options, is
+sufficient to reproduce the emitted expression text.** `code` is now provably a cache.
+
+**Not yet true of statements or module structure** — that is phase 2, and it is the much larger
+surface: the emitter writes statements straight into a `String`.
 
 ---
 

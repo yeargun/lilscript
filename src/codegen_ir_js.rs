@@ -1,7 +1,9 @@
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 // Emission policy must not depend on per-process hash seeds. Several maps feed
 // graph-coloring and layout decisions where iteration order is observable in
@@ -1120,6 +1122,24 @@ impl JsRenderOptions {
     };
 }
 
+thread_local! {
+    /// The render options of the emission in progress, for the twin witness.
+    ///
+    /// A printer takes options; a node does not carry them, because two scored
+    /// candidates may differ by exactly one option over one identical program
+    /// ([006](../migration/006-candidate-derivation.md)). The witness still has
+    /// to know which options produced the artifact it is checking, and the
+    /// emitter is the one place that knows -- so it records them here for the
+    /// duration of an emission instead of every node storing a copy.
+    static WITNESS_OPTIONS: Cell<JsRenderOptions> = const { Cell::new(JsRenderOptions::UNUSED) };
+}
+
+/// `LILSCRIPT_TWIN=1` turns on the twin witness. Off, it costs one relaxed load.
+fn twin_witness_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_TWIN").as_deref() == Ok("1"))
+}
+
 /// The receiver text shared by `o.p`, `o[k]` and both of their `?.` spellings,
 /// so a node's two renderings cannot disagree about how far to parenthesise.
 fn access_receiver(
@@ -1679,6 +1699,68 @@ impl JsExpression {
             .flatten()
     }
 
+    /// Rebuild this node from its children alone, never reading its own `code`.
+    ///
+    /// This is phase 1's gate made executable. If the tree carries everything
+    /// the artifact needs, a bottom-up rebuild reproduces `code` byte for byte;
+    /// if it does not, some fact reached the emitted text without passing
+    /// through the node, which is the defect this migration exists to remove.
+    ///
+    /// The rebuild deliberately goes through the *constructors*, not through
+    /// `render` directly, so the canonicalisations they apply (`!!!x` is `!x`,
+    /// the constant-operand swap on `==`) are exercised for idempotence at the
+    /// same time: a canonicalisation that fired twice would change the text.
+    fn rebuilt(&self, options: JsRenderOptions) -> Self {
+        let child = |index: usize| self.operands[index].rebuilt(options);
+        match self.root {
+            // Leaves: the text is the datum, so there is nothing to rebuild.
+            JsExpressionRoot::Atom | JsExpressionRoot::Raw => self.clone(),
+            JsExpressionRoot::Unary(operator) => Self::unary(operator, child(0)),
+            JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
+            JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
+            JsExpressionRoot::NullNormalized => Self::null_normalized(child(0)),
+            JsExpressionRoot::Conditional => Self::conditional(child(0), child(1), child(2)),
+            JsExpressionRoot::IntegerNormalization => Self::integer_normalization(child(0)),
+            JsExpressionRoot::Member => Self::member(
+                child(0),
+                &self.operands[1].code,
+                options.elide_call_chain_parentheses,
+            ),
+            JsExpressionRoot::Index => {
+                Self::index(child(0), child(1), options.elide_call_chain_parentheses)
+            }
+            JsExpressionRoot::Call => Self::call(
+                child(0),
+                (1..self.operands.len()).map(child).collect::<Vec<_>>(),
+            ),
+        }
+    }
+
+    /// Assert that the tree reproduces this node's every rendering.
+    ///
+    /// `ungrouped` and `optional_access_code` are checked alongside `code`
+    /// because they are renderings too: a node that reproduced only its primary
+    /// spelling would still be carrying two authored strings a printer could
+    /// not derive.
+    fn witness_reproducible_from_tree(&self) {
+        let rebuilt = self.rebuilt(WITNESS_OPTIONS.with(Cell::get));
+        assert_eq!(
+            rebuilt.code, self.code,
+            "{:?} is not reproducible from its tree",
+            self.root
+        );
+        assert_eq!(
+            rebuilt.ungrouped, self.ungrouped,
+            "{:?} grouping is not reproducible from its tree",
+            self.root
+        );
+        assert_eq!(
+            rebuilt.optional_access_code, self.optional_access_code,
+            "{:?} optional spelling is not reproducible from its tree",
+            self.root
+        );
+    }
+
     fn at_least(self, minimum: JsPrecedence) -> String {
         if self.precedence < minimum || (minimum >= JsPrecedence::Call && self.looks_like_block()) {
             self.grouped_code()
@@ -1710,6 +1792,9 @@ impl JsExpression {
     }
 
     fn into_minimal(self) -> String {
+        if twin_witness_enabled() {
+            self.witness_reproducible_from_tree();
+        }
         self.ungrouped.unwrap_or(self.code)
     }
 
@@ -2207,6 +2292,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         options: IrJsOptions,
         integer_analysis: Arc<IntegerValueAnalysis>,
     ) -> Self {
+        // The witness needs the options that produce this emission; nothing
+        // else reads this, and it is overwritten by the next emission on this
+        // thread, which is exactly the scope a candidate has.
+        if twin_witness_enabled() {
+            WITNESS_OPTIONS.set(JsRenderOptions {
+                elide_call_chain_parentheses: options.elide_call_chain_parentheses,
+            });
+        }
         Self {
             module,
             integer_analysis,
