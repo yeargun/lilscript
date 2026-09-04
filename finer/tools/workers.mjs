@@ -245,7 +245,7 @@ function sync(workers = running(discover()), ports = null) {
   // One rsync process per worker, all at once: the sync is network-bound per
   // worker, and six sequential syncs of 26 ports were the slowest part of a pass.
   const results = workers.map((w) => {
-    const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "sync-one", w.ip, ...ports, "--compiler", COMPILER, "--user", USER], { stdio: ["ignore", "pipe", "pipe"] })
+    const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "sync-one", w.ip, ...ports, "--compiler", COMPILER, "--user", USER, "--siblings", siblings], { stdio: ["ignore", "pipe", "pipe"] })
     let out = ""; child.stdout.on("data", (d) => { out += d }); child.stderr.on("data", (d) => { out += d })
     return { w, child, done: new Promise((resolve) => child.on("exit", (code) => resolve({ ok: code === 0, out }))) }
   })
@@ -397,7 +397,8 @@ async function build(workers, ports) {
   // its dist dir first, and falls back to the shared file -- which is whichever
   // arm ran last, so two arms compared without this both "reported" the same
   // compiler and the tool warned it was comparing nothing.
-  if (distDir) { mkdirSync(distDir, { recursive: true }); writeFileSync(join(distDir, "last-build.json"), serialized) }
+  const armDir = flag("dist-dir", null)
+  if (armDir) { mkdirSync(armDir, { recursive: true }); writeFileSync(join(armDir, "last-build.json"), serialized) }
   return results
 }
 
@@ -417,7 +418,7 @@ async function main() {
     case "sync-one": {
       // Internal: one worker, the ports listed after its ip (used by `sync` for parallelism).
       const ip = argv[1]
-      const ports = argv.slice(2).filter((a) => !a.startsWith("--") && a !== COMPILER && a !== USER)
+      const ports = argv.slice(2).filter((a, i, all) => !a.startsWith("--") && !(i > 0 && all[i - 1].startsWith("--")))
       const r = syncWorker({ ip }, ports)
       if (!r.ok) { console.error(r.err); process.exit(1) }
       console.log(`ok ${r.seconds.toFixed(0)}s`)

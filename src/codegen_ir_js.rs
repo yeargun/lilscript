@@ -10128,35 +10128,36 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     continue;
                 }
             }
-            if is_single_binding_statement(&statement) {
+            if let Some((name, value)) = single_let_binding(&statement) {
                 flush_pending_run(out, &mut pending_run);
-                // `let a=1;` arrives as text; the declarator is what follows the
-                // keyword, minus the terminator.
-                let declarator = &statement[4..statement.len() - 1];
-                let name = let_declarator_name(&statement).map(str::to_string);
+                let declarator = JsDeclarator {
+                    name: name.to_string(),
+                    value: Some(value.clone()),
+                };
                 match &mut pending_lets {
+                    Some(group) if group.names.contains(&declarator.name) => {
+                        // A name declared twice in one run. The text emitter
+                        // wrote the second as a bare `name=v` after the group
+                        // and let the *next* `let` join onto that assignment
+                        // with a comma, declaring nothing -- a latent defect
+                        // nothing had shown firing. On the list it is what it
+                        // should be: the group closes, the re-assignment is a
+                        // statement, and a later `let` opens a new group.
+                        flush_pending_lets(out, &mut pending_lets);
+                        out.push_statement(JsStatement::Binding {
+                            keyword: None,
+                            name: declarator.name,
+                            value: declarator.value.expect("built with a value"),
+                        });
+                    }
                     Some(group) => {
-                        if name.as_ref().is_some_and(|name| group.names.contains(name)) {
-                            // A name declared twice in one run. The original
-                            // emitted the second as a bare `name=v;` after the
-                            // group, and then let the *next* declarator join
-                            // onto that assignment with a comma -- so this
-                            // reproduces exactly that text. It looks like a
-                            // latent defect (a `let` joined onto a plain
-                            // assignment declares nothing), and it is kept
-                            // rather than fixed here because nothing has
-                            // shown it firing; it is now one place to look.
-                            group.text.push(';');
-                        } else {
-                            group.text.push(',');
-                        }
-                        group.text.push_str(declarator);
-                        group.names.extend(name);
+                        group.names.insert(declarator.name.clone());
+                        group.declarators.push(declarator);
                     }
                     None => {
                         pending_lets = Some(PendingLets {
-                            text: statement[..statement.len() - 1].to_string(),
-                            names: name.into_iter().collect(),
+                            names: AHashSet::from_iter([declarator.name.clone()]),
+                            declarators: vec![declarator],
                         });
                     }
                 }
@@ -11800,8 +11801,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                             IrBinaryOp::And,
                                         );
                                     }
-                                    out.push_str(&rewrite_optional_method_or_assign(&combined));
-                                    out.push(';');
+                                    out.push_statement(JsStatement::Expression {
+                                        value: JsExpression::raw(
+                                            rewrite_optional_method_or_assign(&combined),
+                                            JsPrecedence::Assignment,
+                                        ),
+                                    });
                                 } else {
                                     out.push_statement_with(
                                         JsStatement::If {
@@ -13714,19 +13719,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push(';');
                 return Ok(());
             }
+            let (target, source) = &assignments[0];
             if declaration_needed {
-                out.push_str("var ");
+                let mut declarators = vec![JsDeclarator {
+                    name: target.clone(),
+                    value: Some(JsExpression::raw(source.as_str(), JsPrecedence::Assignment)),
+                }];
+                declarators.extend(
+                    context
+                        .claim_remaining_declarations()
+                        .into_iter()
+                        .map(|name| JsDeclarator { name, value: None }),
+                );
+                out.push_statement(JsStatement::Declarators {
+                    keyword: "var ",
+                    declarators,
+                });
+            } else {
+                out.push_statement(JsStatement::Binding {
+                    keyword: None,
+                    name: target.clone(),
+                    value: JsExpression::raw(source.as_str(), JsPrecedence::Assignment),
+                });
             }
-            out.push_str(&assignments[0].0);
-            out.push('=');
-            out.push_str(&assignments[0].1);
-            if declaration_needed {
-                for name in context.claim_remaining_declarations() {
-                    out.push(',');
-                    out.push_str(&name);
-                }
-            }
-            out.push(';');
         } else if !assignments.is_empty() {
             let targets = assignments
                 .iter()
@@ -13737,38 +13752,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .iter()
                     .all(|(_, source)| !targets.contains(source.as_str()));
             if scalar_declaration {
-                out.push_str("var ");
-                for (index, (target, source)) in assignments.iter().enumerate() {
-                    if index != 0 {
-                        out.push(',');
-                    }
-                    out.push_str(target);
-                    out.push('=');
-                    out.push_str(source);
-                }
-                for name in context.claim_remaining_declarations() {
-                    out.push(',');
-                    out.push_str(&name);
-                }
-                out.push(';');
+                push_var_declarators(out, &assignments, context.claim_remaining_declarations());
                 return Ok(());
             }
             if declaration_needed {
                 if let Some(ordered) = order_scalar_assignments(&assignments) {
-                    out.push_str("var ");
-                    for (index, (target, source)) in ordered.iter().enumerate() {
-                        if index != 0 {
-                            out.push(',');
-                        }
-                        out.push_str(target);
-                        out.push('=');
-                        out.push_str(source);
-                    }
-                    for name in context.claim_remaining_declarations() {
-                        out.push(',');
-                        out.push_str(&name);
-                    }
-                    out.push(';');
+                    push_var_declarators(out, &ordered, context.claim_remaining_declarations());
                     return Ok(());
                 }
             } else {
@@ -17226,6 +17215,31 @@ fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&st
         ordered.push((target.as_str(), source.as_str()));
     }
     Some(ordered)
+}
+
+/// `var a=b,c=d,e;` -- the phi copies as declarators, plus every name this
+/// block still owes a declaration for.
+fn push_var_declarators<S: AsRef<str>>(
+    out: &mut JsBlock,
+    assignments: &[(S, S)],
+    remaining_declarations: Vec<String>,
+) {
+    let mut declarators = assignments
+        .iter()
+        .map(|(target, source)| JsDeclarator {
+            name: target.as_ref().to_string(),
+            value: Some(JsExpression::raw(source.as_ref(), JsPrecedence::Assignment)),
+        })
+        .collect::<Vec<_>>();
+    declarators.extend(
+        remaining_declarations
+            .into_iter()
+            .map(|name| JsDeclarator { name, value: None }),
+    );
+    out.push_statement(JsStatement::Declarators {
+        keyword: "var ",
+        declarators,
+    });
 }
 
 fn scalar_parallel_assignments(
@@ -21588,6 +21602,13 @@ enum JsStatement {
         keyword: &'static str,
         names: Vec<String>,
     },
+    /// `let a=1,b=2;` / `var a=b,c=d,e;` -- one keyword, several declarators,
+    /// each with or without an initialiser. The `let` runs the statement
+    /// fusion holds back, and the phi-copy `var` lists, are this.
+    Declarators {
+        keyword: &'static str,
+        declarators: Vec<JsDeclarator>,
+    },
     /// `e;` -- an expression evaluated for its effect. The commonest statement
     /// there is, and the last kind to get a node: 28.6% of all raw statement
     /// bytes on the probe came from its two push sites.
@@ -21650,17 +21671,49 @@ impl JsLoopHead {
     }
 }
 
+/// One `name` or `name=value` of a `Declarators` statement.
+#[derive(Debug, Clone)]
+struct JsDeclarator {
+    name: String,
+    value: Option<JsExpression>,
+}
+
+impl JsDeclarator {
+    fn render(self) -> String {
+        match self.value {
+            Some(value) => format!("{}={}", self.name, strip_outer_parens(value)),
+            None => self.name,
+        }
+    }
+}
+
 /// A run of consecutive `let` declarators, held back until the run ends.
 struct PendingLets {
-    /// `let a=1,b=2` -- everything but the terminator.
-    text: String,
+    declarators: Vec<JsDeclarator>,
     names: AHashSet<String>,
 }
 
 fn flush_pending_lets(out: &mut JsBlock, pending: &mut Option<PendingLets>) {
     if let Some(group) = pending.take() {
-        out.push_str(&group.text);
-        out.push(';');
+        out.push_statement(JsStatement::Declarators {
+            keyword: "let ",
+            declarators: group.declarators,
+        });
+    }
+}
+
+/// The one `let name=value;` a statement block holds, if that is all it holds.
+fn single_let_binding(statement: &JsBlock) -> Option<(&str, &JsExpression)> {
+    let [emitted] = statement.statements.as_slice() else {
+        return None;
+    };
+    match &emitted.statement {
+        JsStatement::Binding {
+            keyword: Some("let "),
+            name,
+            value,
+        } if !emitted.dropped_semicolon => Some((name, value)),
+        _ => None,
     }
 }
 
@@ -21765,8 +21818,9 @@ impl JsStatement {
         if options.elide_block_terminal_semicolons {
             branch.drop_trailing_semicolon();
         }
-        branch.push('}');
-        branch.into_string()
+        let mut text = branch.into_string();
+        text.push('}');
+        text
     }
 
     fn render(self, options: JsStatementOptions) -> String {
@@ -21808,6 +21862,20 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
+            Self::Declarators {
+                keyword,
+                declarators,
+            } => {
+                let mut text = String::from(keyword);
+                for (index, declarator) in declarators.into_iter().enumerate() {
+                    if index != 0 {
+                        text.push(',');
+                    }
+                    text.push_str(&declarator.render());
+                }
+                text.push(';');
+                text
+            }
             Self::Loop {
                 head,
                 body,
@@ -28436,22 +28504,6 @@ fn js_atom_is_number_literal(value: &str) -> bool {
         .iter()
         .all(|byte| byte.is_ascii_digit() || matches!(byte, b'.' | b'e' | b'E' | b'+' | b'-'))
         && bytes.iter().any(|byte| byte.is_ascii_digit())
-}
-
-fn is_single_binding_statement(statement: &str) -> bool {
-    statement.starts_with("let ")
-        && statement.ends_with(';')
-        && !statement[..statement.len() - 1].contains(';')
-}
-
-fn let_declarator_name(statement: &str) -> Option<&str> {
-    statement
-        .strip_prefix("let ")?
-        .strip_suffix(';')?
-        .split('=')
-        .next()
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
 }
 
 #[derive(Debug, Clone)]
