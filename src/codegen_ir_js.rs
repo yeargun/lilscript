@@ -1520,6 +1520,16 @@ impl JsBlock {
     ///
     /// The counts stay correct afterwards: the enclosing block counts the
     /// rendered body when it is appended, so nothing is double-counted there.
+    /// A nested block whose baseline also counts `text`: for a body emitted
+    /// before its own head is pushed, so the keyword counters inside it are
+    /// what they will be once the head precedes it.
+    fn nested_after(&self, text: &str) -> Self {
+        let mut child = self.nested();
+        child.count_appended(text);
+        child.inherited = (child.for_opens, child.while_opens);
+        child
+    }
+
     fn nested(&self) -> Self {
         Self {
             text: String::new(),
@@ -12013,55 +12023,63 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         // The header is a value too, so the guarded-decrement
                         // rotation below can be a decision about a header and a
                         // body rather than a search backwards through `out`.
-                        let mut loop_header = out.nested();
-                        let do_condition = if do_loop {
-                            let condition = if body_on_true {
-                                condition.clone()
-                            } else {
-                                negated_condition.clone()
-                            };
-                            loop_header.push_str("if(");
-                            loop_header.push_str(&condition);
-                            loop_header.push_str(")do");
-                            Some(condition)
+                        let loop_condition = if body_on_true {
+                            condition.clone()
+                        } else {
+                            negated_condition.clone()
+                        };
+                        // The head is a value. Initialiser hoists (`var a,b;` ahead of a
+                        // `for(a=1,b=2;..)`) are statements of their own and go out first.
+                        let (mut loop_head, do_condition) = if do_loop {
+                            (
+                                JsLoopHead::DoWhile {
+                                    guard: loop_condition.clone(),
+                                },
+                                Some(loop_condition),
+                            )
                         } else if let Some(update_clause) = &update_clause {
-                            emit_for_open(&mut loop_header, for_initializer.as_deref());
-                            loop_header.push(';');
-                            if body_on_true {
-                                loop_header.push_str(&condition);
-                            } else {
-                                loop_header.push_str(&negated_condition);
-                            }
-                            loop_header.push(';');
-                            loop_header.push_str(update_clause);
-                            loop_header.push(')');
-                            None
+                            hoist_for_initializer_declarations(out, for_initializer.as_deref());
+                            (
+                                JsLoopHead::For {
+                                    initializer: for_initializer.as_deref().map(for_initializer_text),
+                                    condition: Some(loop_condition),
+                                    update: Some(update_clause.clone()),
+                                },
+                                None,
+                            )
                         } else if compact_loop {
                             if reuse_for_spelling {
-                                emit_for_open(&mut loop_header, for_initializer.as_deref());
-                                loop_header.push(';');
+                                hoist_for_initializer_declarations(out, for_initializer.as_deref());
+                                (
+                                    JsLoopHead::For {
+                                        initializer: for_initializer.as_deref().map(for_initializer_text),
+                                        condition: Some(loop_condition),
+                                        update: None,
+                                    },
+                                    None,
+                                )
                             } else {
-                                loop_header.push_str("while(");
+                                (
+                                    JsLoopHead::While {
+                                        condition: loop_condition,
+                                    },
+                                    None,
+                                )
                             }
-                            if body_on_true {
-                                loop_header.push_str(&condition);
-                            } else {
-                                loop_header.push_str(&negated_condition);
-                            }
-                            if reuse_for_spelling {
-                                loop_header.push(';');
-                            }
-                            loop_header.push(')');
-                            None
                         } else {
-                            loop_header.push_str("for(;;)");
-                            None
+                            (
+                                JsLoopHead::For {
+                                    initializer: None,
+                                    condition: None,
+                                    update: None,
+                                },
+                                None,
+                            )
                         };
-                        // The body inherits the header's keyword counts as if
-                        // the header had already been appended, which it soon
-                        // will be; `LoopSpelling::Auto` inside the body must
-                        // see it.
-                        let mut body_output = loop_header.nested();
+                        // The body is emitted before its head is pushed; it inherits the
+                        // head's keyword counts as if it had been, so `LoopSpelling::Auto`
+                        // inside the body sees it.
+                        let mut body_output = out.nested_after(&loop_head.render());
                         if !compact_loop && !do_loop {
                             // The `for(;;)` shape carries its test inside the
                             // body: header, then `if(exit){..break}`.
@@ -12144,29 +12162,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         if compact_loop && !do_loop {
                             if let Some(counter) = rotation_counter {
                                 rotate_guarded_decrement(
-                                    &mut loop_header,
+                                    &mut loop_head,
                                     &mut body_output,
                                     context.value_name(counter)?,
                                 );
                             }
                         }
-                        out.push_block(&loop_header);
-                        out.push_str(
-                            &JsBranch {
-                                block: body_output,
-                                braceless,
-                            }
-                            .render(JsStatementOptions {
+                        out.push_statement_with(
+                            JsStatement::Loop {
+                                head: loop_head,
+                                body: JsBranch {
+                                    block: body_output,
+                                    braceless,
+                                },
+                                do_condition,
+                            },
+                            JsStatementOptions {
                                 elide_block_terminal_semicolons: self
                                     .options
                                     .elide_block_terminal_semicolons,
-                            }),
+                            },
                         );
-                        if let Some(condition) = do_condition {
-                            out.push_str("while(");
-                            out.push_str(&condition);
-                            out.push_str(");");
-                        }
                         cache.clear();
                         if loop_condition_is_constant_true
                             && !loop_body_reaches_exit(function, body, header, exit)
@@ -18609,29 +18625,32 @@ fn compact_top_level_expression_statements(output: &str) -> Option<String> {
     Some(compact)
 }
 
-fn emit_for_open(out: &mut JsBlock, initializer: Option<&str>) {
-    if let Some(initializer) = initializer {
-        if !for_initializer_is_identifier_assigns(initializer) {
-            let names = for_initializer_assigned_names(initializer);
-            if !names.is_empty() {
-                out.push_statement(JsStatement::DeclarationGroup {
-                    keyword: "var ",
-                    names: names.iter().map(|name| (*name).to_string()).collect(),
-                });
-            }
-        }
+/// `for(a=1,b=2;..)` over names not yet declared hoists `var a,b;` ahead of
+/// the loop; an initialiser that is only identifier assigns spells `var`
+/// inline instead (see `for_initializer_text`).
+fn hoist_for_initializer_declarations(out: &mut JsBlock, initializer: Option<&str>) {
+    let Some(initializer) = initializer else {
+        return;
+    };
+    if for_initializer_is_identifier_assigns(initializer) {
+        return;
     }
-    out.push_str("for(");
-    if let Some(initializer) = initializer {
-        push_for_initializer(out, initializer);
+    let names = for_initializer_assigned_names(initializer);
+    if names.is_empty() {
+        return;
     }
+    out.push_statement(JsStatement::DeclarationGroup {
+        keyword: "var ",
+        names: names.iter().map(|name| (*name).to_string()).collect(),
+    });
 }
 
-fn push_for_initializer(out: &mut JsBlock, initializer: &str) {
+fn for_initializer_text(initializer: &str) -> String {
     if for_initializer_is_identifier_assigns(initializer) {
-        out.push_str("var ");
+        format!("var {initializer}")
+    } else {
+        initializer.to_string()
     }
-    out.push_str(initializer);
 }
 
 fn identifier_assign_name(part: &str) -> Option<&str> {
@@ -21587,6 +21606,48 @@ enum JsStatement {
         then_branch: JsBranch,
         else_branch: Option<JsBranch>,
     },
+    /// `while(c){..}`, `for(i;c;u){..}`, `for(;;){..}`, and the do-shape
+    /// `if(c)do{..}while(c);` -- a head, a body branch, and the trailing
+    /// condition the do-shape repeats.
+    Loop {
+        head: JsLoopHead,
+        body: JsBranch,
+        do_condition: Option<String>,
+    },
+}
+
+/// The clause a loop opens with. `For` with nothing in it is `for(;;)`.
+#[derive(Debug, Clone)]
+enum JsLoopHead {
+    /// `if(c)do` -- the guard of a do-while spelled as a guarded do.
+    DoWhile { guard: String },
+    /// `for(i;c;u)` with any of the three absent.
+    For {
+        initializer: Option<String>,
+        condition: Option<String>,
+        update: Option<String>,
+    },
+    /// `while(c)`.
+    While { condition: String },
+}
+
+impl JsLoopHead {
+    fn render(&self) -> String {
+        match self {
+            Self::DoWhile { guard } => format!("if({guard})do"),
+            Self::While { condition } => format!("while({condition})"),
+            Self::For {
+                initializer,
+                condition,
+                update,
+            } => format!(
+                "for({};{};{})",
+                initializer.as_deref().unwrap_or(""),
+                condition.as_deref().unwrap_or(""),
+                update.as_deref().unwrap_or("")
+            ),
+        }
+    }
 }
 
 /// A run of consecutive `let` declarators, held back until the run ends.
@@ -21747,6 +21808,20 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
+            Self::Loop {
+                head,
+                body,
+                do_condition,
+            } => {
+                let mut text = head.render();
+                text.push_str(&body.render(options));
+                if let Some(condition) = do_condition {
+                    text.push_str("while(");
+                    text.push_str(&condition);
+                    text.push_str(");");
+                }
+                text
+            }
             Self::Raw(text) => text,
             Self::If {
                 condition,
@@ -23249,7 +23324,7 @@ fn positive_counter_condition(
 ///
 /// The header must end its test at `n>0` -- anything but `)` and `;` after it
 /// means the condition is compound and the rotation would change it.
-fn rotate_guarded_decrement(header: &mut JsBlock, body: &mut JsBlock, counter: &str) -> bool {
+fn rotate_guarded_decrement(head: &mut JsLoopHead, body: &mut JsBlock, counter: &str) -> bool {
     let prefix = format!("--{counter};");
     let postfix = format!("{counter}--;");
     let decrement_len = if body.starts_with(&prefix) {
@@ -23259,17 +23334,23 @@ fn rotate_guarded_decrement(header: &mut JsBlock, body: &mut JsBlock, counter: &
     } else {
         return false;
     };
+    // Only the shapes the compact loop takes; the guard must be the last
+    // thing in the condition (the old text check: only `)` and `;` after it).
+    let condition = match head {
+        JsLoopHead::While { condition } => condition,
+        JsLoopHead::For {
+            condition: Some(condition),
+            update: None,
+            ..
+        } => condition,
+        _ => return false,
+    };
     let guarded = format!("{counter}>0");
-    let Some(at) = header.rfind(&guarded) else {
+    let Some(kept) = condition.strip_suffix(guarded.as_str()) else {
         return false;
     };
-    let end = at + guarded.len();
-    if !header[end..].bytes().all(|byte| matches!(byte, b')' | b';')) {
-        return false;
-    }
-    let rotated = format!("{}{counter}--{}", &header[..at], &header[end..]);
+    *condition = format!("{kept}{counter}--");
     let rest = body[decrement_len..].to_string();
-    *header = JsBlock::from(rotated);
     *body = JsBlock::from(rest);
     true
 }

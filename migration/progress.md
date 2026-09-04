@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 61% nodes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 75% nodes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,7 +132,7 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **237** |
+| fragment appends (`push_str`) | 324 | **230** |
 | statement nodes (`push_statement`) | 0 | **20** |
 | escapes into emitted text | 26 | **0** |
 
@@ -153,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **61% of statement bytes arrive as nodes** (probe, shipped config; expression statements are `JsStatement::Expression`, child blocks join their parent's list through `push_block`). Raw bytes 1,255,537 → 803,728; what remains: loop head+branch 25.5%, `let` groups 7.8%, function heads, `emit_for_open` | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **75% of statement bytes arrive as nodes** (probe, shipped config; expression statements are `JsStatement::Expression`, loops are `JsStatement::Loop` with a `JsLoopHead` value — the guarded-decrement rotation is now a suffix check on the condition, not an `rfind` through head text — and child blocks join their parent's list through `push_block`). Raw bytes 1,255,537 → 803,728 → 512,740; what remains: `let` groups 12.2%, function heads 6.5%, phi copies 10.7%, the branch-closing `}` 4.8% | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |
