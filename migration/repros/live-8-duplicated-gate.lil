@@ -1,15 +1,21 @@
-int calls=0;
-bool probe(int value){calls++;return (value&1)==0;}
-class Base { int value; int tag; init(int value,int tag){} int step(int amount){return this.value;} }
-int objects(int seed){ Base base=new Base(seed,seed^3); return base.step(seed&7)+base.step(seed&3); }
-int case1(int x,int y){
-  int a=(459579554%5);
-  int b=(((x-y)*(y^(-18)))/(-2));
-  bool gate=probe(((b>>(-12))&(x>>(-22))))&&((a^b)<0)||probe(((a/4)^(-23)));
-  int old=b++; b+=old; if(gate){--b;}else{++b;}
-  { int shadowSource=(243152255-(a&a)); { int a=shadowSource; b+=a; } }
-  b+=objects(a^b);
+// The `none` lane prints 4; the default preset and the reference interpreter
+// print 2. Two is the only possible answer: one gate, two call sites, one call.
+//
+// Delete the class -- which nothing references -- and the `none` lane prints 2.
+int calls = 0;
+bool probe(int v) { calls++; return (v & 1) == 0; }
+
+class Unused { int value; init(int v) { this.value = v; } }
+
+int go(int x) {
+  int a = 1;
+  int b = x;
+  bool gate = probe(a) && ((a ^ b) < 0) || probe(b);
+  int old = b++;
+  b += old;
+  if (gate) { --b; } else { ++b; }
   return b;
 }
-print(case1(829508706,84958413));
+
+print(go(5));
 print(calls);

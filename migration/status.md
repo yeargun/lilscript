@@ -484,10 +484,25 @@ dead first copy is scheduled **before the `v47` it reads**. With `preset = "none
 emission keeps the gate in a variable (`v41=..; v71=v41?..:..`), which is what the same program
 without the class does.
 
-The trigger is an **empty constructor** — legal, since `int` fields default to 0, and the same program
-with an assigning constructor is emitted correctly. Repro:
-`migration/repros/live-8-duplicated-gate.lil`. Not fixed here; it is an IR scheduling defect and wants
-its own investigation.
+**The trigger is declaring a class the program never uses.** Not the constructor, not instantiation,
+not a method call — the declaration. `migration/repros/live-8-duplicated-gate.lil` is 16 lines; delete
+the `class Unused` line, which nothing references, and the `none` lane prints 2.
+
+    // without the class -- correct, one gate, two probe calls
+    var v15 = probe(1)&&(1^x)<0||probe(x), v21 = x+1+x;
+    return v15 ? v21-1 : v21+1;
+
+    // with it -- the gate is inlined into two places, and the first is dead
+    var v30 = probe(1)&&(1^x)<0||probe(x) ? v21-1 : v21+1,   // v21 is `undefined` here
+        v21 = x+1+x;
+    return probe(1)&&(1^x)<0||probe(x) ? v21-1 : v21+1;
+
+`v30` and the returned expression are the **same phi**, emitted twice: once as a dead statement
+scheduled *before* the `v21` it reads, once inlined at the use. So a value was scheduled ahead of its
+own operand and then rematerialised, and the rematerialisation duplicated a call.
+
+Not fixed here. It is an IR scheduling defect in the lane that is supposed to do no scheduling at all,
+and it wants its own investigation rather than a guess at the end of a long session.
 
 `clang` is absent on this host, so the harness cannot run its `--target all` arm here. The JS lanes
 and the oracle were compared directly instead, which is what found this.
