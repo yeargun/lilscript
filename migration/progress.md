@@ -44,7 +44,7 @@ Brotli and on compile time.
 | 0.3 differential is generative | **landed** | `--random-seed`, seed printed before work — `fe51558` |
 | 0.3b domain reaches classes/closures | **landed** | reference interpreter models instances, `super`, `this`, lexical capture — `6d0a741` |
 | 0.4 baseline frozen across 61 configs | **not started** | needs a pool run and F2 |
-| 0.5 live wrong programs | **6 of 8 fixed** | table below |
+| 0.5 live wrong programs | **6 of 9 fixed** | table below |
 | F1–F5 fleet gaps | **landed** (F2 partial) | `fleet-tests.mjs` still to promote |
 
 ### Live wrong programs
@@ -59,8 +59,10 @@ Brotli and on compile time.
 | 6 | `JS.number(x["length"])` loses its `ToNumber` | fixed — at the family's admission predicate |
 | 7 | `optional_constructor_callback` fails to compile | fixed — `5fc2aac` |
 | 8 | local-phi region duplicates a side effect | fixed — `d07a529`, found by 0.3b |
+| 9 | at `optimization_level = 15`, a `\|\|`/`&&` chain loses one side-effect call | **open** — found by the probe's config matrix; pre-existing; needs its surrounding program, minimisation in progress |
 
-Both open items are language/fleet-rule decisions, not bug fixes, and neither blocks a later phase.
+Items 1 and 2 are language/fleet-rule decisions, not bug fixes, and neither blocks a later phase.
+Item 9 is a real miscompile in the search and is the next thing to fix.
 
 ---
 
