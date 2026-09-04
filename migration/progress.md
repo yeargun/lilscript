@@ -91,6 +91,7 @@ an operandless `>>>0` `Binary` node — each invisible while `code` was authorit
 |---|---|---|
 | 2a `JsBlock` alias, 63 signatures | **landed** | pure rename — `404ec93` |
 | 2b real type, escapes named | **landed** | no `DerefMut`; `truncate`/`pop`/`remove`/`insert_str`/`replace_range` are named methods — `292803b` |
+| **2b escapes removed** | **landed — 26 → 0** | every edit of already-emitted text is gone; bodies and headers are values, runs are pending lists, terminators are flags |
 | 2b loop-keyword census as counters | **landed** | was a full rescan twice per loop — `292803b`, bounded in `00206f1` |
 | **statements and module as a tree** | **started, 10 kinds** | bindings, `return`/`throw`, loop control, `import`/`export`; the emitter still writes the rest as text |
 | block termination is a fact, not a text read | **landed** | 8 `ends_with(';')` sites → a maintained flag, witnessed — `afacdc1` |
@@ -110,9 +111,9 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **251** |
+| fragment appends (`push_str`) | 324 | **246** |
 | statement nodes (`push_statement`) | 0 | **22** |
-| escapes into emitted text | 26 | **4** |
+| escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
 `Break`, `Continue`, `Import`, `Export`, `If` — and each holds its **children**, not their text.

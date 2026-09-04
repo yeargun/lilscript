@@ -9073,23 +9073,49 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             Vec::new()
         };
-        let function_start = out.len();
-        let body_start = out.len();
+        // The body is built as a value. Two things used to be done to it
+        // afterwards by searching `out`: the concise-arrow rewrite truncated
+        // back to a remembered offset, and the parameter coercions were
+        // spliced in after a `find('{')`. Both now look at the body itself.
+        let mut body = out.nested();
         if single_block {
-            self.emit_single_block_with_context(function, true, context, out)?;
+            self.emit_single_block_with_context(function, true, context, &mut body)?;
         } else if structured {
-            self.emit_structured_with_context(function, true, context, out)?;
+            self.emit_structured_with_context(function, true, context, &mut body)?;
         } else {
-            self.emit_state_machine_with_context(function, context, out)?;
+            self.emit_state_machine_with_context(function, context, &mut body)?;
         }
-        if arrow_binding {
-            try_rewrite_arrow_expression_body(out, body_start);
-            if !out.ends_with_semicolon() {
-                out.push(';');
+        let concise = arrow_binding
+            .then(|| concise_arrow_body(&body))
+            .flatten();
+        if let Some(expression) = concise {
+            // A coercion needs a parameter that feeds a loop phi, a loop needs
+            // a block body, and the rewrite fires only on `{return X;}` -- so
+            // these cannot both hold. Asserted rather than assumed, because
+            // the old splice would have put the coercions somewhere inside
+            // `X` if they ever did.
+            debug_assert!(public_int_params.is_empty(), "coercions on a concise arrow body");
+            push_concise_arrow_body(out, &expression);
+        } else if public_int_params.is_empty() {
+            out.push_str(&body);
+        } else {
+            let body = body.into_string();
+            // Public `int` parameters that feed a loop phi are coerced on
+            // entry, as the first statements of the block. This is the one
+            // place the body's text is still sliced rather than treated as a
+            // statement list; it goes when the dispatchers take a preamble.
+            let rest = body
+                .strip_prefix('{')
+                .expect("a body with parameter coercions is a block");
+            out.push('{');
+            for param in &public_int_params {
+                out.push_str(param);
+                out.push_str("|=0;");
             }
+            out.push_str(rest);
         }
-        if !public_int_params.is_empty() {
-            inject_public_int_param_coercions(out, function_start, &public_int_params);
+        if arrow_binding && !out.ends_with_semicolon() {
+            out.push(';');
         }
         Ok(())
     }
@@ -11839,55 +11865,58 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             && self.options.comma_expressions)
                             .then(|| take_trailing_expression_statements(out))
                             .flatten();
+                        // The header is a value too, so the guarded-decrement
+                        // rotation below can be a decision about a header and a
+                        // body rather than a search backwards through `out`.
+                        let mut loop_header = out.nested();
                         let do_condition = if do_loop {
                             let condition = if body_on_true {
                                 condition.clone()
                             } else {
                                 negated_condition.clone()
                             };
-                            out.push_str("if(");
-                            out.push_str(&condition);
-                            out.push_str(")do");
+                            loop_header.push_str("if(");
+                            loop_header.push_str(&condition);
+                            loop_header.push_str(")do");
                             Some(condition)
                         } else if let Some(update_clause) = &update_clause {
-                            emit_for_open(out, for_initializer.as_deref());
-                            out.push(';');
+                            emit_for_open(&mut loop_header, for_initializer.as_deref());
+                            loop_header.push(';');
                             if body_on_true {
-                                out.push_str(&condition);
+                                loop_header.push_str(&condition);
                             } else {
-                                out.push_str(&negated_condition);
+                                loop_header.push_str(&negated_condition);
                             }
-                            out.push(';');
-                            out.push_str(update_clause);
-                            out.push(')');
+                            loop_header.push(';');
+                            loop_header.push_str(update_clause);
+                            loop_header.push(')');
                             None
                         } else if compact_loop {
                             if reuse_for_spelling {
-                                emit_for_open(out, for_initializer.as_deref());
-                                out.push(';');
+                                emit_for_open(&mut loop_header, for_initializer.as_deref());
+                                loop_header.push(';');
                             } else {
-                                out.push_str("while(");
+                                loop_header.push_str("while(");
                             }
                             if body_on_true {
-                                out.push_str(&condition);
+                                loop_header.push_str(&condition);
                             } else {
-                                out.push_str(&negated_condition);
+                                loop_header.push_str(&negated_condition);
                             }
                             if reuse_for_spelling {
-                                out.push(';');
+                                loop_header.push(';');
                             }
-                            out.push(')');
+                            loop_header.push(')');
                             None
                         } else {
-                            out.push_str("for(;;)");
+                            loop_header.push_str("for(;;)");
                             None
                         };
-                        // Every variant's body now goes into its own block. The
-                        // two remembered offsets into `out` are gone; the only
-                        // one left is computed *after* the body is appended, for
-                        // the guarded-decrement rewrite, which still reads the
-                        // header and body as one span.
-                        let mut body_output = out.nested();
+                        // The body inherits the header's keyword counts as if
+                        // the header had already been appended, which it soon
+                        // will be; `LoopSpelling::Auto` inside the body must
+                        // see it.
+                        let mut body_output = loop_header.nested();
                         if !compact_loop && !do_loop {
                             // The `for(;;)` shape carries its test inside the
                             // body: header, then `if(exit){..break}`.
@@ -11963,11 +11992,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let braceless = compact_loop
                             && !do_loop
                             && (compacted_loop_body || is_braceless_statement(&body_output));
-                        // Where the body starts once appended. `rewrite_guarded_decrement_loop`
-                        // still needs header and body contiguous, so it gets the
-                        // position rather than the block -- and it is the last
-                        // reader of an offset here.
-                        let loop_body_open = (compact_loop && !do_loop).then_some(out.len());
+                        // `while(n>0){--n;..}` becomes `while(n--){..}`. A
+                        // decision about the header and the body as values --
+                        // the same two checks the old rewrite made by searching
+                        // backwards through `out` from the body's brace.
+                        if compact_loop && !do_loop {
+                            if let Some(counter) = rotation_counter {
+                                rotate_guarded_decrement(
+                                    &mut loop_header,
+                                    &mut body_output,
+                                    context.value_name(counter)?,
+                                );
+                            }
+                        }
+                        out.push_str(&loop_header);
                         out.push_str(
                             &JsBranch {
                                 block: body_output,
@@ -11983,13 +12021,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_str("while(");
                             out.push_str(&condition);
                             out.push_str(");");
-                        }
-                        if let Some(counter) = rotation_counter {
-                            rewrite_guarded_decrement_loop(
-                                out,
-                                loop_body_open,
-                                context.value_name(counter)?,
-                            );
                         }
                         cache.clear();
                         if loop_condition_is_constant_true
@@ -16462,7 +16493,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         named_function_expression_head(recursive_name.as_deref(), &parameters)
                     )
                 } else {
-                    try_rewrite_arrow_expression_body(&mut body, 0);
+                    let body = match concise_arrow_body(&body) {
+                        Some(expression) => {
+                            let mut concise = JsBlock::new();
+                            push_concise_arrow_body(&mut concise, &expression);
+                            concise.into_string()
+                        }
+                        None => body.into_string(),
+                    };
                     format!("{parameters}=>{body}")
                 },
             );
@@ -17358,27 +17396,20 @@ fn bitwise_arithmetic_elides_coercion(
     }
 }
 
-fn try_rewrite_arrow_expression_body(out: &mut JsBlock, body_start: usize) {
-    if body_start >= out.len() || !out[body_start..].starts_with('{') {
-        return;
-    }
-    let body = &out[body_start..];
-    let Some(inner) = body
-        .strip_prefix('{')
-        .and_then(|rest| rest.strip_suffix('}'))
-    else {
-        return;
-    };
-    let Some(expression) = inner.strip_prefix("return ") else {
-        return;
-    };
+/// The expression a `{return X;}` body can become in a concise arrow, if any.
+///
+/// A question about a value now, answered by the caller, where it used to be
+/// a rewrite that truncated `out` back to a remembered offset. It still reads
+/// the body as text -- "is this exactly one return statement" is a fact a
+/// statement list would carry -- which is the phase 3 seam.
+fn concise_arrow_body(body: &JsBlock) -> Option<String> {
+    let inner = body.strip_prefix('{')?.strip_suffix('}')?;
+    let expression = inner.strip_prefix("return ")?;
     let expression = expression.strip_suffix(';').unwrap_or(expression);
     if expression.is_empty() || expression_has_top_level_statement_break(expression) {
-        return;
+        return None;
     }
-    let expression = expression.to_string();
-    out.truncate(body_start);
-    push_concise_arrow_body(out, &expression);
+    Some(expression.to_string())
 }
 
 /// A concise arrow body starting with `{` would parse as a block statement, so an object
@@ -17480,19 +17511,6 @@ fn expression_has_top_level_statement_break(expression: &str) -> bool {
     depth != 0
 }
 
-fn inject_public_int_param_coercions(out: &mut JsBlock, function_start: usize, params: &[String]) {
-    let body = &out[function_start..];
-    let Some(relative) = body.find('{') else {
-        return;
-    };
-    let insert_at = function_start + relative + 1;
-    let mut coercion = String::new();
-    for param in params {
-        coercion.push_str(param);
-        coercion.push_str("|=0;");
-    }
-    out.insert_str(insert_at, &coercion);
-}
 
 fn for_update_clause(output: &str) -> Option<String> {
     let clause = output.strip_suffix(';')?;
@@ -23070,37 +23088,34 @@ fn positive_counter_condition(
     (value_type(function, counter).as_ref() == Some(&Type::Int)).then_some(counter)
 }
 
-fn rewrite_guarded_decrement_loop(
-    out: &mut JsBlock,
-    loop_body_open: Option<usize>,
-    counter: &str,
-) -> bool {
-    let Some(open) = loop_body_open else {
-        return false;
-    };
-    let body_start = open + usize::from(out.as_bytes().get(open) == Some(&b'{'));
+/// `while(n>0){--n;..}` and `while(n>0){n--;..}` both mean `while(n--){..}`
+/// when the decrement is the body's first statement: the test decrements
+/// exactly once per iteration either way, and the loop still stops at zero.
+///
+/// The header must end its test at `n>0` -- anything but `)` and `;` after it
+/// means the condition is compound and the rotation would change it.
+fn rotate_guarded_decrement(header: &mut JsBlock, body: &mut JsBlock, counter: &str) -> bool {
     let prefix = format!("--{counter};");
     let postfix = format!("{counter}--;");
-    let decrement_len = if out[body_start..].starts_with(&prefix) {
+    let decrement_len = if body.starts_with(&prefix) {
         prefix.len()
-    } else if out[body_start..].starts_with(&postfix) {
+    } else if body.starts_with(&postfix) {
         postfix.len()
     } else {
         return false;
     };
     let guarded = format!("{counter}>0");
-    let Some(relative_condition) = out[..open].rfind(&guarded) else {
+    let Some(at) = header.rfind(&guarded) else {
         return false;
     };
-    let condition_end = relative_condition + guarded.len();
-    if !out[condition_end..open]
-        .bytes()
-        .all(|byte| matches!(byte, b')' | b';'))
-    {
+    let end = at + guarded.len();
+    if !header[end..].bytes().all(|byte| matches!(byte, b')' | b';')) {
         return false;
     }
-    out.replace_range(body_start..body_start + decrement_len, "");
-    out.replace_range(relative_condition..condition_end, &format!("{counter}--"));
+    let rotated = format!("{}{counter}--{}", &header[..at], &header[end..]);
+    let rest = body[decrement_len..].to_string();
+    *header = JsBlock::from(rotated);
+    *body = JsBlock::from(rest);
     true
 }
 
