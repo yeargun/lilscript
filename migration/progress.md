@@ -108,8 +108,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **281** |
-| statement nodes (`push_statement`) | 0 | **17** |
+| fragment appends (`push_str`) | 324 | **272** |
+| statement nodes (`push_statement`) | 0 | **19** |
 | escapes into emitted text | 26 | **16** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,

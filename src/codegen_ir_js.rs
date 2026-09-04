@@ -11458,19 +11458,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     }
                                 }
                             } else {
-                                out.push_str("if(");
-                                out.push_str(&negated_condition);
-                                if is_braceless_statement(&else_output) {
-                                    out.push(')');
-                                    out.push_str(&else_output);
-                                } else {
-                                    out.push_str("){");
-                                    out.push_str(&else_output);
-                                    close_statement_block(
-                                        out,
-                                        self.options.elide_block_terminal_semicolons,
-                                    );
-                                }
+                                out.push_statement_with(
+                                    JsStatement::If {
+                                        condition: negated_condition.clone(),
+                                        then_branch: JsBranch::compact(else_output),
+                                        else_branch: None,
+                                    },
+                                    JsStatementOptions {
+                                        elide_block_terminal_semicolons: self
+                                            .options
+                                            .elide_block_terminal_semicolons,
+                                    },
+                                );
                             }
                         } else if else_output.is_empty() {
                             if let Some((target, value)) =
@@ -11567,26 +11566,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 }
                                 out.push(';');
                             } else {
-                                out.push_str("if(");
-                                out.push_str(&negated_condition);
-                                if is_braceless_statement(&else_output) {
-                                    out.push(')');
-                                    out.push_str(&else_output);
-                                } else {
-                                    out.push_str("){");
-                                    out.push_str(&else_output);
-                                    close_statement_block(
-                                        out,
-                                        self.options.elide_block_terminal_semicolons,
-                                    );
-                                }
+                                out.push_statement_with(
+                                    JsStatement::If {
+                                        condition: negated_condition.clone(),
+                                        then_branch: JsBranch::compact(else_output),
+                                        else_branch: None,
+                                    },
+                                    JsStatementOptions {
+                                        elide_block_terminal_semicolons: self
+                                            .options
+                                            .elide_block_terminal_semicolons,
+                                    },
+                                );
                             }
                         } else {
                             out.push_statement_with(
                                 JsStatement::If {
                                     condition: condition.clone(),
-                                    then_branch: then_output,
-                                    else_branch: Some(else_output),
+                                    then_branch: JsBranch::braced(then_output),
+                                    else_branch: Some(JsBranch::braced(else_output)),
                                 },
                                 JsStatementOptions {
                                     elide_block_terminal_semicolons: self
@@ -21285,7 +21283,7 @@ enum JsStatement {
         keyword: &'static str,
         names: Vec<String>,
     },
-    /// `if(c){..}` and `if(c){..}else{..}`, always braced.
+    /// `if(c){..}`, `if(c)s;`, and either with an `else`.
     ///
     /// The branches arrive as finished blocks because the emitter builds them
     /// into their own `JsBlock` before it knows which shape to wrap them in.
@@ -21293,9 +21291,45 @@ enum JsStatement {
     /// rather than text, these become child statement lists.
     If {
         condition: String,
-        then_branch: JsBlock,
-        else_branch: Option<JsBlock>,
+        then_branch: JsBranch,
+        else_branch: Option<JsBranch>,
     },
+}
+
+/// One arm of an `if`, and whether it may drop its braces.
+///
+/// Bracelessness is a judgement about the arm's *content* -- `is_braceless_statement`
+/// refuses anything that could swallow a following `else`, and refuses an empty
+/// body, which `if(c);` would silently become. The emitter makes that call, so
+/// the node carries the answer rather than re-deriving it.
+#[derive(Debug, Clone)]
+struct JsBranch {
+    block: JsBlock,
+    braceless: bool,
+}
+
+impl JsBranch {
+    fn braced(block: JsBlock) -> Self {
+        Self {
+            block,
+            braceless: false,
+        }
+    }
+
+    /// Braceless when the arm's content allows it, braced otherwise.
+    fn compact(block: JsBlock) -> Self {
+        let braceless = is_braceless_statement(&block);
+        Self { block, braceless }
+    }
+
+    fn render(self, options: JsStatementOptions) -> String {
+        if self.braceless {
+            return self.block.into_string();
+        }
+        let mut out = String::from("{");
+        out.push_str(&JsStatement::close_branch(self.block, options));
+        out
+    }
 }
 
 /// Render options for statements, mirroring `JsRenderOptions` for expressions.
@@ -21396,11 +21430,17 @@ impl JsStatement {
                 then_branch,
                 else_branch,
             } => {
-                let mut out = format!("if({condition}){{");
-                out.push_str(&Self::close_branch(then_branch, options));
+                let mut out = format!("if({condition})");
+                out.push_str(&then_branch.render(options));
                 if let Some(else_branch) = else_branch {
-                    out.push_str("else{");
-                    out.push_str(&Self::close_branch(else_branch, options));
+                    out.push_str("else");
+                    // `else` needs a space before a bare statement and none
+                    // before `{`; the braced arm supplies its own.
+                    let rendered = else_branch.render(options);
+                    if !rendered.starts_with('{') {
+                        out.push(' ');
+                    }
+                    out.push_str(&rendered);
                 }
                 out
             }
