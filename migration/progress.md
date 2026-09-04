@@ -155,9 +155,32 @@ Taken this session, on the pool, and they contradict two things the plan assumed
 
 ---
 
-## How to check the state yourself
+## The loop
 
-    node finer/tools/workers.mjs check          # 144 case-lanes on the pool, ~11 s -- THE gate
-    node finer/tools/workers.mjs check --ports cnlil,markedlil
+Owner directive: iterate on **one small library**, and keep the big ports for occasional background
+verification that never blocks editing.
+
+    # inner loop -- 4.6 s, both optimization lanes, diffed against a golden
+    cd ~/probelil && LILSCRIPT_COMPILER=../lilscript/target/release/lilscript \
+        node scripts/build.mjs --compile
+
+    # cheap gates
     cargo test --release --lib                  # 1,706 tests
-    LILSCRIPT_TWIN=1 <compile>                  # the expression tree reproduces its own text
+    node finer/tools/workers.mjs check          # 144 case-lanes on the pool, ~11 s
+
+    # occasional, in the background, never blocking
+    node finer/tools/workers.mjs build --ports markedlil,zodlil --compiler <path> --dist-dir <dir>
+
+`~/probelil` is not a port of anything. It is a small library whose source deliberately exercises
+every language feature, built at `preset = "none"` *and* at the shipped config and diffed against
+`expected.out`, so a wrong program at either level fails in seconds instead of in a 130-second port
+build. cnlil, the smallest real port, takes 76 s here; the probe takes **4.6**.
+
+Writing it found six things the language does not have — no hex literals, no `do`/`while`, no ternary
+`?:` (the compiler *emits* them; you cannot write one), `error` is reserved, catch bindings are typed
+and must be `auto` or `JsValue`, struct literals are positional while record literals are named — and
+one trap worth more than all of them: copied from cnlil, its config carried `strip_console = true`, so
+every `print` was stripped and the artifact ran clean while asserting **nothing**. That is the third
+convincingly-empty pass this session has produced from an inherited or discovered config.
+
+Do **not** build the 27-port fleet.
