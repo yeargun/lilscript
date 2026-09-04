@@ -405,6 +405,26 @@ being built beside it — and the whole regression was the counter maintenance.
 The counters are checked rather than trusted: under `LILSCRIPT_TWIN=1`, `loop_keyword_counts` asserts
 against a fresh scan. 144 runs (72 cases × both lanes), 0 failures.
 
+### The IDENTICAL gate, on all three canaries
+
+[009](009-phases.md) names cnlil, markedlil and posthoglil as the canaries, and phases 1–4 claim the
+**IDENTICAL** gate: every artifact byte-identical to the incumbent. Every artifact of all three,
+built by `0081beb` (before phase 1) and by `00206f1` (phase 1 + 2a + 2b):
+
+| port | artifacts | differing |
+|---|---:|---:|
+| cnlil | 8 | **0** |
+| posthoglil | 28 | **0** |
+| markedlil | 8 | **0** |
+
+**44 artifacts, none differing.** And all three compile clean under `LILSCRIPT_TWIN=1`, so the
+expression tree reproduces its own text and the block counters match a fresh scan across three real
+codebases, not only across `tests/cases`.
+
+Built from `rsync` copies under the scratch directory, never in the port trees: `~/posthoglil` and
+`~/markedlil` both had uncommitted `dist/` changes at the time from the concurrent session, so even a
+correctly-scoped `git checkout -- dist/` would have destroyed work.
+
 ### The escapes are now named
 
 Every way of reaching back into emitted text — `truncate`, `pop`, `remove`, `insert_str`,
