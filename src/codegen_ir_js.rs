@@ -9962,11 +9962,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             Some(Terminator::Return(None)) => {}
             Some(Terminator::Throw(value)) => {
-                out.push_str("throw ");
-                out.push_str(&strip_outer_parens(take_value(
-                    *value, &context, &mut cache,
-                )?));
-                out.push(';');
+                out.push_str(
+                    &JsStatement::Throw {
+                        value: take_value(*value, &context, &mut cache)?,
+                    }
+                    .render(),
+                );
             }
             Some(Terminator::Unreachable) => {
                 self.emit_unreachable_terminator(block.instructions.last(), out);
@@ -10949,21 +10950,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str("}continue;");
                 }
                 Terminator::Return(Some(value)) => {
-                    if context.is_js_undefined(*value) {
-                        out.push_str("return;");
-                    } else {
-                        out.push_str("return ");
-                        out.push_str(&take_value(*value, &context, &mut cache)?);
-                        out.push(';');
-                    }
+                    let returned = (!context.is_js_undefined(*value))
+                        .then(|| take_value(*value, &context, &mut cache))
+                        .transpose()?;
+                    out.push_str(&JsStatement::Return { value: returned }.render());
                 }
-                Terminator::Return(None) => out.push_str("return;"),
+                Terminator::Return(None) => {
+                    out.push_str(&JsStatement::Return { value: None }.render());
+                }
                 Terminator::Throw(value) => {
-                    out.push_str("throw ");
-                    out.push_str(&strip_outer_parens(take_value(
-                        *value, &context, &mut cache,
-                    )?));
-                    out.push(';');
+                    out.push_str(
+                        &JsStatement::Throw {
+                            value: take_value(*value, &context, &mut cache)?,
+                        }
+                        .render(),
+                    );
                 }
                 Terminator::Try { .. } => {
                     return Err(CodegenError::new(
@@ -12189,25 +12190,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     current = *target;
                 }
                 Terminator::Return(Some(value)) => {
-                    if context.is_js_undefined(*value) {
-                        out.push_str("return;");
-                    } else {
-                        out.push_str("return ");
-                        out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-                        out.push(';');
-                    }
+                    let returned = (!context.is_js_undefined(*value))
+                        .then(|| take_value(*value, context, cache))
+                        .transpose()?;
+                    out.push_str(&JsStatement::Return { value: returned }.render());
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Return(None) => {
                     if function.kind != FunctionKind::Entry {
-                        out.push_str("return;");
+                        out.push_str(&JsStatement::Return { value: None }.render());
                     }
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Throw(value) => {
-                    out.push_str("throw ");
-                    out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-                    out.push(';');
+                    out.push_str(
+                        &JsStatement::Throw {
+                            value: take_value(*value, context, cache)?,
+                        }
+                        .render(),
+                    );
                     return Ok(PathEnd::Terminated);
                 }
                 Terminator::Try { .. } => {
@@ -21278,6 +21279,10 @@ enum JsStatement {
         name: String,
         value: JsExpression,
     },
+    /// `return v;` or `return;`.
+    Return { value: Option<JsExpression> },
+    /// `throw v;`.
+    Throw { value: JsExpression },
 }
 
 impl JsStatement {
@@ -21293,6 +21298,15 @@ impl JsStatement {
                 keyword.unwrap_or(""),
                 strip_outer_parens(value)
             ),
+            // `return` and `throw` both take a complete Expression, so an outer
+            // grouping is always redundant here. One of the two `return` sites
+            // stripped it and the other did not; unifying on the node settles
+            // that in favour of the shorter spelling.
+            Self::Return { value: None } => "return;".to_string(),
+            Self::Return { value: Some(value) } => {
+                format!("return {};", strip_outer_parens(value))
+            }
+            Self::Throw { value } => format!("throw {};", strip_outer_parens(value)),
         }
     }
 }

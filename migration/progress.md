@@ -90,7 +90,7 @@ an operandless `>>>0` `Binary` node — each invisible while `code` was authorit
 | 2a `JsBlock` alias, 63 signatures | **landed** | pure rename — `404ec93` |
 | 2b real type, escapes named | **landed** | no `DerefMut`; `truncate`/`pop`/`remove`/`insert_str`/`replace_range` are named methods — `292803b` |
 | 2b loop-keyword census as counters | **landed** | was a full rescan twice per loop — `292803b`, bounded in `00206f1` |
-| **statements and module as a tree** | **started** | `JsStatement` exists; the value binding is the first kind to move — `afacdc1`+ |
+| **statements and module as a tree** | **started, 4 kinds** | `Declaration`, `Binding`, `Return`, `Throw` are nodes; the emitter still writes the rest as text |
 | block termination is a fact, not a text read | **landed** | 8 `ends_with(';')` sites → a maintained flag, witnessed — `afacdc1` |
 
 `00206f1` is worth reading before the next perf change: the first counter implementation was
