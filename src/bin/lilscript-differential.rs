@@ -315,6 +315,52 @@ impl ProgramGenerator {
              int differentialSnapshotRebind(Record<int> node,Record<int> next){int saved=node.href??0;node=next;return saved+(node.href??0);}\n\
              int differentialSnapshotComputed(Record<int> node,int next){int saved=node[\"href\"]??0;node.href=next;return saved+(node.href??0);}\n\
              int differentialSnapshotCapturedRebind(Record<int> node,int next){int saved=node.href??0;func()->void rebind=()=>{node=record{href:next,title:0};};rebind();return saved+(node.href??0);}\n\
+             class DifferentialBase {\n\
+               int value;\n\
+               int tag;\n\
+               init(int value, int tag) {\n\
+                 this.value = value;\n\
+                 this.tag = tag;\n\
+               }\n\
+               int step(int amount) {\n\
+                 this.value += amount;\n\
+                 return this.value;\n\
+               }\n\
+               int describe() {\n\
+                 return this.value * 2 + this.tag;\n\
+               }\n\
+             }\n\
+             class DifferentialHolder {\n\
+               int seed;\n\
+               func(int)->int transform;\n\
+               init(int seed, func(int)->int transform) {\n\
+                 this.seed = seed;\n\
+                 this.transform = transform;\n\
+               }\n\
+               int apply(int amount) {\n\
+                 func(int)->int local = this.transform;\n\
+                 return local(this.seed + amount);\n\
+               }\n\
+               func(int)->int capturing() {\n\
+                 return (int amount) => this.seed + amount;\n\
+               }\n\
+             }\n\
+             func(int)->int differentialCounter(int start) {\n\
+               int total = start;\n\
+               return (int amount) => { total += amount; return total; };\n\
+             }\n\
+             int differentialObjects(int seed) {\n\
+               DifferentialBase base = new DifferentialBase(seed, seed ^ 3);\n\
+                   int total = base.step(seed & 7) + base.step(seed & 3);\n\
+               total += base.describe() + base.describe();\n\
+               DifferentialHolder holder = new DifferentialHolder(seed, (int amount) => amount ^ seed);\n\
+               total += holder.apply(seed & 15);\n\
+               func(int)->int escaped = holder.capturing();\n\
+               total += escaped(seed & 31);\n\
+               func(int)->int counter = differentialCounter(seed);\n\
+               total += counter(1) + counter(2) + counter(3);\n\
+               return total;\n\
+             }\n\
              int differentialIdentity(int seed){Record<int> written=record{href:seed,title:seed^1};Record<int> reboundFrom=record{href:seed,title:seed^1};Record<int> reboundTo=record{href:seed^7,title:seed^3};Record<int> computed=record{href:seed,title:seed^1};Record<int> captured=record{href:seed,title:seed^1};int prev=0;int cur=seed&15;if(cur==0){cur=1;}int count=0;while(prev!=cur){prev=cur;if(cur>3){cur=cur-3;}else{cur=0;}count=count+1;}return differentialSnapshotWrite(written,seed^9)+differentialSnapshotRebind(reboundFrom,reboundTo)+differentialSnapshotComputed(computed,seed^11)+differentialSnapshotCapturedRebind(captured,seed^13)+count;}\n",
         );
         let mut calls = String::new();
@@ -332,6 +378,11 @@ impl ProgramGenerator {
         let identity_seed = self.random.literal();
         writeln!(source, "print(differentialIdentity({identity_seed}));")
             .expect("writing to String cannot fail");
+        for _ in 0..3 {
+            let object_seed = self.random.literal();
+            writeln!(source, "print(differentialObjects({object_seed}));")
+                .expect("writing to String cannot fail");
+        }
         source.push_str("print(differentialCalls);\n");
         source
     }
@@ -397,7 +448,7 @@ impl ProgramGenerator {
         // coverage without generating an invalid program.
         writeln!(
             source,
-            "{{int shadowSource={shadow};{{int a=shadowSource;b+=a;}}}}return b;}}"
+            "{{int shadowSource={shadow};{{int a=shadowSource;b+=a;}}}}b+=differentialObjects(a^b);return b;}}"
         )
         .expect("writing to String cannot fail");
     }

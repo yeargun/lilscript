@@ -6,9 +6,9 @@ use ahash::AHashMap;
 use indexmap::IndexMap;
 
 use crate::ast::{
-    ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, Expr, ForInitializer,
-    FunctionDecl, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart, TypeKind,
-    UnaryOp, UpdateOp, VarDecl,
+    ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember,
+    ConstructorDecl, Expr, ForInitializer, FunctionDecl, Item, MatchPattern, Param, Program,
+    RecordElement, Stmt, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::semantic::{SemanticModel, SymbolId, Type};
 use crate::span::Span;
@@ -60,8 +60,18 @@ enum Value {
     TypedArray(Rc<TypedArrayValue>),
     Symbol(Rc<SymbolValue>),
     Callable(Callable),
+    /// A `class` instance. Reference semantics, like `Record`: two bindings to
+    /// one `new` observe each other's writes, which is the behaviour the
+    /// compiled program has and therefore the behaviour the oracle must have.
+    Instance(Rc<InstanceValue>),
     Null,
     Void,
+}
+
+#[derive(Debug)]
+struct InstanceValue {
+    class: String,
+    fields: RefCell<IndexMap<String, Value>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,6 +111,11 @@ struct RuntimeClosure<'ast, 'src> {
     params: &'ast [Param<'ast, 'src>],
     body: ArrowBody<'ast, 'src>,
     captures: AHashMap<SymbolId, BindingCell>,
+    /// The `this` in scope where the closure was written. LilScript closures
+    /// bind `this` lexically, so it is captured at creation rather than taken
+    /// from the caller -- see `migration/004-legality-by-construction.md`, where
+    /// getting this rule wrong is one of the recorded live defects.
+    captured_this: Option<Value>,
     return_type: Type<'src>,
 }
 
@@ -119,11 +134,25 @@ enum RuntimePlace {
         view: Rc<TypedArrayValue>,
         index: usize,
     },
+    InstanceField {
+        instance: Rc<InstanceValue>,
+        name: String,
+    },
 }
 
 impl Value {
     fn display(&self, span: Span) -> Result<String, InterpretError> {
         match self {
+            // Deliberately unrenderable. A compiled instance prints as
+            // `[object Object]` or a class-shaped literal depending on how it
+            // was emitted, and an oracle that guessed would compare a guess.
+            Self::Instance(instance) => Err(InterpretError::new(
+                span,
+                format!(
+                    "reference interpreter cannot print a `{}` instance",
+                    instance.class
+                ),
+            )),
             Self::Int(value) => Ok(value.to_string()),
             Self::Float(value) if value.is_nan() => Ok("NaN".to_string()),
             Self::Float(value) if *value == f64::INFINITY => Ok("Infinity".to_string()),
@@ -203,6 +232,11 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
     globals: AHashMap<SymbolId, Value>,
     frames: Vec<AHashMap<SymbolId, BindingCell>>,
     closures: Vec<RuntimeClosure<'ast, 'src>>,
+    /// Declared classes by name, and the `this` of the call in progress.
+    classes: AHashMap<&'src str, &'program ClassDecl<'ast, 'src>>,
+    this_stack: Vec<Value>,
+    /// The class whose constructor is running, so `super(..)` knows its base.
+    constructor_classes: Vec<&'src str>,
     output: String,
     remaining_steps: u64,
     recursion_depth: usize,
@@ -225,10 +259,23 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 _ => None,
             })
             .collect();
+        // Declared (non-host) classes only. An `extern class` is a host binding
+        // with no body to interpret, so it stays unsupported and says so.
+        let classes = program
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Class(class) if !class.object => Some((class.name.name, class)),
+                _ => None,
+            })
+            .collect();
         Self {
             program,
             semantics,
             functions,
+            classes,
+            this_stack: Vec::new(),
+            constructor_classes: Vec::new(),
             globals: AHashMap::new(),
             frames: Vec::new(),
             closures: Vec::new(),
@@ -258,10 +305,13 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     }
                 },
                 Item::Enum(_) | Item::Struct(_) | Item::Function(_) => {}
+                // Declared classes are interpreted; their members are reached
+                // through `new`, so nothing runs at the declaration itself.
+                Item::Class(class) if !class.object => {}
                 Item::Class(_) | Item::ExternClass(_) | Item::Extern(_) | Item::ExternGlobal(_) => {
                     return Err(InterpretError::new(
                         item.span(),
-                        "reference interpreter does not support host or class declarations",
+                        "reference interpreter does not support host or object-class declarations",
                     ));
                 }
             }
@@ -378,6 +428,29 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     format!("uncaught thrown value: {value:?}"),
                 ))
             }
+            Stmt::SuperCall { args, span } => {
+                let Some(class) = self.constructor_classes.last().copied() else {
+                    return Err(InterpretError::new(*span, "`super` outside a constructor"));
+                };
+                let Some(base) = self
+                    .classes
+                    .get(class)
+                    .and_then(|declaration| declaration.base)
+                    .and_then(base_class_name)
+                else {
+                    return Err(InterpretError::new(*span, "`super` in a class with no base"));
+                };
+                let Some(Value::Instance(instance)) = self.this_stack.last().cloned() else {
+                    return Err(InterpretError::new(*span, "`super` without an instance"));
+                };
+                let mut values = Vec::with_capacity(args.len());
+                for argument in *args {
+                    values.push(self.evaluate(argument)?);
+                }
+                self.run_constructor(base, &instance, values, *span)?;
+                Ok(Flow::Next)
+            }
+            #[expect(unreachable_patterns, reason = "kept while host classes stay unsupported")]
             Stmt::SuperCall { span, .. } => Err(InterpretError::new(
                 *span,
                 "class constructors are only available through compiled targets",
@@ -541,6 +614,11 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 *span,
                 "dynamic module tasks execute only in the JavaScript backend",
             )),
+            Expr::Ident(identifier) if identifier.name == "this" => self
+                .this_stack
+                .last()
+                .cloned()
+                .ok_or_else(|| InterpretError::new(identifier.span, "`this` outside a method")),
             Expr::Ident(identifier) => {
                 let symbol = self.symbol(identifier.span)?;
                 if self.functions.contains_key(&symbol) {
@@ -671,6 +749,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     params,
                     body: body.clone(),
                     captures,
+                    captured_this: self.this_stack.last().cloned(),
                     return_type,
                 });
                 Ok(Value::Callable(Callable::Closure(closure)))
@@ -835,12 +914,105 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
     }
 
+    /// Find a method by name, walking the base chain.
+    ///
+    /// LilScript forbids overriding an inherited member, so the first match is
+    /// the only match and there is no dispatch decision to get wrong.
+    fn find_method(
+        &self,
+        class: &'src str,
+        method: &str,
+    ) -> Option<(&'src str, &'program FunctionDecl<'ast, 'src>)> {
+        let mut current = Some(class);
+        while let Some(name) = current {
+            let declaration = self.classes.get(name)?;
+            for member in declaration.members {
+                if let ClassMember::Method(function) = member {
+                    if function.name.name == method {
+                        return Some((name, function));
+                    }
+                }
+            }
+            current = declaration.base.and_then(base_class_name);
+        }
+        None
+    }
+
+    fn find_constructor(
+        &self,
+        class: &'src str,
+    ) -> Option<&'program ConstructorDecl<'ast, 'src>> {
+        self.classes.get(class)?.members.iter().find_map(|member| {
+            match member {
+                ClassMember::Constructor(constructor) => Some(constructor),
+                _ => None,
+            }
+        })
+    }
+
+    /// Run `class`'s constructor against an instance that already exists, so a
+    /// `super(..)` call initialises the same object rather than a new one.
+    fn run_constructor(
+        &mut self,
+        class: &'src str,
+        instance: &Rc<InstanceValue>,
+        values: Vec<Value>,
+        span: Span,
+    ) -> Result<(), InterpretError> {
+        let Some(constructor) = self.find_constructor(class) else {
+            if values.is_empty() {
+                return Ok(());
+            }
+            return Err(InterpretError::new(
+                span,
+                format!("class `{class}` has no constructor to take arguments"),
+            ));
+        };
+        let mut values = values;
+        for parameter in constructor.params.iter().skip(values.len()) {
+            let default = parameter.default.as_ref().ok_or_else(|| {
+                InterpretError::new(parameter.span, "missing constructor argument without a default")
+            })?;
+            values.push(self.evaluate(default)?);
+        }
+        if values.len() != constructor.params.len() {
+            return Err(InterpretError::new(span, "constructor argument count mismatch"));
+        }
+        let mut frame = AHashMap::with_capacity(constructor.params.len());
+        for (parameter, value) in constructor.params.iter().zip(values) {
+            let symbol = self.symbol(parameter.name.span)?;
+            let ty = self
+                .semantics
+                .binding_type(parameter.name.span)
+                .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
+            frame.insert(symbol, Rc::new(RefCell::new(coerce_value_to_type(value, ty))));
+        }
+        self.this_stack.push(Value::Instance(Rc::clone(instance)));
+        self.constructor_classes.push(class);
+        let result = self.execute_callable_frame(frame, constructor.body, None, constructor.span);
+        self.constructor_classes.pop();
+        self.this_stack.pop();
+        result.map(|_| ())
+    }
+
     fn evaluate_new(
         &mut self,
         name: &str,
         args: &'ast [Expr<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
+        if let Some(class) = self.classes.get(name).map(|class| class.name.name) {
+            let mut values = Vec::with_capacity(args.len());
+            for argument in args {
+                values.push(self.evaluate(argument)?);
+            }
+            let instance = Rc::new(InstanceValue {
+                class: class.to_string(),
+                fields: RefCell::new(IndexMap::new()),
+            });
+            self.run_constructor(class, &instance, values, span)?;
+            return Ok(Value::Instance(instance));
+        }
         if name == "Symbol" {
             if args.len() > 1 {
                 return Err(InterpretError::new(
@@ -893,6 +1065,20 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         match (object, property) {
+            (Value::Instance(instance), property) => instance
+                .fields
+                .borrow()
+                .get(property)
+                .cloned()
+                .ok_or_else(|| {
+                    InterpretError::new(
+                        span,
+                        format!(
+                            "field `{property}` of `{}` read before the constructor assigned it",
+                            instance.class
+                        ),
+                    )
+                }),
             (Value::Record(record), property) => Ok(record
                 .borrow()
                 .get(property)
@@ -1223,6 +1409,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             params,
             body,
             captures,
+            captured_this,
             return_type,
         } = closure;
         let mut frame = captures;
@@ -1237,13 +1424,60 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
             );
         }
+        // Lexical, not dynamic: the closure runs with the `this` of the scope it
+        // was written in, whatever the caller's happens to be.
+        let restored = captured_this.is_some();
+        if let Some(value) = captured_this {
+            self.this_stack.push(value);
+        }
         let result = match body {
             ArrowBody::Expr(expression) => {
                 self.execute_callable_frame(frame, &[], Some(expression), span)
             }
             ArrowBody::Block(body) => self.execute_callable_frame(frame, body, None, span),
-        }?;
-        Ok(coerce_value_to_type(result, &return_type))
+        };
+        if restored {
+            self.this_stack.pop();
+        }
+        Ok(coerce_value_to_type(result?, &return_type))
+    }
+
+    /// Call a method with `this` bound to the receiver.
+    fn invoke_method(
+        &mut self,
+        function: &'program FunctionDecl<'ast, 'src>,
+        instance: Rc<InstanceValue>,
+        mut values: Vec<Value>,
+        span: Span,
+    ) -> Result<Value, InterpretError> {
+        if function.is_async {
+            return Err(InterpretError::new(
+                function.span,
+                "async methods are only available for JavaScript targets",
+            ));
+        }
+        for parameter in function.params.iter().skip(values.len()) {
+            let default = parameter.default.as_ref().ok_or_else(|| {
+                InterpretError::new(parameter.span, "missing method argument without a default")
+            })?;
+            values.push(self.evaluate(default)?);
+        }
+        if values.len() != function.params.len() {
+            return Err(InterpretError::new(span, "method argument count mismatch"));
+        }
+        let mut frame = AHashMap::with_capacity(function.params.len());
+        for (parameter, value) in function.params.iter().zip(values) {
+            let symbol = self.symbol(parameter.name.span)?;
+            let ty = self
+                .semantics
+                .binding_type(parameter.name.span)
+                .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
+            frame.insert(symbol, Rc::new(RefCell::new(coerce_value_to_type(value, ty))));
+        }
+        self.this_stack.push(Value::Instance(instance));
+        let result = self.execute_callable_frame(frame, function.body, None, function.span);
+        self.this_stack.pop();
+        result
     }
 
     fn execute_callable_frame(
@@ -1289,6 +1523,31 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         for argument in args {
             arguments.push(self.evaluate(argument)?);
         }
+        if let Value::Instance(instance) = &receiver {
+            // A field holding a callable wins over a method of the same name
+            // only if no method exists: the language forbids the collision, so
+            // this order cannot be observed, and preferring the method keeps a
+            // field that happens to share a name from shadowing dispatch.
+            let class = self
+                .classes
+                .get(instance.class.as_str())
+                .map(|declaration| declaration.name.name)
+                .ok_or_else(|| {
+                    InterpretError::new(span, format!("unknown class `{}`", instance.class))
+                })?;
+            if let Some((_, function)) = self.find_method(class, method) {
+                let instance = Rc::clone(instance);
+                return self.invoke_method(function, instance, arguments, span);
+            }
+            let field = instance.fields.borrow().get(method).cloned();
+            if let Some(callable) = field {
+                return self.invoke_callable(callable, arguments, span);
+            }
+            return Err(InterpretError::new(
+                span,
+                format!("`{}` has no member `{method}`", instance.class),
+            ));
+        }
         if matches!(method, "truthy" | "isArray" | "isObject") {
             if !arguments.is_empty() {
                 return Err(InterpretError::new(
@@ -1303,6 +1562,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     Value::String(value) => !value.is_empty(),
                     Value::Bool(value) => *value,
                     Value::Null | Value::Void => false,
+                    Value::Instance(_) => true,
                     Value::Array(_)
                     | Value::Record(_)
                     | Value::Buffer(_)
@@ -1882,6 +2142,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     record,
                     key: property.name.to_string(),
                 }),
+                Value::Instance(instance) => Ok(RuntimePlace::InstanceField {
+                    instance,
+                    name: property.name.to_string(),
+                }),
                 _ => Err(InterpretError::new(*span, "member is not a record entry")),
             },
             Expr::Index {
@@ -1939,6 +2203,17 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             RuntimePlace::RecordEntry { record, key } => {
                 Ok(record.borrow().get(key).cloned().unwrap_or(Value::Null))
             }
+            RuntimePlace::InstanceField { instance, name } => instance
+                .fields
+                .borrow()
+                .get(name)
+                .cloned()
+                .ok_or_else(|| {
+                    InterpretError::new(
+                        span,
+                        format!("field `{name}` read before the constructor assigned it"),
+                    )
+                }),
         }
     }
 
@@ -1949,6 +2224,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<(), InterpretError> {
         match place {
+            RuntimePlace::InstanceField { instance, name } => {
+                instance.fields.borrow_mut().insert(name.clone(), value);
+                Ok(())
+            }
             RuntimePlace::Binding(symbol) => self.assign(*symbol, value, span),
             RuntimePlace::ArrayElement { array, index } => {
                 let mut array = array.borrow_mut();
@@ -2020,6 +2299,15 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             span,
             "assignment to an uninitialized binding",
         ))
+    }
+}
+
+/// The name of a class's base, if it has one. `extends` is always a named type
+/// in a class header, so anything else is not a base a constructor can reach.
+fn base_class_name<'src>(base: TypeRef<'_, 'src>) -> Option<&'src str> {
+    match base.kind {
+        TypeKind::Named { name, .. } => Some(name),
+        _ => None,
     }
 }
 
@@ -2122,7 +2410,18 @@ fn ordered_record_keys(record: &IndexMap<String, Value>) -> Vec<String> {
 }
 
 fn value_to_json(value: &Value, span: Span) -> Result<serde_json::Value, InterpretError> {
+    if let Value::Instance(instance) = value {
+        return Err(InterpretError::new(
+            span,
+            format!(
+                "reference interpreter cannot serialize a `{}` instance",
+                instance.class
+            ),
+        ));
+    }
     Ok(match value {
+        // Rejected above; repeated here so the match stays total by structure.
+        Value::Instance(_) => unreachable!("instances are rejected above"),
         Value::Int(value) => serde_json::Value::Number((*value).into()),
         Value::Float(value) => serde_json::Number::from_f64(*value)
             .map_or(serde_json::Value::Null, serde_json::Value::Number),
@@ -2735,6 +3034,93 @@ mod tests {
         let program = crate::for_of_family::expand_for_of_families(&arena, program, max_n);
         let semantics = analyze(&program).unwrap();
         interpret_program(&program, &semantics).unwrap()
+    }
+
+    /// The class and closure domain the differential harness generates.
+    ///
+    /// The oracle has to agree with the compiler here or the harness is worse
+    /// than useless -- a wrong oracle reports divergences that are its own. The
+    /// three expected lines are what `lilscript` emits for this source at both
+    /// `preset = "none"` and the repository default, checked by hand before
+    /// this test was written.
+    #[test]
+    fn evaluates_classes_inheritance_and_captured_this() {
+        let source = "class DifferentialBase {
+  int value;
+  int tag;
+
+  init(int value, int tag) {
+    this.value = value;
+    this.tag = tag;
+  }
+
+  int step(int amount) {
+    this.value += amount;
+    return this.value;
+  }
+
+  int describe() {
+    return this.value * 2 + this.tag;
+  }
+}
+
+class DifferentialDerived extends DifferentialBase {
+  int extra;
+
+  init(int value, int tag, int extra) {
+    super(value, tag);
+    this.extra = extra;
+  }
+
+  int describeExtra() {
+    return this.value * 2 + this.tag + this.extra;
+  }
+}
+
+class DifferentialHolder {
+  int seed;
+  func(int)->int transform;
+
+  init(int seed, func(int)->int transform) {
+    this.seed = seed;
+    this.transform = transform;
+  }
+
+  int apply(int amount) {
+    func(int)->int local = this.transform;
+    return local(this.seed + amount);
+  }
+
+  func(int)->int capturing() {
+    return (int amount) => this.seed + amount;
+  }
+}
+
+func(int)->int differentialCounter(int start) {
+  int total = start;
+  return (int amount) => { total += amount; return total; };
+}
+
+int differentialObjects(int seed) {
+  DifferentialBase base = new DifferentialBase(seed, seed ^ 3);
+  DifferentialDerived derived = new DifferentialDerived(seed ^ 1, seed ^ 5, seed ^ 7);
+  DifferentialBase viewed = derived;
+  int total = base.step(seed & 7) + derived.step(seed & 3);
+  total += base.describe() + derived.describeExtra() + viewed.describe();
+  DifferentialHolder holder = new DifferentialHolder(seed, (int amount) => amount ^ seed);
+  total += holder.apply(seed & 15);
+  func(int)->int escaped = holder.capturing();
+  total += escaped(seed & 31);
+  func(int)->int counter = differentialCounter(seed);
+  total += counter(1) + counter(2) + counter(3);
+  return total;
+}
+
+print(differentialObjects(11));
+print(differentialObjects(-7));
+print(differentialObjects(0));
+";
+        assert_eq!(run(source), "249\n-67\n35\n");
     }
 
     #[test]

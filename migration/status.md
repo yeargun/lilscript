@@ -447,6 +447,53 @@ block text stops being a block and becomes an artifact or an expression.
 
 ---
 
+## Phase 0.3b — the differential reaches classes, and immediately finds a wrong program
+
+The reference interpreter used to refuse: *"reference interpreter does not support host or class
+declarations"*. Since every miscompile on record lives in the class/closure domain, the harness could
+not have caught any of them. It can now: instances (reference semantics, like records), constructors,
+`super(..)` initialising the same object, methods with `this` bound, func-typed fields holding
+callables, and **closures capturing `this` lexically** — the rule [004](004-legality-by-construction.md)
+records as one of the live defects, so the oracle models it explicitly rather than by accident.
+
+`evaluates_classes_inheritance_and_captured_this` pins the oracle against the compiler's own answer
+for the whole domain, at both lanes.
+
+### Live-8: the unoptimized lane duplicates a side-effecting expression
+
+Found within minutes of the domain being generated, delta-minimised from 83 lines to 15, and
+**present in `main` and in every binary tried** — nothing to do with this migration:
+
+    class Base { int value; int tag; init(int value,int tag){} int step(int amount){return this.value;} }
+
+    bool gate=probe(..)&&((a^b)<0)||probe(..);
+    int old=b++; b+=old; if(gate){--b;}else{++b;}
+
+`preset = "none"` prints **4** probe calls; the default preset and the interpreter print **2**. Two is
+the only possible answer — one gate, two call sites, one call — so **the reference lane is the wrong
+one**, which is worse than it sounds: `none` is the ablation control every measurement leans on.
+
+The emission says why:
+
+    v71=(probe(..)&&(..)<0)||probe(..)?v47-1|0:v47+1|0,   // v47 not assigned yet
+    v47=(v15+1|0)+v15|0,
+    v63=((probe(..)&&(..)<0)||probe(..)?v47-1|0:v47+1|0)+(..)|0;
+
+Two defects in three lines: the gate is **duplicated**, doubling an observable side effect, and the
+dead first copy is scheduled **before the `v47` it reads**. With `preset = "none"` the correct
+emission keeps the gate in a variable (`v41=..; v71=v41?..:..`), which is what the same program
+without the class does.
+
+The trigger is an **empty constructor** — legal, since `int` fields default to 0, and the same program
+with an assigning constructor is emitted correctly. Repro:
+`migration/repros/live-8-duplicated-gate.lil`. Not fixed here; it is an IR scheduling defect and wants
+its own investigation.
+
+`clang` is absent on this host, so the harness cannot run its `--target all` arm here. The JS lanes
+and the oracle were compared directly instead, which is what found this.
+
+---
+
 ## Where compile time actually goes
 
 `trailing_scan` was added to `timing.rs` to settle whether

@@ -1,0 +1,15 @@
+int calls=0;
+bool probe(int value){calls++;return (value&1)==0;}
+class Base { int value; int tag; init(int value,int tag){} int step(int amount){return this.value;} }
+int objects(int seed){ Base base=new Base(seed,seed^3); return base.step(seed&7)+base.step(seed&3); }
+int case1(int x,int y){
+  int a=(459579554%5);
+  int b=(((x-y)*(y^(-18)))/(-2));
+  bool gate=probe(((b>>(-12))&(x>>(-22))))&&((a^b)<0)||probe(((a/4)^(-23)));
+  int old=b++; b+=old; if(gate){--b;}else{++b;}
+  { int shadowSource=(243152255-(a&a)); { int a=shadowSource; b+=a; } }
+  b+=objects(a^b);
+  return b;
+}
+print(case1(829508706,84958413));
+print(calls);
