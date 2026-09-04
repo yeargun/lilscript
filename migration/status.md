@@ -421,6 +421,18 @@ built by `0081beb` (before phase 1) and by `00206f1` (phase 1 + 2a + 2b):
 expression tree reproduces its own text and the block counters match a fresh scan across three real
 codebases, not only across `tests/cases`.
 
+Compile time, same two arms, run serially on an otherwise idle host:
+
+| port | `0081beb` | `00206f1` | |
+|---|---:|---:|---|
+| cnlil | 76.0 / 76.3 s | 76.2 / 76.5 / 76.4 s | +0.3% |
+| posthoglil | 96.3 s | 96.7 s | +0.4% |
+| markedlil | 326.41 s | 326.43 s | +0.006% |
+
+So the end condition the owner set — *compression the same or better, compilation the same or
+faster* — holds for everything landed so far: **44 artifacts byte-identical, three ports within
+half a percent on time.**
+
 Built from `rsync` copies under the scratch directory, never in the port trees: `~/posthoglil` and
 `~/markedlil` both had uncommitted `dist/` changes at the time from the concurrent session, so even a
 correctly-scoped `git checkout -- dist/` would have destroyed work.
