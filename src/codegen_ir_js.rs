@@ -15372,7 +15372,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.options.compact_boolean_literals,
                 false,
                 None,
-            )?;
+            )
+            .map_err(|mut e| {
+                e.message.push_str(" [site=wrapper-arrow-params]");
+                e
+            })?;
             let mut call = String::new();
             call.push_str(name);
             call.push('(');
@@ -15386,7 +15390,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if !captures.is_empty() || param.value != function.params[0].value {
                     call.push(',');
                 }
-                call.push_str(context.value_name(param.value)?);
+                call.push_str(context.value_name(param.value).map_err(|mut e| {
+                    e.message.push_str(" [site=wrapper-forwarding-call]");
+                    e
+                })?);
             }
             call.push(')');
             if self.options.function_spelling == FunctionSpelling::Function {
@@ -19773,7 +19780,32 @@ impl LocalNames {
             }
         }
         for value in values {
-            if inlined_values.contains_key(&value) {
+            // A parameter is a binding in the function's signature, not an
+            // expression that can be folded into its use. Skipping it here left
+            // it unnamed while every consumer still needs to spell it:
+            // `render_arrow_parameters` writes the parameter list and
+            // `render_closure_body` writes the forwarding call, and both ask
+            // `value_name` for it.
+            //
+            // That is how `optional_constructor_callback` stopped compiling --
+            // "SSA value 3 has no emitted name in function `sameParity`" -- and
+            // with it `verify-matrix.sh`, `verify.sh` and the whole release
+            // gate, which run every case under `set -eu`. It needs only a
+            // generic function with a parameter whose type mentions the type
+            // parameter inside a function type:
+            //
+            //     bool sp(int a, int b) { return a % 2 == b % 2; }
+            //     bool use<T>(T x, func(T,T)->bool f) { return f(x, x); }
+            //     print(use(4, sp));
+            //
+            // `f(x, x)` makes the second parameter a copy of the first, the
+            // value becomes single-use and fusable, and it lands in
+            // `inlined_values` -- so the signature lost a name the signature
+            // still had to print.
+            if inlined_values.contains_key(&value)
+                && !parameter_values.contains(&value)
+                && uses.get(&value).copied().unwrap_or(0) <= 1
+            {
                 continue;
             }
             value_names.entry(value).or_insert_with(|| {
@@ -19901,11 +19933,37 @@ impl LocalNames {
             .get(&value)
             .map(String::as_str)
             .ok_or_else(|| {
+                // Name the values that DO have names. "value N has no name"
+                // alone says nothing about which walk disagreed with which;
+                // the named set says immediately whether the namer saw a
+                // different body or merely classified this value differently.
+                let mut named: Vec<_> = self
+                    .value_names
+                    .iter()
+                    .map(|(id, name)| (id.0, name.as_str()))
+                    .collect();
+                named.sort_unstable();
+                let shown = named
+                    .iter()
+                    .take(24)
+                    .map(|(id, name)| format!("v{id}={name}"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let elided = named.len().saturating_sub(24);
                 CodegenError::new(
                     self.function_span,
                     format!(
-                        "SSA value {} has no emitted name in function `{}`",
-                        value.0, self.function_name
+                        "SSA value {} has no emitted name in function `{}` (inlined={} param={} uses={} named: [{shown}{}])",
+                        value.0,
+                        self.function_name,
+                        self.inlined_values.contains_key(&value),
+                        self.parameter_values.contains(&value),
+                        self.use_counts.get(&value).copied().unwrap_or(0),
+                        if elided == 0 {
+                            String::new()
+                        } else {
+                            format!(" +{elided} more")
+                        },
                     ),
                 )
             })
@@ -35664,6 +35722,35 @@ consume(field(JS.object("type", 1), "type"));
         assert!(!exclusive.contains("+1|0"), "{exclusive}");
         assert!(inclusive.contains("+1|0"), "{inclusive}");
         assert!(!inclusive.contains("++"), "{inclusive}");
+    }
+
+    /// A value the emitter chose to inline must still be *nameable* when it has
+    /// more than one use, and a parameter must always be nameable.
+    ///
+    /// The naming walk skipped every value in `inlined_values`. That is sound
+    /// only for a single use — substituting an expression at "the" use site
+    /// means nothing when there are two — so a two-use value reached emission
+    /// with no name and the compile failed outright:
+    ///
+    ///     error: SSA value 3 has no emitted name in function `sameParity`
+    ///
+    /// `verify-matrix.sh` runs every `tests/cases/*.lil` under `set -eu`, so
+    /// this took `verify.sh` and the whole release gate down with it. The
+    /// trigger is a generic function whose parameter type mentions the type
+    /// parameter inside a function type: `f(x, x)` makes the second argument a
+    /// copy of the first, the value becomes multiply-used yet fusable, and it
+    /// landed in `inlined_values` unnamed.
+    #[test]
+    fn a_multiply_used_inlined_value_still_gets_a_name() {
+        let output = compile(
+            "bool sp(int a,int b){return a%2==b%2;}\
+             bool use<T>(T x,func(T,T)->bool f){return f(x,x);}\
+             print(use(4,sp));",
+        );
+        assert!(
+            !output.is_empty(),
+            "a generic callback parameter must not fail to name a value: {output}"
+        );
     }
 
     /// `charCodeAt` keeps its `|0` unless the index is proven in bounds, and

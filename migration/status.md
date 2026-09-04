@@ -34,7 +34,7 @@ exactly what `fleet-compare.mjs --require-identical-unless-declared` now exists 
 | 0.3 differential is generative | **landed** | `--random-seed` on `lilscript-differential`; seed printed before work starts; `scripts/verify.sh` uses it, `LILSCRIPT_DIFFERENTIAL_SEED` replays |
 | 0.3b domain extended to classes/closures | **not started** | the domain where every known miscompile lives |
 | 0.4 baseline frozen | **not started** | needs the pool and the F-gaps below |
-| 0.5 live bugs fixed | **2 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
+| 0.5 live bugs fixed | **3 of 7** | see below; plus one unsound *test* corrected — `elides_char_code_at_integer_normalization_when_proven` asserted the elision on a source that proves nothing (`read()` returns a string of unknown length, and `"".charCodeAt(0)` is NaN) |
 
 ### Fleet gaps ([008](008-fleet.md))
 
@@ -45,6 +45,65 @@ exactly what `fleet-compare.mjs --require-identical-unless-declared` now exists 
 | F3 skipped compile reports false green | **landed** | `workers.mjs` passes `--force` where the port's script accepts it, and **fails a build that exits 0 without a `lilscript-timing` line** |
 | F4 A/B destroys arm A's telemetry | **landed** | `--log-dir` on `workers.mjs`; per-arm `last-build.json` |
 | F5 no compiler provenance | **landed** | `last-build.json` records the compiler path and SHA-256 |
+
+---
+
+## The release gate was red at HEAD — now fixed
+
+`scripts/verify-matrix.sh` runs every `tests/cases/*.lil` at `preset = "maximum"` and at
+`preset = "none"`, under `set -eu`. `optional_constructor_callback` **fails to compile** at maximum:
+
+    $ target/release/lilscript tests/cases/optional_constructor_callback.lil --target all -o /tmp/x
+    error: SSA value 3 has no emitted name in function `sameParity`
+
+So `verify-matrix.sh` aborted, `verify.sh` aborted, and `release-check.sh` — the whole release gate —
+could not pass. That was not a regression introduced here; it is the state this work found.
+
+**Fixed.** The case now compiles and produces `true false true false`, matching its golden `.out`
+byte for byte.
+
+Minimised to three lines, and it needs neither the class nor the optional parameter:
+
+```lilscript
+bool sp(int a, int b) { return a % 2 == b % 2; }
+bool use<T>(T x, func(T,T)->bool f) { return f(x, x); }
+print(use(4, sp));
+```
+
+The trigger is **a generic function with a parameter whose type mentions the type parameter inside a
+function type** (`func(T,T)->bool`). A `func(int,int)->bool` parameter on the same generic function is
+fine; a non-generic function with the same callback parameter is fine; passing a lambda instead of a
+named function fails the same way (in `<closure>` rather than `sp`).
+
+Bisected: `preset = "none"` compiles it, `preset = "maximum"` does not, and **none of the eleven
+individual optimizer toggles fixes it** — so the responsible option is one of the five in
+`OptimizationOptions` that has no config key at all (`forward_global_aliases`,
+`inline_exported_internal_calls`, and the three inline limits).
+
+**Root cause, found by making the error explain itself** (`inlined=? param=? uses=?`):
+
+    error: SSA value 3 has no emitted name in function `sp`
+           (inlined=true param=false uses=2 named: [v0=b v1=c v4=a v7=d v8=e])
+
+The value is in `inlined_values` — the emitter holds a `JsExpression` to substitute at its use site —
+**and it has two uses**. Substituting at "the" use site is only meaningful for a single use, so a
+consumer correctly asked for a name, and the naming loop had skipped it:
+
+```rust
+for value in values {
+    if inlined_values.contains_key(&value) { continue; }   // ← no name for a 2-use value
+    value_names.entry(value).or_insert_with(...);
+}
+```
+
+Fixed by narrowing the skip to the case it is actually sound for — a single use — and never skipping
+a parameter, which is a binding in the signature rather than an expression at all.
+
+This is exactly the shape [004 §8](004-legality-by-construction.md) predicts: the namer and the
+emitter are two walks over one function that disagree about which values need a name, and the
+disagreement is discovered at emission by a failed map lookup rather than prevented. Under the target
+representation the question does not arise — an identifier names a `Bind`, and a node either has a
+binding or is an expression, not both.
 
 ---
 
@@ -60,7 +119,7 @@ Seven found, all reproduced. Three fire in a **default** configuration.
 | 4 | `charCodeAt` out of range yields `NaN` instead of `0` under the default `size-first` | **fixed** — `StringCharCodeAt` keeps its post-coercion range but is no longer elidable |
 | 5 | `preset = "none"` deletes a module global's binding while a use renders its name | open — two disjoint declaration paths in `codegen_ir_js.rs`. **This is the optimizer-ablation control lane `verify-matrix.sh` runs every case through** |
 | 6 | `JS.number(x["length"])` loses its `ToNumber` under the default `size-first` | open — the field's own doc comment admits `.length` is not always a number |
-| 7 | `optional_constructor_callback` fails to compile: "SSA value 3 has no emitted name" | open — every config except `preset = "none"` |
+| 7 | `optional_constructor_callback` fails to compile: "SSA value 3 has no emitted name" | **fixed** — a two-use value was classified inlinable, so it got no name; the skip now applies only to a genuine single use, and never to a parameter |
 
 Five of the seven were personally reproduced in this session; 6 and 7 carry an agent's repro and
 command line and have not been re-run here.

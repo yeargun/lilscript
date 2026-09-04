@@ -255,24 +255,41 @@ transform still means the same thing.
 
 ## Scorecard
 
-| Class | Status |
-|---|---|
-| 1. Identity from spelling | unrepresentable |
-| 2. Knob changes legality | compile-error |
-| 3. Loop latch guessed | unrepresentable |
-| 4. Scope guessed | unrepresentable |
-| 5. Grouping guessed | unrepresentable |
-| 6. Decision from rendered text | unrepresentable *(with a named discipline at the Spell level)* |
-| 7. Obligation counted | checked-at-build |
-| 8. Stage silently no-ops | **detected only** |
-| 9. Registry drift | compile-error |
-| 10. Forked rewriter drift | compile-error |
-| 11. Gate false green | checked-at-build *(harness, not representation)* |
-| 12. Legal tree, wrong meaning | **still-possible** |
+The twelve classes above were the hand-built set. An adversarial pass over the whole corpus — two
+independent architecture syntheses, three attackers on separate lenses, and a final certification —
+extended it to **34 known wrong-program classes** and classified each against the design:
 
-Ten of twelve close by construction or by the build. Two do not, and they are the two that matter
-most to be honest about: **a pass can still decline everything for a bad reason, and a transform can
-still be wrong about what it is doing.**
+| Status | Count |
+|---|---:|
+| **unrepresentable** — the illegal state has no bit pattern | **21** |
+| **compile-error** | 2 |
+| **checked-at-build** | 6 |
+| **detected-at-runtime** | 3 |
+| **still-possible** | **2** |
+
+Twenty-nine of thirty-four close by construction or by the build. The five that do not are the
+honest part, and they are worth naming individually rather than aggregating:
+
+**still-possible — `fold_ident_ternary_to_or`**, the third shipped wrong-program fold. Certification's
+own words: *"types stop grammar errors, context errors, stale facts and repair-after-the-fact. They
+do not stop a transform that legally rewrites the wrong program."*
+
+**still-possible — G12**, ES class recovery from `JsValue` prototype tables. It may never leave the
+peephole, *and if the distinct prototype-table shapes across mobxlil / katexlil / remarklil /
+react-markdownlil number more than a handful it should not.* Sequenced alone and last.
+
+**detected-at-runtime — semantic equivalence of any ported `ShapeTransform`.** Thirty-five folds port,
+and each is a fresh opportunity to rewrite `a-b` as `b-a`. Types make preconditions unrepresentable;
+they do not make a rewrite correct.
+
+**detected-at-runtime — silent fact loss.** A transform that rebuilds a node instead of respinning it
+drops a fact. The loss is silent *in bytes*: partial `|0` elision costs Brotli, so one lost fact
+flips a whole function and surfaces as +20..+60 — inside the noise band.
+
+**detected-at-runtime — a "neutral" retirement that is not.** Any byte change re-derives
+`IdentifierAlphabet::for_code` from the artifact's ASCII histogram, so **a one-byte difference can
+cascade into a wholly different identifier assignment.** This is why a neutral phase must prove
+byte-identity rather than measure closeness.
 
 ---
 
