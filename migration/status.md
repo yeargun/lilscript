@@ -1,9 +1,9 @@
-# Migration status
+# Migration status — evidence archive (2026-09-04)
 
-Parent: [index](index.md). Plan: [009](009-phases.md).
-**State lives in [progress](progress.md)** — this file is the long-form evidence behind it. Where the
-two disagree, `progress.md` is right: it is updated in the same commit as the work.
-Updated 2026-09-04.
+Parent: [index](index.md). Plan: [009](009-phases.md), re-sequenced by [012](012-second-look.md).
+**Archived.** State lives in [progress](progress.md) (dense) and [history](history.md) (narrative);
+this file is the long-form evidence of phases 0–2 and the first pool measurements, frozen on
+2026-09-04. Where it disagrees with `progress.md`, `progress.md` is right.
 
 Numbers taken on the orchestrator host are **triage, not evidence**
 ([D5](001-directives.md#d5--compiles-run-on-the-pool-not-on-this-host)). Nothing here has been

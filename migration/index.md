@@ -70,6 +70,7 @@ So the thesis is not "the text layer is slow." It is:
 | [009](009-phases.md) | **Phases and gates** | Nine phases, each shippable, each with an invariant, a gate and a rollback. |
 | [010](010-what-this-unlocks.md) | **What it unlocks** | The 21 facts, the 8-flag annotation design, and the transforms currently refused for lack of proof. |
 | [011](011-phase-5-naming.md) | **Phase 5, step by step** | Binding identity on the tree, spelling as a side table, `EmissionWalk` as the anchor, then the orderings that change bytes. |
+| [012](012-second-look.md) | **The second look (2026-09-05)** | What 111 commits established, where the plan was wrong, and the re-sequenced plan: one emission, many prints; score final text; then the fold groups. **Read this before 009's phase order.** |
 
 ---
 
@@ -116,9 +117,11 @@ credit-drained burstable host and are **triage, not evidence** —
 
 ## Where the work has got to
 
-**[progress.md](progress.md) is the state of this migration** — one table per phase, updated in the
-same commit as the work it describes. Read it first. [status.md](status.md) is the long-form evidence
-behind it: measurements, repros, and the things that turned out not to be true.
+**[progress.md](progress.md) is the state of this migration** — the dense ledger: one row per
+landed step, the live wrong programs, the instruments, the measurement facts, updated in the same
+commit as the work it describes. Read it first. [history.md](history.md) is the narrative behind
+every row, as written; [status.md](status.md) is the frozen phase 0–2 evidence. [012](012-second-look.md)
+is the re-think of 2026-09-05 and the order the work follows from here.
 
 The two sections below were written before any of it started. They are kept as written, because a
 plan that quietly edits its own premises cannot be checked against what happened -- but the first of

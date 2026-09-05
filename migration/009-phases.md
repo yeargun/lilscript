@@ -3,6 +3,11 @@
 Parent: [index](index.md). Directives: [D3](001-directives.md#d3--compression-is-a-hard-constraint-and-byte-identity-is-the-only-clean-proof),
 [D7](001-directives.md#d7--every-phase-ships).
 
+> **Re-sequenced 2026-09-05 by [012](012-second-look.md).** Phase 7 (one emission, many prints;
+> score final text only) comes before the rest of phase 6, because every mid-pass fold retirement
+> was hostage to the search scoring text the pipeline still rewrote (progress.md, phase 6). The
+> phases keep their names and gates below; the order and the exit criteria are 012's.
+
 Every phase below ships to `main`, green, with the ports building. Each states the **invariant it
 establishes**, the **gate that proves it**, and the **rollback**. The order is fixed by dependency,
 not preference — where three independent designs and three independent reviews converged on an
