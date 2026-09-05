@@ -714,3 +714,13 @@ text idiom pass afterwards; what the ports lose is cross-function convergence, w
 `IdiomConverged`'s axis, not this one's. The renamer, the scope tree and the residues are the
 deliverable; the winning ordering is the next experiment.
 
+**5.4e — function and global references carry their binds.** The second residue on the ports (free
+references, 71,089 kept bindings on markedlil) was mostly module-level names spelled as bare atoms
+at their references: `LoadGlobal` and every direct-call callee. `function_atom` / `global_atom` build
+`Name(bind)` from `function_name_binds` / `global_binds` where the emission allocated the name (a
+foreign import spelled by its source stays an atom). Probe under `frequency-desc`: renamed bindings
+4,322 → **7,549** of 14,545, free-blocked 4,501 → 776, artifact 1,500 → **1,496** Brotli (default
+1,509). Default lane: 0 byte diffs, twin 0 failures over two lanes, frequency lane 73/73, 1,716
+tests; the port twin lane on remarklil, cnlil, micromarklil (the script now resolves the compiler
+path before it changes directory).
+

@@ -6,7 +6,7 @@
 #
 #   migration/tools/port-twin.sh <lilscript> <port-dir> <entry.lil> [target]
 set -u
-L=$1; PORT=$2; ENTRY=$3; TARGET=${4:-js-module}
+L=$(readlink -f "$1"); PORT=$2; ENTRY=$3; TARGET=${4:-js-module}
 WORK=${TMPDIR:-/tmp/claude-1000}/port-twin-$(basename "$PORT")
 rm -rf "$WORK"; mkdir -p "$WORK"
 rsync -a --exclude node_modules --exclude dist --exclude .git "$PORT/" "$WORK/src-copy/"

@@ -14975,7 +14975,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 };
                 self.closure_node(rendered, precedence)
             }
-            ControlFlowOp::LoadGlobal(symbol) => JsExpression::atom(self.global_name(*symbol)?),
+            ControlFlowOp::LoadGlobal(symbol) => self.global_atom(*symbol)?,
             ControlFlowOp::FieldGet {
                 object,
                 owner,
@@ -15218,7 +15218,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 let callee = if self.inline_exclusive_recursive_iifes.contains(function) {
                     if context.function_id == *function {
-                        JsExpression::atom(self.function_name(*function)?)
+                        self.function_atom(*function)?
                     } else {
                         self.render_exclusive_recursive_iife_callee(
                             context.function_id,
@@ -15230,7 +15230,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else if self.inline_single_use_functions.contains(function) {
                     self.render_single_use_function_expression(*function)?
                 } else {
-                    JsExpression::atom(self.function_name(*function)?)
+                    self.function_atom(*function)?
                 };
                 self.render_call(callee, args, context, cache)?
             }
@@ -15241,7 +15241,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     && self.recursive_iife_self_callee(context.function_id, *callee)
                 {
                     self.render_call(
-                        JsExpression::atom(self.function_name(context.function_id)?),
+                        self.function_atom(context.function_id)?,
                         args,
                         context,
                         cache,
@@ -17637,6 +17637,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "JavaScript adapter fallback has no emitted factory name",
                 )
             })
+    }
+
+    /// A module-level function's name as an identifier node: a `Name` when
+    /// the emission allocated its binding, an atom for a name it only holds
+    /// as text (a foreign import spelled by its source, an alias).
+    fn function_atom(&self, function: FunctionId) -> Result<JsExpression, CodegenError> {
+        let name = self.function_name(function)?;
+        Ok(match self.function_name_binds.get(&function) {
+            Some(bind) => JsExpression::name(*bind, name),
+            None => JsExpression::atom(name),
+        })
+    }
+
+    fn global_atom(&self, symbol: SymbolId) -> Result<JsExpression, CodegenError> {
+        let name = self.global_name(symbol)?;
+        Ok(match self.global_binds.get(&symbol) {
+            Some(bind) => JsExpression::name(*bind, name),
+            None => JsExpression::atom(name),
+        })
     }
 
     fn global_name(&self, symbol: SymbolId) -> Result<&str, CodegenError> {
