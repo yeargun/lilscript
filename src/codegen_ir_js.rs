@@ -2837,6 +2837,16 @@ impl JsExpression {
         Self::grouped(code, js_binary_precedence(op), root).with_operands(operands)
     }
 
+    /// `binary` without the constant-first swap and the string-coercion
+    /// rewrite: the operands stay in the order given. For the intrinsics
+    /// that spelled `x==null` and `x+""` as text.
+    fn binary_in_order(op: IrBinaryOp, lhs: Self, rhs: Self) -> Self {
+        let root = JsExpressionRoot::Binary(op);
+        let operands = vec![lhs, rhs];
+        let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers Binary");
+        Self::grouped(code, js_binary_precedence(op), root).with_operands(operands)
+    }
+
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
         let operands = vec![condition, then_value, else_value];
         // Derived, not authored: `render` is the only place this text is formed.
@@ -16978,14 +16988,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             Intrinsic::JsIsNullish => {
                 if context.absent_is_undefined(receiver_id) {
-                    return Ok(JsExpression::raw(
-                        format!("{}===void 0", receiver.at_least(JsPrecedence::Equality)),
-                        JsPrecedence::Equality,
-                    ));
+                    return Ok(JsExpression::undefined_test(receiver, true));
                 }
-                return Ok(JsExpression::raw(
-                    format!("{}==null", receiver.at_least(JsPrecedence::Equality)),
-                    JsPrecedence::Equality,
+                return Ok(JsExpression::binary_in_order(
+                    IrBinaryOp::Eq,
+                    receiver,
+                    JsExpression::atom("null"),
                 ));
             }
             Intrinsic::JsIsFalse => {
@@ -17003,10 +17011,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::JsIsUndefined => {
-                return Ok(JsExpression::raw(
-                    format!("{}===void 0", receiver.at_least(JsPrecedence::Equality)),
-                    JsPrecedence::Equality,
-                ));
+                return Ok(JsExpression::undefined_test(receiver, true));
             }
             Intrinsic::JsStringify => {
                 // Proven string primitives are already ToString. An untyped
@@ -17018,9 +17023,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 {
                     return Ok(receiver);
                 }
-                return Ok(JsExpression::raw(
-                    format!("{}+\"\"", receiver.at_least(JsPrecedence::Additive)),
-                    JsPrecedence::Additive,
+                return Ok(JsExpression::binary_in_order(
+                    IrBinaryOp::Add,
+                    receiver,
+                    JsExpression::string_literal(&self.literal_table, "", self.options.string_quote),
                 ));
             }
             Intrinsic::JsNumber => {
