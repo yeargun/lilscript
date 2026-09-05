@@ -1155,9 +1155,9 @@ fn census_declaration_binds(statement: &JsStatement) {
                 count(declarator.bind);
             }
         }
-        JsStatement::Function { declares, .. } => {
-            for bind in declares {
-                count(*bind);
+        JsStatement::Function { head, .. } => {
+            for bind in head.binds() {
+                count(bind);
             }
         }
         JsStatement::Loop {
@@ -8605,9 +8605,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &self,
         function: &ControlFlowFunction<'src>,
         context: &LocalNames,
-    ) -> Result<String, CodegenError> {
+    ) -> Result<JsHead, CodegenError> {
         if !context.rest_formal_names.is_empty() {
-            return Ok(format!("({})", context.rest_formal_names.join(",")));
+            return Ok(JsHead::text(format!("({})", context.rest_formal_names.join(","))));
         }
         render_arrow_parameters(
             function,
@@ -9271,19 +9271,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         );
         self.function_js_bindings
             .insert(function.id, context.binding_names());
-        let mut params = String::new();
+        let mut params = JsHead::default();
         if !context.rest_formal_names.is_empty() {
-            params = context.rest_formal_names.join(",");
+            params.push_text(context.rest_formal_names.join(","));
         } else {
             for (index, param) in emitted_params.iter().enumerate() {
                 if index != 0 {
-                    params.push(',');
+                    params.push_text(",");
                 }
-                params.push_str(context.value_name(param.value)?);
+                params.push_name(context.value_bind(param.value), context.value_name(param.value)?);
                 if public_abi || self.callee_default_functions.contains(&function.id) {
                     if let Some(default) = javascript_parameter_default(param) {
-                        params.push('=');
-                        params.push_str(&render_param_default(
+                        params.push_text("=");
+                        params.push_text(render_param_default(
                             default,
                             function,
                             &context,
@@ -9297,28 +9297,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if function.is_async {
             self.require_syntax(JsSyntaxFeature::AsyncAwait)?;
         }
-        let head_declares = std::iter::once(self.function_name_binds.get(&function.id).copied())
-            .chain(
-                emitted_params
-                    .iter()
-                    .map(|param| context.value_bind(param.value)),
-            )
-            .collect::<Vec<_>>();
-        let mut head = String::new();
+        let name_bind = self.function_name_binds.get(&function.id).copied();
+        let mut head = JsHead::default();
         if class_member {
             if function.is_async {
-                head.push_str("async ");
+                head.push_text("async ");
             }
-            head.push_str(&name);
-            head.push('(');
-            head.push_str(&params);
-            head.push(')');
+            head.push_name(name_bind, &name);
+            head.push_text("(");
+            head.extend(&params);
+            head.push_text(")");
         } else if arrow_binding {
-            head.push_str("let ");
-            head.push_str(&name);
-            head.push('=');
+            head.push_text("let ");
+            head.push_name(name_bind, &name);
+            head.push_text("=");
             if function.is_async {
-                head.push_str("async ");
+                head.push_text("async ");
             }
             if parameter_count != 1
                 || emitted_params
@@ -9326,18 +9320,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .and_then(|param| javascript_parameter_default(param))
                     .is_some()
             {
-                head.push('(');
-                head.push_str(&params);
-                head.push(')');
+                head.push_text("(");
+                head.extend(&params);
+                head.push_text(")");
             } else {
-                head.push_str(&params);
+                head.extend(&params);
             }
-            head.push_str("=>");
+            head.push_text("=>");
         } else {
             if function.is_async {
-                head.push_str("async ");
+                head.push_text("async ");
             }
-            head.push_str(
+            head.push_text(
                 if function.is_generator && self.options.compact_generator_star {
                     "function*"
                 } else if function.is_generator {
@@ -9348,10 +9342,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "function "
                 },
             );
-            head.push_str(&name);
-            head.push('(');
-            head.push_str(&params);
-            head.push(')');
+            if !name.is_empty() {
+                head.push_name(name_bind, &name);
+            }
+            head.push_text("(");
+            head.extend(&params);
+            head.push_text(")");
         }
         let statement_options = JsStatementOptions {
             elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
@@ -9406,7 +9402,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_statement_with(
                         JsStatement::Function {
                             head,
-                            declares: head_declares,
                             body: JsFunctionBody::Block(body),
                             terminated: arrow_binding,
                         },
@@ -9427,7 +9422,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_statement_with(
                     JsStatement::Function {
                         head,
-                        declares: head_declares,
                         body,
                         terminated: arrow_binding,
                     },
@@ -9487,7 +9481,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out.push_statement_with(
             JsStatement::Function {
                 head,
-                declares: head_declares,
                 body,
                 terminated: arrow_binding,
             },
@@ -16793,7 +16786,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .map_err(|mut e| {
                 e.message.push_str(" [site=wrapper-arrow-params]");
                 e
-            })?;
+            })?
+            .render();
             let mut call = String::new();
             call.push_str(name);
             call.push('(');
@@ -16980,6 +16974,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         recursive_name: Option<String>,
         calling_convention: Option<JsCallingConvention>,
     ) -> Result<String, CodegenError> {
+        let recursive_head_name = recursive_name
+            .as_deref()
+            .map(|name| (self.function_name_binds.get(&function.id).copied(), name));
         if function.blocks.len() > 1 {
             let parameters = self.render_closure_parameter_list(&function, &context)?;
             if !function.is_generator {
@@ -17005,12 +17002,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
                         });
                         return Ok(self.render_closure_statement(
-                            named_function_expression_head(recursive_name.as_deref(), &parameters),
+                            named_function_expression_head(recursive_head_name, &parameters),
                             JsFunctionBody::Block(body),
                         ));
                     }
                     return Ok(self.render_closure_statement(
-                        format!("{parameters}=>"),
+                        arrow_head(&parameters),
                         JsFunctionBody::Concise(expression),
                     ));
                 }
@@ -17025,9 +17022,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let head = if recursive_name.is_some()
                 || self.emits_ordinary_function_expression(&function, calling_convention)
             {
-                named_function_expression_head(recursive_name.as_deref(), &parameters)
+                named_function_expression_head(recursive_head_name, &parameters)
             } else {
-                format!("{parameters}=>")
+                arrow_head(&parameters)
             };
             return Ok(self.render_closure_statement(head, JsFunctionBody::Block(body)));
         }
@@ -17046,7 +17043,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 || self.emits_ordinary_function_expression(&function, calling_convention)
             {
                 return Ok(self.render_closure_statement(
-                    named_function_expression_head(recursive_name.as_deref(), &parameters),
+                    named_function_expression_head(recursive_head_name, &parameters),
                     JsFunctionBody::Block(body),
                 ));
             }
@@ -17054,7 +17051,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 Some(expression) => JsFunctionBody::Concise(expression),
                 None => JsFunctionBody::Block(body),
             };
-            return Ok(self.render_closure_statement(format!("{parameters}=>"), body));
+            return Ok(self.render_closure_statement(arrow_head(&parameters), body));
         }
         let uses = use_counts(&function);
         let mut cache = AHashMap::default();
@@ -17100,9 +17097,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let ordinary_function = recursive_name.is_some()
             || self.emits_ordinary_function_expression(&function, calling_convention);
         let head = if ordinary_function {
-            named_function_expression_head(recursive_name.as_deref(), &parameters)
+            named_function_expression_head(recursive_head_name, &parameters)
         } else {
-            format!("{parameters}=>")
+            arrow_head(&parameters)
         };
         // `{let a=..;return v}` -- the body statements, then the return with
         // its terminator elided against the closing brace, as the text always
@@ -17124,17 +17121,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         Ok(JsStatement::Function {
             head,
-            declares: std::iter::once(
-                recursive_name
-                    .as_ref()
-                    .and_then(|_| self.function_name_binds.get(&function.id).copied()),
-            )
-                .chain(
-                    function.params[function.capture_count..]
-                        .iter()
-                        .map(|param| context.value_bind(param.value)),
-                )
-                .collect(),
             body,
             terminated: false,
         }
@@ -17145,10 +17131,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     /// An inlined closure as text: the `Function` node rendered with this
     /// emitter's options. Closures are expressions, never terminated.
-    fn render_closure_statement(&self, head: String, body: JsFunctionBody) -> String {
+    fn render_closure_statement(&self, head: JsHead, body: JsFunctionBody) -> String {
         JsStatement::Function {
             head,
-            declares: Vec::new(),
             body,
             terminated: false,
         }
@@ -20430,29 +20415,31 @@ fn render_arrow_parameters(
     compact_boolean_literals: bool,
     emit_defaults: bool,
     rest_parameter: Option<ValueId>,
-) -> Result<String, CodegenError> {
+) -> Result<JsHead, CodegenError> {
     let has_default = emit_defaults
         && params
             .iter()
             .any(|param| javascript_parameter_default(param).is_some());
+    let mut rendered = JsHead::default();
     if let [param] = params {
         if !has_default && rest_parameter != Some(param.value) {
-            return Ok(context.value_name(param.value)?.to_string());
+            rendered.push_name(context.value_bind(param.value), context.value_name(param.value)?);
+            return Ok(rendered);
         }
     }
-    let mut rendered = String::from("(");
+    rendered.push_text("(");
     for (index, param) in params.iter().enumerate() {
         if index != 0 {
-            rendered.push(',');
+            rendered.push_text(",");
         }
         if rest_parameter == Some(param.value) {
-            rendered.push_str("...");
+            rendered.push_text("...");
         }
-        rendered.push_str(context.value_name(param.value)?);
+        rendered.push_name(context.value_bind(param.value), context.value_name(param.value)?);
         if emit_defaults {
             if let Some(default) = javascript_parameter_default(param) {
-                rendered.push('=');
-                rendered.push_str(&render_param_default(
+                rendered.push_text("=");
+                rendered.push_text(render_param_default(
                     default,
                     function,
                     context,
@@ -20462,7 +20449,7 @@ fn render_arrow_parameters(
             }
         }
     }
-    rendered.push(')');
+    rendered.push_text(")");
     Ok(rendered)
 }
 
@@ -20487,14 +20474,36 @@ fn function_parameters(parameters: &str) -> String {
     }
 }
 
-fn named_function_expression_head(name: Option<&str>, parameters: &str) -> String {
-    format!(
-        "function{}{}",
-        name.filter(|name| !name.is_empty())
-            .map(|name| format!(" {name}"))
-            .unwrap_or_default(),
-        function_parameters(parameters)
-    )
+fn named_function_expression_head(
+    name: Option<(Option<Bind>, &str)>,
+    parameters: &JsHead,
+) -> JsHead {
+    let mut head = JsHead::text("function");
+    if let Some((bind, name)) = name.filter(|(_, name)| !name.is_empty()) {
+        head.push_text(" ");
+        head.push_name(bind, name);
+    }
+    head.extend(&parenthesized_parameters(parameters));
+    head
+}
+
+/// `(a,b)` as it is, `a` wrapped: a function head needs the parentheses an
+/// arrow may omit.
+fn parenthesized_parameters(parameters: &JsHead) -> JsHead {
+    if parameters.starts_with('(') {
+        return parameters.clone();
+    }
+    let mut wrapped = JsHead::text("(");
+    wrapped.extend(parameters);
+    wrapped.push_text(")");
+    wrapped
+}
+
+/// `<parameters>=>`.
+fn arrow_head(parameters: &JsHead) -> JsHead {
+    let mut head = parameters.clone();
+    head.push_text("=>");
+    head
 }
 
 fn fold_default_assignment_into_first_field(
@@ -22194,10 +22203,7 @@ enum JsStatement {
     /// function-level folds); the body is framed by the node: the braces, the
     /// terminal-semicolon elision and the arrow binding's `;` are rendering.
     Function {
-        head: String,
-        /// The bindings the head declares -- the name (when it binds one)
-        /// then the parameters in order -- where the emitter knows them.
-        declares: Vec<Option<Bind>>,
+        head: JsHead,
         body: JsFunctionBody,
         terminated: bool,
     },
@@ -22254,6 +22260,87 @@ enum BodyFrame {
 impl BodyFrame {
     fn is_function(self) -> bool {
         self != Self::Bare
+    }
+}
+
+/// One piece of a function head: text the printer owns, or an identifier
+/// that names a binding and is re-spelled from the table when the binding is.
+#[derive(Debug, Clone)]
+enum JsHeadPiece {
+    Text(String),
+    /// A declared name with its binding, spelled as it was at construction.
+    Name(Bind, String),
+    /// A declared name the emitter could not tie to a binding: renders as
+    /// text, counts as unbound in the census, and makes the head unrenameable.
+    Unbound(String),
+}
+
+/// A function head (`let f=(a,b)=>`, `function f(a=1)`, `f(a)` for a class
+/// member) as pieces, so the names it declares are bindings rather than
+/// characters in a `String`.
+#[derive(Debug, Clone, Default)]
+struct JsHead {
+    pieces: Vec<JsHeadPiece>,
+}
+
+impl JsHead {
+    fn text(text: impl Into<String>) -> Self {
+        let mut head = Self::default();
+        head.push_text(text);
+        head
+    }
+
+    fn push_text(&mut self, text: impl Into<String>) {
+        let text = text.into();
+        if text.is_empty() {
+            return;
+        }
+        if let Some(JsHeadPiece::Text(last)) = self.pieces.last_mut() {
+            last.push_str(&text);
+        } else {
+            self.pieces.push(JsHeadPiece::Text(text));
+        }
+    }
+
+    fn push_name(&mut self, bind: Option<Bind>, name: &str) {
+        self.pieces.push(match bind {
+            Some(bind) => JsHeadPiece::Name(bind, name.to_string()),
+            None => JsHeadPiece::Unbound(name.to_string()),
+        });
+    }
+
+    fn extend(&mut self, other: &JsHead) {
+        for piece in &other.pieces {
+            match piece {
+                JsHeadPiece::Text(text) => self.push_text(text.clone()),
+                other => self.pieces.push(other.clone()),
+            }
+        }
+    }
+
+    fn render(&self) -> String {
+        let mut text = String::new();
+        for piece in &self.pieces {
+            match piece {
+                JsHeadPiece::Text(piece)
+                | JsHeadPiece::Name(_, piece)
+                | JsHeadPiece::Unbound(piece) => text.push_str(piece),
+            }
+        }
+        text
+    }
+
+    /// The bindings the head declares, in order; `None` for an unbound name.
+    fn binds(&self) -> impl Iterator<Item = Option<Bind>> + '_ {
+        self.pieces.iter().filter_map(|piece| match piece {
+            JsHeadPiece::Text(_) => None,
+            JsHeadPiece::Name(bind, _) => Some(Some(*bind)),
+            JsHeadPiece::Unbound(_) => Some(None),
+        })
+    }
+
+    fn starts_with(&self, prefix: char) -> bool {
+        matches!(self.pieces.first(), Some(JsHeadPiece::Text(text)) if text.starts_with(prefix))
     }
 }
 
@@ -22619,7 +22706,7 @@ impl JsStatement {
                 terminated,
                 ..
             } => {
-                let mut text = head;
+                let mut text = head.render();
                 match body {
                     JsFunctionBody::Block(block) => {
                         text.push('{');
@@ -29569,8 +29656,7 @@ mod tests {
         let mut block = JsBlock::new();
         block.push_statement_with(
             JsStatement::Function {
-                declares: Vec::new(),
-                head: head.to_string(),
+                head: JsHead::text(head),
                 body: JsFunctionBody::Block(body),
                 terminated: false,
             },
