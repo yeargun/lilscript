@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **emitter side done** — no emitter path pushes text into a block (every `push_str` left is on a `String` scratch or a render arm); `BracedFunction` and `close_statement_block` gone. Remaining: the text-reading classifiers (`compact_*`, `is_braceless_statement`, `merge_conditional_assignments`, …) move onto the list, the three `JsBlock::from(compact)` folds and the rotation's `from(rest)` become list operations, `Raw` is retired, then `text` is deleted and G1/G2 follow the fold-deletion protocol | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **emitter side done; classifiers twinned** — no emitter path pushes text into a block (every `push_str` left is on a `String` scratch or a render arm); `BracedFunction` and `close_statement_block` gone. Remaining: the text-reading classifiers (`compact_*`, `is_braceless_statement`, `merge_conditional_assignments`, …) move onto the list, the three `JsBlock::from(compact)` folds and the rotation's `from(rest)` become list operations, `Raw` is retired, then `text` is deleted and G1/G2 follow the fold-deletion protocol | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -336,3 +336,20 @@ family (`is_braceless_statement`, `is_comma_eligible_statement`, `compact_branch
 `merge_conditional_assignments`, `conditional_assignment_expression`, `negated_self_or_assign`,
 `optional_method_reassign`, `concise_arrow_body` is already structural). Those are phase 3's
 remaining work, and they are where the G1/G2 folds live.
+
+**Port verification of `d0667b5` (emitter side done), pool, background:** markedlil 9,431 and
+zodlil 32,609 — identical bytes to `5622552`.
+
+**Batch 14 — the classifiers read the list.** Every text classifier that decides a shape from
+emitted bytes (`is_braceless_statement`, `is_comma_eligible_statement`, the `compact_*` family,
+`merge_conditional_assignments`, `conditional_assignment_expression`, `negated_self_or_assign`,
+`optional_method_reassign`, `parse_assignment_guard_return` and their helpers) got a structural
+twin over `JsBlock.statements`, and every call site computed both under `LILSCRIPT_TWIN=1` with a
+panic on disagreement — 288 case-lanes plus the probe in four lanes. The witness found three
+things: (1) the text sequence fold refuses a run of one, and a statement whose terminator was
+elided — matched; (2) the non-declared merged assignment I had emitted as an `Expression` in
+batch 9 is an assignment, and the twin wanted the `Binding` — fixed at the producer;
+(3) **live-11**: `parse_single_assignment` accepted `1==v58%3?..;` as an assignment to `1`
+(a digit is an identifier byte), and `conditional_assignment_expression` then spelled the else
+arm as `1` `=` `=v58%3?..` — right by accident. The structural twin refuses it; the text side
+now requires an identifier start. Found by the twin on `function_subsumption`.

@@ -10186,7 +10186,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             } else {
                 flush_pending_lets(out, &mut pending_lets);
-                if is_comma_eligible_statement(&statement) {
+                if twin_check(
+                    "comma-eligible",
+                    is_comma_eligible_statement(&statement),
+                    block_is_comma_eligible(&statement),
+                ) {
                     pending_run.push(JsExpression::raw(
                         statement
                             .strip_suffix(';')
@@ -11538,9 +11542,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         if let Some((declare, target, then_value, else_value, trailing)) = self
                             .options
                             .conditional_expressions
-                            .then(|| merge_conditional_assignments(&then_output, &else_output))
+                            .then(|| {
+                                twin_check(
+                                    "merge-conditional",
+                                    merge_conditional_assignments(&then_output, &else_output).map(
+                                        |(declare, target, then_value, else_value, trailing)| {
+                                            (
+                                                declare,
+                                                target.to_string(),
+                                                then_value.to_string(),
+                                                else_value.to_string(),
+                                                trailing.to_string(),
+                                            )
+                                        },
+                                    ),
+                                    block_merge_conditional_assignments(&then_output, &else_output),
+                                )
+                            })
                             .flatten()
                         {
+                            let (target, then_value, else_value, trailing) = (
+                                target.as_str(),
+                                then_value.as_str(),
+                                else_value.as_str(),
+                                trailing.as_str(),
+                            );
                             let mut value = String::new();
                             let nullish_source = nullish_merge_source(
                                 function,
@@ -11618,6 +11644,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             } else {
                                 if declare {
                                     push_merge_declaration(out, target, Some(value), trailing);
+                                } else if trailing.is_empty() {
+                                    out.push_statement(JsStatement::Binding {
+                                        keyword: None,
+                                        name: target.to_string(),
+                                        value: JsExpression::raw(value, JsPrecedence::Conditional),
+                                    });
                                 } else {
                                     out.push_statement(JsStatement::Expression {
                                         value: JsExpression::raw(
@@ -11631,7 +11663,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             self.options
                                 .conditional_expressions
                                 .then(|| {
-                                    conditional_assignment_expression(&then_output, &else_output)
+                                    twin_check(
+                                        "conditional-assignment",
+                                        conditional_assignment_expression(&then_output, &else_output)
+                                            .map(|(a, b, c, d)| {
+                                                (
+                                                    a.to_string(),
+                                                    b.to_string(),
+                                                    c.to_string(),
+                                                    d.to_string(),
+                                                )
+                                            }),
+                                        block_conditional_assignment_expression(
+                                            &then_output,
+                                            &else_output,
+                                        ),
+                                    )
                                 })
                                 .flatten()
                         {
@@ -11648,8 +11695,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             (self.options.conditional_expressions && self.options.effect_ternary)
                                 .then(|| {
                                     Some((
-                                        compact_ternary_arm(&then_output)?,
-                                        compact_ternary_arm(&else_output)?,
+                                        twin_check(
+                                            "ternary-arm",
+                                            compact_ternary_arm(&then_output),
+                                            block_compact_ternary_arm(&then_output),
+                                        )?,
+                                        twin_check(
+                                            "ternary-arm",
+                                            compact_ternary_arm(&else_output),
+                                            block_compact_ternary_arm(&else_output),
+                                        )?,
                                     ))
                                 })
                                 .flatten()
@@ -11667,23 +11722,48 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             });
                         } else if let (true, Some(then_ret), Some(else_ret)) = (
                             self.options.conditional_expressions,
-                            compact_return_expression(&then_output),
-                            compact_return_expression(&else_output),
+                            twin_check(
+                                "return-expression",
+                                compact_return_expression(&then_output).map(str::to_string),
+                                block_compact_return_expression(&then_output),
+                            ),
+                            twin_check(
+                                "return-expression",
+                                compact_return_expression(&else_output).map(str::to_string),
+                                block_compact_return_expression(&else_output),
+                            ),
                         ) {
-                            push_return_conditional(out, &condition, then_ret, else_ret);
+                            push_return_conditional(out, &condition, &then_ret, &else_ret);
                             cache.clear();
                             return Ok(PathEnd::Terminated);
                         } else if let (true, Some(then_ret), Some(merge_ret)) = (
                             self.options.conditional_expressions && else_output.is_empty(),
-                            compact_return_expression(&then_output),
+                            twin_check(
+                                "return-expression",
+                                compact_return_expression(&then_output).map(str::to_string),
+                                block_compact_return_expression(&then_output),
+                            ),
                             peek_merge_return_expression(function, merge_block, context, cache),
                         ) {
-                            push_return_conditional(out, &condition, then_ret, &merge_ret);
+                            push_return_conditional(out, &condition, &then_ret, &merge_ret);
                             cache.clear();
                             return Ok(PathEnd::Terminated);
                         } else if let (true, Some(guard)) = (
                             self.options.conditional_expressions && else_output.is_empty(),
-                            parse_assignment_guard_return(&then_output),
+                            {
+                                let text = parse_assignment_guard_return(&then_output);
+                                let _ = twin_check(
+                                    "assignment-guard-return",
+                                    text.as_ref().map(|guard| OwnedAssignmentGuardReturn {
+                                        declare: guard.declare,
+                                        name: guard.name.map(str::to_string),
+                                        condition: guard.condition.clone(),
+                                        returned: guard.returned.to_string(),
+                                    }),
+                                    block_parse_assignment_guard_return(&then_output),
+                                );
+                                text
+                            },
                         ) {
                             if let Some(name) = guard.name.filter(|_| guard.declare) {
                                 out.push_statement(JsStatement::Declaration {
@@ -11740,9 +11820,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 ) || context.value_name(source).is_ok()
                             })
                         {
-                            let expression = compact_branch_expression(&else_output)
-                                .map(str::to_string)
-                                .or_else(|| compact_top_level_expression_statements(&else_output));
+                            let expression = twin_check(
+                                "branch-expression",
+                                compact_branch_expression(&else_output).map(str::to_string),
+                                block_compact_branch_expression(&else_output),
+                            )
+                                .or_else(|| {
+                                    twin_check(
+                                        "top-level-expressions",
+                                        compact_top_level_expression_statements(&else_output),
+                                        block_compact_top_level_expression_statements(&else_output),
+                                    )
+                                });
                             if let Some(expression) = expression {
                                 let source = nullish_condition_source(function, header)
                                     .expect("nullish source was checked");
@@ -11842,7 +11931,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                         } else if else_output.is_empty() {
                             if let Some((target, value)) =
-                                negated_self_or_assign(&condition, &then_output)
+                                twin_check(
+                                    "negated-self-or",
+                                    negated_self_or_assign(&condition, &then_output),
+                                    block_negated_self_or_assign(&condition, &then_output),
+                                )
                             {
                                 out.push_statement(JsStatement::Expression {
                                     value: JsExpression::raw(
@@ -11857,7 +11950,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     &condition
                                 };
                                 if let Some((target, method, invoke)) =
-                                    optional_method_reassign(method_condition, &then_output)
+                                    twin_check(
+                                        "optional-method-reassign",
+                                        optional_method_reassign(method_condition, &then_output)
+                                            .map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string())),
+                                        block_optional_method_reassign(method_condition, &then_output),
+                                    )
                                 {
                                     out.push_statement(JsStatement::Expression {
                                         value: JsExpression::raw(
@@ -11868,7 +11966,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 } else if let Some(then_expression) = self
                                     .options
                                     .conditional_expressions
-                                    .then(|| compact_sequence_expression(&then_output))
+                                    .then(|| {
+                                        twin_check(
+                                            "sequence-expression",
+                                            compact_sequence_expression(&then_output),
+                                            block_compact_sequence_expression(&then_output),
+                                        )
+                                    })
                                     .flatten()
                                 {
                                     let mut combined = String::new();
@@ -11922,7 +12026,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             if let Some(else_expression) = self
                                 .options
                                 .conditional_expressions
-                                .then(|| compact_sequence_expression(&else_output))
+                                .then(|| {
+                                    twin_check(
+                                        "sequence-expression",
+                                        compact_sequence_expression(&else_output),
+                                        block_compact_sequence_expression(&else_output),
+                                    )
+                                })
                                 .flatten()
                             {
                                 let mut run = String::new();
@@ -12250,7 +12360,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut compacted_loop_body = false;
                         if self.options.comma_expressions && compact_loop {
                             if let Some(compact) =
-                                compact_top_level_expression_statements(&body_output)
+                                twin_check(
+                                    "top-level-expressions",
+                                    compact_top_level_expression_statements(&body_output),
+                                    block_compact_top_level_expression_statements(&body_output),
+                                )
                             {
                                 body_output = JsBlock::from(compact);
                                 compacted_loop_body = true;
@@ -12258,7 +12372,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         let braceless = compact_loop
                             && !do_loop
-                            && (compacted_loop_body || is_braceless_statement(&body_output));
+                            && (compacted_loop_body || twin_check(
+                                "braceless",
+                                is_braceless_statement(&body_output),
+                                block_is_braceless(&body_output),
+                            ));
                         // `while(n>0){--n;..}` becomes `while(n--){..}`. A
                         // decision about the header and the body as values --
                         // the same two checks the old rewrite made by searching
@@ -12350,13 +12468,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut compacted_body = false;
                         if self.options.comma_expressions {
                             if let Some(compact) =
-                                compact_top_level_expression_statements(&body_output)
+                                twin_check(
+                                    "top-level-expressions",
+                                    compact_top_level_expression_statements(&body_output),
+                                    block_compact_top_level_expression_statements(&body_output),
+                                )
                             {
                                 body_output = JsBlock::from(compact);
                                 compacted_body = true;
                             }
                         }
-                        let braceless = compacted_body || is_braceless_statement(&body_output);
+                        let braceless = compacted_body || twin_check(
+                                "braceless",
+                                is_braceless_statement(&body_output),
+                                block_is_braceless(&body_output),
+                            );
                         out.push_statement_with(
                             JsStatement::Loop {
                                 head: loop_head,
@@ -12429,13 +12555,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut compacted_body = false;
                         if self.options.comma_expressions {
                             if let Some(compact) =
-                                compact_top_level_expression_statements(&body_output)
+                                twin_check(
+                                    "top-level-expressions",
+                                    compact_top_level_expression_statements(&body_output),
+                                    block_compact_top_level_expression_statements(&body_output),
+                                )
                             {
                                 body_output = JsBlock::from(compact);
                                 compacted_body = true;
                             }
                         }
-                        let braceless = compacted_body || is_braceless_statement(&body_output);
+                        let braceless = compacted_body || twin_check(
+                                "braceless",
+                                is_braceless_statement(&body_output),
+                                block_is_braceless(&body_output),
+                            );
                         out.push_statement_with(
                             JsStatement::Loop {
                                 head: loop_head,
@@ -18217,7 +18351,12 @@ fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     let assignment = assignment_statement.find('=')?;
     let target = &assignment_statement[..assignment];
     let value = &assignment_statement[assignment + 1..];
+    // live-11: `1==x?..` parsed as an assignment to `1`, because a digit is an
+    // identifier byte; the emitted text only survived by re-spelling `1` `=`
+    // `=x..`. A target is an identifier, and an identifier does not start
+    // with a digit.
     (!target.is_empty()
+        && !target.as_bytes()[0].is_ascii_digit()
         && target.bytes().all(is_js_identifier_byte)
         && !value.is_empty()
         && !value.contains(';'))
@@ -18303,6 +18442,377 @@ fn expression_statement(expression: JsExpression) -> String {
         format!("({code})")
     } else {
         code
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The classifiers, read from the statement list.
+//
+// Every function below is the structural twin of a text classifier that
+// scans emitted bytes. Under `LILSCRIPT_TWIN` each call site computes both
+// and `twin_check` panics on a disagreement, so the list versions are proved
+// against the text ones on every compile before the text ones are deleted.
+// A `Raw` statement -- text the list did not model -- falls back to the text
+// classifier on its own bytes, which is exactly what the text version saw.
+// ---------------------------------------------------------------------------
+
+/// Under `LILSCRIPT_TWIN`, the two classifiers must agree; the text answer is
+/// what flows on until the switch.
+fn twin_check<T: PartialEq + core::fmt::Debug>(site: &str, text: T, structural: T) -> T {
+    if twin_witness_enabled() && text != structural {
+        panic!("classifier twin `{site}` disagrees: text {text:?}, list {structural:?}");
+    }
+    text
+}
+
+/// The expression text a statement contributes to a sequence, if it is an
+/// expression statement: `e;` or a keyword-less `t=v;`.
+fn statement_expression_text(statement: &JsStatement) -> Option<String> {
+    match statement {
+        JsStatement::Expression { value } => Some(expression_statement(value.clone())),
+        JsStatement::Binding {
+            keyword: None,
+            name,
+            value,
+        } => Some(format!("{name}={}", strip_outer_parens(value.clone()))),
+        JsStatement::Raw(text) => compact_branch_expression(text).map(str::to_string),
+        _ => None,
+    }
+}
+
+/// Whether a statement can stand alone where a braceless body is wanted.
+fn statement_is_braceless(statement: &JsStatement) -> bool {
+    match statement {
+        JsStatement::Declaration { .. }
+        | JsStatement::DeclarationGroup { .. }
+        | JsStatement::Declarators { .. }
+        | JsStatement::Function { .. }
+        | JsStatement::Class { .. }
+        | JsStatement::ClassField { .. }
+        | JsStatement::If { .. }
+        | JsStatement::Import { .. }
+        | JsStatement::Export { .. }
+        | JsStatement::Empty => false,
+        JsStatement::Loop {
+            head: JsLoopHead::DoWhile { .. },
+            ..
+        } => false,
+        JsStatement::Loop { body, .. } => block_is_braceless(&body.block),
+        JsStatement::Raw(text) => is_braceless_statement(text),
+        JsStatement::Binding { .. }
+        | JsStatement::Return { .. }
+        | JsStatement::Throw { .. }
+        | JsStatement::Break
+        | JsStatement::Continue
+        | JsStatement::Expression { .. }
+        | JsStatement::Try { .. }
+        | JsStatement::Switch { .. } => true,
+    }
+}
+
+fn block_is_braceless(block: &JsBlock) -> bool {
+    let [only] = block.statements.as_slice() else {
+        return false;
+    };
+    statement_is_braceless(&only.statement)
+}
+
+fn block_is_comma_eligible(block: &JsBlock) -> bool {
+    let [only] = block.statements.as_slice() else {
+        return false;
+    };
+    match &only.statement {
+        JsStatement::Raw(text) => is_comma_eligible_statement(text),
+        statement => statement_expression_text(statement).is_some(),
+    }
+}
+
+fn block_compact_branch_expression(block: &JsBlock) -> Option<String> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    statement_expression_text(&only.statement)
+}
+
+fn block_compact_void_expression(block: &JsBlock) -> Option<String> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    match &only.statement {
+        JsStatement::Raw(text) => compact_void_expression(text).map(str::to_string),
+        statement => statement_expression_text(statement),
+    }
+}
+
+fn block_compact_top_level_expression_statements(block: &JsBlock) -> Option<String> {
+    // A run of one is the statement itself (the branch classifier's job), and
+    // a statement whose terminator was elided is not part of a run.
+    if block.statements.len() < 2 || block.statements.iter().any(|emitted| emitted.dropped_semicolon) {
+        return None;
+    }
+    let mut sequence = String::new();
+    for (index, emitted) in block.statements.iter().enumerate() {
+        let expression = statement_expression_text(&emitted.statement)?;
+        if index != 0 {
+            sequence.push(',');
+        }
+        sequence.push_str(&rewrite_optional_method_or_assign(&expression));
+    }
+    sequence.push(';');
+    Some(sequence)
+}
+
+fn block_compact_sequence_expression(block: &JsBlock) -> Option<String> {
+    if let Some(expression) = block_compact_branch_expression(block) {
+        return Some(rewrite_optional_method_or_assign(&expression));
+    }
+    block_compact_top_level_expression_statements(block)
+        .map(|sequence| rewrite_optional_method_or_assign(sequence.trim_end_matches(';')))
+}
+
+fn block_compact_ternary_arm(block: &JsBlock) -> Option<String> {
+    if let Some(expression) = block_compact_void_expression(block) {
+        return Some(expression);
+    }
+    block_compact_sequence_expression(block)
+        .map(|sequence| sequence.trim_end_matches(';').to_string())
+}
+
+fn block_compact_return_expression(block: &JsBlock) -> Option<String> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    match &only.statement {
+        JsStatement::Return { value: Some(value) } => {
+            let expression = strip_outer_parens(value.clone());
+            (!expression.is_empty() && !expression_has_top_level_statement_break(&expression))
+                .then_some(expression)
+        }
+        JsStatement::Raw(text) => compact_return_expression(text).map(str::to_string),
+        _ => None,
+    }
+}
+
+/// `[var ]target=value[,tail];` as one statement: the declare flag, the
+/// target, the value and the `,a,b` tail of further declarators.
+fn statement_single_assignment(statement: &JsStatement) -> Option<(bool, String, String, String)> {
+    fn identifier(name: &str) -> bool {
+        !name.is_empty()
+            && !name.as_bytes()[0].is_ascii_digit()
+            && name.bytes().all(is_js_identifier_byte)
+    }
+    match statement {
+        JsStatement::Binding {
+            keyword,
+            name,
+            value,
+        } => {
+            let declare = match keyword {
+                None => false,
+                Some("var ") => true,
+                Some(_) => return None,
+            };
+            let value = strip_outer_parens(value.clone());
+            if !identifier(name) || value.is_empty() || value.contains(';') {
+                return None;
+            }
+            if !declare && split_top_level_comma(&value).is_some() {
+                return None;
+            }
+            Some((declare, name.clone(), value, String::new()))
+        }
+        JsStatement::Declarators {
+            keyword: "var ",
+            declarators,
+        } => {
+            let (first, rest) = declarators.split_first()?;
+            let value = strip_outer_parens(first.value.clone()?);
+            if !identifier(&first.name) || value.is_empty() || value.contains(';') {
+                return None;
+            }
+            let mut trailing = String::new();
+            for declarator in rest {
+                trailing.push(',');
+                trailing.push_str(&declarator.clone().render());
+            }
+            Some((true, first.name.clone(), value, trailing))
+        }
+        JsStatement::Raw(text) => parse_single_assignment(text).map(|(declare, target, value, trailing)| {
+            (declare, target.to_string(), value.to_string(), trailing.to_string())
+        }),
+        _ => None,
+    }
+}
+
+fn block_single_assignment(block: &JsBlock) -> Option<(bool, String, String, String)> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    statement_single_assignment(&only.statement)
+}
+
+fn block_merge_conditional_assignments(
+    then_block: &JsBlock,
+    else_block: &JsBlock,
+) -> Option<(bool, String, String, String, String)> {
+    let (then_declare, then_target, then_value, then_trailing) = block_single_assignment(then_block)?;
+    let (else_declare, else_target, else_value, else_trailing) = block_single_assignment(else_block)?;
+    if !then_trailing.is_empty() && !else_trailing.is_empty() && then_trailing != else_trailing {
+        return None;
+    }
+    (then_target == else_target).then(|| {
+        (
+            then_declare || else_declare,
+            then_target,
+            then_value,
+            else_value,
+            if then_trailing.is_empty() {
+                else_trailing
+            } else {
+                then_trailing
+            },
+        )
+    })
+}
+
+fn block_conditional_assignment_expression(
+    then_block: &JsBlock,
+    else_block: &JsBlock,
+) -> Option<(String, String, String, String)> {
+    let (then_declare, then_target, then_value, then_trailing) = block_single_assignment(then_block)?;
+    let (else_declare, else_target, else_value, else_trailing) = block_single_assignment(else_block)?;
+    (!then_declare
+        && !else_declare
+        && then_trailing.is_empty()
+        && else_trailing.is_empty()
+        && then_target != else_target)
+        .then_some((then_target, then_value, else_target, else_value))
+}
+
+fn block_copy_through_temp_assign(block: &JsBlock) -> Option<(String, String)> {
+    let [first, second] = block.statements.as_slice() else {
+        return None;
+    };
+    if first.dropped_semicolon || second.dropped_semicolon {
+        return None;
+    }
+    let (_, temp, value, trailing) = statement_single_assignment(&first.statement)?;
+    if !trailing.is_empty() {
+        return None;
+    }
+    let (declare, target, copied, trailing) = statement_single_assignment(&second.statement)?;
+    (!declare && trailing.is_empty() && copied == temp).then_some((target, value))
+}
+
+fn block_negated_self_or_assign(condition: &str, then_block: &JsBlock) -> Option<(String, String)> {
+    let target = condition.strip_prefix('!')?;
+    if target.starts_with('!') || target.is_empty() || !target.bytes().all(is_js_identifier_byte) {
+        return None;
+    }
+    if let Some((_, assigned, value, trailing)) = block_single_assignment(then_block) {
+        if trailing.is_empty() && assigned == target {
+            return Some((assigned, value));
+        }
+    }
+    let (assigned, value) = block_copy_through_temp_assign(then_block)?;
+    (assigned == target).then_some((assigned, value))
+}
+
+fn block_optional_method_reassign(
+    condition: &str,
+    then_block: &JsBlock,
+) -> Option<(String, String, String)> {
+    let (declare, target, value, trailing) = block_single_assignment(then_block)?;
+    if declare || !trailing.is_empty() {
+        return None;
+    }
+    let condition = condition.strip_prefix("!!").unwrap_or(condition);
+    let condition = condition
+        .strip_prefix('(')
+        .and_then(|value| value.strip_suffix(')'))
+        .unwrap_or(condition);
+    if !condition.starts_with(&target) {
+        return None;
+    }
+    let member = &condition[target.len()..];
+    if !(member.starts_with('.') || member.starts_with('[')) {
+        return None;
+    }
+    if value != format!("{condition}()") {
+        return None;
+    }
+    Some((target, condition.to_string(), value))
+}
+
+/// `if(c)return v;` / `if(c){return v}` as a node: the condition and the
+/// returned expression.
+fn statement_if_return(statement: &JsStatement) -> Option<(String, String)> {
+    match statement {
+        JsStatement::If {
+            condition,
+            then_branch,
+            else_branch: None,
+        } => {
+            let [only] = then_branch.block.statements.as_slice() else {
+                return None;
+            };
+            let JsStatement::Return { value: Some(value) } = &only.statement else {
+                return None;
+            };
+            let returned = strip_outer_parens(value.clone());
+            if returned.contains(';') || returned.contains('{') || returned.contains('}') {
+                return None;
+            }
+            Some((condition.clone(), returned))
+        }
+        JsStatement::Raw(text) => {
+            parse_if_return(text).map(|(condition, returned)| (condition.to_string(), returned.to_string()))
+        }
+        _ => None,
+    }
+}
+
+/// The owned form of `AssignmentGuardReturn`, read from the list.
+#[derive(Debug, PartialEq)]
+struct OwnedAssignmentGuardReturn {
+    declare: bool,
+    name: Option<String>,
+    condition: String,
+    returned: String,
+}
+
+fn block_parse_assignment_guard_return(block: &JsBlock) -> Option<OwnedAssignmentGuardReturn> {
+    match block.statements.as_slice() {
+        [if_stmt] => {
+            let (condition, returned) = statement_if_return(&if_stmt.statement)?;
+            Some(OwnedAssignmentGuardReturn {
+                declare: false,
+                name: None,
+                condition,
+                returned,
+            })
+        }
+        [assign_stmt, if_stmt] => {
+            if assign_stmt.dropped_semicolon {
+                return None;
+            }
+            let (declare, target, value, trailing) = statement_single_assignment(&assign_stmt.statement)?;
+            if !trailing.is_empty() {
+                return None;
+            }
+            let (condition, returned) = statement_if_return(&if_stmt.statement)?;
+            if returned != target || js_identifier_count(&condition, &target) != 1 {
+                return None;
+            }
+            let assigned = format!("({target}={value})");
+            Some(OwnedAssignmentGuardReturn {
+                declare,
+                name: Some(target.clone()),
+                condition: replace_js_identifier(&condition, &target, &assigned),
+                returned,
+            })
+        }
+        _ => None,
     }
 }
 
@@ -22021,7 +22531,11 @@ impl JsBranch {
 
     /// Braceless when the arm's content allows it, braced otherwise.
     fn compact(block: JsBlock) -> Self {
-        let braceless = is_braceless_statement(&block);
+        let braceless = twin_check(
+            "braceless",
+            is_braceless_statement(&block),
+            block_is_braceless(&block),
+        );
         Self { block, braceless }
     }
 
