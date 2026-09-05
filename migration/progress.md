@@ -131,6 +131,8 @@ one worker; the current profile is under *Measurement facts*.
 
 | 7.7 | the conditional return keeps its node (`ConciseNode` / `Return { value }` instead of `into_minimal` text); class construction is a `New` node (identity classes) or a `Call` node with `value_atom`/`function_atom` (positional classes); record field stores are `Assign` nodes | byte-identical to `9dba734` in three lanes; twin: `string_quote` 30 of 37 print-ok, `compact_boolean_literals` 20 of 24; the residue: `default_value` text (`b=''`), `coalesce_absent_to_null`'s `??null` wrapper (kept raw: its text precedence is `Conditional`, the node's `LogicalOr`, and `a??null||b` must stay grouped), `Set.has` arguments, the `typeof` comparison; 1,717 tests |
 
+| 7.8 | `[emission-context]` beside the options trace, so the axes are counted per IR context; ports and pool re-verified for 7.1–7.7 | **markedlil, per context:** 277 emissions over 13 IR contexts; 17 exact duplicates (same context, same options); erasing `string_quote` alone frees 18, the identifier alphabet 17, the nine naming-policy fields 91, naming + quote **99 of 277 (36%)**; the remaining 178 are structural bases. Ports byte-identical to 6.4 (markedlil 9,322, zodlil 32,415, same digests); pool 292/292 |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |

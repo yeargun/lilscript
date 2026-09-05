@@ -3048,6 +3048,9 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
     ) -> Result<String, crate::codegen_js::CodegenError> {
+        if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+            eprintln!("[emission-context] ctx={context_id}");
+        }
         if reprint_quotes_enabled() {
             // `IrJsOptions` holds a borrowed set and is not `Hash`; its debug
             // form is a faithful key and is built once per emission.
