@@ -2980,9 +2980,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
         self.loop_captured_closures = loop_captured_closures(&entry);
         if entry_is_single_block {
-            self.emit_single_block(&entry, false, &mut out)?;
+            self.emit_single_block(&entry, BodyFrame::Bare, &mut out)?;
         } else if entry_can_structure {
-            self.emit_structured(&entry, false, &mut out)?;
+            self.emit_structured(&entry, BodyFrame::Bare, &mut out)?;
         } else {
             out.push_str("(()=>");
             self.emit_state_machine(&entry, &mut out)?;
@@ -6478,9 +6478,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             loop_captured_closures(&entry),
         );
         let result = if entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty() {
-            self.emit_single_block(&entry, false, out)
+            self.emit_single_block(&entry, BodyFrame::Bare, out)
         } else if can_structure(&entry) {
-            self.emit_structured(&entry, false, out)
+            self.emit_structured(&entry, BodyFrame::Bare, out)
         } else {
             out.push_str("(()=>");
             self.emit_state_machine(&entry, out)?;
@@ -9106,20 +9106,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if function.is_async {
             self.require_syntax(JsSyntaxFeature::AsyncAwait)?;
         }
+        let mut head = String::new();
         if class_member {
             if function.is_async {
-                out.push_str("async ");
+                head.push_str("async ");
             }
-            out.push_str(&name);
-            out.push('(');
-            out.push_str(&params);
-            out.push(')');
+            head.push_str(&name);
+            head.push('(');
+            head.push_str(&params);
+            head.push(')');
         } else if arrow_binding {
-            out.push_str("let ");
-            out.push_str(&name);
-            out.push('=');
+            head.push_str("let ");
+            head.push_str(&name);
+            head.push('=');
             if function.is_async {
-                out.push_str("async ");
+                head.push_str("async ");
             }
             if parameter_count != 1
                 || emitted_params
@@ -9127,18 +9128,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .and_then(|param| javascript_parameter_default(param))
                     .is_some()
             {
-                out.push('(');
-                out.push_str(&params);
-                out.push(')');
+                head.push('(');
+                head.push_str(&params);
+                head.push(')');
             } else {
-                out.push_str(&params);
+                head.push_str(&params);
             }
-            out.push_str("=>");
+            head.push_str("=>");
         } else {
             if function.is_async {
-                out.push_str("async ");
+                head.push_str("async ");
             }
-            out.push_str(
+            head.push_str(
                 if function.is_generator && self.options.compact_generator_star {
                     "function*"
                 } else if function.is_generator {
@@ -9149,11 +9150,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "function "
                 },
             );
-            out.push_str(&name);
-            out.push('(');
-            out.push_str(&params);
-            out.push(')');
+            head.push_str(&name);
+            head.push('(');
+            head.push_str(&params);
+            head.push(')');
         }
+        let statement_options = JsStatementOptions {
+            elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
+        };
         if !function.is_generator && nested_helpers.is_empty() {
             let return_expression = if self.options.dense_string_return_tables {
                 self.render_dense_string_return_table(function, &context)?
@@ -9183,40 +9187,52 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         })
                         .flatten();
                 if let Some((assignment, returned)) = self_default {
+                    let mut body = out.nested();
+                    self.emit_calling_convention_aliases(function, &context, &mut body)?;
                     if let Some(folded) = fold_default_assignment_into_first_field(
                         &assignment,
                         &returned,
                         context.value_name(emitted_params[0].value)?,
                     ) {
-                        out.push('{');
-                        self.emit_calling_convention_aliases(function, &context, out)?;
-                        out.push_str("return ");
-                        out.push_str(&folded);
-                        close_statement_block(out, self.options.elide_block_terminal_semicolons);
+                        body.push_statement(JsStatement::Return {
+                            value: Some(JsExpression::raw(folded, JsPrecedence::Assignment)),
+                        });
                     } else {
-                        out.push('{');
-                        self.emit_calling_convention_aliases(function, &context, out)?;
-                        out.push_str(&assignment);
-                        out.push_str(";return ");
-                        out.push_str(&returned);
-                        close_statement_block(out, self.options.elide_block_terminal_semicolons);
+                        body.push_statement(JsStatement::Expression {
+                            value: JsExpression::raw(assignment, JsPrecedence::Assignment),
+                        });
+                        body.push_statement(JsStatement::Return {
+                            value: Some(JsExpression::raw(returned, JsPrecedence::Assignment)),
+                        });
                     }
-                    if arrow_binding {
-                        out.push(';');
-                    }
+                    out.push_statement_with(
+                        JsStatement::Function {
+                            head,
+                            body: JsFunctionBody::Block(body),
+                            terminated: arrow_binding,
+                        },
+                        statement_options,
+                    );
                     return Ok(());
                 }
-                if arrow_binding {
-                    push_concise_arrow_body(out, &expression);
-                    out.push(';');
+                let body = if arrow_binding {
+                    JsFunctionBody::Concise(expression)
                 } else {
-                    out.push('{');
-                    self.emit_calling_convention_aliases(function, &context, out)?;
-                    out.push_statement(JsStatement::Return {
+                    let mut body = out.nested();
+                    self.emit_calling_convention_aliases(function, &context, &mut body)?;
+                    body.push_statement(JsStatement::Return {
                         value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
                     });
-                    close_statement_block(out, self.options.elide_block_terminal_semicolons);
-                }
+                    JsFunctionBody::Block(body)
+                };
+                out.push_statement_with(
+                    JsStatement::Function {
+                        head,
+                        body,
+                        terminated: arrow_binding,
+                    },
+                    statement_options,
+                );
                 return Ok(());
             }
         }
@@ -9237,44 +9253,50 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // spliced in after a `find('{')`. Both now look at the body itself.
         let mut body = out.nested();
         if single_block {
-            self.emit_single_block_with_context(function, true, context, &mut body)?;
+            self.emit_single_block_with_context(function, BodyFrame::Function, context, &mut body)?;
         } else if structured {
-            self.emit_structured_with_context(function, true, context, &mut body)?;
+            self.emit_structured_with_context(function, BodyFrame::Function, context, &mut body)?;
         } else {
-            self.emit_state_machine_with_context(function, context, &mut body)?;
+            self.emit_state_machine_with_context(
+                function,
+                BodyFrame::Function,
+                context,
+                &mut body,
+            )?;
         }
         let concise = arrow_binding
             .then(|| concise_arrow_body(&body))
             .flatten();
-        if let Some(expression) = concise {
+        let body = if let Some(expression) = concise {
             // A coercion needs a parameter that feeds a loop phi, a loop needs
-            // a block body, and the rewrite fires only on `{return X;}` -- so
+            // a block body, and the rewrite fires only on `[return X]` -- so
             // these cannot both hold. Asserted rather than assumed, because
             // the old splice would have put the coercions somewhere inside
             // `X` if they ever did.
             debug_assert!(public_int_params.is_empty(), "coercions on a concise arrow body");
-            push_concise_arrow_body(out, &expression);
+            JsFunctionBody::Concise(expression)
         } else if public_int_params.is_empty() {
-            out.push_block(&body);
+            JsFunctionBody::Block(body)
         } else {
-            let body = body.into_string();
             // Public `int` parameters that feed a loop phi are coerced on
-            // entry, as the first statements of the block. This is the one
-            // place the body's text is still sliced rather than treated as a
-            // statement list; it goes when the dispatchers take a preamble.
-            let rest = body
-                .strip_prefix('{')
-                .expect("a body with parameter coercions is a block");
-            out.push('{');
+            // entry, as the first statements of the body.
+            let mut framed = out.nested();
             for param in &public_int_params {
-                out.push_str(param);
-                out.push_str("|=0;");
+                framed.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(format!("{param}|=0"), JsPrecedence::Assignment),
+                });
             }
-            out.push_str(rest);
-        }
-        if arrow_binding && !out.ends_with_semicolon() {
-            out.push(';');
-        }
+            framed.push_block(&body);
+            JsFunctionBody::Block(framed)
+        };
+        out.push_statement_with(
+            JsStatement::Function {
+                head,
+                body,
+                terminated: arrow_binding,
+            },
+            statement_options,
+        );
         Ok(())
     }
 
@@ -10019,7 +10041,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn emit_single_block(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        wrapped: bool,
+        frame: BodyFrame,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let local_mangler = self.local_mangler(function);
@@ -10037,20 +10059,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.global_names,
         );
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
-            this.emit_single_block_with_context(function, wrapped, context, out)
+            this.emit_single_block_with_context(function, frame, context, out)
         })
     }
 
     fn emit_single_block_with_context(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        wrapped: bool,
+        frame: BodyFrame,
         mut context: LocalNames,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         context.inline_declarations = true;
-        if wrapped {
+        if frame.braced() {
             out.push('{');
+        }
+        if frame.is_function() {
             self.emit_nested_once_run_helpers(function.id, out)?;
             self.emit_calling_convention_aliases(function, &context, out)?;
         }
@@ -10242,7 +10266,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
         }
-        if wrapped {
+        if frame.braced() {
             close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
         Ok(())
@@ -11055,17 +11079,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.global_names,
         );
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
-            this.emit_state_machine_with_context(function, context, out)
+            this.emit_state_machine_with_context(function, BodyFrame::BracedFunction, context, out)
         })
     }
 
     fn emit_state_machine_with_context(
         &mut self,
         function: &ControlFlowFunction<'src>,
+        frame: BodyFrame,
         context: LocalNames,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
-        out.push('{');
+        if frame.braced() {
+            out.push('{');
+        }
         self.emit_nested_once_run_helpers(function.id, out)?;
         self.emit_calling_convention_aliases(function, &context, out)?;
         let declared = context.non_parameter_names(function);
@@ -11247,14 +11274,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         close_statement_block(out, self.options.elide_block_terminal_semicolons);
-        close_statement_block(out, self.options.elide_block_terminal_semicolons);
+        if frame.braced() {
+            close_statement_block(out, self.options.elide_block_terminal_semicolons);
+        }
         Ok(())
     }
 
     fn emit_structured(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        wrapped: bool,
+        frame: BodyFrame,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         let local_mangler = self.local_mangler(function);
@@ -11273,19 +11302,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         );
         context.inline_declarations = true;
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
-            this.emit_structured_with_context(function, wrapped, context, out)
+            this.emit_structured_with_context(function, frame, context, out)
         })
     }
 
     fn emit_structured_with_context(
         &mut self,
         function: &ControlFlowFunction<'src>,
-        wrapped: bool,
+        frame: BodyFrame,
         context: LocalNames,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
-        if wrapped {
+        if frame.braced() {
             out.push('{');
+        }
+        if frame.is_function() {
             self.emit_nested_once_run_helpers(function.id, out)?;
             self.emit_calling_convention_aliases(function, &context, out)?;
         }
@@ -11317,7 +11348,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // A function whose body falls off the end after a bare `return;` has a
         // statement that does nothing; the block knows it emitted one.
         out.drop_trailing_bare_return();
-        if wrapped {
+        if frame.braced() {
             close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
         Ok(())
@@ -16623,9 +16654,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             context.inline_declarations = true;
             let mut body = JsBlock::new();
             if can_structure(&function) {
-                self.emit_structured_with_context(&function, true, context, &mut body)?;
+                self.emit_structured_with_context(&function, BodyFrame::BracedFunction, context, &mut body)?;
             } else {
-                self.emit_state_machine_with_context(&function, context, &mut body)?;
+                self.emit_state_machine_with_context(&function, BodyFrame::BracedFunction, context, &mut body)?;
             }
             return Ok(
                 if recursive_name.is_some()
@@ -16650,7 +16681,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !expression_closure {
             let parameters = self.render_closure_parameter_list(&function, &context)?;
             let mut body = JsBlock::new();
-            self.emit_single_block_with_context(&function, true, context, &mut body)?;
+            self.emit_single_block_with_context(&function, BodyFrame::BracedFunction, context, &mut body)?;
             return Ok(
                 if recursive_name.is_some()
                     || self.emits_ordinary_function_expression(&function, calling_convention)
@@ -16660,7 +16691,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         named_function_expression_head(recursive_name.as_deref(), &parameters)
                     )
                 } else {
-                    let body = match concise_arrow_body(&body) {
+                    let body = match concise_arrow_body_text(&body) {
                         Some(expression) => {
                             let mut concise = JsBlock::new();
                             push_concise_arrow_body(&mut concise, &expression);
@@ -17604,7 +17635,25 @@ fn bitwise_arithmetic_elides_coercion(
 /// a rewrite that truncated `out` back to a remembered offset. It still reads
 /// the body as text -- "is this exactly one return statement" is a fact a
 /// statement list would carry -- which is the phase 3 seam.
+/// The one expression a body returns and nothing else -- `[return v]` as a
+/// statement list -- so an arrow binding can be spelled concisely.
 fn concise_arrow_body(body: &JsBlock) -> Option<String> {
+    let [only] = body.statements.as_slice() else {
+        return None;
+    };
+    let JsStatement::Return { value: Some(value) } = &only.statement else {
+        return None;
+    };
+    let expression = strip_outer_parens(value.clone());
+    if expression.is_empty() || expression_has_top_level_statement_break(&expression) {
+        return None;
+    }
+    Some(expression)
+}
+
+/// The same decision on a braced body as text, for the closure path that
+/// still takes its body that way.
+fn concise_arrow_body_text(body: &JsBlock) -> Option<String> {
     let inner = body.strip_prefix('{')?.strip_suffix('}')?;
     let expression = inner.strip_prefix("return ")?;
     let expression = expression.strip_suffix(';').unwrap_or(expression);
@@ -21657,6 +21706,15 @@ enum JsStatement {
         then_branch: JsBranch,
         else_branch: Option<JsBranch>,
     },
+    /// `function f(a){..}`, `let f=a=>{..}`, `let f=a=>v;`, or a class member
+    /// `f(a){..}`. The head is still text (its fields come with the
+    /// function-level folds); the body is framed by the node: the braces, the
+    /// terminal-semicolon elision and the arrow binding's `;` are rendering.
+    Function {
+        head: String,
+        body: JsFunctionBody,
+        terminated: bool,
+    },
     /// `while(c){..}`, `for(i;c;u){..}`, `for(;;){..}`, and the do-shape
     /// `if(c)do{..}while(c);` -- a head, a body branch, and the trailing
     /// condition the do-shape repeats.
@@ -21665,6 +21723,36 @@ enum JsStatement {
         body: JsBranch,
         do_condition: Option<String>,
     },
+}
+
+/// What a function's body is: a statement list the node wraps in braces, or
+/// the one expression a concise arrow returns.
+#[derive(Debug, Clone)]
+enum JsFunctionBody {
+    Block(JsBlock),
+    Concise(String),
+}
+
+/// How a body dispatcher frames what it emits. `Bare` is the module entry:
+/// no braces, no function helpers. `Function` emits the once-run helpers and
+/// calling-convention aliases but no braces -- the `Function` node owns those.
+/// `BracedFunction` is the old wrapped shape, kept for the closure paths that
+/// still take a body as text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BodyFrame {
+    Bare,
+    Function,
+    BracedFunction,
+}
+
+impl BodyFrame {
+    fn is_function(self) -> bool {
+        self != Self::Bare
+    }
+
+    fn braced(self) -> bool {
+        self == Self::BracedFunction
+    }
 }
 
 /// The clause a loop opens with. `For` with nothing in it is `for(;;)`.
@@ -21920,6 +22008,34 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
+            Self::Function {
+                head,
+                body,
+                terminated,
+            } => {
+                let mut text = head;
+                match body {
+                    JsFunctionBody::Block(block) => {
+                        text.push('{');
+                        text.push_str(&Self::close_branch(block, options));
+                    }
+                    JsFunctionBody::Concise(expression) => {
+                        // A concise body starting with `{` would parse as a
+                        // block, so an object literal keeps its parentheses.
+                        if expression.starts_with('{') {
+                            text.push('(');
+                            text.push_str(&expression);
+                            text.push(')');
+                        } else {
+                            text.push_str(&expression);
+                        }
+                    }
+                }
+                if terminated {
+                    text.push(';');
+                }
+                text
+            }
             Self::Declarators {
                 keyword,
                 declarators,
