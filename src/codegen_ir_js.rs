@@ -614,6 +614,7 @@ const ARRAY_PROTOTYPE_ALIAS_METHODS: [&str; 11] = [
 fn let_item(name: impl Into<String>, value: impl Into<String>, precedence: JsPrecedence) -> JsDeclarator {
     JsDeclarator {
         name: name.into(),
+        bind: None,
         value: Some(JsExpression::raw(value, precedence)),
     }
 }
@@ -1134,6 +1135,28 @@ thread_local! {
     /// emitter is the one place that knows -- so it records them here for the
     /// duration of an emission instead of every node storing a copy.
     static WITNESS_OPTIONS: Cell<JsRenderOptions> = const { Cell::new(JsRenderOptions::UNUSED) };
+}
+
+/// The phase 5 declaration census: which declarations reached the block
+/// knowing their binding. `LILSCRIPT_TIMING=1` reports `decl_bound` and
+/// `decl_unbound`.
+fn census_declaration_binds(statement: &JsStatement) {
+    let mut count = |bind: Option<Bind>| {
+        if bind.is_some() {
+            crate::timing::DECL_BOUND.event(0);
+        } else {
+            crate::timing::DECL_UNBOUND.event(0);
+        }
+    };
+    match statement {
+        JsStatement::Declaration { bind, .. } | JsStatement::Binding { bind, .. } => count(*bind),
+        JsStatement::Declarators { declarators, .. } => {
+            for declarator in declarators {
+                count(declarator.bind);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// `LILSCRIPT_TWIN=1` turns on the twin witness. Off, it costs one relaxed load.
@@ -1758,6 +1781,9 @@ impl JsBlock {
     }
 
     fn push_statement_with(&mut self, statement: JsStatement, options: JsStatementOptions) {
+        if crate::timing::enabled() {
+            census_declaration_binds(&statement);
+        }
         let bare_return = matches!(statement, JsStatement::Return { value: None });
         let rendered = statement.clone().render(options);
         self.count_appended(&rendered);
@@ -6250,6 +6276,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 value: self.constant_global_strings.get(symbol).map(|value| {
                     JsExpression::atom(render_string_literal(value, self.options.string_quote))
                 }),
+                bind: None,
             });
         }
         if !declarators.is_empty() {
@@ -6585,6 +6612,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 keyword: Some("const "),
                 name: alias.clone(),
                 value: JsExpression::raw(self.global_name(*symbol)?, JsPrecedence::Primary),
+                bind: None,
             });
         }
         Ok(())
@@ -8487,6 +8515,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 keyword: Some("var "),
                 name: context.value_name(*value)?.to_string(),
                 value: JsExpression::raw(binding.to_string(), JsPrecedence::Assignment),
+                bind: context.value_bind(*value),
             });
         }
         Ok(())
@@ -8690,6 +8719,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 format!("(function(){{{}}})()", body.into_string()),
                 JsPrecedence::Call,
             ),
+            bind: None,
         });
         Ok(())
     }
@@ -8730,6 +8760,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 keyword: None,
                 name,
                 value: JsExpression::raw(rendered.into_string(), JsPrecedence::Primary),
+                bind: None,
             });
         }
         out.push_statement(JsStatement::Expression {
@@ -10285,6 +10316,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let declarator = JsDeclarator {
                     name: name.to_string(),
                     value: Some(value.clone()),
+                    bind: None,
                 };
                 match &mut pending_lets {
                     Some(group) if group.names.contains(&declarator.name) => {
@@ -10300,6 +10332,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             keyword: None,
                             name: declarator.name,
                             value: declarator.value.expect("built with a value"),
+                            bind: None,
                         });
                     }
                     Some(group) => {
@@ -10664,6 +10697,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_statement(JsStatement::Declaration {
                         keyword: "var ",
                         name,
+                        bind: context.local_bind(*local),
                     });
                     return Ok(());
                 }
@@ -10701,6 +10735,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     keyword: declare.then_some("var "),
                     name: name.clone(),
                     value: JsExpression::raw(value, JsPrecedence::Assignment),
+                    bind: context.local_bind(*local),
                 });
                 return Ok(());
             }
@@ -10732,6 +10767,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     keyword,
                     name,
                     value: JsExpression::raw(value, JsPrecedence::Assignment),
+                    bind: None,
                 });
                 return Ok(());
             }
@@ -10867,6 +10903,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             ),
                             JsPrecedence::Call,
                         ),
+                        bind: None,
                     });
                     return Ok(());
                 }
@@ -10877,6 +10914,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.default_class_value(class, context.is_untyped(result))?,
                         JsPrecedence::Primary,
                     ),
+                    bind: None,
                 });
                 let mut call = format!("{}({name}", self.function_name(*constructor)?);
                 for arg in rendered_args {
@@ -10930,6 +10968,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_statement(JsStatement::Binding {
                     keyword,
                     name: name.to_string(),
+                    bind: context.value_bind(output),
                     value: JsExpression::raw(
                         format!(
                             "{}{object}}}",
@@ -11277,6 +11316,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             keyword: Some("let "),
             name: state.to_string(),
             value: JsExpression::atom(function.entry.0.to_string()),
+            bind: context.state_bind(),
         });
         let options = JsStatementOptions {
             elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
@@ -11296,6 +11336,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             keyword: None,
             name: state.to_string(),
             value: JsExpression::atom(target.0.to_string()),
+            bind: context.state_bind(),
         };
 
         let uses = &context.use_counts;
@@ -11775,6 +11816,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         keyword: None,
                                         name: target.to_string(),
                                         value: JsExpression::raw(value, JsPrecedence::Conditional),
+                                        bind: None,
                                     });
                                 }
                             }
@@ -11843,6 +11885,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_statement(JsStatement::Declaration {
                                     keyword: "var ",
                                     name: name.to_string(),
+                                    bind: None,
                                 });
                             }
                             let mut combined = String::new();
@@ -14019,12 +14062,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let mut declarators = vec![JsDeclarator {
                     name: target.clone(),
                     value: Some(JsExpression::raw(source.as_str(), JsPrecedence::Assignment)),
+                    bind: None,
                 }];
                 declarators.extend(
                     context
                         .claim_remaining_declarations()
                         .into_iter()
-                        .map(|name| JsDeclarator { name, value: None }),
+                        .map(|name| JsDeclarator { name, value: None,
+    bind: None, }),
                 );
                 out.push_statement(JsStatement::Declarators {
                     keyword: "var ",
@@ -14035,6 +14080,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     keyword: None,
                     name: target.clone(),
                     value: JsExpression::raw(source.as_str(), JsPrecedence::Assignment),
+                    bind: None,
                 });
             }
         } else if !assignments.is_empty() {
@@ -14118,6 +14164,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     declarators: vec![JsDeclarator {
                         name: pattern,
                         value: Some(JsExpression::raw(tuple, JsPrecedence::Primary)),
+                        bind: None,
                     }],
                 });
             } else {
@@ -16992,6 +17039,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     keyword: Some("let "),
                     name: context.value_name(out)?.to_string(),
                     value: expression,
+                    bind: context.value_bind(out),
                 });
             }
         }
@@ -17566,12 +17614,14 @@ fn push_var_declarators<S: AsRef<str>>(
         .map(|(target, source)| JsDeclarator {
             name: target.as_ref().to_string(),
             value: Some(JsExpression::raw(source.as_ref(), JsPrecedence::Assignment)),
+            bind: None,
         })
         .collect::<Vec<_>>();
     declarators.extend(
         remaining_declarations
             .into_iter()
-            .map(|name| JsDeclarator { name, value: None }),
+            .map(|name| JsDeclarator { name, value: None,
+    bind: None, }),
     );
     out.push_statement(JsStatement::Declarators {
         keyword: "var ",
@@ -17587,6 +17637,7 @@ fn scalar_parallel_assignments(
         keyword,
         name: target.to_string(),
         value: JsExpression::raw(source, JsPrecedence::Assignment),
+        bind: None,
     };
     if let Some(ordered) = order_scalar_assignments(assignments) {
         return Some(
@@ -18383,6 +18434,7 @@ fn push_merge_declaration(
     let mut declarators = vec![JsDeclarator {
         name: target.to_string(),
         value: value.map(|value| JsExpression::raw(value, JsPrecedence::Conditional)),
+        bind: None,
     }];
     declarators.extend(tail.iter().cloned());
     out.push_statement(JsStatement::Declarators {
@@ -18453,6 +18505,7 @@ fn statement_expression_text(statement: &JsStatement) -> Option<String> {
             keyword: None,
             name,
             value,
+            ..
         } => Some(format!("{name}={}", strip_outer_parens(value.clone()))),
         _ => None,
     }
@@ -18606,6 +18659,7 @@ fn statement_single_assignment(
             keyword,
             name,
             value,
+            ..
         } => {
             let declare = match keyword {
                 None => false,
@@ -19422,6 +19476,7 @@ struct LocalNames {
     /// formal) has a name and no binding: the residue phase 5 drives down.
     value_binds: AHashMap<ValueId, Bind>,
     local_binds: AHashMap<LocalId, Bind>,
+    state_bind: Option<Bind>,
     parameter_values: AHashSet<ValueId>,
     stored_values: AHashSet<ValueId>,
     untyped_values: AHashSet<ValueId>,
@@ -21065,14 +21120,15 @@ impl LocalNames {
                 })
                 .then_with(|| left.0.cmp(&right.0))
         });
-        let state = if all_values {
-            if mangle_identifiers {
-                mangler.next_name()
+        let (state_bind, state) = if all_values {
+            let (bind, name) = if mangle_identifiers {
+                mangler.request()
             } else {
-                mangler.unique_name("$state")
-            }
+                mangler.unique_request("$state")
+            };
+            (Some(bind), name)
         } else {
-            String::new()
+            (None, String::new())
         };
         let named_values = stored_values
             .union(&parameter_values)
@@ -21303,6 +21359,7 @@ impl LocalNames {
             local_names,
             value_binds,
             local_binds,
+            state_bind,
             parameter_values,
             stored_values,
             untyped_values,
@@ -21457,6 +21514,18 @@ impl LocalNames {
 
     fn state_name(&self) -> &str {
         &self.state
+    }
+
+    fn state_bind(&self) -> Option<Bind> {
+        self.state_bind
+    }
+
+    fn value_bind(&self, value: ValueId) -> Option<Bind> {
+        self.value_binds.get(&value).copied()
+    }
+
+    fn local_bind(&self, local: LocalId) -> Option<Bind> {
+        self.local_binds.get(&local).copied()
     }
 
     fn is_untyped(&self, value: ValueId) -> bool {
@@ -22011,11 +22080,14 @@ enum JsStatement {
     Declaration {
         keyword: &'static str,
         name: String,
+        /// The binding declared, when the emitter knows it (phase 5.1b).
+        bind: Option<Bind>,
     },
     /// `var x=v;`, `let x=v;`, or `x=v;` when the name is already declared.
     Binding {
         keyword: Option<&'static str>,
         name: String,
+        bind: Option<Bind>,
         value: JsExpression,
     },
     /// `return v;` or `return;`.
@@ -22206,6 +22278,9 @@ impl JsLoopHead {
 #[derive(Debug, Clone)]
 struct JsDeclarator {
     name: String,
+    /// The binding declared, when known; `None` for a destructuring pattern
+    /// or a target the emitter only has as text.
+    bind: Option<Bind>,
     value: Option<JsExpression>,
 }
 
@@ -22243,6 +22318,7 @@ fn single_let_binding(statement: &JsBlock) -> Option<(&str, &JsExpression)> {
             keyword: Some("let "),
             name,
             value,
+            ..
         } if !emitted.dropped_semicolon => Some((name, value)),
         _ => None,
     }
@@ -22382,11 +22458,12 @@ impl JsStatement {
 
     fn render(self, options: JsStatementOptions) -> String {
         match self {
-            Self::Declaration { keyword, name } => format!("{keyword}{name};"),
+            Self::Declaration { keyword, name, .. } => format!("{keyword}{name};"),
             Self::Binding {
                 keyword,
                 name,
                 value,
+                ..
             } => format!(
                 "{}{name}={};",
                 keyword.unwrap_or(""),
@@ -22588,7 +22665,8 @@ fn emit_bound_value_without_cache_flush(
     // "the same name" means at this boundary.
     if strip_outer_parens(expression.clone()) == name {
         if context.claim_declaration(dest)? {
-            out.push_statement(JsStatement::Declaration { keyword, name });
+            out.push_statement(JsStatement::Declaration { keyword, name,
+    bind: None, });
         }
         return Ok(());
     }
@@ -22597,6 +22675,7 @@ fn emit_bound_value_without_cache_flush(
             keyword,
             name,
             value: expression,
+            bind: context.value_bind(dest),
         });
     Ok(())
 }
@@ -29409,6 +29488,7 @@ mod tests {
             keyword,
             name: name.to_string(),
             value: JsExpression::raw(value, JsPrecedence::Assignment),
+            bind: None,
         }
     }
 
@@ -29494,14 +29574,17 @@ mod tests {
                     JsDeclarator {
                         name: "a".to_string(),
                         value: Some(JsExpression::atom("1")),
+                        bind: None,
                     },
                     JsDeclarator {
                         name: "b".to_string(),
                         value: None,
+                        bind: None,
                     },
                     JsDeclarator {
                         name: "c".to_string(),
                         value: None,
+                        bind: None,
                     },
                 ],
             }]),
@@ -29553,6 +29636,7 @@ mod tests {
         assert!(!block_is_braceless(&block_of(vec![JsStatement::Declaration {
             keyword: "var ",
             name: "a".to_string(),
+            bind: None,
         }])));
         assert!(!block_is_braceless(&block_of(vec![expression("f()"), expression("g()")])));
         let loop_over = |body: JsBlock| JsStatement::Loop {
@@ -39168,6 +39252,7 @@ consume(field(JS.object("type", 1), "type"));
             JsStatement::Declaration {
                 keyword: "var ",
                 name: "x".to_string(),
+                bind: None,
             },
             assign(None, "x", "read()"),
             assign(None, "y", "x+1"),

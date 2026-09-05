@@ -128,6 +128,9 @@ pub static FACTS_DELIVERED: Bucket = Bucket::new("facts_delivered");
 pub static NAME_BOUND: Bucket = Bucket::new("name_bound");
 /// Identifier-shaped atoms built without one: the phase 5 residue.
 pub static NAME_UNBOUND: Bucket = Bucket::new("name_unbound");
+/// Declarations pushed with the binding they declare, and without.
+pub static DECL_BOUND: Bucket = Bucket::new("decl_bound");
+pub static DECL_UNBOUND: Bucket = Bucket::new("decl_unbound");
 pub static STATEMENT_RAW: Bucket = Bucket::new("stmt_raw");
 /// Peephole folds that rewrote nothing, and the time they spent proving it.
 /// A fold whose enabling syntax is absent from the artifact still pays a full
@@ -216,8 +219,8 @@ const BYTE_BUCKETS: [&Bucket; 17] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 32] = [
-    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND,
+const EVENT_BUCKETS: [&Bucket; 34] = [
+    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND, &DECL_BOUND, &DECL_UNBOUND,
     &STATEMENT_RAW,
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,
