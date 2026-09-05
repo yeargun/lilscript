@@ -2449,32 +2449,39 @@ impl JsExpression {
     }
 
     fn negated(self) -> String {
+        self.negated_tree().into_minimal()
+    }
+
+    /// The condition's negation as a tree: `!x` drops the `!`, a comparison
+    /// flips, an undefined test flips its polarity, a literal becomes the
+    /// other literal, anything else is wrapped in `!`. `negated()` is its
+    /// rendering, and a branch keeps the tree beside the text.
+    fn negated_tree(self) -> Self {
         if is_true_literal(&self.code) {
-            return "!1".to_string();
+            return Self::atom("!1");
         }
         if is_false_literal(&self.code) {
-            return "!0".to_string();
+            return Self::atom("!0");
         }
         if self.root == JsExpressionRoot::Unary(JsUnary::Not) {
             return self
                 .unary_operand()
                 .cloned()
-                .map(Self::into_minimal)
                 .expect("unary expressions carry their operand");
         }
         if let JsExpressionRoot::Binary(operator) = self.root {
             if let Some(inverse) = inverse_comparison(operator) {
                 if let Some((lhs, rhs)) = self.binary_operands() {
-                    return Self::binary(inverse, lhs.clone(), rhs.clone()).into_minimal();
+                    return Self::binary(inverse, lhs.clone(), rhs.clone());
                 }
             }
         }
         if let JsExpressionRoot::UndefinedTest { absent } = self.root {
             if let Some(operand) = self.operands.first() {
-                return Self::undefined_test(operand.clone(), !absent).into_minimal();
+                return Self::undefined_test(operand.clone(), !absent);
             }
         }
-        Self::unary("!", self).into_minimal()
+        Self::unary("!", self)
     }
 
     fn without_integer_normalization(self) -> Self {
@@ -3147,6 +3154,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     /// disagrees with its binding's spelling would be renamed by an identity
     /// pass, and that is the defect this catches.
     fn witness_identity_respell(&self, out: &JsBlock) {
+        witness_condition_trees(out, &self.closure_trees);
         let mut identity = out.clone();
         assert!(
             !self.respell().block(&mut identity),
@@ -11473,6 +11481,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let loop_head = JsLoopHead::For {
             initializer: None,
             condition: None,
+            condition_tree: None,
             update: None,
         };
         let mut dispatch = out.nested_after(&loop_head.render());
@@ -11588,6 +11597,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     case_body.push_statement_with(
                         JsStatement::If {
                             condition: String::from(&*condition),
+                            condition_tree: None,
                             then_branch: JsBranch::before_else(
                                 then_branch,
                                 self.options.braceless_control_bodies,
@@ -11633,6 +11643,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 StateMachineSpelling::Conditional => dispatch.push_statement_with(
                     JsStatement::If {
                         condition: format!("{state}=={}", block.id.0),
+                        condition_tree: None,
                         then_branch: JsBranch::braced(case_body),
                         else_branch: None,
                     },
@@ -11658,6 +11669,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 head: loop_head,
                 body,
                 do_condition: None,
+                do_condition_tree: None,
             },
             options,
         );
@@ -11804,8 +11816,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let condition_expression = take_value(condition, context, cache)?;
                         let condition_was_negated =
                             condition_expression.root == JsExpressionRoot::Unary(JsUnary::Not);
-                        let negated_condition = condition_expression.clone().negated();
-                        let condition = condition_expression.into_condition();
+                        let negated_tree = condition_expression.clone().negated_tree();
+                        let negated_condition = negated_tree.clone().into_minimal();
+                        let condition_tree = condition_expression.normalized_for_condition();
+                        let condition = condition_tree.clone().into_minimal();
                         if is_true_literal(&condition) || is_false_literal(&condition) {
                             let selected = if is_true_literal(&condition) {
                                 then_block
@@ -12063,6 +12077,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_statement_with(
                                 JsStatement::If {
                                     condition: combined.clone(),
+                                    condition_tree: None,
                                     then_branch: JsBranch::compact(returned),
                                     else_branch: None,
                                 },
@@ -12173,6 +12188,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_statement_with(
                                     JsStatement::If {
                                         condition: negated_condition.clone(),
+                                        condition_tree: Some(negated_tree.clone()),
                                         then_branch: JsBranch::compact(else_output),
                                         else_branch: None,
                                     },
@@ -12252,6 +12268,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     out.push_statement_with(
                                         JsStatement::If {
                                             condition: condition.clone(),
+                                            condition_tree: Some(condition_tree.clone()),
                                             then_branch: JsBranch::compact(then_output),
                                             else_branch: None,
                                         },
@@ -12289,6 +12306,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_statement_with(
                                     JsStatement::If {
                                         condition: negated_condition.clone(),
+                                        condition_tree: Some(negated_tree.clone()),
                                         then_branch: JsBranch::compact(else_output),
                                         else_branch: None,
                                     },
@@ -12303,6 +12321,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_statement_with(
                                 JsStatement::If {
                                     condition: condition.clone(),
+                                    condition_tree: Some(condition_tree.clone()),
                                     then_branch: JsBranch::before_else(
                                         then_output,
                                         self.options.braceless_control_bodies,
@@ -12412,8 +12431,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 )
                             });
                         let condition_expression = take_value(condition, context, cache)?;
-                        let negated_condition = condition_expression.clone().negated();
-                        let condition = condition_expression.into_condition();
+                        let negated_tree = condition_expression.clone().negated_tree();
+                        let negated_condition = negated_tree.clone().into_minimal();
+                        let condition_tree = condition_expression.normalized_for_condition();
+                        let condition = condition_tree.clone().into_minimal();
                         let loop_condition_is_constant_true = (body_on_true
                             && is_true_literal(&condition))
                             || (body_on_false && is_false_literal(&condition));
@@ -12485,12 +12506,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else {
                             negated_condition.clone()
                         };
+                        let loop_condition_tree = if body_on_true {
+                            condition_tree.clone()
+                        } else {
+                            negated_tree.clone()
+                        };
                         // The head is a value. Initialiser hoists (`var a,b;` ahead of a
                         // `for(a=1,b=2;..)`) are statements of their own and go out first.
                         let (mut loop_head, do_condition) = if do_loop {
                             (
                                 JsLoopHead::DoWhile {
                                     guard: loop_condition.clone(),
+                                    guard_tree: Some(loop_condition_tree.clone()),
                                 },
                                 Some(loop_condition),
                             )
@@ -12500,6 +12527,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 JsLoopHead::For {
                                     initializer: for_initializer.as_deref().map(for_initializer_text),
                                     condition: Some(loop_condition),
+                                    condition_tree: Some(loop_condition_tree.clone()),
                                     update: Some(update_clause.clone()),
                                 },
                                 None,
@@ -12511,6 +12539,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     JsLoopHead::For {
                                         initializer: for_initializer.as_deref().map(for_initializer_text),
                                         condition: Some(loop_condition),
+                                        condition_tree: Some(loop_condition_tree.clone()),
                                         update: None,
                                     },
                                     None,
@@ -12519,6 +12548,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 (
                                     JsLoopHead::While {
                                         condition: loop_condition,
+                                        condition_tree: Some(loop_condition_tree.clone()),
                                     },
                                     None,
                                 )
@@ -12528,6 +12558,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 JsLoopHead::For {
                                     initializer: None,
                                     condition: None,
+                                    condition_tree: None,
                                     update: None,
                                 },
                                 None,
@@ -12546,12 +12577,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             } else {
                                 condition.clone()
                             };
+                            let test_tree = if body_on_true {
+                                negated_tree.clone()
+                            } else {
+                                condition_tree.clone()
+                            };
                             let mut exit_branch = JsBlock::new();
                             exit_branch.push_block(&exit_output);
                             exit_branch.push_statement(JsStatement::Break);
                             body_output.push_statement_with(
                                 JsStatement::If {
                                     condition: test,
+                                    condition_tree: Some(test_tree),
                                     then_branch: JsBranch::braced(exit_branch),
                                     else_branch: None,
                                 },
@@ -12637,6 +12674,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     block: body_output,
                                     braceless,
                                 },
+                                do_condition_tree: do_condition
+                                    .as_ref()
+                                    .map(|_| loop_condition_tree.clone()),
                                 do_condition,
                             },
                             JsStatementOptions {
@@ -12730,6 +12770,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     braceless,
                                 },
                                 do_condition: None,
+                                do_condition_tree: None,
                             },
                             JsStatementOptions {
                                 elide_block_terminal_semicolons: self
@@ -12816,6 +12857,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     braceless,
                                 },
                                 do_condition: None,
+                                do_condition_tree: None,
                             },
                             JsStatementOptions {
                                 elide_block_terminal_semicolons: self
@@ -18975,6 +19017,7 @@ fn statement_if_return(statement: &JsStatement) -> Option<(String, String)> {
             condition,
             then_branch,
             else_branch: None,
+            ..
         } => {
             let [only] = then_branch.block.statements.as_slice() else {
                 return None;
@@ -22326,6 +22369,10 @@ enum JsStatement {
     /// rather than text, these become child statement lists.
     If {
         condition: String,
+        /// The condition as a tree, where the emitter had one: `condition`
+        /// is exactly its minimal rendering (the twin asserts it), so the
+        /// re-spell can rewrite the text and the renamer can see through it.
+        condition_tree: Option<JsExpression>,
         then_branch: JsBranch,
         else_branch: Option<JsBranch>,
     },
@@ -22368,6 +22415,7 @@ enum JsStatement {
         head: JsLoopHead,
         body: JsBranch,
         do_condition: Option<String>,
+        do_condition_tree: Option<JsExpression>,
     },
 }
 
@@ -22597,6 +22645,22 @@ impl Respell<'_> {
         }
     }
 
+    /// A condition kept beside its tree: re-spell the tree, re-render the
+    /// text from it. Text without a tree stays as it is.
+    fn condition(&self, text: &mut String, tree: &mut Option<JsExpression>) -> bool {
+        let Some(tree) = tree else {
+            return false;
+        };
+        match self.expression(tree) {
+            Some(respelled) => {
+                *text = respelled.clone().into_minimal();
+                *tree = respelled;
+                true
+            }
+            None => false,
+        }
+    }
+
     fn block(&self, block: &mut JsBlock) -> bool {
         let mut changed = false;
         for emitted in &mut block.statements {
@@ -22633,11 +22697,13 @@ impl Respell<'_> {
             | JsStatement::Throw { value }
             | JsStatement::Expression { value } => self.value(value),
             JsStatement::If {
+                condition,
+                condition_tree,
                 then_branch,
                 else_branch,
-                ..
             } => {
-                let mut changed = self.branch(then_branch);
+                let mut changed = self.condition(condition, condition_tree);
+                changed |= self.branch(then_branch);
                 if let Some(else_branch) = else_branch {
                     changed |= self.branch(else_branch);
                 }
@@ -22677,12 +22743,30 @@ impl Respell<'_> {
                 changed
             }
             JsStatement::Class { members, .. } => self.block(members),
-            JsStatement::Loop { head, body, .. } => {
+            JsStatement::Loop {
+                head,
+                body,
+                do_condition,
+                do_condition_tree,
+            } => {
                 let mut changed = match head {
                     JsLoopHead::ForIn { key, bind, .. } => self.name(key, *bind),
                     JsLoopHead::ForOf { element, bind, .. } => self.name(element, *bind),
-                    _ => false,
+                    JsLoopHead::While {
+                        condition,
+                        condition_tree,
+                    } => self.condition(condition, condition_tree),
+                    JsLoopHead::DoWhile { guard, guard_tree } => self.condition(guard, guard_tree),
+                    JsLoopHead::For {
+                        condition: Some(condition),
+                        condition_tree,
+                        ..
+                    } => self.condition(condition, condition_tree),
+                    JsLoopHead::For { .. } => false,
                 };
+                if let Some(condition) = do_condition {
+                    changed |= self.condition(condition, do_condition_tree);
+                }
                 changed |= self.branch(body);
                 changed
             }
@@ -22694,6 +22778,123 @@ impl Respell<'_> {
             | JsStatement::DeclarationGroup { .. }
             | JsStatement::ClassField { .. }
             | JsStatement::Empty => false,
+        }
+    }
+}
+
+/// The 5.4 witness: every condition kept beside a tree is exactly that
+/// tree's minimal rendering, in every block of the module and every kept
+/// closure.
+fn witness_condition_trees(
+    block: &JsBlock,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) {
+    fn check(text: &str, tree: &Option<JsExpression>) {
+        if let Some(tree) = tree {
+            assert_eq!(
+                tree.clone().into_minimal(),
+                text,
+                "a condition's text is not its tree's rendering"
+            );
+        }
+    }
+    fn body(
+        body: &JsFunctionBody,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        if let JsFunctionBody::Block(block) = body {
+            witness_condition_trees(block, closures);
+        }
+    }
+    fn expression(
+        expression: &JsExpression,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        if let JsExpressionRoot::Closure(closure) = expression.root {
+            if let Some((_, tree)) = closures.borrow().get(&closure).cloned() {
+                body(&tree, closures);
+            }
+        }
+        for operand in &expression.operands {
+            expression_walk(operand, closures);
+        }
+    }
+    fn expression_walk(
+        e: &JsExpression,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        expression(e, closures);
+    }
+    for emitted in &block.statements {
+        match &emitted.statement {
+            JsStatement::If {
+                condition,
+                condition_tree,
+                then_branch,
+                else_branch,
+            } => {
+                check(condition, condition_tree);
+                witness_condition_trees(&then_branch.block, closures);
+                if let Some(else_branch) = else_branch {
+                    witness_condition_trees(&else_branch.block, closures);
+                }
+            }
+            JsStatement::Loop {
+                head,
+                body: loop_body,
+                do_condition,
+                do_condition_tree,
+            } => {
+                match head {
+                    JsLoopHead::While {
+                        condition,
+                        condition_tree,
+                    } => check(condition, condition_tree),
+                    JsLoopHead::DoWhile { guard, guard_tree } => check(guard, guard_tree),
+                    JsLoopHead::For {
+                        condition: Some(condition),
+                        condition_tree,
+                        ..
+                    } => check(condition, condition_tree),
+                    _ => {}
+                }
+                if let Some(condition) = do_condition {
+                    check(condition, do_condition_tree);
+                }
+                witness_condition_trees(&loop_body.block, closures);
+            }
+            JsStatement::Function { body: function_body, .. } => body(function_body, closures),
+            JsStatement::Try {
+                body: try_body,
+                catch,
+                finally,
+            } => {
+                witness_condition_trees(try_body, closures);
+                if let Some(catch) = catch {
+                    witness_condition_trees(&catch.body, closures);
+                }
+                if let Some(finally) = finally {
+                    witness_condition_trees(finally, closures);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    witness_condition_trees(&case.body, closures);
+                }
+            }
+            JsStatement::Class { members, .. } => witness_condition_trees(members, closures),
+            JsStatement::Binding { value, .. }
+            | JsStatement::Throw { value }
+            | JsStatement::Expression { value }
+            | JsStatement::Return { value: Some(value) } => expression(value, closures),
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    if let Some(value) = &declarator.value {
+                        expression(value, closures);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -22836,6 +23037,15 @@ impl ScopeCollector<'_> {
         }
     }
 
+    /// A condition is references through its tree when it has one, opaque
+    /// text otherwise.
+    fn condition(&mut self, scope: usize, text: &str, tree: &Option<JsExpression>) {
+        match tree {
+            Some(tree) => self.expression(scope, tree),
+            None => self.opaque(scope, text),
+        }
+    }
+
     fn statement(&mut self, scope: usize, statement: &JsStatement) {
         match statement {
             JsStatement::Declaration { name, bind, .. } => match bind {
@@ -22876,10 +23086,11 @@ impl ScopeCollector<'_> {
             | JsStatement::Expression { value } => self.expression(scope, value),
             JsStatement::If {
                 condition,
+                condition_tree,
                 then_branch,
                 else_branch,
             } => {
-                self.opaque(scope, condition);
+                self.condition(scope, condition, condition_tree);
                 self.block(scope, &then_branch.block);
                 if let Some(else_branch) = else_branch {
                     self.block(scope, &else_branch.block);
@@ -22930,6 +23141,7 @@ impl ScopeCollector<'_> {
                 head,
                 body,
                 do_condition,
+                do_condition_tree,
             } => {
                 match head {
                     JsLoopHead::ForIn {
@@ -22965,17 +23177,26 @@ impl ScopeCollector<'_> {
                     JsLoopHead::For {
                         initializer,
                         condition,
+                        condition_tree,
                         update,
                     } => {
-                        for text in [initializer, condition, update].into_iter().flatten() {
+                        for text in [initializer, update].into_iter().flatten() {
                             self.opaque(scope, text);
                         }
+                        if let Some(condition) = condition {
+                            self.condition(scope, condition, condition_tree);
+                        }
                     }
-                    JsLoopHead::While { condition } => self.opaque(scope, condition),
-                    JsLoopHead::DoWhile { guard } => self.opaque(scope, guard),
+                    JsLoopHead::While {
+                        condition,
+                        condition_tree,
+                    } => self.condition(scope, condition, condition_tree),
+                    JsLoopHead::DoWhile { guard, guard_tree } => {
+                        self.condition(scope, guard, guard_tree)
+                    }
                 }
                 if let Some(condition) = do_condition {
-                    self.opaque(scope, condition);
+                    self.condition(scope, condition, do_condition_tree);
                 }
                 self.block(scope, &body.block);
             }
@@ -23151,15 +23372,22 @@ struct JsCase {
 #[derive(Debug, Clone)]
 enum JsLoopHead {
     /// `if(c)do` -- the guard of a do-while spelled as a guarded do.
-    DoWhile { guard: String },
+    DoWhile {
+        guard: String,
+        guard_tree: Option<JsExpression>,
+    },
     /// `for(i;c;u)` with any of the three absent.
     For {
         initializer: Option<String>,
         condition: Option<String>,
+        condition_tree: Option<JsExpression>,
         update: Option<String>,
     },
     /// `while(c)`.
-    While { condition: String },
+    While {
+        condition: String,
+        condition_tree: Option<JsExpression>,
+    },
     /// `for(var k in o)` / `for(k in o)`.
     ForIn {
         declare: bool,
@@ -23179,8 +23407,8 @@ enum JsLoopHead {
 impl JsLoopHead {
     fn render(&self) -> String {
         match self {
-            Self::DoWhile { guard } => format!("if({guard})do"),
-            Self::While { condition } => format!("while({condition})"),
+            Self::DoWhile { guard, .. } => format!("if({guard})do"),
+            Self::While { condition, .. } => format!("while({condition})"),
             Self::ForIn {
                 declare,
                 key,
@@ -23203,6 +23431,7 @@ impl JsLoopHead {
                 initializer,
                 condition,
                 update,
+                ..
             } => format!(
                 "for({};{};{})",
                 initializer.as_deref().unwrap_or(""),
@@ -23532,6 +23761,7 @@ impl JsStatement {
                 head,
                 body,
                 do_condition,
+                ..
             } => {
                 let mut text = head.render();
                 text.push_str(&body.render(options));
@@ -23546,6 +23776,7 @@ impl JsStatement {
                 condition,
                 then_branch,
                 else_branch,
+                ..
             } => {
                 let mut out = format!("if({condition})");
                 out.push_str(&then_branch.render(options));
@@ -25064,7 +25295,7 @@ fn rotate_guarded_decrement(head: &mut JsLoopHead, body: &mut JsBlock, counter: 
     // Only the shapes the compact loop takes; the guard must be the last
     // thing in the condition (the old text check: only `)` and `;` after it).
     let condition = match head {
-        JsLoopHead::While { condition } => condition,
+        JsLoopHead::While { condition, .. } => condition,
         JsLoopHead::For {
             condition: Some(condition),
             update: None,
@@ -30592,9 +30823,11 @@ mod tests {
         let loop_over = |body: JsBlock| JsStatement::Loop {
             head: JsLoopHead::While {
                 condition: "c".to_string(),
+                condition_tree: None,
             },
             body: JsBranch::braced(body),
             do_condition: None,
+            do_condition_tree: None,
         };
         assert!(block_is_braceless(&block_of(vec![loop_over(block_of(vec![expression("f()")]))])));
         assert!(!block_is_braceless(&block_of(vec![loop_over(block_of(vec![

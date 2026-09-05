@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3 landed** — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a landed** — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -651,4 +651,20 @@ renameable (`rename_binds_renamed`), the artifact is byte-identical, and the cas
 6,006 Brotli. The residues are the point: conditions, loop heads and raw nodes as text make almost
 every scope opaque, and the census names them. Default lane: 0 byte diffs, 0 trace diffs, 1,716
 tests, pool 219/219 over three lanes (`workers.mjs check --lanes none,maximum,frequency-desc`).
+
+**5.4a — conditions keep their trees.** The largest opaque residue was the condition text of every
+`if`, `while`, `do…while` and `for`: a `JsExpression` rendered through `into_condition()` (normalise
+`!!`, `&&`/`||` operands) or `negated()` (drop a `!`, flip a comparison or an undefined test, wrap
+otherwise) and then forgotten. Now `negated()` is `negated_tree().into_minimal()`, and every branch
+and loop head carries `condition_tree` / `guard_tree` / `do_condition_tree` beside the text it
+renders — the twin asserts, in every block and every kept closure, that the text is exactly the
+tree's minimal rendering (0 failures over 74 × 3 and the probe). The scope collector reads
+references through the tree instead of marking the scope opaque; the re-spell re-renders the text
+from the re-spelled tree. Three condition sites stay text with no tree: the guard-merge `a&&b`
+built from a text classifier, the state-machine dispatch, the state test. What it moves: on the
+probe under `frequency-desc`, renamed bindings 100 → **1,242** of 14,545 and fully renameable
+scopes 1,071 → 1,493 of 5,805; the probe's artifact 4,055 → 4,033 raw, 1,509 → **1,499 Brotli**
+(the first byte the post-layout renamer has ever moved); the case sum 6,003 → 6,006 (+3, the
+same as before — these programs are tiny). Default lane: 0 byte diffs, 0 trace diffs, frequency
+lane 73/73 behave and deterministic, 1,716 tests.
 
