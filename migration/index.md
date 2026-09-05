@@ -69,6 +69,7 @@ So the thesis is not "the text layer is slow." It is:
 | [008](008-fleet.md) | **The build pool** | 144 cores in `lilscript-build-farm`. What exists, what is missing, the exact sweep commands, and the ports the pool cannot currently certify. |
 | [009](009-phases.md) | **Phases and gates** | Nine phases, each shippable, each with an invariant, a gate and a rollback. |
 | [010](010-what-this-unlocks.md) | **What it unlocks** | The 21 facts, the 8-flag annotation design, and the transforms currently refused for lack of proof. |
+| [011](011-phase-5-naming.md) | **Phase 5, step by step** | Binding identity on the tree, spelling as a side table, `EmissionWalk` as the anchor, then the orderings that change bytes. |
 
 ---
 
