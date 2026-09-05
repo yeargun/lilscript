@@ -1,4 +1,5 @@
 use super::folds::{
+    fold_dead_pure_identifier_assigns,
     fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
     absorb_property_writes_into_literals, fold_assigned_truthy_ternaries, fold_fresh_empty_object_assign, fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
     fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
@@ -2098,6 +2099,29 @@ fn folds_arguments_length_guard_into_formal() {
         run_javascript(&optimized.code).trim(),
         run_javascript(source).trim()
     );
+}
+
+#[test]
+fn dead_pure_assign_survives_a_braceless_loop_body_back_edge() {
+    // live-14: `g=k` is the loop-carried write of a braceless `for` body; the
+    // next write to `g` after the body's `;` is on the far side of the back
+    // edge, so the value is read again by the head. The fold used to see only
+    // the forward text and delete it, which turned the loop infinite. The
+    // shape reaches the fold once the module-level sequence is spelled by the
+    // emitter (migration 6.2): before that a `for` keyword stood between the
+    // two writes because `fold_prior_assign_into_for_init` had absorbed `g=5`.
+    let source = "for(;g>0;)k=g-1,f=f+g|0,g=k;console.log(f),g=5;for(;g>0;)f=f+g|0,g--;console.log(f)";
+    let (folded, rewrites) = fold_dead_pure_identifier_assigns(source).unwrap();
+    assert_eq!(rewrites, 0, "{folded}");
+    assert_eq!(folded, source);
+    let braced = "for(;g>0;){k=g-1,f=f+g|0,g=k}console.log(f),g=5;";
+    let (folded, _) = fold_dead_pure_identifier_assigns(braced).unwrap();
+    assert!(folded.contains("g=k"), "{folded}");
+    // A write followed by another write in the same straight-line run is
+    // still dead, inside a loop body or not.
+    let (folded, rewrites) = fold_dead_pure_identifier_assigns("x=1,x=2;console.log(x)").unwrap();
+    assert_eq!(rewrites, 1, "{folded}");
+    assert!(!folded.contains("x=1"), "{folded}");
 }
 
 #[test]

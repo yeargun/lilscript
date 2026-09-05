@@ -1552,6 +1552,32 @@ fn simple_pure_rhs_end(tokens: &[Token<'_>], at: usize) -> Option<usize> {
     Some(end)
 }
 
+/// Whether the token at `at` lies in the braceless body of a loop at the same
+/// depth: walking back to the start of its statement (a `;`, `{` or `}` at
+/// depth 0, balanced groups skipped) passes a `for`, `while` or `do`. A write
+/// after that body's `;` is on the far side of the loop's back edge, so the
+/// value assigned here is still read by the next iteration's head and body.
+fn token_is_in_braceless_loop_body(tokens: &[Token<'_>], at: usize) -> bool {
+    let mut depth = 0i32;
+    let mut index = at;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return false;
+                }
+                depth -= 1;
+            }
+            ";" if depth == 0 => return false,
+            "for" | "while" | "do" if depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 pub(crate) fn fold_dead_pure_identifier_assigns(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -1578,6 +1604,15 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
             cursor += 1;
             continue;
         }
+        // In a braceless loop body the body's `;` is a back edge: a later
+        // write does not make this one dead (live-14). A braced body is
+        // already fenced by its `}` below. The last write of the body is
+        // followed by that `;` directly; an earlier one meets it in the scan.
+        let in_braceless_loop_body = token_is_in_braceless_loop_body(&tokens, cursor);
+        if in_braceless_loop_body && tokens[first_after].text == ";" {
+            cursor += 1;
+            continue;
+        }
         let mut survivor = None;
         let mut scan = after + 1;
         let mut depth = 0i32;
@@ -1591,6 +1626,7 @@ pub(crate) fn fold_dead_pure_identifier_assigns(
                         break;
                     }
                 }
+                ";" if depth == 0 && in_braceless_loop_body => break,
                 _ => {}
             }
             if depth != 0 {

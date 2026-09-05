@@ -15339,9 +15339,15 @@ mod tests {
                 pair[1].2,
             );
         }
+        // 55, not 52, since migration 6.2: the module-level `;` between two
+        // expression statements is spelled `,` by the emitter itself, so the
+        // `var g=l=>..;console.log(g(3));console.log(g(8))` artifact that won
+        // here from a path the final peephole join never reached no longer
+        // exists. On a 52-byte artifact the separator is worth three Brotli
+        // bytes either way; on the ports the sequence spelling wins.
         assert_eq!(
             outputs.last().map(|row| row.1),
-            Some(52),
+            Some(55),
             "the highest built-in effort tier retains the exact pair winner"
         );
     }

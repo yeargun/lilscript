@@ -817,3 +817,72 @@ surgery), which the next step reads with the per-run trace: `RewriteSession::new
 the trace by it. The one test that pinned the old shape (`hoists_module_global_initializers_…`)
 now asserts the property it was written for — each global declared once, one declaration
 keyword — instead of the `var …;let …` text the fold used to leave.
+
+**Phase 6.2 — the module-level sequence is a rendering decision, and the census now says whose
+text a fold rewrites.** Two instruments first. `LILSCRIPT_STATEMENT_TRACE=1` now prints every
+rendered candidate (`[emission]`), the peephole prints an `input` snapshot per rewrite session,
+and `migration/tools/fold-origin.py` pairs them: for each fold, how many of the texts it rewrites
+are emitter renderings and how many are text-derived (the compiler's string-surgery candidates —
+`top_level_declaration_variants`, the function-leading respelling, pooling — and the peephole's
+own re-runs). `LILSCRIPT_ONLY_FOLDS=<name>` runs one fold alone, so its activations are on the
+rendering itself rather than on another fold's output. The shipped-lane census by origin, before
+this step: `fold_top_level_adjacent_expression_statements` 865 activations on emitter renderings
+across 46 files (the largest by far), `fold_adjacent_expression_statements` 175 on 6,
+`fold_conditional_return_tails` 117, `fold_identity_arrow_iife` 100, `fold_unit_counter_updates`
+81 emitted against 1,025 derived, `elide_asi_safe_semicolons` 65; and a long tail at **zero on
+emitter renderings** — `merge_adjacent_declarations` (146, all derived), `fold_prior_assign_into_for_init`
+(536, all derived), the `for`/`while` trailing-increment folds, the guard folds, the self-assignment
+chains. Those are phase 7's residue: the string-surgery candidates re-create the shapes the emitter
+no longer writes. The phase 6 list is the emitted column.
+
+The join itself went through three forms. Formed at push time (`a();b()` → one `Expression`
+with a comma node, across block joins) it reshapes what the rest of the emitter and the earlier
+folds see; the fold ran *last* for exactly that reason. The faithful port is the printer's:
+`JsBlock::render` on the module block (`top_level`, set once by `build_module`) writes `,` between
+two adjacent expression statements — `e;` or a keyword-less `t=v;`, the first with its `;` kept
+and not opening on a string literal — and the statement list keeps both statements. All three
+forms produce byte-identical artifacts on the shipped lane and on the ports, which says the
+list-side effects were never in the final text; the render-time form is what ships because it
+changes nothing else. `JsExpression::comma` is now a `Comma` node with operands (the renamers can
+respell inside a run), answered as opaque to `may_have_effects` until the precise answer is
+measured as its own change.
+
+**The gate.** Ports, pool-built against `b2a789e`: markedlil 9,340 → 9,323 Brotli (raw −119, a
+different search winner), zodlil 32,464 → 32,438. zodlil's production config runs one emission
+and no peephole, so the fold had never touched it: 281 module-level `;`, 211 of them before an
+expression statement, now 77 and 9. The 74 cases + probe move the other way — shipped 7,493 →
+7,518, zodlike 7,439 → 7,469, none 11,331 → 11,366, fifteen files up by one to seven bytes, three
+down — and the reason is measurable on the pinned test `higher_effort_retains_the_lower_effort_
+two_binding_brotli_winner`: its 52-byte winner was `var g=l=>..;console.log(g(3));console.log(g(8))`
+from a path the final fold never reached, and the same text with `,` is 55. On artifacts that
+small the separator is worth three bytes in Brotli's favour of `;`; on the ports the sequence
+wins, which is the claim the fold's own comment made. The test now pins 55 with that note. The
+`;` spelling no longer exists at module level in any candidate; if a port ever prefers it, the
+separator becomes a scored spelling the way `braceless_control_bodies` did — phase 7's
+candidate derivation, not a fold.
+
+**live-14, found by the probe's configuration matrix on this step.** Under `cost_model = "gzip"`
+the probe compiled to a program that never terminates. `fold_dead_pure_identifier_assigns` had
+deleted `g=k`, the loop-carried write of a braceless `for` body — `for(;g>0;)k=g-1,f=f+g|0,g=k;`
+— because the next write to `g` now stood in the module-level sequence that follows the loop
+(`console.log(f),g=5;for(;g>0;)…`) with no read between them in the forward text. Before this
+step a `for` keyword stood between the two writes: `fold_prior_assign_into_for_init` had pulled
+`g=5` into the next loop's head, and the fold stops at keywords. The fold never knew about the
+back edge; a braced body was fenced by its `}` by accident, a braceless one was not. It is fixed
+in the fold (`token_is_in_braceless_loop_body`: the statement containing the write starts with a
+loop keyword, so a write after the body's `;` does not kill it) and pinned by
+`dead_pure_assign_survives_a_braceless_loop_body_back_edge`. Latent on `main` for the same shape
+inside a function body — the inner join runs before the dead-write fold there — but no case or
+port has produced it; the probe's `gzip` row is the repro. **The hidden pattern is the other half
+of the finding:** with the sequence spelled by the emitter, `fold_prior_assign_into_for_init`
+can no longer see `x=0;for(` at module level, and the emitter's own for-init absorption
+(`take_trailing_expression_statements`) did not fire for these loops. That is G8's item — the
+loop head is `ControlShape::Loop { update }`, the init belongs to the emitter — and it moves up
+the order: the module-level `for(t=0,n=0;…)` spellings are now emitted as `,t=0,n=0;for(;…)`
+until it lands. Solo census after the fix (`LILSCRIPT_ONLY_FOLDS`, search on): the top-level
+join fold rewrites nothing on any lane; what remains in the full pipeline is adjacency that
+inlining and copy folds create (G4/G5/G13), deleted with them.
+Verification on the pinned binary: behaviour 0 wrong in three lanes (compiled cases now run under
+`timeout`, since live-14 was a hang), twin witnesses 0, probe matrix 21 of 22 (`level15` is live-9,
+known), 1,717 tests, pool 292/292 on four lanes, ports as above.
+

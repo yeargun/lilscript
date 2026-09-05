@@ -1237,7 +1237,35 @@ fn skipped_folds() -> &'static [String] {
     })
 }
 
+/// `LILSCRIPT_ONLY_FOLDS=a,b`: run only the named folds. The phase 6 census
+/// measures a fold's residue on the *emitter's* text this way -- every other
+/// fold skipped, so what it rewrites was in the rendering, not in another
+/// fold's output.
+fn only_folds() -> &'static [String] {
+    static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    NAMES.get_or_init(|| {
+        std::env::var("LILSCRIPT_ONLY_FOLDS")
+            .map(|value| {
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}
+
 fn fold_is_skipped(name: &str) -> bool {
+    let only = only_folds();
+    if !only.is_empty()
+        && !only
+            .iter()
+            .any(|kept| name == kept || name.ends_with(kept.as_str()))
+    {
+        return true;
+    }
     skipped_folds()
         .iter()
         .any(|skipped| name == skipped || name.ends_with(skipped.as_str()))

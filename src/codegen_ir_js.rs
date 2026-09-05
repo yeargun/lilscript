@@ -1503,6 +1503,18 @@ fn render(
                 index.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::Comma => {
+            if operands.is_empty() {
+                return None;
+            }
+            Some(
+                operands
+                    .iter()
+                    .map(|expression| expression.clone().at_least(JsPrecedence::Assignment))
+                    .collect::<Vec<_>>()
+                    .join(","),
+            )
+        }
         // Leaves: their text is the datum, not a rendering of children.
         JsExpressionRoot::Atom
         | JsExpressionRoot::Name(_)
@@ -1576,6 +1588,9 @@ enum JsExpressionRoot {
     /// An ordinary property/index read followed by `??null`, used to model
     /// LilScript's nullable collection lookup at a JavaScript boundary.
     NullNormalized,
+    /// `a,b,c`: the sequence a run of expression statements joins into.
+    /// Variadic, like `Call`; one operand is a run of one.
+    Comma,
 }
 
 impl JsExpressionRoot {
@@ -1596,7 +1611,7 @@ impl JsExpressionRoot {
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
             Self::Conditional => Some(3),
-            Self::Call => None,
+            Self::Call | Self::Comma => None,
         }
     }
 
@@ -1620,7 +1635,7 @@ impl JsExpressionRoot {
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
             // Variadic: callee plus arguments, all retained.
-            Self::Call => 0,
+            Self::Call | Self::Comma => 0,
             Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw => 0,
         }
     }
@@ -1630,7 +1645,7 @@ impl JsExpressionRoot {
         match self {
             // Variadic, and `call` retains callee plus every argument, so the
             // fixed-arity comparison below does not apply.
-            Self::Call => true,
+            Self::Call | Self::Comma => true,
             _ => match self.grammar_arity() {
                 Some(arity) => arity == self.retained_arity(),
                 None => false,
@@ -1699,6 +1714,10 @@ struct JsBlock {
     ends_with_semicolon: bool,
     /// Whether the last statement is a bare `return;`.
     trailing_bare_return: bool,
+    /// The module's own statement list -- the one block whose statements
+    /// are not inside any braces. Only the module block set by `build_module`
+    /// is; every nested block is a body.
+    top_level: bool,
 }
 
 /// The longest needle the counters track. A needle completed across a join
@@ -1733,7 +1752,47 @@ impl JsBlock {
     /// The block's text: every statement rendered as it was pushed, minus
     /// the terminators the block-close elision dropped.
     fn render(&self) -> String {
-        self.statements.iter().map(EmittedStatement::render).collect()
+        if !self.top_level {
+            return self.statements.iter().map(EmittedStatement::render).collect();
+        }
+        // Phase 6, G1: at module level adjacent expression statements are
+        // spelled as one sequence, `a(),b()` -- the separator is a rendering
+        // decision (`fold_top_level_adjacent_expression_statements` ran once,
+        // last), so the list keeps both statements and only the printer joins.
+        let mut rendered = String::new();
+        if statement_trace_enabled() {
+            eprintln!(
+                "[render top-level] {}",
+                self.statements
+                    .iter()
+                    .map(|emitted| format!(
+                        "{}{}",
+                        statement_kind_for_trace(&emitted.statement),
+                        if emitted.dropped_semicolon { "(dropped)" } else { "" }
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(" | ")
+            );
+        }
+        for (index, emitted) in self.statements.iter().enumerate() {
+            let mut text = emitted.render();
+            if !emitted.dropped_semicolon
+                && text.ends_with(';')
+                && statement_joins_sequence(&emitted.statement)
+                // A string literal opening the statement may be a directive
+                // prologue entry; sequencing would demote it to an expression.
+                && !text.starts_with(['"', '\''])
+                && self
+                    .statements
+                    .get(index + 1)
+                    .is_some_and(|next| statement_joins_sequence(&next.statement))
+            {
+                text.pop();
+                text.push(',');
+            }
+            rendered.push_str(&text);
+        }
+        rendered
     }
 
     fn into_string(self) -> String {
@@ -1761,6 +1820,7 @@ impl JsBlock {
             tail: Vec::new(),
             ends_with_semicolon: false,
             trailing_bare_return: false,
+            top_level: false,
         }
     }
 
@@ -1786,6 +1846,7 @@ impl JsBlock {
             tail: Vec::new(),
             ends_with_semicolon: false,
             trailing_bare_return: false,
+            top_level: self.top_level,
         };
         for emitted in self.statements.iter().skip(index) {
             kept.push_statement_with(emitted.statement.clone(), emitted.options);
@@ -2327,12 +2388,10 @@ impl JsExpression {
     }
 
     fn comma(expressions: impl IntoIterator<Item = Self>) -> Self {
-        let code = expressions
-            .into_iter()
-            .map(|expression| expression.at_least(JsPrecedence::Assignment))
-            .collect::<Vec<_>>()
-            .join(",");
-        Self::grouped(code, JsPrecedence::Comma, JsExpressionRoot::Raw)
+        let operands = expressions.into_iter().collect::<Vec<_>>();
+        let code = render(JsExpressionRoot::Comma, &operands, JsRenderOptions::UNUSED)
+            .expect("render covers Comma");
+        Self::grouped(code, JsPrecedence::Comma, JsExpressionRoot::Comma).with_operands(operands)
     }
 
     fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
@@ -2521,6 +2580,9 @@ impl JsExpression {
                 child(0),
                 (1..self.operands.len()).map(child).collect::<Vec<_>>(),
             ),
+            JsExpressionRoot::Comma => {
+                Self::comma((0..self.operands.len()).map(child).collect::<Vec<_>>())
+            }
         }
     }
 
@@ -2557,7 +2619,10 @@ impl JsExpression {
     /// a candidate, a false `false` costs a program.
     fn may_have_effects(&self) -> bool {
         match self.root {
-            JsExpressionRoot::Call | JsExpressionRoot::Raw => true,
+            // A sequence is answered as its `Raw` predecessor was -- opaque --
+            // until the precise answer (any operand) is measured on the fleet as
+            // its own change; it moves function placement and run absorption.
+            JsExpressionRoot::Call | JsExpressionRoot::Raw | JsExpressionRoot::Comma => true,
             JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Closure(_) => {
                 false
             }
@@ -3322,6 +3387,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit(self) -> Result<String, CodegenError> {
+        let text = self.emit_inner()?;
+        // Phase 6 instrument: every rendered candidate, so a peephole `input`
+        // snapshot can be told apart from a text-derived variant of one.
+        if statement_trace_enabled() {
+            eprintln!("[emission]\n{text}");
+        }
+        Ok(text)
+    }
+
+    fn emit_inner(self) -> Result<String, CodegenError> {
         if !name_trace_enabled() {
             return self.emit_traced();
         }
@@ -3418,6 +3493,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let entry_is_single_block = entry.blocks.len() == 1 && entry.blocks[0].phis.is_empty();
         let entry_can_structure = can_structure(&entry);
         let mut out = JsBlock::new();
+        out.top_level = true;
         self.emit_foreign_imports(&mut out);
         let owned_globals = self
             .module
@@ -18978,6 +19054,15 @@ fn statement_expression_text(statement: &JsStatement) -> Option<String> {
         } => Some(format!("{name}={}", strip_outer_parens(value.clone()))),
         _ => None,
     }
+}
+
+/// Whether a statement is an expression statement for the module-level
+/// sequence spelling: `e;` or a keyword-less `t=v;`.
+fn statement_joins_sequence(statement: &JsStatement) -> bool {
+    matches!(
+        statement,
+        JsStatement::Expression { .. } | JsStatement::Binding { keyword: None, .. }
+    )
 }
 
 /// Whether a statement can stand alone where a braceless body is wanted.
