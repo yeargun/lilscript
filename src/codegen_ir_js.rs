@@ -16062,17 +16062,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 object,
                 property,
                 value: assigned,
-            } => JsExpression::raw(
-                format!(
-                    "{}={}",
-                    JsExpression::member(
-                        value(*object, cache)?,
-                        self.property_name(property),
-                        self.options.elide_call_chain_parentheses,
-                    ),
-                    strip_outer_parens(value(*assigned, cache)?)
+            } => JsExpression::assign(
+                JsExpression::member(
+                    value(*object, cache)?,
+                    self.property_name(property),
+                    self.options.elide_call_chain_parentheses,
                 ),
-                JsPrecedence::Assignment,
+                value(*assigned, cache)?,
             ),
             ControlFlowOp::IndexGet { object, index } => {
                 self.render_index_access(*object, *index, context, cache)?
@@ -16917,16 +16913,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsPrecedence::NewWithoutArgs,
                 ));
             }
-            let mut rendered = format!("new {constructor}(");
-            for (index, arg) in args.iter().enumerate() {
-                if index != 0 {
-                    rendered.push(',');
-                }
-                let argument = take_value(*arg, context, cache)?.without_integer_normalization();
-                rendered.push_str(&strip_outer_parens(argument));
+            // `new C(a,b)` as a node over its argument nodes (phase 6): the
+            // printer spells the arguments at assignment precedence, which
+            // is what the text did by stripping their outer parentheses.
+            let mut arguments = Vec::with_capacity(args.len());
+            for arg in args {
+                arguments.push(take_value(*arg, context, cache)?.without_integer_normalization());
             }
-            rendered.push(')');
-            return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
+            return Ok(JsExpression::new_call(JsExpression::atom(constructor), arguments));
         }
         let receiver_id = receiver.ok_or_else(|| {
             CodegenError::new(
