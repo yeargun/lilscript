@@ -11495,7 +11495,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             .then(|| merge_conditional_assignments(&then_output, &else_output))
                             .flatten()
                         {
-                            let mut value = JsBlock::new();
+                            let mut value = String::new();
                             let nullish_source = nullish_merge_source(
                                 function,
                                 header,
@@ -11516,17 +11516,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             } else if is_false_literal(then_value) && is_true_literal(else_value) {
                                 value.push_str(&negated_condition);
                             } else if is_true_literal(then_value) {
-                                push_logical_operand(&mut value, &condition, IrBinaryOp::Or);
+                                push_logical_operand_text(&mut value, &condition, IrBinaryOp::Or);
                                 value.push_str("||");
-                                push_logical_operand(&mut value, else_value, IrBinaryOp::Or);
+                                push_logical_operand_text(&mut value, else_value, IrBinaryOp::Or);
                             } else if same_identifier_condition(&condition, then_value) {
-                                push_logical_operand(&mut value, then_value, IrBinaryOp::Or);
+                                push_logical_operand_text(&mut value, then_value, IrBinaryOp::Or);
                                 value.push_str("||");
-                                push_logical_operand(&mut value, else_value, IrBinaryOp::Or);
+                                push_logical_operand_text(&mut value, else_value, IrBinaryOp::Or);
                             } else if is_false_literal(else_value) {
-                                push_logical_operand(&mut value, &condition, IrBinaryOp::And);
+                                push_logical_operand_text(&mut value, &condition, IrBinaryOp::And);
                                 value.push_str("&&");
-                                push_logical_operand(&mut value, then_value, IrBinaryOp::And);
+                                push_logical_operand_text(&mut value, then_value, IrBinaryOp::And);
                             } else {
                                 // `?:` is right-associative, so a conditional
                                 // in the test slot swallows the arms that
@@ -11566,21 +11566,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             };
                             if let Some(value_id) = deferred {
                                 if declare {
-                                    out.push_str("var ");
-                                    out.push_str(target);
-                                    out.push_str(trailing);
-                                    out.push(';');
+                                    push_merge_declaration(out, target, None, trailing);
                                 }
                                 deferred_merge = Some((value_id, value));
                             } else {
                                 if declare {
-                                    out.push_str("var ");
+                                    push_merge_declaration(out, target, Some(value), trailing);
+                                } else {
+                                    out.push_statement(JsStatement::Expression {
+                                        value: JsExpression::raw(
+                                            format!("{target}={value}{trailing}"),
+                                            JsPrecedence::Assignment,
+                                        ),
+                                    });
                                 }
-                                out.push_str(target);
-                                out.push('=');
-                                out.push_block(&value);
-                                out.push_str(trailing);
-                                out.push(';');
                             }
                         } else if let Some((then_target, then_value, else_target, else_value)) =
                             self.options
@@ -11590,16 +11589,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 })
                                 .flatten()
                         {
-                            out.push_str(&parenthesize_ternary_test(&condition));
-                            out.push('?');
-                            out.push_str(then_target);
-                            out.push('=');
-                            out.push_str(then_value);
-                            out.push(':');
-                            out.push_str(else_target);
-                            out.push('=');
-                            out.push_str(else_value);
-                            out.push(';');
+                            out.push_statement(JsStatement::Expression {
+                                value: JsExpression::raw(
+                                    format!(
+                                        "{}?{then_target}={then_value}:{else_target}={else_value}",
+                                        parenthesize_ternary_test(&condition)
+                                    ),
+                                    JsPrecedence::Conditional,
+                                ),
+                            });
                         } else if let Some((then_expression, else_expression)) =
                             (self.options.conditional_expressions && self.options.effect_ternary)
                                 .then(|| {
@@ -11610,12 +11608,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 })
                                 .flatten()
                         {
-                            out.push_str(&parenthesize_ternary_test(&condition));
-                            out.push('?');
-                            push_conditional_arm(out, &then_expression);
-                            out.push(':');
-                            push_conditional_arm(out, &else_expression);
-                            out.push(';');
+                            out.push_statement(JsStatement::Expression {
+                                value: JsExpression::raw(
+                                    format!(
+                                        "{}?{}:{}",
+                                        parenthesize_ternary_test(&condition),
+                                        conditional_arm_text(&then_expression),
+                                        conditional_arm_text(&else_expression)
+                                    ),
+                                    JsPrecedence::Conditional,
+                                ),
+                            });
                         } else if let (true, Some(then_ret), Some(else_ret)) = (
                             self.options.conditional_expressions,
                             compact_return_expression(&then_output),
@@ -11762,7 +11765,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         } else {
                                             fused.push_str(rhs);
                                         }
-                                        deferred_merge = Some((phi_out, JsBlock::from(fused)));
+                                        deferred_merge = Some((phi_out, fused));
                                     } else {
                                         out.push_str(source_name);
                                         out.push_str("??(");
@@ -18153,6 +18156,35 @@ fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     .then_some((declare, target, value, trailing))
 }
 
+/// `var target[=value],a,b;` -- the merged conditional assignment with the
+/// uninitialised names its `trailing` carries. A tail that is not plain names
+/// (never seen; the merge only produces those) stays exact as raw text.
+fn push_merge_declaration(out: &mut JsBlock, target: &str, value: Option<String>, trailing: &str) {
+    let tail = if trailing.is_empty() {
+        Some(Vec::new())
+    } else {
+        uninitialized_declaration_tail(trailing)
+            .map(|names| names.split(',').map(str::to_string).collect::<Vec<_>>())
+    };
+    match tail {
+        Some(names) => {
+            let mut declarators = vec![JsDeclarator {
+                name: target.to_string(),
+                value: value.map(|value| JsExpression::raw(value, JsPrecedence::Conditional)),
+            }];
+            declarators.extend(names.into_iter().map(|name| JsDeclarator { name, value: None }));
+            out.push_statement(JsStatement::Declarators {
+                keyword: "var ",
+                declarators,
+            });
+        }
+        None => {
+            let value = value.map_or(String::new(), |value| format!("={value}"));
+            out.push_statement(JsStatement::Raw(format!("var {target}{value}{trailing};")));
+        }
+    }
+}
+
 fn uninitialized_declaration_tail(trailing: &str) -> Option<&str> {
     let names = trailing.strip_prefix(',')?;
     (!names.is_empty()
@@ -18866,10 +18898,6 @@ fn trailing_expression_statement(output: &str) -> Option<(usize, &str)> {
                 .expect("statement ends in semicolon"),
         )
     })
-}
-
-fn push_conditional_arm(out: &mut JsBlock, expression: &str) {
-    out.push_str(&conditional_arm_text(expression));
 }
 
 /// A conditional arm, grouped when it is a comma sequence.
