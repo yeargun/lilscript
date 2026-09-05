@@ -1779,6 +1779,19 @@ impl JsFacts {
     const LOCAL_ONLY: Self = Self(1 << 2);
     /// The value is a 32-bit integer by the integer analysis.
     const INT32: Self = Self(1 << 3);
+    /// Evaluating the node is not observable: no store, no effectful call,
+    /// no host access. The optimizer's dead-code question, delivered.
+    const PURE: Self = Self(1 << 4);
+    /// Evaluating the node cannot raise: constants, locals, closures, and
+    /// operators, field reads and indexing on operands whose static shape
+    /// rules a throw out. Under-approximated on purpose -- a missing bit
+    /// costs a consumer an opportunity, a wrong one costs a program.
+    const NO_THROW: Self = Self(1 << 5);
+    /// The node reads or writes a declared field of a struct: an owner and a
+    /// slot index, not a property name looked up at run time.
+    const OWNED_SLOT: Self = Self(1 << 6);
+    /// The value is never `null` or `undefined`, by its static type.
+    const NON_NULLISH: Self = Self(1 << 7);
 
     const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
@@ -1793,9 +1806,8 @@ impl JsFacts {
 /// Equality is structural: the origin and the fact word are metadata about
 /// where a node came from and what is proven about it, and two nodes that
 /// spell the same expression are the same expression whether or not one of
-/// them remembers its origin. (Deriving it cost 19% of emit time: every
-/// rebuilt node compared unequal to its source and the idempotence checks
-/// stopped short-circuiting.)
+/// them remembers its origin. A constructor rebuilds nodes without one, so
+/// deriving equality would make every rebuilt node unequal to its source.
 #[derive(Debug, Clone, Eq)]
 struct JsExpression {
     /// The IR operation this node renders, when it renders one.
@@ -2786,8 +2798,78 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if self.integer_analysis.function(function).range(out).is_some() {
                 facts = facts.with(JsFacts::INT32);
             }
+            if instruction
+                .ty
+                .as_ref()
+                .is_some_and(|ty| !crate::optimizer::ValueKind::of(ty).is_nullish())
+            {
+                facts = facts.with(JsFacts::NON_NULLISH);
+            }
+        }
+        if !self.facts.op_has_side_effects(function, &instruction.op) {
+            facts = facts.with(JsFacts::PURE);
+        }
+        if matches!(
+            instruction.op,
+            ControlFlowOp::FieldGet { .. } | ControlFlowOp::FieldSet { .. }
+        ) {
+            facts = facts.with(JsFacts::OWNED_SLOT);
+        }
+        if self.op_cannot_throw(function, &instruction.op) {
+            facts = facts.with(JsFacts::NO_THROW);
         }
         facts
+    }
+
+    /// Whether evaluating `op` can raise. Answered from the operands' static
+    /// shapes: an operator over primitives, a field of a struct, an index
+    /// into an array, a constant, a local. Everything that reaches a call,
+    /// the host, or a value whose shape is not known is assumed to throw.
+    fn op_cannot_throw(&self, function: FunctionId, op: &ControlFlowOp<'src>) -> bool {
+        use crate::optimizer::ValueKind;
+        let kind = |value: &ValueId| self.facts.value_kind(function, *value);
+        let primitive = |value: &ValueId| kind(value) == Some(ValueKind::Primitive);
+        match op {
+            ControlFlowOp::Const(_)
+            | ControlFlowOp::Closure { .. }
+            | ControlFlowOp::CaptureLocal(_)
+            | ControlFlowOp::LoadLocal(_)
+            | ControlFlowOp::StoreLocal { .. }
+            | ControlFlowOp::LoadGlobal(_)
+            | ControlFlowOp::StoreGlobal { .. }
+            | ControlFlowOp::Array(_)
+            | ControlFlowOp::Record(_)
+            | ControlFlowOp::Struct { .. } => true,
+            ControlFlowOp::Unary { value, .. } => primitive(value),
+            ControlFlowOp::Binary { lhs, rhs, .. } => primitive(lhs) && primitive(rhs),
+            ControlFlowOp::TypeCheck { value, .. } => kind(value).is_some(),
+            ControlFlowOp::Template(operands) => operands.iter().all(|operand| match operand {
+                crate::ir::TemplateOperand::String(_) => true,
+                crate::ir::TemplateOperand::Value(value) => primitive(value),
+            }),
+            ControlFlowOp::FieldGet { object, .. } | ControlFlowOp::FieldSet { object, .. } => {
+                kind(object) == Some(ValueKind::Struct)
+            }
+            ControlFlowOp::RecordFieldGet { object, .. }
+            | ControlFlowOp::RecordFieldSet { object, .. } => {
+                kind(object) == Some(ValueKind::Record)
+            }
+            ControlFlowOp::IndexGet { object, index } => {
+                kind(object) == Some(ValueKind::Array) && primitive(index)
+            }
+            ControlFlowOp::ArrayGetOptional { object, .. } => kind(object) == Some(ValueKind::Array),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::ArrayLength,
+                receiver: Some(receiver),
+                ..
+            } => kind(receiver) == Some(ValueKind::Array),
+            ControlFlowOp::Intrinsic {
+                intrinsic: Intrinsic::IntImul | Intrinsic::IntToString | Intrinsic::IntToUnsignedString,
+                receiver,
+                args,
+            } => receiver.iter().chain(args).all(primitive),
+            _ => false,
+        }
     }
 
     fn with_facts(
@@ -30131,6 +30213,62 @@ mod tests {
 
     fn compile_with_options(source: &str, options: IrJsOptions) -> String {
         compile_try_with_options(source, options).unwrap()
+    }
+
+    /// The four fact bits phase 4 delivers after the origin: purity from the
+    /// optimizer's own side-effect question, no-throw from the operands'
+    /// static shapes, the owned slot from the op, non-nullishness from the
+    /// type. Read off the stamped word for one instruction of each kind.
+    #[test]
+    fn stamps_the_delivered_fact_bits() {
+        let arena = Bump::new();
+        let source = "struct P{int x;int y;}int f(P p,int[] a,int n){int s=p.x+n;p.y=s;int q=a[0];print(s);return q;}print(f(P{1,2},[3],4));";
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut ir).unwrap();
+        let emitter = IrJsEmitter::new(&ir, false, IrJsOptions::default());
+        let function = ir
+            .functions
+            .iter()
+            .find(|function| function.name == Some("f"))
+            .expect("f survives");
+        let facts_of = |pick: &dyn Fn(&ControlFlowOp<'_>) -> bool| {
+            function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.instructions)
+                .find(|instruction| pick(&instruction.op))
+                .map(|instruction| emitter.instruction_facts(function.id, instruction))
+                .expect("the instruction is present")
+        };
+        let add = facts_of(&|op| matches!(op, ControlFlowOp::Binary { .. }));
+        assert!(add.contains(JsFacts::PURE), "an int add is pure");
+        assert!(add.contains(JsFacts::NO_THROW), "an int add cannot throw");
+        assert!(add.contains(JsFacts::NON_NULLISH), "an int is never nullish");
+        assert!(!add.contains(JsFacts::OWNED_SLOT));
+        let get = facts_of(&|op| matches!(op, ControlFlowOp::FieldGet { .. }));
+        assert!(get.contains(JsFacts::OWNED_SLOT), "a struct field read names its slot");
+        assert!(get.contains(JsFacts::PURE));
+        assert!(get.contains(JsFacts::NO_THROW), "a struct is a plain object");
+        let set = facts_of(&|op| matches!(op, ControlFlowOp::FieldSet { .. }));
+        assert!(set.contains(JsFacts::OWNED_SLOT));
+        assert!(!set.contains(JsFacts::PURE), "a store is observable");
+        assert!(set.contains(JsFacts::NO_THROW));
+        let index = facts_of(&|op| matches!(op, ControlFlowOp::IndexGet { .. }));
+        assert!(index.contains(JsFacts::NO_THROW), "indexing an array cannot throw");
+        assert!(index.contains(JsFacts::PURE));
+        let print = facts_of(&|op| {
+            matches!(
+                op,
+                ControlFlowOp::Intrinsic {
+                    intrinsic: Intrinsic::Print,
+                    ..
+                }
+            )
+        });
+        assert!(!print.contains(JsFacts::PURE), "print is observable");
+        assert!(!print.contains(JsFacts::NO_THROW), "the host may throw");
     }
 
     fn compile_try_with_options(

@@ -29,7 +29,7 @@ Brotli and on compile time.
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
-| 4 — deliver the facts | **4a, 4b, 4c landed** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and a `JsFacts` word (source origin, obligation, local-only, int32). Remaining: the pure / no-throw / owned-slot / non-nullish bits once their oracles are located, side tables keyed by origin when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
+| 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
@@ -525,6 +525,24 @@ every step, called once per (phi × every definition in the function) inside a f
 per (phi × named value). `PairGraph` builds the adjacency once per snapshot and walks one
 component per phi; the candidates are set lookups. Same pair set, byte-identical output.
 Probe: wall 16.7 s → 5.8 s (−65%), emit CPU 84 s → 16.4 s (−80%); 0 byte diffs over 74 cases ×
-3 lanes against 46df98b, probe lanes and 17/18 configs unchanged, 1712 tests. The phase 3
+3 lanes against 46df98b, probe lanes and 17/18 configs unchanged, 1712 tests; ports byte-identical (markedlil 9,342, zodlil 32,619) — NEUTRAL, as the phase 4 gate
+asks. The phase 3
 "16% faster" claim and every timing on this ledger before this line were measured under the
 lottery; from here the emitter's time is rendering, and a timing is a timing.
+**4d — the last four bits, from oracles the tree already had.** `PURE` is the optimizer's own
+dead-code question (`control_flow_op_has_side_effects` over the delivered effect summaries and each
+function's closure targets), asked from the target side. `OWNED_SLOT` is the op: a `FieldGet`/`FieldSet`
+names an owner and a slot index. `NON_NULLISH` and `NO_THROW` read a new fact, `ValueKind` — the shape
+of a value's static type reduced to what these bits need (primitive, null, void, struct, array, record,
+other reference, nullable, dynamic), computed once per function in `analyze_ir_facts`, because a `Type`
+borrows the source and cannot cross into the `Arc`. `NO_THROW` is a deliberate under-approximation:
+constants, locals, closures, literals; operators and templates over primitives; a field of a struct,
+an index into an array, `ArrayLength` on one; `imul` and int-to-string. Everything that reaches a call,
+the host, or an unknown shape is assumed to throw. Nothing consumes the bits yet — phase 6 does — so the
+gate is NEUTRAL and it held: 0 byte diffs over 74 cases × 3 lanes against ed20326, probe both lanes and
+17/18 configs, probe wall 5.9 s (the bits cost nothing measurable), 1,714 tests (two new: the stamped
+word of an add, a struct read and write, an array index and a `print`; and `ValueKind` off the types),
+pool 146/146. Phase 4 is complete on the node: the eight predicates of
+[010](010-what-this-unlocks.md) are all on the word. The side tables keyed by origin wait for their
+first consumer, as the plan says they should.
+

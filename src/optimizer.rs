@@ -12156,6 +12156,98 @@ pub struct IrFacts {
     pub(crate) effect_summaries: Vec<FunctionEffectSummary>,
     pub(crate) finite_values: crate::value_analysis::FiniteValueAnalysis,
     pub(crate) parameter_array_lengths: Vec<Vec<ArrayLengthFact>>,
+    /// Functions whose call is observable: inherently effectful, or mutating
+    /// a parameter. The purity of a call node is the absence of its callee
+    /// here.
+    pub(crate) effectful_functions: AHashSet<FunctionId>,
+    /// Per function, the closure values whose target is a known function.
+    pub(crate) closure_targets: Vec<AHashMap<ValueId, FunctionId>>,
+    /// Per function, the shape of every value's static type, as far as the
+    /// emitter's inline facts need it (nullishness, and whether an operation
+    /// on it can raise).
+    pub(crate) value_kinds: Vec<AHashMap<ValueId, ValueKind>>,
+}
+
+/// The shape of a value's static type, reduced to what the target facts ask
+/// of it. A `Type` cannot cross into `IrFacts` (it borrows the source), and
+/// the facts never need more than this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ValueKind {
+    /// int, float, bool, string, enum: primitives that are never nullish
+    /// and whose operators never raise.
+    Primitive,
+    /// `null` itself.
+    Null,
+    /// `void`: renders as `undefined`.
+    Void,
+    /// A struct instance: a plain object whose declared fields are data.
+    Struct,
+    /// An array or typed array: indexing never raises.
+    Array,
+    /// A record: a null-prototype object.
+    Record,
+    /// Any other non-nullish reference (class instance, map, set, function,
+    /// regex, task, ...).
+    Reference,
+    /// A nullable type, or a union with a nullish member.
+    Nullable,
+    /// A type parameter, `$js`, or a union whose members are all non-nullish
+    /// but of mixed shape: nothing is known beyond non-nullishness where
+    /// the union proves it.
+    Dynamic { nullish: bool },
+}
+
+impl ValueKind {
+    pub(crate) fn of(ty: &Type<'_>) -> Self {
+        match ty {
+            Type::Int | Type::Float | Type::Bool | Type::String | Type::Enum(_) => Self::Primitive,
+            Type::Null => Self::Null,
+            Type::Void => Self::Void,
+            Type::Struct(_) | Type::StructInstance { .. } => Self::Struct,
+            Type::Array(_)
+            | Type::ArrayBuffer
+            | Type::SharedArrayBuffer
+            | Type::Int8Array
+            | Type::Uint8Array
+            | Type::Uint8ClampedArray
+            | Type::Int16Array
+            | Type::Uint16Array
+            | Type::Int32Array
+            | Type::Uint32Array
+            | Type::Float32Array
+            | Type::Float64Array => Self::Array,
+            Type::Record(_) => Self::Record,
+            Type::Map(..)
+            | Type::Set(_)
+            | Type::Symbol
+            | Type::Regex
+            | Type::Task(_)
+            | Type::Generator(_)
+            | Type::ModuleNamespace(_)
+            | Type::ModuleLoadError
+            | Type::Class(_)
+            | Type::ClassInstance { .. }
+            | Type::Function(_)
+            | Type::GenericFunction(_) => Self::Reference,
+            Type::Nullable(_) => Self::Nullable,
+            Type::Union(members) => {
+                if members.iter().any(|member| Self::of(member).is_nullish()) {
+                    Self::Nullable
+                } else {
+                    Self::Dynamic { nullish: false }
+                }
+            }
+            Type::TypeParameter(_) => Self::Dynamic { nullish: true },
+        }
+    }
+
+    /// Whether the value may be `null` or `undefined`.
+    pub(crate) fn is_nullish(self) -> bool {
+        matches!(
+            self,
+            Self::Null | Self::Void | Self::Nullable | Self::Dynamic { nullish: true }
+        )
+    }
 }
 
 impl IrFacts {
@@ -12171,11 +12263,54 @@ impl IrFacts {
 pub fn analyze_ir_facts(module: &ControlFlowModule<'_>) -> IrFacts {
     let effect_summaries = analyze_function_effects(module);
     let parameter_array_lengths = analyze_array_parameter_lengths(module, &effect_summaries);
+    let effectful = effectful_functions(&effect_summaries);
+    let closure_targets = module.functions.iter().map(closure_targets).collect();
+    let value_kinds = module.functions.iter().map(function_value_kinds).collect();
     IrFacts {
         effect_summaries,
         finite_values: crate::value_analysis::analyze_finite_values(module),
         parameter_array_lengths,
+        effectful_functions: effectful,
+        closure_targets,
+        value_kinds,
     }
+}
+
+impl IrFacts {
+    /// Whether evaluating `op` in `function` is observable: the optimizer's
+    /// own dead-code question, asked from the target side.
+    pub(crate) fn op_has_side_effects(&self, function: FunctionId, op: &ControlFlowOp<'_>) -> bool {
+        let closure_targets = self
+            .closure_targets
+            .get(function.0 as usize)
+            .expect("every function has a closure-target table");
+        control_flow_op_has_side_effects(op, &self.effectful_functions, closure_targets)
+    }
+
+    pub(crate) fn value_kind(&self, function: FunctionId, value: ValueId) -> Option<ValueKind> {
+        self.value_kinds
+            .get(function.0 as usize)
+            .and_then(|kinds| kinds.get(&value))
+            .copied()
+    }
+}
+
+fn function_value_kinds(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, ValueKind> {
+    let mut kinds = AHashMap::default();
+    for parameter in &function.params {
+        kinds.insert(parameter.value, ValueKind::of(&parameter.ty));
+    }
+    for block in &function.blocks {
+        for phi in &block.phis {
+            kinds.insert(phi.out, ValueKind::of(&phi.ty));
+        }
+        for instruction in &block.instructions {
+            if let (Some(out), Some(ty)) = (instruction.out, instruction.ty.as_ref()) {
+                kinds.insert(out, ValueKind::of(ty));
+            }
+        }
+    }
+    kinds
 }
 
 fn analyze_function_effects(module: &ControlFlowModule<'_>) -> Vec<FunctionEffectSummary> {
@@ -14212,6 +14347,24 @@ mod tests {
     use bumpalo::Bump;
 
     use super::*;
+
+    #[test]
+    fn value_kind_reads_nullishness_and_shape_off_the_type() {
+        assert_eq!(ValueKind::of(&Type::Int), ValueKind::Primitive);
+        assert!(!ValueKind::of(&Type::String).is_nullish());
+        assert!(ValueKind::of(&Type::Null).is_nullish());
+        assert!(ValueKind::of(&Type::Void).is_nullish());
+        assert!(ValueKind::of(&Type::Nullable(Box::new(Type::Int))).is_nullish());
+        assert!(ValueKind::of(&Type::Union(vec![Type::Int, Type::Null])).is_nullish());
+        assert_eq!(
+            ValueKind::of(&Type::Union(vec![Type::Int, Type::String])),
+            ValueKind::Dynamic { nullish: false }
+        );
+        assert!(ValueKind::of(&Type::TypeParameter("$js")).is_nullish());
+        assert_eq!(ValueKind::of(&Type::Array(Box::new(Type::Int))), ValueKind::Array);
+        assert_eq!(ValueKind::of(&Type::Struct("P")), ValueKind::Struct);
+        assert_eq!(ValueKind::of(&Type::Record(Box::new(Type::Int))), ValueKind::Record);
+    }
     use crate::ir::{BasicBlock, IrFunction};
     use crate::span::Span;
     use crate::{analyze, lower_to_control_flow, parse_source};
