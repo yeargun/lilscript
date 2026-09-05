@@ -653,9 +653,10 @@ fn compression_similarity_order(segments: &[JsBlock], exact_limit: usize) -> Vec
 
 fn compression_similarities(segments: &[JsBlock]) -> Vec<Vec<usize>> {
     let count = segments.len();
-    let profiles = segments
+    let texts = segments.iter().map(JsBlock::render).collect::<Vec<_>>();
+    let profiles = texts
         .iter()
-        .map(|segment| function_ngram_profile(segment.as_bytes()))
+        .map(|text| function_ngram_profile(text.as_bytes()))
         .collect::<Vec<_>>();
     let mut similarities = vec![vec![0_usize; count]; count];
     for left in 0..count {
@@ -691,7 +692,10 @@ fn compression_window_order(
         return (0..count).collect();
     }
     let similarities = compression_similarities(segments);
-    let lengths = segments.iter().map(|segment| segment.len()).collect::<Vec<_>>();
+    let lengths = segments
+        .iter()
+        .map(|segment| segment.render().len())
+        .collect::<Vec<_>>();
     let source = (0..count).collect::<Vec<_>>();
 
     let mut strongest = None::<(usize, usize, usize)>;
@@ -1432,17 +1436,11 @@ impl EmittedStatement {
     }
 }
 
+/// A block of statements. Phase 3 of `migration/`: the statement list is the
+/// block; the text is rendered from it when a boundary asks for it. Nothing
+/// appends text to a block, and nothing reads a block's text to decide.
 #[derive(Debug, Clone, Default)]
 struct JsBlock {
-    /// The text. Phase 3 of `migration/`: this is now a *cache* of
-    /// `statements`, exactly as `JsExpression::code` became a cache of the
-    /// expression tree in phase 1. `LILSCRIPT_TWIN=1` asserts at every block
-    /// boundary that rendering the list reproduces it. Phase 3 completes when
-    /// the printer walks the list and this field is deleted.
-    text: String,
-    /// What the block is made of. A `push_statement` appends the node; a
-    /// `push_str` appends -- or extends -- a `JsStatement::Raw`, so the share
-    /// of the artifact that still arrives as text is a number, not a feeling.
     statements: Vec<EmittedStatement>,
     for_opens: usize,
     while_opens: usize,
@@ -1450,28 +1448,20 @@ struct JsBlock {
     ///
     /// A child block inherits its parent's loop-keyword counts so that
     /// `LoopSpelling::Auto` sees the whole artifact, not just the body being
-    /// written. The invariant the witness checks is therefore
-    /// `counts == inherited + counts(text)`, not `counts == counts(text)` --
-    /// the first commit of `nested()` got that wrong and the witness said so.
+    /// written. `counts == inherited + counts(rendered)`.
     inherited: (usize, usize),
-    /// Whether the block currently ends in `;`.
-    ///
-    /// Statement termination is a *structural* fact about a block, and asking
-    /// the text for it is the pattern phase 3's invariant forbids: no
-    /// production path may re-read emitted text to make a decision. Cheap to
-    /// read either way -- the point is that the block now answers it.
+    /// The last few bytes of the rendered text, so a keyword completed across
+    /// the join with the next statement is still counted.
+    tail: Vec<u8>,
+    /// Whether the block currently ends in `;` -- a structural fact the block
+    /// answers rather than a search of its text.
     ends_with_semicolon: bool,
-    /// Whether the last statement appended was a bare `return;`.
-    ///
-    /// A function tail that ends this way has a redundant statement, and the
-    /// emitter used to find it by `ends_with("return;")` on the text. The
-    /// block knows because every bare return comes through `push_statement`.
+    /// Whether the last statement is a bare `return;`.
     trailing_bare_return: bool,
 }
 
-/// The longest needle the counters track. No edit can change whether a needle
-/// matches unless that needle lies within this many bytes of the edit, which is
-/// what bounds every counter update below.
+/// The longest needle the counters track. A needle completed across a join
+/// lies within this many bytes of it.
 const JS_BLOCK_NEEDLE_SPAN: usize = "while(".len();
 
 /// Occurrences of `needle` in `haystack`, non-overlapping and left to right --
@@ -1499,8 +1489,18 @@ impl JsBlock {
         Self::default()
     }
 
-    fn as_str(&self) -> &str {
-        &self.text
+    /// The block's text: every statement rendered as it was pushed, minus
+    /// the terminators the block-close elision dropped.
+    fn render(&self) -> String {
+        self.statements.iter().map(EmittedStatement::render).collect()
+    }
+
+    fn into_string(self) -> String {
+        self.render()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.statements.is_empty()
     }
 
     /// An empty block that inherits this one's loop-keyword counts.
@@ -1509,10 +1509,20 @@ impl JsBlock {
     /// more of, because a repeated keyword compresses. It asks the block it is
     /// writing into -- so a body buffered into a *fresh* block sees zero of
     /// each and picks `while` where the enclosing artifact would have said
-    /// `for`. Inheriting keeps the answer the same.
-    ///
-    /// The counts stay correct afterwards: the enclosing block counts the
-    /// rendered body when it is appended, so nothing is double-counted there.
+    /// `for`. Inheriting keeps the answer the same. The enclosing block takes
+    /// the child's count delta when the child is appended.
+    fn nested(&self) -> Self {
+        Self {
+            statements: Vec::new(),
+            for_opens: self.for_opens,
+            while_opens: self.while_opens,
+            inherited: (self.for_opens, self.while_opens),
+            tail: Vec::new(),
+            ends_with_semicolon: false,
+            trailing_bare_return: false,
+        }
+    }
+
     /// A nested block whose baseline also counts `text`: for a body emitted
     /// before its own head is pushed, so the keyword counters inside it are
     /// what they will be once the head precedes it.
@@ -1520,6 +1530,7 @@ impl JsBlock {
         let mut child = self.nested();
         child.count_appended(text);
         child.inherited = (child.for_opens, child.while_opens);
+        child.tail.clear();
         child
     }
 
@@ -1527,11 +1538,11 @@ impl JsBlock {
     /// their own options, on the same inherited baseline.
     fn retain_from(&self, index: usize) -> Self {
         let mut kept = Self {
-            text: String::new(),
             statements: Vec::new(),
             for_opens: self.inherited.0,
             while_opens: self.inherited.1,
             inherited: self.inherited,
+            tail: Vec::new(),
             ends_with_semicolon: false,
             trailing_bare_return: false,
         };
@@ -1550,191 +1561,103 @@ impl JsBlock {
         self.push_statement(statement);
     }
 
-    fn nested(&self) -> Self {
-        Self {
-            text: String::new(),
-            statements: Vec::new(),
-            for_opens: self.for_opens,
-            while_opens: self.while_opens,
-            inherited: (self.for_opens, self.while_opens),
-            ends_with_semicolon: false,
-            trailing_bare_return: false,
-        }
-    }
-
-    /// Remove a trailing `;` if there is one. Reads the flag, not the text.
-    ///
-    /// On the list this is a *rendering* decision recorded on the last
-    /// statement, not an edit of it: the node is intact and knows its `;` was
-    /// dropped at the block close.
+    /// Drop the trailing `;` if there is one: the block-close elision,
+    /// recorded on the last statement.
     fn drop_trailing_semicolon(&mut self) {
-        if self.ends_with_semicolon() {
-            self.pop();
+        if !self.ends_with_semicolon {
+            return;
         }
+        if let Some(last) = self.statements.last_mut() {
+            last.dropped_semicolon = true;
+        }
+        self.ends_with_semicolon = false;
+        self.tail.pop();
     }
 
-    /// Remove a trailing bare `return;` if there is one. Reads the flag, not
-    /// the text; the witness checks the two agree.
+    /// Remove a trailing bare `return;` if there is one.
     fn drop_trailing_bare_return(&mut self) {
-        if twin_witness_enabled() {
-            assert_eq!(
-                self.trailing_bare_return,
-                self.text.ends_with("return;"),
-                "block trailing-return flag drifted from the text"
-            );
-        }
         if self.trailing_bare_return {
-            let length = self.text.len() - "return;".len();
-            // `truncate` drops the whole `Return { value: None }` from the list,
-            // because the cut lands exactly at its start.
-            self.truncate(length);
+            let popped = self.pop_statement();
+            debug_assert!(matches!(
+                popped.map(|emitted| emitted.statement),
+                Some(JsStatement::Return { value: None })
+            ));
         }
     }
 
-    fn into_string(self) -> String {
-        if twin_witness_enabled() {
-            self.witness_list_reproduces_text();
-        }
-        self.text
-    }
-
-    /// Phase 3's gate, executable: the statement list, rendered, is the text.
-    fn witness_list_reproduces_text(&self) {
-        let rendered = self
-            .statements
-            .iter()
-            .map(EmittedStatement::render)
-            .collect::<String>();
-        assert_eq!(
-            rendered, self.text,
-            "block statement list does not reproduce its text"
-        );
-    }
-
-    /// Bytes of this block's text that arrived as statement nodes, and bytes
-    /// that arrived as raw fragments. The ratio is phase 3's progress.
-    fn node_and_raw_bytes(&self) -> (usize, usize) {
-        self.statements.iter().fold((0, 0), |(node, raw), emitted| {
-            let len = emitted.render().len();
-            match emitted.statement {
-                _ => (node + len, raw),
+    /// Take the last statement off the block, keeping the counters and flags
+    /// true for what remains.
+    fn pop_statement(&mut self) -> Option<EmittedStatement> {
+        let popped = self.statements.pop()?;
+        let rendered = popped.render();
+        self.for_opens -= count_needle(rendered.as_bytes(), b"for(");
+        self.while_opens -= count_needle(rendered.as_bytes(), b"while(");
+        match self.statements.last() {
+            Some(last) => {
+                let text = last.render();
+                self.ends_with_semicolon = text.ends_with(';');
+                self.trailing_bare_return =
+                    matches!(last.statement, JsStatement::Return { value: None }) && !last.dropped_semicolon;
+                let bytes = text.as_bytes();
+                self.tail = bytes[bytes.len().saturating_sub(JS_BLOCK_NEEDLE_SPAN - 1)..].to_vec();
             }
-        })
+            None => {
+                self.ends_with_semicolon = false;
+                self.trailing_bare_return = false;
+                self.tail.clear();
+            }
+        }
+        Some(popped)
     }
 
-    /// Whether the last statement is terminated, without searching the text.
+    /// Whether the last statement is terminated.
     fn ends_with_semicolon(&self) -> bool {
-        if twin_witness_enabled() {
-            assert_eq!(
-                self.ends_with_semicolon,
-                self.text.ends_with(';'),
-                "block termination flag drifted from the text"
-            );
-        }
         self.ends_with_semicolon
     }
 
     /// How many `for(` and `while(` the block contains, without searching it.
     fn loop_keyword_counts(&self) -> (usize, usize) {
-        if twin_witness_enabled() {
-            assert_eq!(
-                (self.for_opens, self.while_opens),
-                (
-                    self.inherited.0 + self.text.matches("for(").count(),
-                    self.inherited.1 + self.text.matches("while(").count()
-                ),
-                "block keyword counters drifted from inherited + text"
-            );
-        }
         (self.for_opens, self.while_opens)
     }
 
     /// Count the needles a fragment brings, including any completed across the
-    /// join with what is already there.
-    ///
-    /// Allocation-free and bounded by the fragment: this runs on every append,
-    /// so anything proportional to the artifact would reintroduce, in a less
-    /// visible place, exactly the quadratic scan it exists to remove.
+    /// join with what is already there. Bounded by the fragment.
     fn count_appended(&mut self, fragment: &str) {
         if fragment.is_empty() {
             return;
         }
         self.for_opens += count_needle(fragment.as_bytes(), b"for(");
         self.while_opens += count_needle(fragment.as_bytes(), b"while(");
-
-        // Needles wholly inside the existing text, and wholly inside the
-        // fragment, are already counted. What is left is the ones that straddle
-        // the join, and those live in a window of bounded size.
-        let text = self.text.as_bytes();
-        let tail = &text[text.len().saturating_sub(JS_BLOCK_NEEDLE_SPAN - 1)..];
-        if tail.is_empty() {
-            return;
-        }
-        let head = &fragment.as_bytes()[..fragment.len().min(JS_BLOCK_NEEDLE_SPAN - 1)];
-        let mut joined = [0u8; 2 * (JS_BLOCK_NEEDLE_SPAN - 1)];
-        joined[..tail.len()].copy_from_slice(tail);
-        joined[tail.len()..tail.len() + head.len()].copy_from_slice(head);
-        let joined = &joined[..tail.len() + head.len()];
-        for (needle, counter) in [
-            (b"for(".as_slice(), &mut self.for_opens),
-            (b"while(".as_slice(), &mut self.while_opens),
-        ] {
-            let mut index = 0;
-            while index + needle.len() <= joined.len() {
-                let straddles = index < tail.len() && index + needle.len() > tail.len();
-                if &joined[index..index + needle.len()] == needle {
-                    if straddles {
-                        *counter += 1;
+        let tail = self.tail.as_slice();
+        if !tail.is_empty() {
+            let head = &fragment.as_bytes()[..fragment.len().min(JS_BLOCK_NEEDLE_SPAN - 1)];
+            let mut joined = [0u8; 2 * (JS_BLOCK_NEEDLE_SPAN - 1)];
+            joined[..tail.len()].copy_from_slice(tail);
+            joined[tail.len()..tail.len() + head.len()].copy_from_slice(head);
+            let joined = &joined[..tail.len() + head.len()];
+            for (needle, counter) in [
+                (b"for(".as_slice(), &mut self.for_opens),
+                (b"while(".as_slice(), &mut self.while_opens),
+            ] {
+                let mut index = 0;
+                while index + needle.len() <= joined.len() {
+                    let straddles = index < tail.len() && index + needle.len() > tail.len();
+                    if &joined[index..index + needle.len()] == needle {
+                        if straddles {
+                            *counter += 1;
+                        }
+                        index += needle.len();
+                    } else {
+                        index += 1;
                     }
-                    index += needle.len();
-                } else {
-                    index += 1;
                 }
             }
         }
-    }
-
-    /// Adjust the counters for an edit that replaced `text[range]` with
-    /// `replacement_len` bytes, given the counts taken over the affected window
-    /// beforehand.
-    ///
-    /// A needle whose match changes must contain a byte the edit touched, so it
-    /// starts no earlier than `JS_BLOCK_NEEDLE_SPAN` before the edit and ends no
-    /// later than `JS_BLOCK_NEEDLE_SPAN` after it. Recounting that window is
-    /// bounded work; recounting the artifact is not, and these methods are
-    /// called inside loop emission.
-    fn edit_window(&self, start: usize, end: usize) -> (usize, usize) {
-        (
-            start.saturating_sub(JS_BLOCK_NEEDLE_SPAN),
-            (end + JS_BLOCK_NEEDLE_SPAN).min(self.text.len()),
-        )
-    }
-
-    fn window_counts(&self, lo: usize, hi: usize) -> (usize, usize) {
-        let window = &self.text.as_bytes()[lo..hi];
-        (
-            count_needle(window, b"for("),
-            count_needle(window, b"while("),
-        )
-    }
-
-    /// Apply an edit through a closure, recounting only the window it can
-    /// disturb. `end` is the end of the edited span before the edit, and
-    /// `replacement_len` its length after.
-    fn edited(&mut self, start: usize, end: usize, replacement_len: usize, edit: impl FnOnce(&mut String)) {
-        let (lo, hi) = self.edit_window(start, end);
-        let (before_for, before_while) = self.window_counts(lo, hi);
-        let trailing = hi - end;
-        edit(&mut self.text);
-        let hi = (start + replacement_len + trailing).min(self.text.len());
-        let (after_for, after_while) = self.window_counts(lo, hi);
-        self.for_opens = self.for_opens + after_for - before_for;
-        self.while_opens = self.while_opens + after_while - before_while;
-        // An edit can land anywhere, including on the last byte, so the
-        // termination flags are recomputed rather than reasoned about. These
-        // are the rare paths; appends are the hot one.
-        self.ends_with_semicolon = self.text.ends_with(';');
-        self.trailing_bare_return = self.text.ends_with("return;");
+        // The needles are ASCII, so the tail is bytes and needs no character
+        // boundary.
+        self.tail.extend_from_slice(fragment.as_bytes());
+        let keep = self.tail.len().saturating_sub(JS_BLOCK_NEEDLE_SPAN - 1);
+        self.tail.drain(..keep);
     }
 
     fn push_statement(&mut self, statement: JsStatement) {
@@ -1744,11 +1667,8 @@ impl JsBlock {
     fn push_statement_with(&mut self, statement: JsStatement, options: JsStatementOptions) {
         let bare_return = matches!(statement, JsStatement::Return { value: None });
         let rendered = statement.clone().render(options);
-        // Append the text through `count_appended` and the flags, but record
-        // the node rather than a `Raw` of its rendering.
         self.count_appended(&rendered);
         self.ends_with_semicolon = rendered.ends_with(';');
-        self.text.push_str(&rendered);
         self.statements.push(EmittedStatement {
             statement,
             options,
@@ -1760,106 +1680,21 @@ impl JsBlock {
         }
     }
 
-    /// Append a finished child block: its text, and its statement list.
-    ///
-    /// `push_str(&child)` appended the same text but recorded it as one `Raw`,
-    /// so a body full of nodes was counted as text at every join and the
-    /// parent's list knew nothing of the child's. The child's list is cloned
-    /// in; the counters and flags are updated exactly as for the text.
+    /// Append a finished child block: its statement list, and the keyword
+    /// counts it added beyond what it inherited.
     fn push_block(&mut self, child: &JsBlock) {
-        if child.text.is_empty() {
+        if child.statements.is_empty() {
             return;
         }
-        self.count_appended(&child.text);
+        // A keyword completed across the join is one the child's first
+        // statement would have to start mid-word, which no statement does; the
+        // child's own delta is the whole count.
+        self.for_opens += child.for_opens - child.inherited.0;
+        self.while_opens += child.while_opens - child.inherited.1;
         self.ends_with_semicolon = child.ends_with_semicolon;
         self.trailing_bare_return = child.trailing_bare_return;
-        self.text.push_str(&child.text);
+        self.tail = child.tail.clone();
         self.statements.extend(child.statements.iter().cloned());
-        // Not counted here: the child's pushes already counted this text when
-        // it was created, and moving it is not creating it.
-    }
-
-    /// Also `#[track_caller]`, so a one-byte push is charged to whoever pushed
-    /// it rather than to this line.
-
-    // --- the last two edits of already-written text. `remove`, `insert_str`
-    // and `replace_range` are gone with their callers; these two remain only
-    // as the mechanism behind `drop_trailing_semicolon` and
-    // `drop_trailing_bare_return`, which read a flag rather than the text. ---
-
-    fn truncate(&mut self, length: usize) {
-        if length >= self.text.len() {
-            return;
-        }
-        let end = self.text.len();
-        self.edited(length, end, 0, |text| text.truncate(length));
-        // The list follows the text. Whole statements past the cut go; the
-        // only cut that lands inside a statement is the block-close elision
-        // of its trailing `;`, recorded on the node. Anything else would be
-        // text the list does not model, which no longer exists.
-        let mut kept = 0usize;
-        let mut count = 0usize;
-        for emitted in &self.statements {
-            let len = emitted.render().len();
-            if kept + len > length {
-                break;
-            }
-            kept += len;
-            count += 1;
-        }
-        // A cut at a statement's start drops it whole; a cut one byte short
-        // of its end is the block-close elision of its `;`, recorded on the
-        // node. Nothing else is a cut the list can follow.
-        let mut tail = None;
-        if let Some(cut) = self.statements.get(count) {
-            let rendered = cut.render();
-            let survives = &self.text[kept..length];
-            if !survives.is_empty() {
-                assert!(
-                    rendered.ends_with(';') && survives == &rendered[..rendered.len() - 1],
-                    "a block cut inside a statement: {survives:?} of {rendered:?}"
-                );
-                let mut cut = cut.clone();
-                cut.dropped_semicolon = true;
-                tail = Some(cut);
-            }
-        } else {
-            assert_eq!(kept, length, "a block cut past its statements");
-        }
-        self.statements.truncate(count);
-        self.statements.extend(tail);
-    }
-
-    fn pop(&mut self) -> Option<char> {
-        let popped = self.text.chars().next_back()?;
-        self.truncate(self.text.len() - popped.len_utf8());
-        Some(popped)
-    }
-
-
-
-}
-
-impl core::ops::Deref for JsBlock {
-    type Target = str;
-
-    fn deref(&self) -> &str {
-        &self.text
-    }
-}
-
-impl core::fmt::Display for JsBlock {
-    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        formatter.write_str(&self.text)
-    }
-}
-
-
-
-
-impl From<JsBlock> for String {
-    fn from(block: JsBlock) -> Self {
-        block.text
     }
 }
 
@@ -10113,13 +9948,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             } else {
                 flush_pending_lets(out, &mut pending_lets);
-                if block_is_comma_eligible(&statement) {
-                    pending_run.push(JsExpression::raw(
-                        statement
-                            .strip_suffix(';')
-                            .expect("eligible expression statements end in semicolons"),
-                        JsPrecedence::Assignment,
-                    ));
+                if let Some(expression) = block_compact_branch_expression(&statement) {
+                    pending_run.push(JsExpression::raw(expression, JsPrecedence::Assignment));
                     // Fusion is an option; without it every eligible statement
                     // stands alone, which a run of one flushes as.
                     if !self.options.comma_expressions {
@@ -17775,17 +17605,20 @@ fn expression_has_top_level_statement_break(expression: &str) -> bool {
 }
 
 
-fn for_update_clause(output: &str) -> Option<String> {
-    let clause = output.strip_suffix(';')?;
-    if clause.contains(';') {
+/// The one statement a loop's update block holds, as the `for` update clause,
+/// when it is a plain assignment or a `++`/`--` on a name.
+fn for_update_clause(block: &JsBlock) -> Option<String> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    if only.dropped_semicolon {
         return None;
     }
-    if parse_single_assignment(output)
-        .is_some_and(|(declare, _, _, trailing)| !declare && trailing.is_empty())
-    {
-        return Some(clause.to_string());
+    if let Some((declare, name, value, tail)) = statement_single_assignment(&only.statement) {
+        return (!declare && tail.is_empty()).then(|| format!("{name}={value}"));
     }
-    is_unit_update_clause(clause).then(|| clause.to_string())
+    let clause = statement_expression_text(&only.statement)?;
+    is_unit_update_clause(&clause).then_some(clause)
 }
 
 fn is_unit_update_clause(clause: &str) -> bool {
@@ -18875,10 +18708,8 @@ fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
         let Some(expression) = statement_expression_text(&last.statement) else {
             break;
         };
-        let length = last.render().len();
         expressions.push(expression);
-        let cut = output.text.len() - length;
-        output.truncate(cut);
+        output.pop_statement();
     }
     if expressions.is_empty() {
         return None;
@@ -30769,7 +30600,7 @@ mod tests {
 
         assert_eq!(position(0).abs_diff(position(2)), 1, "{order:?}");
         let similarities = compression_similarities(&segments);
-        let lengths = segments.iter().map(|segment| segment.len()).collect::<Vec<_>>();
+        let lengths = segments.iter().map(|segment| segment.render().len()).collect::<Vec<_>>();
         assert!(
             window_path_score(&order, &similarities, &lengths, 128)
                 > window_path_score(&[0, 1, 2, 3], &similarities, &lengths, 128)
@@ -38643,10 +38474,10 @@ consume(field(JS.object("type", 1), "type"));
             take_trailing_expression_statements(&mut prefix).as_deref(),
             Some("x=read(),y=x+1")
         );
-        assert_eq!(prefix.as_str(), "var x;");
+        assert_eq!(prefix.render(), "var x;");
         let mut declaration = block_of(vec![assign(Some("var "), "x", "read()")]);
         assert_eq!(take_trailing_expression_statements(&mut declaration), None);
-        assert_eq!(declaration.as_str(), "var x=read();");
+        assert_eq!(declaration.render(), "var x=read();");
 
         let output = compile_with_options(
             "extern int read();int value=0;int total=0;for(int index=0;index<4;index++){value=read();total+=value;if(value>2){total+=1;}}print(total);",

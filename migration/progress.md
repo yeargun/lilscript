@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **`Raw` is gone; no text enters a block** — `JsBlock` has no `push_str`/`push`/`From<str>`; every classifier reads the list; the text classifiers and their tests are deleted; `truncate` asserts a cut lands on a statement boundary or one `;`. Remaining: delete the `text` cache (render from the list), then G1/G2 by the fold-deletion protocol, `repair_fused_keyword_identifiers`, `keyword_space_tests.rs` | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **the text is deleted** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier, no witness left to run. Probe compile 19.8 s → 16.7 s (emit CPU 104 s → 83 s). Remaining: G1/G2 by the fold-deletion protocol, `repair_fused_keyword_identifiers`, `keyword_space_tests.rs`, the census counters | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -380,3 +380,19 @@ the list instead of scanning bytes backwards; `JsStatement::Raw`, `JsBlock::push
 `Write`/`From` and every text classifier with its tests are deleted; the classifiers have
 structural tests. Twin sweep 0 failures over the probe and the cases in four lanes; byte diffs
 vs `3bb2322`: none; candidate sets identical; 1710 unit tests; pool 146/146 with the new case.
+
+**Port verification of `f6d515a` (`Raw` gone, live-12), pool, background:** markedlil 9,431
+and zodlil 32,644 — identical bytes to `3bb2322`.
+
+**Batch 19 — the text is deleted.** `JsBlock` is `{statements, counters, inherited, tail,
+flags}`; `render()` concatenates the statements when a boundary asks; `into_string` is
+`render`; `is_empty` is the list's; the loop-keyword counters take a child's delta on
+`push_block` and keep a five-byte tail for a needle completed across a join;
+`drop_trailing_semicolon` marks the last node, `drop_trailing_bare_return` and the trailing
+fold pop it; `truncate`, `pop`, `edited`, the `Deref<str>`/`Display`/`From` impls and the witness
+are gone. The four readers that wanted text — the layout scorer's n-gram profile and lengths,
+the fusion loop's comma run, the loop's `for_update_clause` — render on demand or read the list.
+One real bug caught by `string_code_units`: the tail kept characters where the join buffer holds
+bytes. Zero byte diffs vs `f6d515a` across 74 cases in three lanes; candidate sets identical
+(3,064 each); probe both lanes; 1710 tests; pool 146/146. **Compile time on the probe: 19.8 s →
+16.7 s wall, emit CPU 104 s → 83 s** — the per-push text copy and the witness were that much.
