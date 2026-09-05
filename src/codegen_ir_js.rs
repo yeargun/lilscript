@@ -1520,6 +1520,20 @@ fn render(
                 value.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::New => {
+            let [constructor, arguments @ ..] = operands else {
+                return None;
+            };
+            Some(format!(
+                "new {}({})",
+                constructor.clone().at_least(JsPrecedence::Member),
+                arguments
+                    .iter()
+                    .map(|argument| argument.clone().at_least(JsPrecedence::Assignment))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ))
+        }
         JsExpressionRoot::Array => Some(format!(
             "[{}]",
             operands
@@ -1633,6 +1647,8 @@ enum JsExpressionRoot {
     Str(Lit),
     /// `[a,b,c]`, variadic; the elements are the operands.
     Array,
+    /// `new C(a,b)`, variadic like `Call`: the constructor then the arguments.
+    New,
 }
 
 impl JsExpressionRoot {
@@ -1659,7 +1675,7 @@ impl JsExpressionRoot {
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
             Self::Conditional => Some(3),
-            Self::Call | Self::Comma | Self::Array => None,
+            Self::Call | Self::Comma | Self::Array | Self::New => None,
         }
     }
 
@@ -1684,7 +1700,7 @@ impl JsExpressionRoot {
             Self::Conditional => 3,
             Self::Assign => 2,
             // Variadic: callee plus arguments, all retained.
-            Self::Call | Self::Comma | Self::Array => 0,
+            Self::Call | Self::Comma | Self::Array | Self::New => 0,
             Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) | Self::Str(_) => 0,
         }
     }
@@ -1694,7 +1710,7 @@ impl JsExpressionRoot {
         match self {
             // Variadic, and `call` retains callee plus every argument, so the
             // fixed-arity comparison below does not apply.
-            Self::Call | Self::Comma | Self::Array => true,
+            Self::Call | Self::Comma | Self::Array | Self::New => true,
             _ => match self.grammar_arity() {
                 Some(arity) => arity == self.retained_arity(),
                 None => false,
@@ -2493,6 +2509,23 @@ impl JsExpression {
         Self::grouped(code, JsPrecedence::Comma, JsExpressionRoot::Comma).with_operands(operands)
     }
 
+    /// `new C(a,b)` over its constructor and argument nodes.
+    fn new_call(constructor: Self, arguments: Vec<Self>) -> Self {
+        let mut operands = vec![constructor];
+        operands.extend(arguments);
+        Self {
+            code: render(JsExpressionRoot::New, &operands, JsRenderOptions::UNUSED)
+                .expect("render covers New"),
+            ungrouped: None,
+            precedence: JsPrecedence::Call,
+            root: JsExpressionRoot::New,
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     /// `[a,b,c]`: an array literal over its element nodes.
     fn array(elements: Vec<Self>) -> Self {
         Self {
@@ -2723,6 +2756,10 @@ impl JsExpression {
             JsExpressionRoot::Array => {
                 Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
+            JsExpressionRoot::New => Self::new_call(
+                child(0),
+                (1..self.operands.len()).map(child).collect::<Vec<_>>(),
+            ),
         }
     }
 
@@ -2765,7 +2802,8 @@ impl JsExpression {
             JsExpressionRoot::Call
             | JsExpressionRoot::Raw
             | JsExpressionRoot::Comma
-            | JsExpressionRoot::Assign => true,
+            | JsExpressionRoot::Assign
+            | JsExpressionRoot::New => true,
             JsExpressionRoot::Atom
             | JsExpressionRoot::Name(_)
             | JsExpressionRoot::Closure(_)
@@ -10032,7 +10070,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !function.is_generator && nested_helpers.is_empty() {
             let return_expression = if self.options.dense_string_return_tables {
                 self.render_dense_string_return_table(function, &context)?
-                    .map(JsExpression::into_minimal)
             } else {
                 None
             };
@@ -10043,6 +10080,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     return_expression
                 };
             if let Some(expression) = return_expression {
+                let expression_text = expression.clone().into_minimal();
                 let self_default =
                     (!anonymous_expression && calling_convention.is_none() && parameter_count == 1)
                         .then(|| {
@@ -10050,7 +10088,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 return None;
                             }
                             rewrite_self_default_conditional(
-                                &expression,
+                                &expression_text,
                                 &name,
                                 context.value_name(emitted_params[0].value).ok()?,
                                 is_nullable_with_truthy_value(&emitted_params[0].ty),
@@ -10087,12 +10125,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     return Ok(());
                 }
                 let body = if arrow_binding {
-                    JsFunctionBody::Concise(expression)
+                    JsFunctionBody::ConciseNode(expression)
                 } else {
                     let mut body = out.nested();
                     self.emit_calling_convention_aliases(function, &context, &mut body)?;
                     body.push_statement(JsStatement::Return {
-                        value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
+                        value: Some(expression),
                     });
                     JsFunctionBody::Block(body)
                 };
@@ -10404,7 +10442,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         &mut self,
         function: &ControlFlowFunction<'src>,
         context: &LocalNames,
-    ) -> Result<Option<String>, CodegenError> {
+    ) -> Result<Option<JsExpression>, CodegenError> {
         // Keep straight-line functions on the statement emitter. Its name
         // coalescing deliberately reuses one JavaScript binding for successive
         // SSA values, which cannot be reconstructed as one nested expression
@@ -10435,7 +10473,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         else {
             return Ok(None);
         };
-        Ok(Some(expression.into_minimal()))
+        Ok(Some(expression))
     }
 
     fn render_dense_string_return_table(
@@ -11569,9 +11607,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.options.elide_call_chain_parentheses,
                     )
                 };
-                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                let value = take_value(*value, context, cache)?;
                 out.push_statement(JsStatement::Expression {
-                    value: JsExpression::raw(format!("{}={value}", &*access), JsPrecedence::Assignment),
+                    value: JsExpression::assign(access, value),
                 });
                 return Ok(());
             }
@@ -11607,22 +11645,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let name = context.value_name(result)?;
                 materialize_cache_before_binding_write(context, name, predeclared, cache, out)?;
                 let keyword = binding_keyword(context, result, predeclared)?;
-                let mut rendered_args = Vec::new();
-                for arg in args {
-                    rendered_args.push(strip_outer_parens(take_value(*arg, context, cache)?));
-                }
+                let argument_nodes = args
+                    .iter()
+                    .map(|arg| take_value(*arg, context, cache))
+                    .collect::<Result<Vec<_>, _>>()?;
                 if self.module.class_identity_observed(class) {
+                    let constructor = JsExpression::atom(self.identity_class_binding(class)?);
                     out.push_statement(JsStatement::Binding {
                         keyword,
                         name: name.to_string(),
-                        value: JsExpression::raw(
-                            format!(
-                                "new {}({})",
-                                self.identity_class_binding(class)?,
-                                rendered_args.join(",")
-                            ),
-                            JsPrecedence::Call,
-                        ),
+                        value: JsExpression::new_call(constructor, argument_nodes),
                         bind: None,
                     });
                     return Ok(());
@@ -11636,14 +11668,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     ),
                     bind: None,
                 });
-                let mut call = format!("{}({name}", self.function_name(*constructor)?);
-                for arg in rendered_args {
-                    call.push(',');
-                    call.push_str(&arg);
-                }
-                call.push(')');
+                let callee = self.function_atom(*constructor)?;
+                let mut call_arguments = vec![context.value_atom(result)?];
+                call_arguments.extend(argument_nodes);
                 out.push_statement(JsStatement::Expression {
-                    value: JsExpression::raw(call, JsPrecedence::Call),
+                    value: JsExpression::call(callee, call_arguments),
                 });
                 return Ok(());
             }
@@ -17714,7 +17743,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if !function.is_generator {
                 let return_expression = if self.options.dense_string_return_tables {
                     self.render_dense_string_return_table(&function, &context)?
-                        .map(JsExpression::into_minimal)
                 } else {
                     None
                 };
@@ -17731,7 +17759,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut body = JsBlock::new();
                         self.emit_calling_convention_aliases(&function, &context, &mut body)?;
                         body.push_statement(JsStatement::Return {
-                            value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
+                            value: Some(expression),
                         });
                         return Ok(self.render_closure_statement(
                             named_function_expression_head(recursive_head_name, &parameters),
@@ -17740,7 +17768,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     return Ok(self.render_closure_statement(
                         arrow_head(&parameters),
-                        JsFunctionBody::Concise(expression),
+                        JsFunctionBody::ConciseNode(expression),
                     ));
                 }
             }
