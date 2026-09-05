@@ -9945,6 +9945,11 @@ fn emit_javascript_candidate(
 ) -> Result<String, crate::codegen_js::CodegenError> {
     #[cfg(test)]
     JAVASCRIPT_CANDIDATE_EMISSIONS.with(|count| count.set(count.get() + 1));
+    // Phase 7 instrument: which option tuples the search emits, one line per
+    // emission, so the axes that multiply the emission count can be counted.
+    if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+        eprintln!("[emission-options] {options:?}");
+    }
     let started = std::time::Instant::now();
     let code = if module_output {
         emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis, facts)?

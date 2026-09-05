@@ -1559,6 +1559,7 @@ enum JsUnary {
     Neg,
     Plus,
     Void,
+    TypeOf,
 }
 
 impl JsUnary {
@@ -1567,6 +1568,7 @@ impl JsUnary {
             Self::Not => "!",
             Self::Neg => "-",
             Self::Plus => "+",
+            Self::TypeOf => "typeof ",
             Self::Void => "void",
         }
     }
@@ -1577,6 +1579,7 @@ impl JsUnary {
             "-" => Self::Neg,
             "+" => Self::Plus,
             "void" => Self::Void,
+            "typeof" => Self::TypeOf,
             other => unreachable!("unary operator {other:?} is not a token the tree spells"),
         }
     }
@@ -16414,15 +16417,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .map(|(kind, _)| kind.name()),
         };
         if intrinsic == Intrinsic::SymbolNew {
-            let mut rendered = String::from("Symbol(");
-            for (index, arg) in args.iter().enumerate() {
-                if index != 0 {
-                    rendered.push(',');
-                }
-                rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
-            }
-            rendered.push(')');
-            return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
+            return self.render_call(JsExpression::atom("Symbol"), args, context, cache);
         }
         if self.options.regex_literals && intrinsic == Intrinsic::RegexNew {
             if let Some(literal) = regex_literal_for_arguments(
@@ -16509,10 +16504,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             Intrinsic::JsTypeOf => {
-                return Ok(JsExpression::raw(
-                    format!("typeof {}", receiver.at_least(JsPrecedence::Unary)),
-                    JsPrecedence::Unary,
-                ));
+                return Ok(JsExpression::unary("typeof", receiver));
             }
             Intrinsic::JsIsNullish => {
                 if context.absent_is_undefined(receiver_id) {

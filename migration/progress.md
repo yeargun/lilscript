@@ -125,6 +125,8 @@ one worker; the current profile is under *Measurement facts*.
 
 | 7.4 | array literals are an `Array` node over element nodes (the packed `"a,b".split(",")` spelling stays an atom, chosen by length as before) | byte-identical to `bf6d05c` in three lanes; twin: `compact_boolean_literals` 19 of 24 print-ok, `string_quote` 25 of 38; 1,717 tests |
 
+| 7.5 | `typeof x` is a `Unary(TypeOf)` node and `Symbol(..)` a `Call` node (two raw producers gone); `[emission-options]` trace and `emission-axes.py` count the option tuples the search emits | byte-identical to `f80e669`; **the emission axes:** probe 381 emissions / 130 tuples — `string_quote` varies on 168, `identifier_alphabet` 102, `stable_local_names` 165; markedlil 277 / 141 — `string_quote` 64, the naming-policy fields (`stable_local_names` 107, `local_name_reserve` 32, `precise_cross_scope_shadowing` 22, `frequency_order_local_names` 19) ≈ 196, structural (`constructor_initializer_fusion` 72, `iife_private_callee_clusters` 66, `function_layout` 25) the minority; 1,717 tests |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |
