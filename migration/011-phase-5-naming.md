@@ -110,6 +110,23 @@ between two runs — not the incumbent's.
 Each is a scored decision, default off, with its own trace baseline declared in the commit (the
 gate for a new ordering is *its* trace, stable across thread counts — not the incumbent's).
 
+### How an ordering is measured (landed with 5.3/5.4)
+
+Three switches, none of which touch a port's config:
+
+- `name_ordering = "frequency-desc"` in a config, or `LILSCRIPT_NAME_ORDERING=frequency-desc` in the
+  environment (the pool forwards `LILSCRIPT_*` to every port build), pins the ordering.
+- `name_ordering_search = true`, or `LILSCRIPT_NAME_ORDERING_SEARCH=1`, lets the candidate search
+  propose it — the form the decision ships in, where the codec picks per port.
+- `workers.mjs check --lanes none,maximum,frequency-desc` runs the case matrix under
+  `tests/config/frequency-desc.toml` on the pool; `configs.mjs` on the probe has `freqNames` rows.
+
+Under `LILSCRIPT_TIMING=1` the renamer reports `rename_scopes` / `rename_scopes_full` /
+`rename_binds` / `rename_binds_renamed`, and `rename_kept_<kind>` — why each kept binding kept its
+spelling (raw node, literal, concise body, condition without a tree, loop text, switch, class,
+unbound declaration, module name, head text, free reference). That census picks the next node to
+build.
+
 ### 5.5 — Deletions
 
 `rename.rs`, `binding.rs`'s `BindingResolution`, the third `Mangler`, `rename_ambiguous` — after
