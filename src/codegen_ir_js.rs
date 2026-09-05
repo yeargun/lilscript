@@ -1143,6 +1143,9 @@ enum JsPrecedence {
 #[derive(Debug, Clone, Copy)]
 struct JsRenderOptions {
     elide_call_chain_parentheses: bool,
+    /// `!0`/`!1` for the boolean literals (a leaf spelling, re-derived on a
+    /// re-print).
+    compact_boolean_literals: bool,
 }
 
 impl JsRenderOptions {
@@ -1150,6 +1153,7 @@ impl JsRenderOptions {
     /// claim, checked by `render` never reading the field for those kinds.
     const UNUSED: Self = Self {
         elide_call_chain_parentheses: false,
+        compact_boolean_literals: false,
     };
 }
 
@@ -1503,6 +1507,16 @@ fn render(
                 index.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::Assign => {
+            let [target, value] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{}={}",
+                target.code,
+                value.clone().at_least(JsPrecedence::Assignment)
+            ))
+        }
         JsExpressionRoot::Comma => {
             if operands.is_empty() {
                 return None;
@@ -1519,7 +1533,8 @@ fn render(
         JsExpressionRoot::Atom
         | JsExpressionRoot::Name(_)
         | JsExpressionRoot::Closure(_)
-        | JsExpressionRoot::Raw => None,
+        | JsExpressionRoot::Raw
+        | JsExpressionRoot::Bool(_) => None,
     }
 }
 
@@ -1591,6 +1606,13 @@ enum JsExpressionRoot {
     /// `a,b,c`: the sequence a run of expression statements joins into.
     /// Variadic, like `Call`; one operand is a run of one.
     Comma,
+    /// A boolean literal. The value is the datum; whether it is spelled
+    /// `true`/`false` or `!0`/`!1` is the printer's (`compact_boolean_literals`).
+    Bool(bool),
+    /// `t=v`: a plain assignment as an expression. The target is a `Name`,
+    /// `Member` or `Index` node, so a fused run or a store keeps every bind
+    /// and every literal the re-print and the renamer need to reach.
+    Assign,
 }
 
 impl JsExpressionRoot {
@@ -1602,7 +1624,8 @@ impl JsExpressionRoot {
     /// spread across the constructors. See `migration/003-target-representation.md`.
     const fn grammar_arity(self) -> Option<usize> {
         match self {
-            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw => Some(0),
+            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) => Some(0),
+            Self::Assign => Some(2),
             Self::Unary(_)
             | Self::IntegerNormalization
             | Self::NullNormalized
@@ -1634,9 +1657,10 @@ impl JsExpressionRoot {
             Self::Binary(_) => 2,
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
+            Self::Assign => 2,
             // Variadic: callee plus arguments, all retained.
             Self::Call | Self::Comma => 0,
-            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw => 0,
+            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) => 0,
         }
     }
 
@@ -2230,6 +2254,28 @@ impl JsExpression {
         node
     }
 
+    /// A boolean literal, spelled by the printer: `!0`/`!1` when
+    /// `compact_boolean_literals`, `true`/`false` otherwise. The precedence is
+    /// the one the atom had (primary), so no grouping changes with the spelling.
+    fn boolean(value: bool, compact: bool) -> Self {
+        let code = match (value, compact) {
+            (true, true) => "!0",
+            (false, true) => "!1",
+            (true, false) => "true",
+            (false, false) => "false",
+        };
+        Self {
+            code: code.to_string(),
+            ungrouped: None,
+            precedence: JsPrecedence::Primary,
+            root: JsExpressionRoot::Bool(value),
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands: Vec::new(),
+        }
+    }
+
     /// A closure as text, with the kept tree that renders it.
     fn closure(closure: ClosureId, code: impl Into<String>, precedence: JsPrecedence) -> Self {
         Self {
@@ -2307,6 +2353,7 @@ impl JsExpression {
 
     fn is_constant_literal(&self) -> bool {
         match self.root {
+            JsExpressionRoot::Bool(_) => true,
             JsExpressionRoot::Atom => {
                 let code = self.code.as_str();
                 matches!(code, "true" | "false" | "null" | "!0" | "!1")
@@ -2401,6 +2448,24 @@ impl JsExpression {
         Self::grouped(code, JsPrecedence::Comma, JsExpressionRoot::Comma).with_operands(operands)
     }
 
+    /// `target=value` as an expression: the store and the fused-run member.
+    /// The value is spelled at assignment precedence, so a sequence value is
+    /// grouped (`x=(a,b)`), which the text form never was.
+    fn assign(target: Self, value: Self) -> Self {
+        let operands = vec![target, value];
+        Self {
+            code: render(JsExpressionRoot::Assign, &operands, JsRenderOptions::UNUSED)
+                .expect("render covers Assign"),
+            ungrouped: None,
+            precedence: JsPrecedence::Assignment,
+            root: JsExpressionRoot::Assign,
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
         // operands[0] is the callee; operands[1..] are the arguments in order.
         let mut operands = vec![callee];
@@ -2421,6 +2486,7 @@ impl JsExpression {
         let root = JsExpressionRoot::Member;
         let options = JsRenderOptions {
             elide_call_chain_parentheses,
+            ..JsRenderOptions::UNUSED
         };
         let operands = vec![object, Self::atom(property)];
         Self {
@@ -2439,6 +2505,7 @@ impl JsExpression {
         let root = JsExpressionRoot::Index;
         let options = JsRenderOptions {
             elide_call_chain_parentheses,
+            ..JsRenderOptions::UNUSED
         };
         let operands = vec![object, index];
         Self {
@@ -2567,7 +2634,8 @@ impl JsExpression {
             JsExpressionRoot::Atom
             | JsExpressionRoot::Name(_)
             | JsExpressionRoot::Closure(_)
-            | JsExpressionRoot::Raw => self.clone(),
+            | JsExpressionRoot::Raw
+            | JsExpressionRoot::Bool(_) => self.clone(),
             JsExpressionRoot::Unary(operator) => Self::unary(operator.as_str(), child(0)),
             JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
             JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
@@ -2590,6 +2658,7 @@ impl JsExpression {
             JsExpressionRoot::Comma => {
                 Self::comma((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
+            JsExpressionRoot::Assign => Self::assign(child(0), child(1)),
         }
     }
 
@@ -2629,10 +2698,14 @@ impl JsExpression {
             // A sequence is answered as its `Raw` predecessor was -- opaque --
             // until the precise answer (any operand) is measured on the fleet as
             // its own change; it moves function placement and run absorption.
-            JsExpressionRoot::Call | JsExpressionRoot::Raw | JsExpressionRoot::Comma => true,
-            JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Closure(_) => {
-                false
-            }
+            JsExpressionRoot::Call
+            | JsExpressionRoot::Raw
+            | JsExpressionRoot::Comma
+            | JsExpressionRoot::Assign => true,
+            JsExpressionRoot::Atom
+            | JsExpressionRoot::Name(_)
+            | JsExpressionRoot::Closure(_)
+            | JsExpressionRoot::Bool(_) => false,
             _ => self.operands.iter().any(Self::may_have_effects),
         }
     }
@@ -2726,10 +2799,10 @@ impl JsExpression {
     /// rendering, and a branch keeps the tree beside the text.
     fn negated_tree(self) -> Self {
         if is_true_literal(&self.code) {
-            return Self::atom("!1");
+            return Self::boolean(false, self.code == "!0");
         }
         if is_false_literal(&self.code) {
-            return Self::atom("!0");
+            return Self::boolean(true, self.code == "!1");
         }
         if self.root == JsExpressionRoot::Unary(JsUnary::Not) {
             return self
@@ -2966,6 +3039,20 @@ fn print_twin(
             if emitted == printed { "same" } else { "diff" },
             if emitted == text { "noop" } else { "effect" }
         );
+        if emitted != printed && std::env::var("LILSCRIPT_PRINT_TWIN").as_deref() == Ok("2") {
+            // The first divergence, with context, for the site hunt.
+            let at = emitted
+                .bytes()
+                .zip(printed.bytes())
+                .position(|(a, b)| a != b)
+                .unwrap_or(emitted.len().min(printed.len()));
+            let lo = at.saturating_sub(40);
+            eprintln!(
+                "[print-twin-diff] {name}\n  emitted: {}\n  printed: {}",
+                &emitted[lo..(at + 60).min(emitted.len())],
+                &printed[lo..(at + 60).min(printed.len())]
+            );
+        }
     }
     Ok(text)
 }
@@ -3384,6 +3471,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if twin_witness_enabled() {
             WITNESS_OPTIONS.set(JsRenderOptions {
                 elide_call_chain_parentheses: options.elide_call_chain_parentheses,
+                compact_boolean_literals: options.compact_boolean_literals,
             });
         }
         let bind_table = BindTable::default();
@@ -10890,8 +10978,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             } else {
                 flush_pending_lets(out, &mut pending_lets);
-                if let Some(expression) = block_compact_branch_expression(&statement) {
-                    pending_run.push(JsExpression::raw(expression, JsPrecedence::Assignment));
+                if let Some(expression) = block_compact_branch_node(&statement) {
+                    pending_run.push(expression);
                     // Fusion is an option; without it every eligible statement
                     // stands alone, which a run of one flushes as.
                     if !self.options.comma_expressions {
@@ -11290,9 +11378,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let _ = take_value(*value, context, cache)?;
                     return Ok(());
                 }
-                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                let value = take_value(*value, context, cache)?;
                 let name = self.global_name(*global)?.to_string();
-                if value != name {
+                if value.clone().into_minimal() != name {
                     materialize_cache_before_binding_write(
                         context,
                         &name,
@@ -11312,7 +11400,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_statement(JsStatement::Binding {
                     keyword,
                     name,
-                    value: JsExpression::raw(value, JsPrecedence::Assignment),
+                    value,
                     bind: None,
                 });
                 return Ok(());
@@ -11348,19 +11436,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     cache,
                     out,
                 )?;
-                let object_text = take_value(*object, context, cache)?;
-                let mut assignment = String::from(&*object_text);
-                if (self.options.public_aggregate_fields && context.is_untyped(*object))
+                let object_node = take_value(*object, context, cache)?;
+                let target = if (self.options.public_aggregate_fields && context.is_untyped(*object))
                     || self.class_uses_named_fields(owner)
                 {
-                    write!(assignment, ".{}=", self.owned_property_name(owner, *index, field))
-                        .expect("writing to String cannot fail");
+                    JsExpression::member(
+                        object_node,
+                        &self.owned_property_name(owner, *index, field),
+                        self.options.elide_call_chain_parentheses,
+                    )
                 } else {
-                    write!(assignment, "[{index}]=").expect("writing to String cannot fail");
-                }
-                assignment.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+                    JsExpression::index(
+                        object_node,
+                        JsExpression::atom(index.to_string()),
+                        self.options.elide_call_chain_parentheses,
+                    )
+                };
+                let value = take_value(*value, context, cache)?;
                 out.push_statement(JsStatement::Expression {
-                    value: JsExpression::raw(assignment, JsPrecedence::Assignment),
+                    value: JsExpression::assign(target, value),
                 });
                 return Ok(());
             }
@@ -11416,9 +11510,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out,
                 )?;
                 let access = self.render_index_access(*object, *index, context, cache)?;
-                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                let value = take_value(*value, context, cache)?;
                 out.push_statement(JsStatement::Expression {
-                    value: JsExpression::raw(format!("{access}={value}"), JsPrecedence::Assignment),
+                    value: JsExpression::assign(access, value),
                 });
                 return Ok(());
             }
@@ -15056,12 +15150,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     self.options.compact_boolean_literals,
                     self.options.string_quote,
                 );
-                JsExpression::atom(
-                    self.numeric_aliases
-                        .get(&rendered)
-                        .cloned()
-                        .unwrap_or(rendered),
-                )
+                match (value, self.numeric_aliases.get(&rendered)) {
+                    (ConstValue::Bool(value), None) => {
+                        JsExpression::boolean(*value, self.options.compact_boolean_literals)
+                    }
+                    (_, alias) => JsExpression::atom(alias.cloned().unwrap_or(rendered)),
+                }
             }
             ControlFlowOp::CaptureLocal(local) | ControlFlowOp::LoadLocal(local) => {
                 context.local_atom(*local)?
@@ -15113,11 +15207,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     && is_rendered_string_literal(&rhs.code)
                 {
                     let equal = lhs.code == rhs.code;
-                    JsExpression::atom(render_const(
-                        &ConstValue::Bool(if *op == IrBinaryOp::Eq { equal } else { !equal }),
+                    JsExpression::boolean(
+                        if *op == IrBinaryOp::Eq { equal } else { !equal },
                         self.options.compact_boolean_literals,
-                        self.options.string_quote,
-                    ))
+                    )
                 } else {
                     JsExpression::binary(*op, lhs, rhs)
                 }
@@ -19146,6 +19239,35 @@ fn expression_statement(expression: JsExpression) -> String {
 // text classifiers go with `Raw`.
 // ---------------------------------------------------------------------------
 
+/// The expression node a statement contributes to a fused run: the
+/// expression itself, or a keyword-less `t=v;` as an `Assign` node whose
+/// target keeps its bind. An expression that would need the statement
+/// grouping (`(function(){..})()`) stays text, so the run's bytes do not move.
+fn statement_expression_node(statement: &JsStatement) -> Option<JsExpression> {
+    match statement {
+        JsStatement::Expression { value } => {
+            let text = expression_statement(value.clone());
+            if text.starts_with('(') && !value.clone().into_minimal().starts_with('(') {
+                return Some(JsExpression::raw(text, JsPrecedence::Assignment));
+            }
+            Some(value.clone())
+        }
+        JsStatement::Binding {
+            keyword: None,
+            name,
+            bind,
+            value,
+        } => {
+            let target = match bind {
+                Some(bind) => JsExpression::name(*bind, name.clone()),
+                None => JsExpression::atom(name.clone()),
+            };
+            Some(JsExpression::assign(target, value.clone()))
+        }
+        _ => None,
+    }
+}
+
 /// The expression text a statement contributes to a sequence, if it is an
 /// expression statement: `e;` or a keyword-less `t=v;`.
 fn statement_expression_text(statement: &JsStatement) -> Option<String> {
@@ -19246,6 +19368,14 @@ fn block_compact_branch_expression(block: &JsBlock) -> Option<String> {
         return None;
     };
     statement_expression_text(&only.statement)
+}
+
+/// The node form of `block_compact_branch_expression`, for the fused run.
+fn block_compact_branch_node(block: &JsBlock) -> Option<JsExpression> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    statement_expression_node(&only.statement)
 }
 
 fn block_compact_void_expression(block: &JsBlock) -> Option<String> {
@@ -21615,8 +21745,13 @@ impl LocalNames {
                     let use_count = uses.get(&out).copied().unwrap_or(0);
                     let inline_cost = rendered.len() * use_count;
                     let binding_cost = rendered.len() + 7 + use_count;
-                    let rendered = numeric_aliases.get(&rendered).cloned().unwrap_or(rendered);
-                    (inline_cost <= binding_cost).then_some((out, JsExpression::atom(rendered)))
+                    let inlined = match (value, numeric_aliases.get(&rendered)) {
+                        (ConstValue::Bool(value), None) => {
+                            JsExpression::boolean(*value, compact_boolean_literals)
+                        }
+                        (_, alias) => JsExpression::atom(alias.cloned().unwrap_or(rendered)),
+                    };
+                    (inline_cost <= binding_cost).then_some((out, inlined))
                 }
                 (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
                     let rendered = render_string_literal(value, options.string_quote);
@@ -23048,6 +23183,10 @@ impl Respell<'_> {
             JsExpressionRoot::Closure(closure) => self
                 .closure(closure)
                 .map(|code| JsExpression::closure(closure, code, expression.precedence)),
+            JsExpressionRoot::Bool(value) => {
+                let spelled = JsExpression::boolean(value, self.options.compact_boolean_literals);
+                (self.force && spelled.code != expression.code).then_some(spelled)
+            }
             JsExpressionRoot::Atom | JsExpressionRoot::Raw => None,
             _ => {
                 let children = expression
@@ -23288,6 +23427,7 @@ fn printer_options(options: &IrJsOptions) -> (JsRenderOptions, JsStatementOption
     (
         JsRenderOptions {
             elide_call_chain_parentheses: options.elide_call_chain_parentheses,
+            compact_boolean_literals: options.compact_boolean_literals,
         },
         JsStatementOptions {
             elide_block_terminal_semicolons: options.elide_block_terminal_semicolons,
@@ -23326,7 +23466,7 @@ impl ModuleTree {
 
 fn print_twin_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_PRINT_TWIN").as_deref() == Ok("1"))
+    *ENABLED.get_or_init(|| matches!(std::env::var("LILSCRIPT_PRINT_TWIN").as_deref(), Ok("1" | "2")))
 }
 
 /// One flipped copy of `base` per field that could be a printer decision: the
