@@ -564,3 +564,32 @@ artifact roughly cancel; the actual cost was the **+261 `var`/`let` keywords** (
 `merge_adjacent_declarations` — it is not splitting a declarator list in the first place.** That is
 an SSA-destruction decision, upstream of every fold discussed here. Recorded so the terser pass is
 not ported on the strength of its name.
+
+---
+
+## I. Where the scoring point is, and who owns spelling (harvest 2026-09-05, migration 7′)
+
+Read for [migration/012](../../migration/012-second-look.md) §3 before the "one emission, many
+prints" step. The question: in each tool, at what point is an artifact's shape final, what does the
+printer decide on its own, and is anything ever chosen by comparing two renderings?
+
+| tool | pipeline order | what the printer decides | size comparisons |
+|---|---|---|---|
+| **Terser 5.44.0** | `lib/minify.js:262-280`: `Compressor.compress(toplevel)` (AST→AST: `sequences`, `join_vars`, `booleans` (`!0`), `conditionals`, `if_return`, `collapse_vars`, `unused`, `arrows` — all in `compress/index.js:223-279` defaults) → `figure_out_scope` → `compute_char_frequency` + `mangle_names` (`:270-274`) → `mangle_properties` → `OutputStream` | `lib/output.js:267-295` defaults: `quote_style`, `semicolons`, `braces`, `wrap_iife`, `wrap_func_args`, `shorthand`, `ascii_only`, `keep_numbers`, `quote_keys` — separators, quotes, grouping only; `make_num` (`:2432-2448`) prints a number in every spelling and takes the shortest (`best_of`, `:2416`) | during compress, `best_of(compressor, a, b)` (`compress/common.js:186`) compares `size()` **estimates** of two AST nodes (statement or expression context); the printer compares lengths only for number literals. Nothing is ever scored on non-final text: every transform is on the AST and the printer is last |
+| **Oxc minifier 0.147.0** | `src/lib.rs:88-104`: `compress` (`Compressor`) then `mangle` (`Mangler`), then `oxc_codegen` (not vendored) | codegen options only (`minify`, quotes, …); the peephole (`compression_pass::run_peephole_pass`) owns every shape | none by rendering; the peephole loop is a fixed point capped at `max_iterations` or 10 with a `debug_assert` (`src/compressor.rs:105-141`) |
+| **Closure (master)** | `DefaultPassConfig.getFinalizations()` (~`:700-801`): `coalesceVariableNames` (737) → `peepholeOptimizationsOnceNonNormalized` (742) → `collapseVariableDeclarations` (752) → `denormalize` (756) → `renameVars` (766) → `renameLabels` (771) → `latePeepholeOptimizations` (775: `StatementFusion`, `PeepholeFoldConstants`) → `rescopeGlobalSymbols` (785) → `optimizeToEs6` (790) → validity checks (800-801) → `CodePrinter` | `CodePrinter.Builder` (`:546-609`): `setPrettyPrint`, `setLineBreak`, `setOutputTypes`, license/strict tagging — lexical only; `CodeGenerator` chooses the quote character by counting quotes (`:1485-1520`, `preferSingleQuotes` tiebreak), quotes keyword properties when asked (`:1047-1053`), parenthesises by precedence (`opRequiresParentheses`, `addExpr`, `:1360-1416`), delegates spaces and terminators to `CodeConsumer` (`maybeInsertSpace`, `endStatement`, `:251-274`); booleans print as `true`/`false` (`:1133-1136` — the `!0` spelling is a peephole pass, not the printer's) | no pass in `DefaultPassConfig` compares printings; ordering is by `assertPassOrder`; the generator never compares lengths |
+
+**Verdict for LilScript.** All three keep one rule we break: *the last transform runs before the
+printer, and nothing is scored between them.* Our candidate stages score the emitter's text before
+the peephole normalises it (`compiler.rs` `select_javascript_candidate_global` scores raw
+emissions; `finalize_javascript_candidates_with_parallelism:5714-5870` peepholes only an admitted
+prefix of finalists and lets raw and peepholed leaves compete; `apply_selected_canonical_peephole`
+runs once more on the winner). Terser's `best_of` is the closest thing to our search and it compares
+*AST size estimates during compress*, i.e. before mangling and printing — the cheap-predictor role
+`planned-architecture.md` §4 already assigns to raw deltas. The real-codec comparison of whole
+artifacts stays ours alone (row 21); what we adopt is where the printer sits. Also confirmed: the
+printer-only option set in each tool is small (quotes, separators, grouping, number spelling), and
+every shape spelling (`!0`, sequences, joined declarations, ternaries, arrows) is an AST transform
+with the printer faithful to the tree — which is where `braceless_control_bodies`,
+`comma_expressions`, `mutation_spelling` and `compact_boolean_literals` belong for us too: nodes
+that carry the value, a render that spells it.
