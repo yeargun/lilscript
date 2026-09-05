@@ -78,6 +78,7 @@ enum PlannedFunction<'ast, 'src> {
 }
 
 struct ModuleLowerer<'model, 'ast, 'src> {
+    node_ids: crate::ir::NodeIdAllocator,
     semantics: &'model SemanticModel<'src>,
     plans: Vec<PlannedFunction<'ast, 'src>>,
     function_symbols: AHashMap<SymbolId, FunctionId>,
@@ -101,6 +102,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
         semantics: &'model SemanticModel<'src>,
     ) -> Result<Self, LowerError> {
         let mut lowerer = Self {
+            node_ids: crate::ir::NodeIdAllocator::default(),
             semantics,
             plans: vec![PlannedFunction::Entry],
             function_symbols: AHashMap::default(),
@@ -539,6 +541,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 &self.global_symbols,
                 &self.external_globals,
                 plan_span(plan, program.span),
+                self.node_ids.clone(),
             );
 
             match plan {
@@ -705,6 +708,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
         classes.sort_unstable_by_key(|layout| layout.name);
 
         Ok(ControlFlowModule {
+            node_ids: self.node_ids.clone(),
             functions,
             globals: self.globals,
             foreign_imports: program
@@ -766,7 +770,7 @@ struct FunctionBuilder<'model, 'maps, 'src> {
     shapes: Vec<ControlShape>,
     current: BlockId,
     next_value: u32,
-    next_node_id: u32,
+    node_ids: crate::ir::NodeIdAllocator,
     value_escapes: Vec<EscapeState>,
     loop_targets: Vec<(BlockId, BlockId)>,
     span: Span,
@@ -786,6 +790,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         global_symbols: &'maps AHashSet<SymbolId>,
         external_globals: &'maps AHashSet<SymbolId>,
         span: Span,
+        node_ids: crate::ir::NodeIdAllocator,
     ) -> Self {
         Self {
             id,
@@ -820,7 +825,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             shapes: Vec::new(),
             current: BlockId(0),
             next_value: 0,
-            next_node_id: 0,
+            node_ids,
             value_escapes: Vec::new(),
             loop_targets: Vec::new(),
             span,
@@ -4361,8 +4366,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     }
 
     fn alloc_node_id(&mut self) -> NodeId {
-        let id = NodeId(self.next_node_id);
-        self.next_node_id += 1;
+        let id = self.node_ids.alloc();
         id
     }
 
@@ -4416,6 +4420,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         }
         Ok(ControlFlowFunction {
             id: self.id,
+            node_ids: self.node_ids.clone(),
             name: self.name,
             kind: self.kind,
             origin: FunctionOrigin::Source,

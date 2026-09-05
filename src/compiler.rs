@@ -16550,6 +16550,7 @@ mod tests {
         assert!(source > 0, "source={source} generated={generated}");
         assert_eq!(generated, 0);
         let mut saw_bit_or_zero = false;
+        let mut seen_node_ids = std::collections::HashSet::new();
         for instruction in ir
             .functions
             .iter()
@@ -16557,7 +16558,7 @@ mod tests {
             .flat_map(|block| &block.instructions)
         {
             assert_eq!(instruction.origin, crate::ir::OperationOrigin::Source);
-            assert!(instruction.node_id.is_some());
+            assert!(seen_node_ids.insert(instruction.node_id), "node ids are unique across the module");
             if instruction.lowering_obligation
                 == crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero
             {

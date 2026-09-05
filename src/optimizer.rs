@@ -2114,6 +2114,7 @@ fn rewrite_document_host_call(
     args: Vec<ValueId>,
 ) {
     let span = function.blocks[block_index].instructions[index].span;
+    let node_id = function.blocks[block_index].instructions[index].node_id;
     let document = allocate_ssa_value(function);
     function.blocks[block_index].instructions.insert(
         index,
@@ -2127,7 +2128,7 @@ fn rewrite_document_host_call(
             },
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id,
             span,
         },
     );
@@ -2145,6 +2146,7 @@ fn rewrite_document_create_comment(
     index: usize,
 ) {
     let span = function.blocks[block_index].instructions[index].span;
+    let node_id = function.blocks[block_index].instructions[index].node_id;
     let document = allocate_ssa_value(function);
     let empty = allocate_ssa_value(function);
     function.blocks[block_index].instructions.insert(
@@ -2159,7 +2161,7 @@ fn rewrite_document_create_comment(
             },
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id,
             span,
         },
     );
@@ -2171,7 +2173,7 @@ fn rewrite_document_create_comment(
             op: ControlFlowOp::Const(ConstValue::String(String::new())),
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id,
             span,
         },
     );
@@ -2190,6 +2192,7 @@ fn rewrite_clone_node_deep(
     node: ValueId,
 ) {
     let span = function.blocks[block_index].instructions[index].span;
+    let node_id = function.blocks[block_index].instructions[index].node_id;
     let deep = allocate_ssa_value(function);
     function.blocks[block_index].instructions.insert(
         index,
@@ -2199,7 +2202,7 @@ fn rewrite_clone_node_deep(
             op: ControlFlowOp::Const(ConstValue::Bool(true)),
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id,
             span,
         },
     );
@@ -4583,7 +4586,7 @@ fn clone_function_with_specialization<'src>(
             op: operation,
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id: clone.node_ids.alloc(),
             span: parameter_span,
         });
     }
@@ -4793,7 +4796,7 @@ fn specialize_constant_parameters(
                     op: ControlFlowOp::Const(value.clone()),
                     lowering_obligation: crate::ir::LoweringObligation::Free,
                     origin: crate::ir::OperationOrigin::Generated,
-                    node_id: None,
+                    node_id: function.node_ids.alloc(),
                     span: parameter.span,
                 });
             }
@@ -6677,7 +6680,7 @@ pub(crate) fn project_direct_constructor_initializers_for_javascript(
                                 op: ControlFlowOp::Const(value.clone()),
                                 lowering_obligation: crate::ir::LoweringObligation::Free,
                                 origin: crate::ir::OperationOrigin::Generated,
-                                node_id: None,
+                                node_id: caller.node_ids.alloc(),
                                 span: *span,
                             });
                             out
@@ -6706,7 +6709,7 @@ pub(crate) fn project_direct_constructor_initializers_for_javascript(
                             },
                             lowering_obligation: crate::ir::LoweringObligation::Free,
                             origin: crate::ir::OperationOrigin::Generated,
-                            node_id: None,
+                            node_id: caller.node_ids.alloc(),
                             span: field.span,
                         }),
                 );
@@ -7371,7 +7374,7 @@ fn scalar_replace_linear_classes(module: &mut ControlFlowModule<'_>) -> Optimiza
                                 op: ControlFlowOp::Const(value.clone()),
                                 lowering_obligation: crate::ir::LoweringObligation::Free,
                                 origin: crate::ir::OperationOrigin::Generated,
-                                node_id: None,
+                                node_id: function.node_ids.alloc(),
                                 span: instruction.span,
                             });
                             fields.push(out);
@@ -9474,7 +9477,7 @@ fn project_closed_record_observations(module: &mut ControlFlowModule<'_>) -> Opt
                                     op: ControlFlowOp::Const(constant),
                                     lowering_obligation: crate::ir::LoweringObligation::Free,
                                     origin: crate::ir::OperationOrigin::Generated,
-                                    node_id: None,
+                                    node_id: function.node_ids.alloc(),
                                     span: instruction.span,
                                 });
                                 values.push(value);
@@ -10749,7 +10752,7 @@ fn apply_private_function_subsumption<'src>(
                             },
                             lowering_obligation: crate::ir::LoweringObligation::Free,
                             origin: crate::ir::OperationOrigin::Generated,
-                            node_id: None,
+                            node_id: caller.node_ids.alloc(),
                             span: instruction.span,
                         });
                         bound_values.push((*index, out));
@@ -11185,7 +11188,7 @@ fn rewrite_calls_with_bound_constant(
                             op: ControlFlowOp::Const(constant.clone()),
                             lowering_obligation: crate::ir::LoweringObligation::Free,
                             origin: crate::ir::OperationOrigin::Generated,
-                            node_id: None,
+                            node_id: instruction.node_id,
                         });
                         *callee = target;
                         args.push(const_value);
@@ -11525,10 +11528,12 @@ fn normalize_private_function<'src>(
                 _ => {}
             }
             // Source identity is diagnostic provenance, not function-body
-            // semantics. Lowering obligations remain untouched so an explicit
-            // target operation cannot be merged with an unconstrained one.
+            // semantics: the normalised body is a comparison key, so its ids
+            // are canonical here. The function that ships keeps its own.
+            // Lowering obligations remain untouched so an explicit target
+            // operation cannot be merged with an unconstrained one.
             instruction.origin = crate::ir::OperationOrigin::Generated;
-            instruction.node_id = None;
+            instruction.node_id = crate::ir::NodeId(0);
             instruction.span = empty;
         }
         if let Some(terminator) = &mut block.terminator {
@@ -17277,6 +17282,7 @@ mod tests {
                 Some(Type::Int),
                 ControlFlowOp::LoadGlobal(right),
                 S,
+                crate::ir::NodeId(0),
             ),
         );
         let ControlFlowOp::StoreGlobal { value, .. } =

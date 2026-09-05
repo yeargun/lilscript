@@ -358,7 +358,7 @@ fn build_fused_map_callback<'src>(
             },
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id: first.node_ids.alloc(),
             span: empty,
         },
         ControlFlowInstruction {
@@ -371,13 +371,14 @@ fn build_fused_map_callback<'src>(
             },
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
-            node_id: None,
+            node_id: first.node_ids.alloc(),
             span: empty,
         },
     ];
 
     Some(ControlFlowFunction {
         id,
+        node_ids: first.node_ids.clone(),
         name: None,
         kind: FunctionKind::Closure,
         origin: FunctionOrigin::Synthesized,
@@ -803,7 +804,7 @@ pub(crate) fn outline_repeated_regions(module: &mut ControlFlowModule<'_>) -> Op
                 },
                 lowering_obligation: crate::ir::LoweringObligation::Free,
                 origin: crate::ir::OperationOrigin::Generated,
-                node_id: None,
+                node_id: function.node_ids.alloc(),
                 span,
             };
             block.instructions.splice(
@@ -823,7 +824,7 @@ pub(crate) fn outline_repeated_regions(module: &mut ControlFlowModule<'_>) -> Op
                 },
                 lowering_obligation: crate::ir::LoweringObligation::Free,
                 origin: crate::ir::OperationOrigin::Generated,
-                node_id: None,
+                node_id: function.node_ids.alloc(),
                 span,
             };
             block.instructions.splice(
@@ -1178,6 +1179,7 @@ fn build_outlined_helper<'src>(
 
     Some(ControlFlowFunction {
         id,
+        node_ids: source.node_ids.clone(),
         name: None,
         kind: FunctionKind::Function,
         origin: FunctionOrigin::RepeatedRegionOutline,
@@ -1306,7 +1308,7 @@ pub fn superoptimize_pure_expressions(module: &mut ControlFlowModule<'_>) -> Opt
                                                     lowering_obligation:
                                                         crate::ir::LoweringObligation::Free,
                                                     origin: crate::ir::OperationOrigin::Generated,
-                                                    node_id: None,
+                                                    node_id: function.node_ids.alloc(),
                                                     span: instruction.span,
                                                 });
                                                 instruction.op = ControlFlowOp::Binary {

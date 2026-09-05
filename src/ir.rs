@@ -18,6 +18,36 @@ pub struct LocalId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub u32);
 
+/// The module-wide source of `NodeId`s. Lowering allocates one per source
+/// operation; a transform that introduces an operation with no originating
+/// instruction to derive from allocates a fresh one here. Shared by every
+/// function of the module and by every clone of it, so ids never collide
+/// across candidates; safe across the emission threads.
+#[derive(Debug, Clone, Default)]
+pub struct NodeIdAllocator(std::sync::Arc<std::sync::atomic::AtomicU32>);
+
+impl NodeIdAllocator {
+    pub fn starting_at(next: u32) -> Self {
+        Self(std::sync::Arc::new(std::sync::atomic::AtomicU32::new(next)))
+    }
+
+    pub fn alloc(&self) -> NodeId {
+        NodeId(self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    }
+
+    pub fn next(&self) -> u32 {
+        self.0.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+impl PartialEq for NodeIdAllocator {
+    fn eq(&self, other: &Self) -> bool {
+        self.next() == other.next()
+    }
+}
+
+impl Eq for NodeIdAllocator {}
+
 /// Whether an IR operation was authored in source or introduced by a later
 /// transform. Shadow-mode provenance: v0.1 `|0` spelling is still owned by
 /// `LoweringObligation`, not by this tag.
@@ -131,6 +161,8 @@ pub struct ControlFlowModule<'src> {
     pub structs: Vec<AggregateLayout<'src>>,
     pub classes: Vec<AggregateLayout<'src>>,
     pub entry: FunctionId,
+    /// The source of fresh `NodeId`s for the whole module.
+    pub node_ids: NodeIdAllocator,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -243,6 +275,9 @@ pub enum FunctionOrigin {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ControlFlowFunction<'src> {
     pub id: FunctionId,
+    /// The module's allocator, so a transform holding only the function can
+    /// still give a generated operation an id.
+    pub node_ids: NodeIdAllocator,
     pub name: Option<&'src str>,
     pub kind: FunctionKind<'src>,
     pub origin: FunctionOrigin,
@@ -427,16 +462,21 @@ pub struct ControlFlowInstruction<'src> {
     pub op: ControlFlowOp<'src>,
     pub lowering_obligation: LoweringObligation,
     pub origin: OperationOrigin,
-    pub node_id: Option<NodeId>,
+    /// Where this operation came from: the source operation lowering made it
+    /// for, or the operation a transform derived it from. Never absent.
+    pub node_id: NodeId,
     pub span: Span,
 }
 
 impl<'src> ControlFlowInstruction<'src> {
+    /// An operation a transform introduces, with the id of the operation it
+    /// derives from (or a fresh one from the module's allocator).
     pub fn generated(
         out: Option<ValueId>,
         ty: Option<Type<'src>>,
         op: ControlFlowOp<'src>,
         span: Span,
+        node_id: NodeId,
     ) -> Self {
         Self {
             out,
@@ -444,7 +484,7 @@ impl<'src> ControlFlowInstruction<'src> {
             op,
             lowering_obligation: LoweringObligation::Free,
             origin: OperationOrigin::Generated,
-            node_id: None,
+            node_id,
             span,
         }
     }
@@ -463,7 +503,7 @@ impl<'src> ControlFlowInstruction<'src> {
             op,
             lowering_obligation,
             origin: OperationOrigin::Source,
-            node_id: Some(node_id),
+            node_id,
             span,
         }
     }

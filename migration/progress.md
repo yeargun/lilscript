@@ -29,7 +29,7 @@ Brotli and on compile time.
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
-| 4 — deliver the facts | **4a landed** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; the escape lattice already rides on the IR; no consumer yet. Next: provenance made required (`NodeId` on every instruction, the 18 `node_id: None` sites derive theirs) | BEHAVIOUR + NEUTRAL (byte-identical) |
+| 4 — deliver the facts | **4a, 4b landed** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. Remaining: the flag word and side tables on the target nodes keyed by origin (consumers arrive in phase 6) | BEHAVIOUR + NEUTRAL (byte-identical) |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
@@ -479,3 +479,19 @@ the 74 cases in three lanes are identical to `1516ad0` and the candidate sets ma
 observable: `LILSCRIPT_TIMING` reports `facts_delivered` (82,181 facts over the probe's 381
 emissions). First cut computed the facts inside the IR-variant emission loops and cost 3 s on
 the probe; hoisted to one analysis per variant.
+
+**4b — provenance is required (landing).** `ControlFlowInstruction::node_id` is a `NodeId`, not
+an `Option`; `ControlFlowInstruction::generated` takes the id it derives from; a module-wide
+`NodeIdAllocator` (an `Arc<AtomicU32>`, shared by the module, every function and every clone, so
+ids never collide across candidates or threads) replaces the per-function counter that had
+started at 0 for each function — ids were only unique within a function before. The 18
+`node_id: None` sites derive: the DOM rewrites take the rewritten instruction's id, constant
+materialisations and outlined calls allocate fresh ids on their function, the bound-constant
+rewrite takes its instruction's id; the one deliberate erasure (function subsumption's clone)
+keeps the id, since a clone's origin is the original. Port verification of `f609a79` (facts
+delivery): markedlil 9,342 and zodlil 32,619, identical bytes to `1516ad0`.
+
+The one place that had erased provenance — function subsumption's normalised body — masks it
+instead (`NodeId(0)` on the comparison key; the function that ships keeps its ids), which is
+what its comment had always meant. Two subsumption tests caught the first attempt, which kept
+the ids and so stopped identical bodies from comparing equal.
