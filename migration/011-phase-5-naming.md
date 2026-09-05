@@ -63,7 +63,22 @@ this step drives down; a function that still has one is marked *unrenameable* an
 ordering leaves it alone — the same conservative rule `rename.rs` applies today, now decided from
 the tree instead of from a failed token resolution.
 
-### 5.3 — `NameOrdering::EmissionWalk` (byte-neutral, trace-neutral, the anchor)
+### 5.3 — the renamer, and `NameOrdering::EmissionWalk` as the anchor
+
+*Amended after 5.2c landed.* The incumbent's request order is not an emission-order walk: it names
+the `$state` first, then captured storage locals, then coalesced colors, then values by use, then
+locals — per function, from a pool rewound at each function. A post-layout walk that re-requested
+names in tree order would not reproduce it, and pretending otherwise would fail the trace gate on
+the first case. So the anchor is defined honestly: **`EmissionWalk` is the table as the incumbent
+filled it** — the spellings the pre-render naming produced, printed by the re-spell pass, which 5.2c
+proved is the identity on every case. What 5.3 adds is the *renamer*: the scope tree over the module
+tree (module, statement-level functions, closures, class methods), per scope the bindings declared,
+the names referenced freely (enclosing bindings, globals, unbound atoms), the opaque text (raw nodes,
+text fields, concise bodies, unbound head pieces), and from those the sound-rename check — a new
+spelling for a binding may not collide with anything visible in its scope or captured in an inner
+one, and a scope with opaque text mentioning a candidate spelling is left alone. A census under
+`LILSCRIPT_TIMING` reports scopes total / renameable, the ratchet for the residues.
+
 
 The first *post-layout* assignment: after the module is laid out and every function is on the
 tree, a pass walks it in emission order, allocates spellings for `Bind`s in the order the walk meets
@@ -76,6 +91,11 @@ Lands as a `CompressionDecision` with a registry row, **default off**; the decis
 by default in its own commit once the fleet says byte-identical.
 
 ### 5.4 — The orderings that change bytes (each its own A/B)
+
+Each ordering asks the renamer for new spellings per scope and declares its own trace baseline in
+its commit; the gate for an ordering is *its* trace, stable across thread counts and identical
+between two runs — not the incumbent's.
+
 
 - `NameOrdering::FrequencyDesc` — one module-wide pool; spellings by descending use across the
   whole artifact. The owner's finer 059 measured this axis on the fleet: *name convergence loses to
