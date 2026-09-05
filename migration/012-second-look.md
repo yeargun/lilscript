@@ -206,6 +206,17 @@ Each group by the two-commit protocol of [007](007-fold-disposition.md), with th
   probe covering classes, closures and the state machine is written (the first has no receiver
   parameter, which is how the `this` bind leak hid until a port).
 
+### 7½ — the chain-head rule, and its limit (added 2026-09-05, ledger 7.9)
+
+A text fold at chain position *k* can move to the emitter byte-neutrally when every fold before
+*k* is idle on the text in question, because the emitter's output is what fold 1 sees. So the
+porting order inside phase 6 is the chain order, earliest active fold first, and the census
+(`fold-census.sh`) names it. The limit: the candidate ranking scores pre-peephole text, so a port
+that changes the emission changes which candidate wins even when every candidate's final text is
+unchanged (7.9: markedlil's winner moved to another spelling family, +22). Byte identity under the
+search is therefore 7a's to give, not the port's; with the search off the rule holds exactly.
+The terminal slot's first occupant is the leading `let`/`var`, re-decided on the final text.
+
 ### 8 — retire the text layer
 
 Unchanged exit criteria ([009](009-phases.md)), reached group by group.

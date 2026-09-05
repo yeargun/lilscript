@@ -2058,6 +2058,12 @@ impl JsBlock {
             self.pop_statement();
             return self.push_statement_with(merged, options);
         }
+        // Phase 6, chain head: `a=f();if(a)` is `if(a=f())` here, where the
+        // assignment and the condition are still nodes (`fold_assignment_guards`).
+        if let Some(merged) = self.merge_assignment_guard(&statement) {
+            self.pop_statement();
+            return self.push_statement_with(merged, options);
+        }
         let bare_return = matches!(statement, JsStatement::Return { value: None });
         let rendered = statement.clone().render(options);
         self.count_appended(&rendered);
@@ -2071,6 +2077,51 @@ impl JsBlock {
         if twin_witness_enabled() {
             crate::timing::STATEMENT_NODE.event(rendered.len() as u64);
         }
+    }
+
+    /// `a=f();if(a)…` is `if(a=f())…` (`fold_assignment_guards`): when the
+    /// incoming `if` tests exactly the binding the statement before it
+    /// assigns, the assignment moves into the condition. Both sides are
+    /// matched by binding, so a raw target or a condition without a tree
+    /// never takes part; a comma-sequence value stays out, as it did in the
+    /// text fold.
+    fn merge_assignment_guard(&self, incoming: &JsStatement) -> Option<JsStatement> {
+        let JsStatement::If {
+            condition_tree: Some(tree),
+            then_branch,
+            else_branch,
+            ..
+        } = incoming
+        else {
+            return None;
+        };
+        let JsExpressionRoot::Name(guarded) = tree.root else {
+            return None;
+        };
+        let last = self.statements.last()?;
+        if last.dropped_semicolon {
+            return None;
+        }
+        // A plain assignment to a binding is a `Binding` without a keyword.
+        let JsStatement::Binding {
+            keyword: None,
+            name,
+            bind: Some(bind),
+            value,
+        } = &last.statement
+        else {
+            return None;
+        };
+        if *bind != guarded || value.root == JsExpressionRoot::Comma {
+            return None;
+        }
+        let condition_tree = JsExpression::assign(JsExpression::name(*bind, name.clone()), value.clone());
+        Some(JsStatement::If {
+            condition: condition_tree.clone().into_minimal(),
+            condition_tree: Some(condition_tree),
+            then_branch: then_branch.clone(),
+            else_branch: else_branch.clone(),
+        })
     }
 
     /// `var a=1;var b=2` is one declaration (`merge_adjacent_declarations`,
@@ -2173,6 +2224,128 @@ impl JsBlock {
             }
         }
     }
+}
+
+/// The verdict `prune_unreferenced_declarators` applies: a binding no scope
+/// references, whose spelling no opaque text or free name inside its
+/// declaring scope mentions.
+fn unreferenced_declarator_test(tree: &ScopeTree) -> impl Fn(Bind, &str) -> bool + '_ {
+    let referenced = tree
+        .scopes
+        .iter()
+        .flat_map(|scope| scope.referenced.iter().copied())
+        .collect::<AHashSet<Bind>>();
+    move |bind: Bind, name: &str| -> bool {
+        if referenced.contains(&bind) {
+            return false;
+        }
+        let Some(scope) = tree.declaring_scope(bind) else {
+            return false;
+        };
+        !tree.subtree(scope).into_iter().any(|scope| {
+            let scope = &tree.scopes[scope];
+            scope.opaque.contains_key(name) || scope.free.contains(name)
+        })
+    }
+}
+
+/// Drops the dead declarators of one block and every block nested in it
+/// (`prune_unreferenced_declarators`). A statement that loses its last
+/// declarator goes with it; a block-terminal `;` the printer had dropped
+/// moves to the statement now last.
+fn prune_block_declarators(block: &mut JsBlock, dead: &dyn Fn(Bind, &str) -> bool) -> usize {
+    let mut removed = 0usize;
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let emitted = &mut block.statements[index];
+        let mut remove_statement = false;
+        match &mut emitted.statement {
+            JsStatement::Declaration {
+                name,
+                bind: Some(bind),
+                ..
+            } => {
+                if dead(*bind, name) {
+                    remove_statement = true;
+                }
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                let before = declarators.len();
+                declarators.retain(|declarator| {
+                    !(declarator.value.is_none()
+                        && declarator.function.is_none()
+                        && declarator
+                            .bind
+                            .is_some_and(|bind| dead(bind, &declarator.name)))
+                });
+                removed += before - declarators.len();
+                for declarator in declarators.iter_mut() {
+                    if let Some(function) = &mut declarator.function {
+                        if let JsFunctionBody::Block(body) = &mut function.as_mut().1 {
+                            removed += prune_block_declarators(body, dead);
+                        }
+                    }
+                }
+                if declarators.is_empty() {
+                    remove_statement = true;
+                }
+            }
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                removed += prune_block_declarators(&mut then_branch.block, dead);
+                if let Some(else_branch) = else_branch {
+                    removed += prune_block_declarators(&mut else_branch.block, dead);
+                }
+            }
+            JsStatement::Function { body, .. } => {
+                if let JsFunctionBody::Block(body) = body {
+                    removed += prune_block_declarators(body, dead);
+                }
+            }
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                removed += prune_block_declarators(body, dead);
+                if let Some(catch) = catch {
+                    removed += prune_block_declarators(&mut catch.body, dead);
+                }
+                if let Some(finally) = finally {
+                    removed += prune_block_declarators(finally, dead);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    removed += prune_block_declarators(&mut case.body, dead);
+                }
+            }
+            JsStatement::Class { members, .. } => {
+                removed += prune_block_declarators(members, dead);
+            }
+            JsStatement::Loop { body, .. } => {
+                removed += prune_block_declarators(&mut body.block, dead);
+            }
+            _ => {}
+        }
+        if remove_statement {
+            let gone = block.statements.remove(index);
+            removed += 1;
+            if gone.dropped_semicolon && index == block.statements.len() {
+                if let Some(last) = block.statements.last_mut() {
+                    if last.statement.clone().render(last.options).ends_with(';') {
+                        last.dropped_semicolon = true;
+                    }
+                }
+            }
+        } else {
+            index += 1;
+        }
+    }
+    removed
 }
 
 /// Where a target node came from: the IR operation it renders, by function
@@ -3719,6 +3892,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_traced(mut self) -> Result<(String, ModuleTree), CodegenError> {
         let mut out = self.build_module()?;
+        self.prune_unreferenced_declarators(&mut out);
         if twin_witness_enabled() {
             self.witness_identity_respell(&out);
         }
@@ -3735,6 +3909,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 literals: self.literal_table,
             },
         ))
+    }
+
+    /// Phase 6, chain head (`remove_unused_standalone_vars`): a `var d` that
+    /// nothing reads is dropped from the finished tree, by binding rather
+    /// than by name. A declarator without a value is dead when no scope
+    /// references its binding and no text the re-spell cannot read (a raw
+    /// node, a condition without a tree, a head) mentions its spelling
+    /// inside the declaring scope. Over-keeping costs a byte; over-dropping
+    /// costs a program.
+    fn prune_unreferenced_declarators(&self, out: &mut JsBlock) -> usize {
+        let tree = ScopeCollector::module(&self.closure_trees, out);
+        let dead = unreferenced_declarator_test(&tree);
+        let mut removed = prune_block_declarators(out, &dead);
+        let closures = self.closure_trees.borrow().keys().copied().collect::<Vec<_>>();
+        for closure in closures {
+            let entry = self.closure_trees.borrow_mut().remove(&closure);
+            let Some((head, mut body)) = entry else {
+                continue;
+            };
+            if let JsFunctionBody::Block(block) = &mut body {
+                removed += prune_block_declarators(block, &dead);
+            }
+            self.closure_trees.borrow_mut().insert(closure, (head, body));
+        }
+        if statement_trace_enabled() {
+            eprintln!("[prune] unreferenced declarators dropped: {removed}");
+        }
+        crate::timing::PRUNED_DECLARATORS.event(removed as u64);
+        removed
     }
 
     /// Phase 5.3: re-spell the finished module's bindings by the configured
@@ -12553,14 +12756,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             } else {
                                 None
                             };
+                            // The merged target is the merge block's phi of
+                            // that name; its binding lets the declarator be
+                            // re-spelled and, when nothing reads it, dropped.
+                            let target_bind = function.blocks[merge_block.0 as usize]
+                                .phis
+                                .iter()
+                                .find(|phi| context.value_name(phi.out).ok() == Some(target))
+                                .and_then(|phi| context.value_bind(phi.out));
                             if let Some(value_id) = deferred {
                                 if declare {
-                                    push_merge_declaration(out, target, None, &trailing);
+                                    push_merge_declaration(out, target, target_bind, None, &trailing);
                                 }
                                 deferred_merge = Some((value_id, value));
                             } else {
                                 if declare {
-                                    push_merge_declaration(out, target, Some(value), &trailing);
+                                    push_merge_declaration(out, target, target_bind, Some(value), &trailing);
                                 } else {
                                     // `parse_single_assignment` only ever
                                     // returned a tail on a `var`, and the list
@@ -14870,14 +15081,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     bind: None,
                     function: None,
                 }];
-                declarators.extend(
-                    context
-                        .claim_remaining_declarations()
-                        .into_iter()
-                        .map(|name| JsDeclarator { name, value: None,
-    bind: None,
-    function: None, }),
-                );
+                declarators.extend(context.claim_remaining_declarations());
                 out.push_statement(JsStatement::Declarators {
                     keyword: "var ",
                     declarators,
@@ -18446,7 +18650,7 @@ fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&st
 fn push_var_declarators<S: AsRef<str>>(
     out: &mut JsBlock,
     assignments: &[(S, S)],
-    remaining_declarations: Vec<String>,
+    remaining_declarations: Vec<JsDeclarator>,
 ) {
     let mut declarators = assignments
         .iter()
@@ -18457,13 +18661,7 @@ fn push_var_declarators<S: AsRef<str>>(
             function: None,
         })
         .collect::<Vec<_>>();
-    declarators.extend(
-        remaining_declarations
-            .into_iter()
-            .map(|name| JsDeclarator { name, value: None,
-    bind: None,
-    function: None, }),
-    );
+    declarators.extend(remaining_declarations);
     out.push_statement(JsStatement::Declarators {
         keyword: "var ",
         declarators,
@@ -19269,13 +19467,14 @@ fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
 fn push_merge_declaration(
     out: &mut JsBlock,
     target: &str,
+    bind: Option<Bind>,
     value: Option<String>,
     tail: &[JsDeclarator],
 ) {
     let mut declarators = vec![JsDeclarator {
         name: target.to_string(),
         value: value.map(|value| JsExpression::raw(value, JsPrecedence::Conditional)),
-        bind: None,
+        bind,
         function: None,
     }];
     declarators.extend(tail.iter().cloned());
@@ -22612,7 +22811,10 @@ impl LocalNames {
         Ok(())
     }
 
-    fn claim_remaining_declarations(&self) -> Vec<String> {
+    /// The names this block still owes a declaration for, as bare
+    /// declarators that carry their bindings: a declarator the tree knows
+    /// by binding can be re-spelled, and dropped when nothing reads it.
+    fn claim_remaining_declarations(&self) -> Vec<JsDeclarator> {
         if !self.inline_declarations {
             return Vec::new();
         }
@@ -22621,9 +22823,14 @@ impl LocalNames {
         let mut declared = self.declared_names.borrow_mut();
         values
             .into_iter()
-            .filter_map(|value| self.value_names.get(&value))
-            .filter(|name| declared.insert((*name).clone()))
-            .cloned()
+            .filter_map(|value| self.value_names.get(&value).map(|name| (value, name)))
+            .filter(|(_, name)| declared.insert((*name).clone()))
+            .map(|(value, name)| JsDeclarator {
+                name: name.clone(),
+                bind: self.value_binds.get(&value).copied(),
+                value: None,
+                function: None,
+            })
             .collect()
     }
 
@@ -42438,6 +42645,84 @@ consume(field(JS.object("type", 1), "type"));
         let integer = compile_module("export int step(int value){return value*3+1;}");
         assert!(!number.contains("|0"), "{number}");
         assert!(integer.contains("|0"), "{integer}");
+    }
+
+    #[test]
+    fn assignment_guard_merges_into_the_if_condition_at_push_time() {
+        // `a=f();if(a){..}` is `if(a=f()){..}` where both are still nodes.
+        let bind = Bind(7);
+        let mut block = JsBlock::new();
+        block.push_statement(JsStatement::Binding {
+            keyword: None,
+            name: "a".to_string(),
+            bind: Some(bind),
+            value: JsExpression::call(JsExpression::raw("f", JsPrecedence::Primary), []),
+        });
+        let mut then_block = JsBlock::new();
+        then_block.push_statement(JsStatement::Return { value: None });
+        block.push_statement(JsStatement::If {
+            condition: "a".to_string(),
+            condition_tree: Some(JsExpression::name(bind, "a")),
+            then_branch: JsBranch::braced(then_block),
+            else_branch: None,
+        });
+        assert_eq!(block.statements.len(), 1);
+        assert!(block.render().starts_with("if(a=f())"), "{}", block.render());
+
+        // A different binding under the same spelling does not merge.
+        let mut other = JsBlock::new();
+        other.push_statement(JsStatement::Binding {
+            keyword: None,
+            name: "a".to_string(),
+            bind: Some(Bind(8)),
+            value: JsExpression::call(JsExpression::raw("f", JsPrecedence::Primary), []),
+        });
+        other.push_statement(JsStatement::If {
+            condition: "a".to_string(),
+            condition_tree: Some(JsExpression::name(bind, "a")),
+            then_branch: JsBranch::braced(JsBlock::new()),
+            else_branch: None,
+        });
+        assert_eq!(other.statements.len(), 2);
+    }
+
+    #[test]
+    fn unreferenced_bare_declarators_are_pruned_by_binding() {
+        // `var a=1,c,d;c` keeps `c` (referenced) and drops `d`; a raw
+        // mention of the spelling keeps a declarator too.
+        let (a, c, d, e) = (Bind(1), Bind(2), Bind(3), Bind(4));
+        let bare = |name: &str, bind: Bind| JsDeclarator {
+            name: name.to_string(),
+            bind: Some(bind),
+            value: None,
+            function: None,
+        };
+        let mut block = JsBlock::new();
+        block.push_statement(JsStatement::Declarators {
+            keyword: "var ",
+            declarators: vec![
+                JsDeclarator {
+                    name: "a".to_string(),
+                    bind: Some(a),
+                    value: Some(JsExpression::raw("1", JsPrecedence::Primary)),
+                    function: None,
+                },
+                bare("c", c),
+                bare("d", d),
+                bare("e", e),
+            ],
+        });
+        block.push_statement(JsStatement::Expression {
+            value: JsExpression::name(c, "c"),
+        });
+        block.push_statement(JsStatement::Expression {
+            value: JsExpression::raw("g(e)", JsPrecedence::Call),
+        });
+        let closures = RefCell::new(AHashMap::default());
+        let tree = ScopeCollector::module(&closures, &block);
+        let removed = prune_block_declarators(&mut block, &unreferenced_declarator_test(&tree));
+        assert_eq!(removed, 1);
+        assert_eq!(block.render(), "var a=1,c,e;c;g(e);", "{}", block.render());
     }
 
     #[test]

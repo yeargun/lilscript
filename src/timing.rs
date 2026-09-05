@@ -188,6 +188,13 @@ pub static INLINE_FIXPOINT: Bucket = Bucket::new("inline_fixpoint");
 /// site's own: the ledger left at entry, candidates left untried when a
 /// starved loop broke, the codec delta of each vote.
 pub static CLEANUP_ENTERED: Bucket = Bucket::new("cleanup_entered");
+/// Phase 6, chain head: bare declarators the finished tree dropped.
+pub static PRUNED_DECLARATORS: Bucket = Bucket::new("pruned_declarators");
+/// Phase 7a, the terminal slot: the leading declaration keyword re-decided
+/// on the final text -- kept as chosen, or flipped because the final text
+/// measured smaller the other way.
+pub static TERMINAL_KEYWORD_KEPT: Bucket = Bucket::new("terminal_keyword_kept");
+pub static TERMINAL_KEYWORD_FLIPPED: Bucket = Bucket::new("terminal_keyword_flipped");
 pub static CLEANUP_UNBUDGETED: Bucket = Bucket::new("cleanup_unbudgeted");
 pub static CLEANUP_SKIPPED: Bucket = Bucket::new("cleanup_skipped");
 // The late cleanup's canonical whole-artifact peephole candidate, by exit (047):
@@ -244,7 +251,10 @@ const BYTE_BUCKETS: [&Bucket; 18] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 51] = [
+const EVENT_BUCKETS: [&Bucket; 54] = [
+    &PRUNED_DECLARATORS,
+    &TERMINAL_KEYWORD_KEPT,
+    &TERMINAL_KEYWORD_FLIPPED,
     &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND, &DECL_BOUND, &DECL_UNBOUND, &RENAME_SCOPES, &RENAME_SCOPES_FULL, &RENAME_BINDS, &RENAME_BINDS_RENAMED, &RENAME_KEPT_FREE, &RENAME_KEPT_RAW, &RENAME_KEPT_LITERAL, &RENAME_KEPT_CONCISE, &RENAME_KEPT_CONDITION, &RENAME_KEPT_LOOP_TEXT, &RENAME_KEPT_SWITCH, &RENAME_KEPT_CLASS, &RENAME_KEPT_DECLARATION, &RENAME_KEPT_MODULE, &RENAME_KEPT_HEAD, &RENAME_IDIOM_PREFERENCES, &RENAME_SCOPES_REVERTED,
     &STATEMENT_RAW,
     &CLEANUP_ENTERED,

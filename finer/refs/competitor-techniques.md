@@ -593,3 +593,62 @@ every shape spelling (`!0`, sequences, joined declarations, ternaries, arrows) i
 with the printer faithful to the tree — which is where `braceless_control_bodies`,
 `comma_expressions`, `mutation_spelling` and `compact_boolean_literals` belong for us too: nodes
 that carry the value, a render that spells it.
+
+## J. The single-use assignment collapse, as Terser and Oxc do it (harvest 2026-09-05, for G4/G5)
+
+Read before the tree-side collapse of `x=<expr>; …x…` (phase 6, G4/G5): Terser
+`lib/compress/tighten-body.js` (`collapse`, 1,530 lines) and Oxc
+`oxc_minifier/src/peephole/minimize_statements.rs`
+(`substitute_single_use_symbol_*`, ~1,960 lines, a port of esbuild's
+`substituteSingleUseSymbolInExpr`).
+
+**Terser `collapse_vars`.** Per statement list, from the end: a *candidate* is an
+assignment, `var` definition or `++/--` whose lhs is a local (`get_lhs`: not
+`const`/`let`/`using`, not a logical assignment; a definition only when its
+symbol has references left, and when referenced more than once only if
+mangleable). A scanner then walks the statements *after* it looking for the
+first read. It aborts on: any other assignment to the same lhs or a logical
+assignment; `await`, `yield`, `using`, `debugger`, `with`, `try`, `class`,
+`export`, destructuring, labels/loop control; a call on the lhs when the lhs is
+a property access; optional chains; iteration statements other than `for`
+(and inside `for`, anything but `init`); an undeclared symbol read when the
+candidate is not replaced everywhere (`replace_all`); `_NOINLINE` call
+annotations. It stops (without aborting) at the first node the value could
+observe: a call, a `case` test, the non-condition arm of `?:`/`||`/`&&`/`if`
+(`find_stop`, `stop_if_hit`), unless the candidate's rhs is free of side
+effects. Replacement happens only when the read is the *first* thing that
+touches the lhs (`lhs.equivalent_to(node)` with `can_replace`), and the
+candidate is then removed (`remove_candidate`) or its definition kept as a
+bare `var`. `replace_all_symbols` — replace every remaining read — is
+allowed only when the rhs has no side effects and the symbol has exactly
+one (definition) or two (assignment) references left. `may_modify` and
+`side_effects_external` treat any reference from another function scope as a
+possible write.
+
+**Oxc / esbuild.** Runs while a statement list is being rebuilt: when the
+statement being appended has an expression slot and the *previous* statement
+is a `var`/`let`/`const` declaration, each declarator from the end is tried
+(`substitute_single_use_symbol_in_expression_from_declarators`): the binding
+must have one read and no writes (`symbol_value.references`), not be a catch
+variable, not be "implicitly observable" (exported, eval), and the init's name
+must not need keeping. The expression walk is in evaluation order and
+returns three verdicts — `Some(true)` substituted, `Some(false)` stop (the
+value could be observed differently), `None` keep looking — per node kind:
+identifiers stop only when the read can be reordered past a TDZ or a mutation
+(`identifier_read_blocks_reorder`); an assignment stops when its target has
+side effects or, with a side-effecting replacement, when it is compound; a
+logical/conditional right arm is entered only when the replacement is
+side-effect-free; calls, member reads, spreads, `import()` are gated the same
+way; the fallthrough rule is *"if neither the replacement nor this node has
+side effects, keep looking; if either side is a literal, keep looking;
+otherwise stop"*. Substituted declarators are drained from the declaration.
+
+**What both have that our tree does not yet.** A reference count per binding
+delivered with the value (`uses` exists on the IR side; the tree's
+`ScopeTree` has `referenced` with multiplicity after the fact), an
+evaluation-order walk that can say "the read is the first observable thing
+after the assignment", and a side-effect predicate on nodes (`JsFacts::PURE`
+and `NO_THROW` are the bits, delivered for source-origin nodes). The text
+folds that do this today — `fold_identifier_copies`, `fold_single_use_temporaries`,
+`fold_returned_temporaries`, `fold_single_use_literal_bindings`,
+`fold_chained_*_assigns` — re-derive all three from tokens per call.

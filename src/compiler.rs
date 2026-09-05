@@ -2267,7 +2267,7 @@ fn optimize_and_select_javascript_inner<'src>(
         candidate_arena.merge_precomputed_optional(interaction_candidates)?;
     }
 
-    let selected = select_javascript_candidate_global(
+    let mut selected = select_javascript_candidate_global(
         &contexts,
         config,
         preserve_exports,
@@ -2296,6 +2296,13 @@ fn optimize_and_select_javascript_inner<'src>(
     // peephole, so it takes the same opt-in. Admission stays strict everywhere the
     // search is still choosing between candidates.
     selected.admission.validate_selected(&selected.code)?;
+    let (selected_code, selected_transfer_cost) = terminal_leading_declaration_respell(
+        selected.code,
+        selected.transfer_cost,
+        config.javascript.cost_model,
+    )?;
+    selected.code = selected_code;
+    selected.transfer_cost = selected_transfer_cost;
     let search_ctx =
         javascript_emission_search_context(config, preserve_exports, total_candidate_limit);
     let scored_emission_families =
@@ -9974,6 +9981,36 @@ fn merge_javascript_candidate_frontiers(
     retain_objective_stratified_candidates(candidates, limit, selected_model)?;
     sort_javascript_emission_candidates(candidates);
     Ok(())
+}
+
+/// Phase 7a, the terminal slot: the leading declaration's keyword was chosen
+/// by the codec on the emission, before the peephole normalised it, and a
+/// `let`/`var` tie decided on one text can lose on the other. The final
+/// artifact is measured with the other spelling and keeps the smaller; a
+/// decision made on the final text cannot regress it. The alternative is
+/// the same spelling the plan already admitted, so nothing new needs
+/// validating.
+fn terminal_leading_declaration_respell(
+    code: String,
+    transfer_cost: usize,
+    model: CompressionCostModel,
+) -> Result<(String, usize), CompileError> {
+    let flipped = if let Some(rest) = code.strip_prefix("var ") {
+        format!("let {rest}")
+    } else if let Some(rest) = code.strip_prefix("let ") {
+        format!("var {rest}")
+    } else {
+        return Ok((code, transfer_cost));
+    };
+    let current = compressed_size(code.as_bytes(), model).map_err(selected_model_score_error)?;
+    let other = compressed_size(flipped.as_bytes(), model).map_err(selected_model_score_error)?;
+    if other < current {
+        crate::timing::TERMINAL_KEYWORD_FLIPPED.event((current - other) as u64);
+        Ok((flipped, other))
+    } else {
+        crate::timing::TERMINAL_KEYWORD_KEPT.event(0);
+        Ok((code, current))
+    }
 }
 
 fn top_level_declaration_variants(code: String) -> Vec<String> {
