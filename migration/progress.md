@@ -29,7 +29,7 @@ Brotli and on compile time.
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
-| 4 — deliver the facts | **4a, 4b landed** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. Remaining: the flag word and side tables on the target nodes keyed by origin (consumers arrive in phase 6) | BEHAVIOUR + NEUTRAL (byte-identical) |
+| 4 — deliver the facts | **4a, 4b, 4c landed** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and a `JsFacts` word (source origin, obligation, local-only, int32). Remaining: the pure / no-throw / owned-slot / non-nullish bits once their oracles are located, side tables keyed by origin when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
@@ -495,3 +495,36 @@ The one place that had erased provenance — function subsumption's normalised b
 instead (`NodeId(0)` on the comparison key; the function that ships keeps its ids), which is
 what its comment had always meant. Two subsumption tests caught the first attempt, which kept
 the ids and so stopped identical bodies from comparing equal.
+
+**4c — the origin and the fact word on the target node (landing).** `JsExpression` carries
+`origin: Option<JsOrigin { function, node }>` — the IR operation it renders, the key every side
+table uses — and `facts: JsFacts`, a `u16` set when the node is born at the three sites where an
+instruction becomes an expression: `SOURCE_ORIGIN` and `HAS_OBLIGATION` from the instruction,
+`LOCAL_ONLY` from the escape lattice, `INT32` from the delivered integer analysis. A bit not set
+is "not proven", never "false"; a property of a use is not on the node. `PURE`, `NO_THROW`,
+`OWNED_SLOT` and `NON_NULLISH` follow when their oracles are wired to the side tables. No
+consumer yet; the gate is byte-identity.
+**Measured on the way — and misread twice.** Stamping the two fields showed as +19% emit CPU on
+the probe (84 s → 103 s, wall 16.7 s → 19.9 s). First suspect: node size — it had grown from 120
+to 136 bytes; `JsExpressionRoot::Unary` now holds a one-byte `JsUnary` token instead of a
+`&'static str`, the node is back at 120 (a test asserts it), and that changed nothing. Second
+suspect: derived `PartialEq` on the origin, a bisect with the stamp switched off ran at the old
+speed, so equality was made structural — and the stamped build was still +17%. The bisect had
+lied: with the stamp off the whole fact lookup was dead code. A timing bucket put the lookup at
+12 ms across 148,497 stamps, every event counter matched the pinned binary to ±3, and gdb stack
+samples (`SIGUSR1` under `gdb -batch`; `perf` needs root here) showed the extra time in a loop
+4c never touches. The proof: **the pinned commit plus one uncalled ten-line function builds to
+the same 19.5 s.** It was a code-alignment lottery on the emitter's hottest loop, and 46df98b
+was a lucky draw. Timing comparisons across this migration carry that ±17% until the loop is
+gone — which is the next paragraph.
+
+**The loop is the phase 7 target, found early.** In both binaries ~75% of emitter thread samples
+sit in `values_are_connected` ← `safe_two_address_phi_pairs` ← `LocalNames::new` ← `prepare`;
+rendering is the minority. It was a breadth-first search that rescanned the *entire* pair set at
+every step, called once per (phi × every definition in the function) inside a fixpoint, and again
+per (phi × named value). `PairGraph` builds the adjacency once per snapshot and walks one
+component per phi; the candidates are set lookups. Same pair set, byte-identical output.
+Probe: wall 16.7 s → 5.8 s (−65%), emit CPU 84 s → 16.4 s (−80%); 0 byte diffs over 74 cases ×
+3 lanes against 46df98b, probe lanes and 17/18 configs unchanged, 1712 tests. The phase 3
+"16% faster" claim and every timing on this ledger before this line were measured under the
+lottery; from here the emitter's time is rendering, and a timing is a timing.
