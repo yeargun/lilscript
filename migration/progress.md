@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **mechanism complete (gate, 5.1–5.5c)** — scope tree, sound renamer, census, guard, lanes; one idiom group as a per-port pin wins −1,168 net on six ports (remarklil −2.1%), default stays byte-identical. Deletions (5.5) deferred: the tree pass must first match the text pass. Next phase: 6 — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **mechanism complete (gate, 5.1–5.5c)** — scope tree, sound renamer, census, guard, lanes; one idiom group as a per-port pin wins −1,168 net on six ports (remarklil −2.1%), default stays byte-identical. Deletions (5.5) deferred: the tree pass must first match the text pass. Phase 6 opened and paused on a finding: its byte-identity gate needs phase 7's final-text scoring first; the instruments are in. Next: phase 7 — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -771,4 +771,24 @@ byte-identical; the ports that win pin the two keys (`name_ordering = "idiom-con
 `tests/config/idiom-converged.toml` now tests that form. Phase 5's mechanism is complete; its
 deletions (5.5) wait on the tree pass matching the text pass, which the census says is a
 per-idiom pricing question the search cannot afford as a base.
+
+**Phase 6, first contact — the fold groups need phase 7's scoring first.** Two instruments landed:
+`migration/tools/fold-census.sh` (which folds still rewrite, per lane, over the probe and the 74
+cases; a fold is deletable only at 0 everywhere) and `migration/tools/fold-residue.py` (what a fold
+rewrites, exactly, from one emission's peephole trace). The census on the shipped lane, probe:
+`fold_int32_coercions` 376, then a dozen folds at one activation per emission — the adjacent
+declaration merge, the comma joins (inner and top-level), unit counter updates, loop-body and
+control braces, the `for`-head folds, the guard folds. The residues are precise: three
+`var a=…;var b=…` pairs, eleven inner and 97 top-level `;`→`,` joins, 18 `k=k+1|0`→`k++`, nine
+loop bodies, 28 initialisers pulled into `for(`. **The first two emitter-side retirements failed the
+gate, and the reason reorders the plan.** Merging adjacent declarations at push time and spelling
+`x=x±1` as `x++` produce, per single emission, text identical to the folds' in five of six lanes
+(the sixth is a real fold-order interaction: a `let` pair merged before `fold_prior_assign_into_for_init`
+could pull it into the head). But across the search the winners change — 33 byte diffs, names
+shuffled on 31_string_array — because the candidate stages score *pre-peephole* text, and the
+unit-update spelling breaks the `mutation_spelling` contract four tests pin (the scored
+`mutation-spelling` family needs the emitter to honour the option; the fold normalises afterwards).
+So a mid-pass fold cannot be retired byte-identically while the search ranks text the fold has not
+yet seen. That is the phase 7 item 005 and 007 already named ("score final text only"), and it has
+to come first: phase 6 resumes after it. Both changes are reverted; the instruments stay.
 
