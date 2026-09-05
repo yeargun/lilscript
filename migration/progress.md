@@ -428,3 +428,12 @@ production config runs no peephole, so every `return (` and `throw "` there was 
 space). The markedlil move is the layout and rename stages scoring text before the peephole —
 noise-level, and the reason phase 7 scores final text only. Five unit tests that asserted the
 old spacing say the new one.
+
+**G1, `fold_single_statement_control_braces` — the emitter side (if/else).** `JsBranch::
+compact_before_else` spells a then-branch braceless when its one statement cannot capture the
+`else` that follows (an `if` without `else`, at any depth of braceless bodies, would); the
+else-branch is `compact`. Both `if/else` emission sites (structured and state machine) use it.
+Raw-emission residue of braced single-statement `if`/`else` bodies: 13 → 1 over the probe and
+the 74 cases; zero byte diffs in three lanes (the fold had been producing exactly this); 1710
+tests. The loop-body brace fold's residue is inter-fold (bodies the comma folds join first) and
+`fold_single_return_arrow_bodies` has no emitter residue at all.

@@ -11019,8 +11019,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     case_body.push_statement_with(
                         JsStatement::If {
                             condition: String::from(&*condition),
-                            then_branch: JsBranch::braced(then_branch),
-                            else_branch: Some(JsBranch::braced(else_branch)),
+                            then_branch: JsBranch::compact_before_else(then_branch),
+                            else_branch: Some(JsBranch::compact(else_branch)),
                         },
                         options,
                     );
@@ -11726,8 +11726,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_statement_with(
                                 JsStatement::If {
                                     condition: condition.clone(),
-                                    then_branch: JsBranch::braced(then_output),
-                                    else_branch: Some(JsBranch::braced(else_output)),
+                                    then_branch: JsBranch::compact_before_else(then_output),
+                                    else_branch: Some(JsBranch::compact(else_output)),
                                 },
                                 JsStatementOptions {
                                     elide_block_terminal_semicolons: self
@@ -18083,6 +18083,34 @@ fn statement_is_braceless(statement: &JsStatement) -> bool {
     }
 }
 
+/// Whether a block spelled braceless would capture an `else` that follows it:
+/// its one statement is, or ends in a braceless chain of bodies with, an `if`
+/// without an `else`.
+fn block_can_absorb_else(block: &JsBlock) -> bool {
+    let [only] = block.statements.as_slice() else {
+        return false;
+    };
+    statement_can_absorb_else(&only.statement)
+}
+
+fn branch_can_absorb_else(branch: &JsBranch) -> bool {
+    branch.braceless && block_can_absorb_else(&branch.block)
+}
+
+fn statement_can_absorb_else(statement: &JsStatement) -> bool {
+    match statement {
+        JsStatement::If {
+            else_branch: None, ..
+        } => true,
+        JsStatement::If {
+            else_branch: Some(else_branch),
+            ..
+        } => branch_can_absorb_else(else_branch),
+        JsStatement::Loop { body, .. } => branch_can_absorb_else(body),
+        _ => false,
+    }
+}
+
 fn block_is_braceless(block: &JsBlock) -> bool {
     let [only] = block.statements.as_slice() else {
         return false;
@@ -21793,6 +21821,14 @@ impl JsBranch {
     /// Braceless when the arm's content allows it, braced otherwise.
     fn compact(block: JsBlock) -> Self {
         let braceless = block_is_braceless(&block);
+        Self { block, braceless }
+    }
+
+    /// A then-branch that an `else` follows: braceless only when its one
+    /// statement cannot capture that `else` -- an `if` without one, at any
+    /// depth of braceless nesting, would.
+    fn compact_before_else(block: JsBlock) -> Self {
+        let braceless = block_is_braceless(&block) && !block_can_absorb_else(&block);
         Self { block, braceless }
     }
 
