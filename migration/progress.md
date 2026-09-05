@@ -792,3 +792,28 @@ So a mid-pass fold cannot be retired byte-identically while the search ranks tex
 yet seen. That is the phase 7 item 005 and 007 already named ("score final text only"), and it has
 to come first: phase 6 resumes after it. Both changes are reverted; the instruments stay.
 
+
+**Phase 6.1 — adjacent declarations merge at the join, and the previous paragraph's ordering claim
+is withdrawn.** The paragraph above said phase 6 has to wait for phase 7 because a fold cannot be
+retired *byte-identically* while the search scores pre-peephole text. Byte identity is evidence,
+not the gate: the owner's gate is behaviour + no Brotli degradation, and under that gate the
+retirement lands. The emitter now forms `var a=1,b=2` where it used to form `var a=1;var b=2`:
+`push_statement_with` folds an incoming `Declaration`/`Binding`/`Declarators` into the previous
+statement's declarator list when both carry the same keyword and the previous statement kept its
+semicolon, `push_block` routes every child statement through the same path so the merge crosses
+block joins, and a terminated `let f=…` arrow binding (a `Function` statement whose head starts
+`let <name>=`) is absorbed as a declarator with a function value (`JsDeclarator.function`, rendered
+by the same `render_function_value` the `Function` arm uses). The 74 cases + probe, new binary vs
+`8d255e1`: shipped 7,512 → 7,493 Brotli (16 files move, 8 smaller, 4 larger by one byte), zodlike
+7,453 → 7,439, none 11,324 → 11,331 (the unscored lane, +7 inside the per-rename noise floor).
+Behaviour 0 wrong in three lanes, twin witnesses 0 failures (shipped + idiom), 1,716 tests, pool
+292/292 on four lanes. Fold census after the change: `merge_adjacent_declarations` 320 → 146
+activations on the shipped lane, 899 → 164 on zodlike, 124 on none; `join_adjacent_declarations`
+5 / 6 / 19. **With the search off the residue is zero on every case in every lane** — the raw
+emission never leaves an adjacent same-keyword pair any more. What still fires does so on the
+variants the search proposes (function-spelling, declaration-spelling and the `var`/`let` string
+surgery), which the next step reads with the per-run trace: `RewriteSession::new` now prints a
+`[peephole] input` snapshot under `LILSCRIPT_PEEPHOLE_TRACE=1`, and `fold-residue.py` segments
+the trace by it. The one test that pinned the old shape (`hoists_module_global_initializers_…`)
+now asserts the property it was written for — each global declared once, one declaration
+keyword — instead of the `var …;let …` text the fold used to leave.

@@ -3172,6 +3172,11 @@ struct RewriteSession {
 
 impl RewriteSession {
     fn new(code: String) -> Self {
+        // Phase 6 instrument: one `input` snapshot per rewrite session, so the trace
+        // can be segmented into runs and a fold's residue diffed against the text it saw.
+        if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+            eprintln!("[peephole] input\n{code}");
+        }
         Self {
             code,
             rewrites: 0,

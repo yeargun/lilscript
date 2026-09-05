@@ -643,6 +643,7 @@ fn let_item(name: impl Into<String>, value: impl Into<String>, precedence: JsPre
         name: name.into(),
         bind: None,
         value: Some(JsExpression::raw(value, precedence)),
+        function: None,
     }
 }
 
@@ -1264,6 +1265,39 @@ fn rename_trace_enabled() -> bool {
     *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_RENAME_TRACE").as_deref() == Ok("1"))
 }
 
+/// `LILSCRIPT_STATEMENT_TRACE=1`: every statement pushed into a block, with
+/// the statement it follows -- the kind and, for declarations, the keyword.
+fn statement_trace_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_STATEMENT_TRACE").as_deref() == Ok("1"))
+}
+
+fn statement_kind_for_trace(statement: &JsStatement) -> String {
+    match statement {
+        JsStatement::Declaration { keyword, name, .. } => format!("Declaration[{keyword}{name}]"),
+        JsStatement::Binding { keyword, name, .. } => {
+            format!("Binding[{}{name}]", keyword.unwrap_or(""))
+        }
+        JsStatement::Declarators {
+            keyword,
+            declarators,
+        } => format!(
+            "Declarators[{keyword}{}]",
+            declarators
+                .iter()
+                .map(|declarator| declarator.name.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        JsStatement::DeclarationGroup { keyword, names } => {
+            format!("DeclarationGroup[{keyword}{}]", names.join(","))
+        }
+        JsStatement::Expression { .. } => "Expression".to_string(),
+        JsStatement::Function { head, .. } => format!("Function[{}]", head.render()),
+        other => format!("{:?}", std::mem::discriminant(other)),
+    }
+}
+
 fn trace_name_request(role: &'static str, name: &str) {
     if name_trace_enabled() {
         NAME_TRACE.with(|trace| trace.borrow_mut().push((role, name.to_string())));
@@ -1875,6 +1909,22 @@ impl JsBlock {
         if crate::timing::enabled() {
             census_declaration_binds(&statement);
         }
+        if statement_trace_enabled() {
+            eprintln!(
+                "[statement] {} <- {}",
+                statement_kind_for_trace(&statement),
+                self.statements
+                    .last()
+                    .map(|last| statement_kind_for_trace(&last.statement))
+                    .unwrap_or_else(|| "(start)".to_string())
+            );
+        }
+        // Phase 6, G1: `var a=1;var b=2` is formed as one declaration here,
+        // where both are still nodes (`merge_adjacent_declarations`).
+        if let Some(merged) = self.merge_adjacent_declaration(&statement) {
+            self.pop_statement();
+            return self.push_statement_with(merged, options);
+        }
         let bare_return = matches!(statement, JsStatement::Return { value: None });
         let rendered = statement.clone().render(options);
         self.count_appended(&rendered);
@@ -1890,21 +1940,105 @@ impl JsBlock {
         }
     }
 
+    /// `var a=1;var b=2` is one declaration (`merge_adjacent_declarations`,
+    /// Terser `join_consecutive_vars`): when the incoming statement declares
+    /// with the same keyword as the statement before it, and that statement
+    /// still ends in its `;`, the two become one `Declarators` list. Only the
+    /// statement kinds that spell a plain declaration take part; a
+    /// destructuring pattern or a `for` head never reaches here.
+    fn merge_adjacent_declaration(&self, incoming: &JsStatement) -> Option<JsStatement> {
+        fn parts(statement: &JsStatement) -> Option<(&'static str, Vec<JsDeclarator>)> {
+            match statement {
+                // `let f=(a)=>{..};` -- an arrow binding is a `let` declaration
+                // whose value is a function; its head starts `let f=`.
+                JsStatement::Function {
+                    head,
+                    body,
+                    terminated: true,
+                } => {
+                    let [JsHeadPiece::Text(keyword), JsHeadPiece::FunctionName(bind, name), JsHeadPiece::Text(after), rest @ ..] =
+                        head.pieces.as_slice()
+                    else {
+                        return None;
+                    };
+                    if keyword != "let " || !after.starts_with('=') {
+                        return None;
+                    }
+                    let mut value_head = JsHead::default();
+                    value_head.push_text(&after[1..]);
+                    for piece in rest {
+                        value_head.pieces.push(piece.clone());
+                    }
+                    Some((
+                        "let ",
+                        vec![JsDeclarator {
+                            name: name.clone(),
+                            bind: Some(*bind),
+                            value: None,
+                            function: Some(Box::new((value_head, body.clone()))),
+                        }],
+                    ))
+                }
+                JsStatement::Declaration { keyword, name, bind } => Some((
+                    keyword,
+                    vec![JsDeclarator {
+                        name: name.clone(),
+                        bind: *bind,
+                        value: None,
+                        function: None,
+                    }],
+                )),
+                JsStatement::Binding {
+                    keyword: Some(keyword),
+                    name,
+                    bind,
+                    value,
+                } => Some((
+                    keyword,
+                    vec![JsDeclarator {
+                        name: name.clone(),
+                        bind: *bind,
+                        value: Some(value.clone()),
+                        function: None,
+                    }],
+                )),
+                JsStatement::Declarators {
+                    keyword,
+                    declarators,
+                } => Some((keyword, declarators.clone())),
+                _ => None,
+            }
+        }
+        let (keyword, mut declarators) = parts(incoming)?;
+        let previous = self.statements.last()?;
+        if previous.dropped_semicolon {
+            return None;
+        }
+        let (previous_keyword, previous_declarators) = parts(&previous.statement)?;
+        if previous_keyword != keyword {
+            return None;
+        }
+        let mut merged = previous_declarators;
+        merged.append(&mut declarators);
+        Some(JsStatement::Declarators {
+            keyword,
+            declarators: merged,
+        })
+    }
+
     /// Append a finished child block: its statement list, and the keyword
     /// counts it added beyond what it inherited.
     fn push_block(&mut self, child: &JsBlock) {
-        if child.statements.is_empty() {
-            return;
+        // Statement by statement, through the same push, so a declaration
+        // that opens the child merges with one that closes the parent: the
+        // structured emitter builds each basic block into its own child, and
+        // adjacent declarations straddle that join more often than not.
+        for emitted in &child.statements {
+            self.push_statement_with(emitted.statement.clone(), emitted.options);
+            if emitted.dropped_semicolon {
+                self.drop_trailing_semicolon();
+            }
         }
-        // A keyword completed across the join is one the child's first
-        // statement would have to start mid-word, which no statement does; the
-        // child's own delta is the whole count.
-        self.for_opens += child.for_opens - child.inherited.0;
-        self.while_opens += child.while_opens - child.inherited.1;
-        self.ends_with_semicolon = child.ends_with_semicolon;
-        self.trailing_bare_return = child.trailing_bare_return;
-        self.tail = child.tail.clone();
-        self.statements.extend(child.statements.iter().cloned());
     }
 }
 
@@ -6499,6 +6633,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsExpression::atom(render_string_literal(value, self.options.string_quote))
                 }),
                 bind: None,
+                function: None,
             });
         }
         if !declarators.is_empty() {
@@ -10557,6 +10692,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     name: name.to_string(),
                     value: Some(value.clone()),
                     bind: None,
+                    function: None,
                 };
                 match &mut pending_lets {
                     Some(group) if group.names.contains(&declarator.name) => {
@@ -14348,13 +14484,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     name: target.clone(),
                     value: Some(JsExpression::raw(source.as_str(), JsPrecedence::Assignment)),
                     bind: None,
+                    function: None,
                 }];
                 declarators.extend(
                     context
                         .claim_remaining_declarations()
                         .into_iter()
                         .map(|name| JsDeclarator { name, value: None,
-    bind: None, }),
+    bind: None,
+    function: None, }),
                 );
                 out.push_statement(JsStatement::Declarators {
                     keyword: "var ",
@@ -14450,6 +14588,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         name: pattern,
                         value: Some(JsExpression::raw(tuple, JsPrecedence::Primary)),
                         bind: None,
+                        function: None,
                     }],
                 });
             } else {
@@ -17942,13 +18081,15 @@ fn push_var_declarators<S: AsRef<str>>(
             name: target.as_ref().to_string(),
             value: Some(JsExpression::raw(source.as_ref(), JsPrecedence::Assignment)),
             bind: None,
+            function: None,
         })
         .collect::<Vec<_>>();
     declarators.extend(
         remaining_declarations
             .into_iter()
             .map(|name| JsDeclarator { name, value: None,
-    bind: None, }),
+    bind: None,
+    function: None, }),
     );
     out.push_statement(JsStatement::Declarators {
         keyword: "var ",
@@ -18762,6 +18903,7 @@ fn push_merge_declaration(
         name: target.to_string(),
         value: value.map(|value| JsExpression::raw(value, JsPrecedence::Conditional)),
         bind: None,
+        function: None,
     }];
     declarators.extend(tail.iter().cloned());
     out.push_statement(JsStatement::Declarators {
@@ -22807,6 +22949,11 @@ impl Respell<'_> {
                     if let Some(value) = &mut declarator.value {
                         changed |= self.value(value);
                     }
+                    if let Some(function) = &mut declarator.function {
+                        let (head, body) = function.as_mut();
+                        changed |= self.head(head);
+                        changed |= self.function_body(body);
+                    }
                 }
                 changed
             }
@@ -22936,10 +23083,19 @@ fn first_name_mismatch(
             | JsStatement::Throw { value }
             | JsStatement::Expression { value }
             | JsStatement::Return { value: Some(value) } => expression(value, table, closures),
-            JsStatement::Declarators { declarators, .. } => declarators
-                .iter()
-                .filter_map(|declarator| declarator.value.as_ref())
-                .find_map(|value| expression(value, table, closures)),
+            JsStatement::Declarators { declarators, .. } => declarators.iter().find_map(|declarator| {
+                declarator
+                    .value
+                    .as_ref()
+                    .and_then(|value| expression(value, table, closures))
+                    .or_else(|| match declarator.function.as_deref() {
+                        Some((_, JsFunctionBody::Block(body))) => {
+                            first_name_mismatch(body, table, closures)
+                        }
+                        Some((_, JsFunctionBody::ConciseNode(node))) => expression(node, table, closures),
+                        _ => None,
+                    })
+            }),
             JsStatement::If {
                 condition_tree,
                 then_branch,
@@ -23099,6 +23255,9 @@ fn witness_condition_trees(
                 for declarator in declarators {
                     if let Some(value) = &declarator.value {
                         expression(value, closures);
+                    }
+                    if let Some(function) = &declarator.function {
+                        body(&function.1, closures);
                     }
                 }
             }
@@ -23364,6 +23523,12 @@ impl ScopeCollector<'_> {
                     }
                     if let Some(value) = &declarator.value {
                         self.expression(scope, value);
+                    }
+                    if let Some(function) = &declarator.function {
+                        let (head, body) = function.as_ref();
+                        let inner = self.tree.child(scope);
+                        self.head(scope, inner, head, false);
+                        self.function_body(inner, body);
                     }
                 }
             }
@@ -24065,10 +24230,26 @@ struct JsDeclarator {
     /// or a target the emitter only has as text.
     bind: Option<Bind>,
     value: Option<JsExpression>,
+    /// A function value, kept as its tree: `let f=(a)=>{..}` merged into a
+    /// declaration list still owns a scope the renamer walks. The head is
+    /// the expression's (no `let f=` prefix).
+    function: Option<Box<(JsHead, JsFunctionBody)>>,
 }
 
 impl JsDeclarator {
     fn render(self) -> String {
+        self.render_with(JsStatementOptions::UNUSED)
+    }
+
+    fn render_with(self, options: JsStatementOptions) -> String {
+        if let Some(function) = self.function {
+            let (head, body) = *function;
+            return format!(
+                "{}={}",
+                self.name,
+                JsStatement::render_function_value(head, body, options)
+            );
+        }
         match self.value {
             Some(value) => format!("{}={}", self.name, strip_outer_parens(value)),
             None => self.name,
@@ -24230,6 +24411,40 @@ impl JsStatement {
     ///
     /// This is `close_statement_block` as a value rather than as a mutation of
     /// somebody else's buffer.
+    /// A function's head and body as text, without a terminator: the
+    /// statement form and the declarator form share it.
+    fn render_function_value(head: JsHead, body: JsFunctionBody, options: JsStatementOptions) -> String {
+        let mut text = head.render();
+        match body {
+            JsFunctionBody::Block(block) => {
+                text.push('{');
+                text.push_str(&Self::close_branch(block, options));
+            }
+            JsFunctionBody::Concise(expression) => {
+                // A concise body starting with `{` would parse as a
+                // block, so an object literal keeps its parentheses.
+                if expression.starts_with('{') {
+                    text.push('(');
+                    text.push_str(&expression);
+                    text.push(')');
+                } else {
+                    text.push_str(&expression);
+                }
+            }
+            JsFunctionBody::ConciseNode(node) => {
+                let expression = strip_outer_parens(node);
+                if expression.starts_with('{') {
+                    text.push('(');
+                    text.push_str(&expression);
+                    text.push(')');
+                } else {
+                    text.push_str(&expression);
+                }
+            }
+        }
+        text
+    }
+
     fn close_branch(mut branch: JsBlock, options: JsStatementOptions) -> String {
         if options.elide_block_terminal_semicolons {
             branch.drop_trailing_semicolon();
@@ -24334,34 +24549,7 @@ impl JsStatement {
                 terminated,
                 ..
             } => {
-                let mut text = head.render();
-                match body {
-                    JsFunctionBody::Block(block) => {
-                        text.push('{');
-                        text.push_str(&Self::close_branch(block, options));
-                    }
-                    JsFunctionBody::Concise(expression) => {
-                        // A concise body starting with `{` would parse as a
-                        // block, so an object literal keeps its parentheses.
-                        if expression.starts_with('{') {
-                            text.push('(');
-                            text.push_str(&expression);
-                            text.push(')');
-                        } else {
-                            text.push_str(&expression);
-                        }
-                    }
-                    JsFunctionBody::ConciseNode(node) => {
-                        let expression = strip_outer_parens(node);
-                        if expression.starts_with('{') {
-                            text.push('(');
-                            text.push_str(&expression);
-                            text.push(')');
-                        } else {
-                            text.push_str(&expression);
-                        }
-                    }
-                }
+                let mut text = Self::render_function_value(head, body, options);
                 if terminated {
                     text.push(';');
                 }
@@ -24376,7 +24564,7 @@ impl JsStatement {
                     if index != 0 {
                         text.push(',');
                     }
-                    text.push_str(&declarator.render());
+                    text.push_str(&declarator.render_with(options));
                 }
                 text.push(';');
                 text
@@ -31380,16 +31568,19 @@ mod tests {
                         name: "a".to_string(),
                         value: Some(JsExpression::atom("1")),
                         bind: None,
+                        function: None,
                     },
                     JsDeclarator {
                         name: "b".to_string(),
                         value: None,
                         bind: None,
+                        function: None,
                     },
                     JsDeclarator {
                         name: "c".to_string(),
                         value: None,
                         bind: None,
+                        function: None,
                     },
                 ],
             }]),
@@ -33167,7 +33358,10 @@ mod tests {
             coalesced.contains("a=a.nodeName") && !distinct.contains("a=a.nodeName"),
             "{coalesced}\n{distinct}"
         );
-        assert!(distinct.contains("var b="), "{distinct}");
+        assert!(
+            distinct.contains("var b=") || distinct.contains(",b="),
+            "{distinct}"
+        );
         assert_eq!(run_javascript(&coalesced), "none\n", "{coalesced}");
         assert_eq!(run_javascript(&distinct), "none\n", "{distinct}");
     }
@@ -41580,9 +41774,16 @@ consume(field(JS.object("type", 1), "type"));
             "Float64Array left=new Float64Array(4);Float64Array right=new Float64Array(8);void clear(){left=new Float64Array(2);}export int total(){return left.length+right.length;}",
         );
 
-        assert!(!output.starts_with("let "), "{output}");
-        assert_eq!(output.matches("var ").count(), 2, "{output}");
+        // The property: each global is declared once, at its initializer,
+        // not predeclared and then re-declared inside the entry.
         assert!(!output.contains("{let "), "{output}");
+        assert_eq!(output.matches("=new Float64Array(4)").count(), 1, "{output}");
+        assert_eq!(output.matches("=new Float64Array(8)").count(), 1, "{output}");
+        assert_eq!(
+            output.matches("var ").count() + output.matches("let ").count(),
+            1,
+            "{output}"
+        );
     }
 
     #[test]

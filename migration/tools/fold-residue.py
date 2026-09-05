@@ -10,14 +10,17 @@ env=dict(os.environ,LILSCRIPT_PEEPHOLE_TRACE='1')
 r=subprocess.run([lil,'--config',cfg,sys.argv[4],'--target','js','-o','/tmp/claude-1000/fr-out.js'],env=env,capture_output=True,text=True)
 lines=r.stderr.split('\n'); steps=[]; i=0
 while i<len(lines):
-    if lines[i].startswith('[peephole] '): steps.append((lines[i].split('::')[-1], lines[i+1] if i+1<len(lines) else '')); i+=2
+    if lines[i].startswith('[peephole] '): steps.append((lines[i][len('[peephole] '):].split('::')[-1], lines[i+1] if i+1<len(lines) else '')); i+=2
     else: i+=1
 tok=lambda s: re.findall(r'[A-Za-z_$][\w$]*|\d+|\S', s)
-emissions=sum(1 for n,_ in steps if n=='remove_unused_standalone_vars')
-print(f'(trace: {len(steps)} fold snapshots, ~{emissions} emissions)')
-prev=None
+emissions=sum(1 for n,_ in steps if n=='input')
+print(f'(trace: {len(steps)} fold snapshots, {emissions} emissions)')
+prev=None; emission=0; shown=0
 for name,text in steps:
+    if name=='input':
+        prev=text; emission+=1; continue
     if prev is not None and name in folds:
+        print(f"--- emission {emission}")
         a,b=tok(prev),tok(text); sm=difflib.SequenceMatcher(None,a,b,autojunk=False)
         ch=[(t,i1,i2,j1,j2) for t,i1,i2,j1,j2 in sm.get_opcodes() if t!='equal']
         print(f"=== {name}: {len(ch)} change(s)")
