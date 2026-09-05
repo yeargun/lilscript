@@ -3347,6 +3347,13 @@ impl JsExpression {
             JsExpressionRoot::Nullish if matches!(parent, IrBinaryOp::And | IrBinaryOp::Or) => {
                 false
             }
+            // Raw text under `&&` / `||` is read the way the merge zone read
+            // it before it built nodes: by scanning for a top-level `;`,
+            // `,`, `?` or assignment, rather than by the conservative
+            // precedence a raw node declares. Retires with the raw sites.
+            JsExpressionRoot::Raw if matches!(parent, IrBinaryOp::And | IrBinaryOp::Or) => {
+                !logical_operand_needs_parentheses(&self.code, parent)
+            }
             _ => self.precedence > js_binary_precedence(parent),
         };
         if can_unwrap {
@@ -12887,17 +12894,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut else_output,
                         )?;
                         let mut deferred_merge = None;
-                        if let Some((declare, target, then_value, else_value, trailing)) = self
+                        if let Some((declare, target, target_bind, then_node, else_node, trailing)) = self
                             .options
                             .conditional_expressions
                             .then(|| {
-                                block_merge_conditional_assignments(&then_output, &else_output)
+                                block_merge_conditional_assignment_nodes(&then_output, &else_output)
                             })
                             .flatten()
                         {
-                            let (target, then_value, else_value) =
-                                (target.as_str(), then_value.as_str(), else_value.as_str());
-                            let mut value = String::new();
+                            let target = target.as_str();
+                            let then_value = then_node.clone().into_minimal();
+                            let else_value = else_node.clone().into_minimal();
+                            let (then_value, else_value) = (then_value.as_str(), else_value.as_str());
                             let nullish_source = nullish_merge_source(
                                 function,
                                 header,
@@ -12906,42 +12914,33 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 target,
                                 context,
                             );
-                            if let Some(source) = nullish_source.filter(|source| {
+                            // The merged value as a node: the arms and the
+                            // condition are nodes, and the printer's
+                            // precedence does the grouping the text zone did
+                            // by scanning (phase 6, G10).
+                            let value = if let Some(source) = nullish_source.filter(|source| {
                                 self.options.allows(JsSyntaxFeature::NullishCoalescing)
                                     && context.value_name(*source).ok() == Some(then_value)
                             }) {
-                                value.push_str(context.value_name(source)?);
-                                value.push_str("??");
-                                value.push_str(else_value);
+                                let name = context.value_name(source)?.to_string();
+                                let lhs = match context.value_bind(source) {
+                                    Some(bind) => JsExpression::name(bind, name),
+                                    None => JsExpression::raw(name, JsPrecedence::Primary),
+                                };
+                                JsExpression::nullish(lhs, else_node)
                             } else if is_true_literal(then_value) && is_false_literal(else_value) {
-                                value.push_str(&condition);
+                                condition_tree.clone()
                             } else if is_false_literal(then_value) && is_true_literal(else_value) {
-                                value.push_str(&negated_condition);
+                                negated_tree.clone()
                             } else if is_true_literal(then_value) {
-                                push_logical_operand_text(&mut value, &condition, IrBinaryOp::Or);
-                                value.push_str("||");
-                                push_logical_operand_text(&mut value, else_value, IrBinaryOp::Or);
+                                JsExpression::binary(IrBinaryOp::Or, condition_tree.clone(), else_node)
                             } else if same_identifier_condition(&condition, then_value) {
-                                push_logical_operand_text(&mut value, then_value, IrBinaryOp::Or);
-                                value.push_str("||");
-                                push_logical_operand_text(&mut value, else_value, IrBinaryOp::Or);
+                                JsExpression::binary(IrBinaryOp::Or, then_node, else_node)
                             } else if is_false_literal(else_value) {
-                                push_logical_operand_text(&mut value, &condition, IrBinaryOp::And);
-                                value.push_str("&&");
-                                push_logical_operand_text(&mut value, then_value, IrBinaryOp::And);
+                                JsExpression::binary(IrBinaryOp::And, condition_tree.clone(), then_node)
                             } else {
-                                // `?:` is right-associative, so a conditional
-                                // in the test slot swallows the arms that
-                                // follow it. The sibling branches below already
-                                // group it; this one did not, and an inlined
-                                // helper whose body is a conditional turned
-                                // `f(x)?a:b` into `t?u:v?a:b`.
-                                value.push_str(&parenthesize_ternary_test(&condition));
-                                value.push('?');
-                                value.push_str(then_value);
-                                value.push(':');
-                                value.push_str(else_value);
-                            }
+                                JsExpression::conditional(condition_tree.clone(), then_node, else_node)
+                            };
                             // A tail of bare names can be deferred with the
                             // merge; a tail with initialisers, or a tail on a
                             // plain assignment, cannot.
@@ -12970,13 +12969,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 None
                             };
                             // The merged target is the merge block's phi of
-                            // that name; its binding lets the declarator be
-                            // re-spelled and, when nothing reads it, dropped.
-                            let target_bind = function.blocks[merge_block.0 as usize]
-                                .phis
-                                .iter()
-                                .find(|phi| context.value_name(phi.out).ok() == Some(target))
-                                .and_then(|phi| context.value_bind(phi.out));
+                            // that name when the arms did not carry a binding.
+                            let target_bind = target_bind.or_else(|| {
+                                function.blocks[merge_block.0 as usize]
+                                    .phis
+                                    .iter()
+                                    .find(|phi| context.value_name(phi.out).ok() == Some(target))
+                                    .and_then(|phi| context.value_bind(phi.out))
+                            });
                             if let Some(value_id) = deferred {
                                 if declare {
                                     push_merge_declaration(out, target, target_bind, None, &trailing);
@@ -12994,8 +12994,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     out.push_statement(JsStatement::Binding {
                                         keyword: None,
                                         name: target.to_string(),
-                                        value: JsExpression::raw(value, JsPrecedence::Conditional),
-                                        bind: None,
+                                        value,
+                                        bind: target_bind,
                                     });
                                 }
                             }
@@ -13029,8 +13029,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 })
                                 .flatten()
                         {
-                            out.push_statement(JsStatement::Expression {
-                                value: JsExpression::raw(
+                            let value = match (
+                                block_compact_arm_node(&then_output, &then_expression),
+                                block_compact_arm_node(&else_output, &else_expression),
+                            ) {
+                                (Some(then_node), Some(else_node)) => JsExpression::conditional(
+                                    condition_tree.clone(),
+                                    then_node,
+                                    else_node,
+                                ),
+                                _ => JsExpression::raw(
                                     format!(
                                         "{}?{}:{}",
                                         parenthesize_ternary_test(&condition),
@@ -13039,7 +13047,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     ),
                                     JsPrecedence::Conditional,
                                 ),
-                            });
+                            };
+                            out.push_statement(JsStatement::Expression { value });
                         } else if let (true, Some(then_ret), Some(else_ret)) = (
                             self.options.conditional_expressions,
                             block_compact_return_expression(&then_output),
@@ -13194,7 +13203,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         } else {
                                             fused.push_str(rhs);
                                         }
-                                        deferred_merge = Some((phi_out, fused));
+                                        deferred_merge = Some((
+                                            phi_out,
+                                            JsExpression::raw(fused, JsPrecedence::Conditional),
+                                        ));
                                     } else {
                                         out.push_statement(JsStatement::Expression {
                                             value: JsExpression::raw(
@@ -13278,12 +13290,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                             IrBinaryOp::And,
                                         );
                                     }
-                                    out.push_statement(JsStatement::Expression {
-                                        value: JsExpression::raw(
-                                            rewrite_optional_method_or_assign(&combined),
-                                            JsPrecedence::Assignment,
-                                        ),
-                                    });
+                                    let rewritten = rewrite_optional_method_or_assign(&combined);
+                                    let value = match block_compact_arm_node(
+                                        &then_output,
+                                        &then_expression,
+                                    ) {
+                                        Some(then_node) if rewritten == combined => {
+                                            if condition_was_negated {
+                                                JsExpression::binary(
+                                                    IrBinaryOp::Or,
+                                                    negated_tree.clone(),
+                                                    then_node,
+                                                )
+                                            } else {
+                                                JsExpression::binary(
+                                                    IrBinaryOp::And,
+                                                    condition_tree.clone(),
+                                                    then_node,
+                                                )
+                                            }
+                                        }
+                                        _ => JsExpression::raw(rewritten, JsPrecedence::Assignment),
+                                    };
+                                    out.push_statement(JsStatement::Expression { value });
                                 } else {
                                     out.push_statement_with(
                                         JsStatement::If {
@@ -13360,10 +13389,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         cache.clear();
                         if let Some((value, expression)) = deferred_merge {
-                            cache.insert(
-                                value,
-                                JsExpression::raw(expression, JsPrecedence::Conditional),
-                            );
+                            cache.insert(value, expression);
                         }
                         current = merge_block;
                         continue;
@@ -19691,12 +19717,12 @@ fn push_merge_declaration(
     out: &mut JsBlock,
     target: &str,
     bind: Option<Bind>,
-    value: Option<String>,
+    value: Option<JsExpression>,
     tail: &[JsDeclarator],
 ) {
     let mut declarators = vec![JsDeclarator {
         name: target.to_string(),
-        value: value.map(|value| JsExpression::raw(value, JsPrecedence::Conditional)),
+        value,
         bind,
         function: None,
     }];
@@ -19899,6 +19925,29 @@ fn block_compact_branch_node(block: &JsBlock) -> Option<JsExpression> {
     statement_expression_node(&only.statement)
 }
 
+/// The branch as one expression node: a single expression or plain
+/// assignment statement, or a comma of them (phase 6, G10). `expected` is
+/// the text the zone's text path would have used; the node is offered only
+/// when it spells exactly that, so the text rewrites the zone still applies
+/// (`rewrite_optional_method_or_assign`) keep their cases until they are
+/// nodes too.
+fn block_compact_arm_node(block: &JsBlock, expected: &str) -> Option<JsExpression> {
+    if block.statements.is_empty() || block.statements.iter().any(|emitted| emitted.dropped_semicolon) {
+        return None;
+    }
+    let nodes = block
+        .statements
+        .iter()
+        .map(|emitted| statement_expression_node(&emitted.statement))
+        .collect::<Option<Vec<_>>>()?;
+    let node = if nodes.len() == 1 {
+        nodes.into_iter().next()?
+    } else {
+        JsExpression::comma(nodes)
+    };
+    (node.clone().into_minimal() == expected).then_some(node)
+}
+
 fn block_compact_void_expression(block: &JsBlock) -> Option<String> {
     let [only] = block.statements.as_slice() else {
         return None;
@@ -19952,6 +20001,102 @@ fn block_compact_return_expression(block: &JsBlock) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// `statement_single_assignment` with the value kept as its node and the
+/// target's binding: the merge zone builds conditional and logical nodes
+/// from these instead of text (phase 6, G10).
+fn statement_single_assignment_node(
+    statement: &JsStatement,
+) -> Option<(bool, String, Option<Bind>, JsExpression, Vec<JsDeclarator>)> {
+    fn identifier(name: &str) -> bool {
+        !name.is_empty()
+            && !name.as_bytes()[0].is_ascii_digit()
+            && name.bytes().all(is_js_identifier_byte)
+    }
+    fn usable(value: &JsExpression, declare: bool) -> bool {
+        let text = value.clone().into_minimal();
+        if text.is_empty() || text.contains(';') {
+            return false;
+        }
+        if !declare
+            && (value.root == JsExpressionRoot::Comma || split_top_level_comma(&text).is_some())
+        {
+            return false;
+        }
+        true
+    }
+    match statement {
+        JsStatement::Binding {
+            keyword,
+            name,
+            bind,
+            value,
+        } => {
+            let declare = match keyword {
+                None => false,
+                Some("var ") => true,
+                Some(_) => return None,
+            };
+            if !identifier(name) || !usable(value, declare) {
+                return None;
+            }
+            Some((declare, name.clone(), *bind, value.clone(), Vec::new()))
+        }
+        JsStatement::Declarators {
+            keyword: "var ",
+            declarators,
+        } => {
+            let (first, rest) = declarators.split_first()?;
+            let value = first.value.as_ref()?;
+            if !identifier(&first.name) || !usable(value, true) {
+                return None;
+            }
+            Some((true, first.name.clone(), first.bind, value.clone(), rest.to_vec()))
+        }
+        _ => None,
+    }
+}
+
+fn block_single_assignment_node(
+    block: &JsBlock,
+) -> Option<(bool, String, Option<Bind>, JsExpression, Vec<JsDeclarator>)> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    statement_single_assignment_node(&only.statement)
+}
+
+/// `block_merge_conditional_assignments` on nodes: the declare flag, the
+/// shared target and its binding, both arms' values, and the tail.
+fn block_merge_conditional_assignment_nodes(
+    then_block: &JsBlock,
+    else_block: &JsBlock,
+) -> Option<(bool, String, Option<Bind>, JsExpression, JsExpression, Vec<JsDeclarator>)> {
+    let (then_declare, then_target, then_bind, then_value, then_trailing) =
+        block_single_assignment_node(then_block)?;
+    let (else_declare, else_target, else_bind, else_value, else_trailing) =
+        block_single_assignment_node(else_block)?;
+    if !then_trailing.is_empty()
+        && !else_trailing.is_empty()
+        && then_trailing.iter().map(|d| d.clone().render()).ne(else_trailing.iter().map(|d| d.clone().render()))
+    {
+        return None;
+    }
+    (then_target == else_target).then(|| {
+        (
+            then_declare || else_declare,
+            then_target,
+            then_bind.or(else_bind),
+            then_value,
+            else_value,
+            if then_trailing.is_empty() {
+                else_trailing
+            } else {
+                then_trailing
+            },
+        )
+    })
 }
 
 /// `[var ]target=value[,tail];` as one statement: the declare flag, the
