@@ -121,6 +121,8 @@ one worker; the current profile is under *Measurement facts*.
 
 | 7.2 | booleans are a `Bool(bool)` leaf the printer spells (`JsRenderOptions.compact_boolean_literals`); stores and fused-run members are `Assign` nodes (`Member`/`Index`/`Name` targets) instead of raw text; `statement_expression_node` feeds the fusion run | byte-identical to `cd50de7` in three lanes (one swap-canonicalisation regression caught by the none lane and fixed: `is_constant_literal` keyed on the atom root); twin: `compact_boolean_literals` 24 effects → 18 print-ok / 6 emit-dep (the six: the inline-cost shape `let a=true` vs `!0` inlined, ternary arms and array elements still text), `elide_call_chain_parentheses` 11/11 print-ok; renamer `rename_kept_raw` on the probe 16 → 6; 1,717 tests |
 
+| 7.3 | string literals are a `Str(Lit)` leaf over a per-emission `LiteralTable` (interned: equal contents, one id — an arm merge compares nodes), spelled by the printer from `JsRenderOptions.string_quote`; the table rides the `Mangler` so the naming context's inlined constants are leaves too | byte-identical to `a32eb07` in three lanes after two parity fixes the none lane caught (the constant-operand swap must not widen to template quotes; equal strings must compare equal); twin: `string_quote` 38 effects → 24 print-ok / 14 emit-dep (call arguments, array elements and ternary arms are still text); 1,717 tests |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |

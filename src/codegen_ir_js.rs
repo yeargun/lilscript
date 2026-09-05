@@ -1146,6 +1146,8 @@ struct JsRenderOptions {
     /// `!0`/`!1` for the boolean literals (a leaf spelling, re-derived on a
     /// re-print).
     compact_boolean_literals: bool,
+    /// The quote character of string literals (a leaf spelling too).
+    string_quote: StringQuote,
 }
 
 impl JsRenderOptions {
@@ -1154,6 +1156,7 @@ impl JsRenderOptions {
     const UNUSED: Self = Self {
         elide_call_chain_parentheses: false,
         compact_boolean_literals: false,
+        string_quote: StringQuote::Double,
     };
 }
 
@@ -1534,7 +1537,8 @@ fn render(
         | JsExpressionRoot::Name(_)
         | JsExpressionRoot::Closure(_)
         | JsExpressionRoot::Raw
-        | JsExpressionRoot::Bool(_) => None,
+        | JsExpressionRoot::Bool(_)
+        | JsExpressionRoot::Str(_) => None,
     }
 }
 
@@ -1613,6 +1617,9 @@ enum JsExpressionRoot {
     /// `Member` or `Index` node, so a fused run or a store keeps every bind
     /// and every literal the re-print and the renamer need to reach.
     Assign,
+    /// A string literal; the contents live in the emission's literal table
+    /// and the quote character is the printer's (`string_quote`).
+    Str(Lit),
 }
 
 impl JsExpressionRoot {
@@ -1624,7 +1631,12 @@ impl JsExpressionRoot {
     /// spread across the constructors. See `migration/003-target-representation.md`.
     const fn grammar_arity(self) -> Option<usize> {
         match self {
-            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) => Some(0),
+            Self::Atom
+            | Self::Name(_)
+            | Self::Closure(_)
+            | Self::Raw
+            | Self::Bool(_)
+            | Self::Str(_) => Some(0),
             Self::Assign => Some(2),
             Self::Unary(_)
             | Self::IntegerNormalization
@@ -1660,7 +1672,7 @@ impl JsExpressionRoot {
             Self::Assign => 2,
             // Variadic: callee plus arguments, all retained.
             Self::Call | Self::Comma => 0,
-            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) => 0,
+            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) | Self::Str(_) => 0,
         }
     }
 
@@ -2254,6 +2266,22 @@ impl JsExpression {
         node
     }
 
+    /// A string literal whose contents live in `literals`; the printer spells
+    /// it with the emission's `string_quote`, and a re-print may choose another.
+    fn string_literal(literals: &LiteralTable, value: &str, quote: StringQuote) -> Self {
+        let lit = literals.intern(value);
+        Self {
+            code: render_string_literal(value, quote),
+            ungrouped: None,
+            precedence: JsPrecedence::Primary,
+            root: JsExpressionRoot::Str(lit),
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands: Vec::new(),
+        }
+    }
+
     /// A boolean literal, spelled by the printer: `!0`/`!1` when
     /// `compact_boolean_literals`, `true`/`false` otherwise. The precedence is
     /// the one the atom had (primary), so no grouping changes with the spelling.
@@ -2354,6 +2382,10 @@ impl JsExpression {
     fn is_constant_literal(&self) -> bool {
         match self.root {
             JsExpressionRoot::Bool(_) => true,
+            // The text test the atom had: a template-quoted string is not a
+            // "constant literal" to it, so the constant-operand swap does not
+            // fire on one. Widening that is a measured change of its own.
+            JsExpressionRoot::Str(_) => is_rendered_string_literal(&self.code),
             JsExpressionRoot::Atom => {
                 let code = self.code.as_str();
                 matches!(code, "true" | "false" | "null" | "!0" | "!1")
@@ -2635,7 +2667,8 @@ impl JsExpression {
             | JsExpressionRoot::Name(_)
             | JsExpressionRoot::Closure(_)
             | JsExpressionRoot::Raw
-            | JsExpressionRoot::Bool(_) => self.clone(),
+            | JsExpressionRoot::Bool(_)
+            | JsExpressionRoot::Str(_) => self.clone(),
             JsExpressionRoot::Unary(operator) => Self::unary(operator.as_str(), child(0)),
             JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
             JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
@@ -2705,7 +2738,8 @@ impl JsExpression {
             JsExpressionRoot::Atom
             | JsExpressionRoot::Name(_)
             | JsExpressionRoot::Closure(_)
-            | JsExpressionRoot::Bool(_) => false,
+            | JsExpressionRoot::Bool(_)
+            | JsExpressionRoot::Str(_) => false,
             _ => self.operands.iter().any(Self::may_have_effects),
         }
     }
@@ -3262,6 +3296,8 @@ struct IrJsEmitter<'module, 'src> {
     top_level_mangler: Mangler,
     /// The spellings of every binding this emission allocates.
     bind_table: BindTable,
+    /// The contents of every string literal this emission spells.
+    literal_table: LiteralTable,
     /// Module-level bindings: the function and global names, by id.
     function_name_binds: AHashMap<FunctionId, Bind>,
     global_binds: AHashMap<SymbolId, Bind>,
@@ -3472,9 +3508,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             WITNESS_OPTIONS.set(JsRenderOptions {
                 elide_call_chain_parentheses: options.elide_call_chain_parentheses,
                 compact_boolean_literals: options.compact_boolean_literals,
+                string_quote: options.string_quote,
             });
         }
         let bind_table = BindTable::default();
+        let literal_table = LiteralTable::default();
         Self {
             module,
             integer_analysis,
@@ -3488,8 +3526,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 options.identifier_alphabet,
                 "top-level",
                 bind_table.clone(),
+                literal_table.clone(),
             ),
             bind_table,
+            literal_table,
             function_name_binds: AHashMap::default(),
             global_binds: AHashMap::default(),
             closure_trees: RefCell::new(AHashMap::default()),
@@ -3583,6 +3623,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let (options, statement_options) = printer_options(&self.options);
         Respell {
             table: &self.bind_table,
+            literals: &self.literal_table,
             closures: &self.closure_trees,
             options,
             statement_options,
@@ -3622,6 +3663,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 block: out,
                 closures: self.closure_trees,
                 table: self.bind_table,
+                literals: self.literal_table,
             },
         ))
     }
@@ -6884,7 +6926,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             declarators.push(JsDeclarator {
                 name: self.global_name(*symbol)?.to_string(),
                 value: self.constant_global_strings.get(symbol).map(|value| {
-                    JsExpression::atom(render_string_literal(value, self.options.string_quote))
+                    JsExpression::string_literal(&self.literal_table, value, self.options.string_quote)
                 }),
                 bind: None,
                 function: None,
@@ -7407,6 +7449,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     self.options.identifier_alphabet,
                     "local-reservation",
                     self.bind_table.clone(),
+                    self.literal_table.clone(),
                 );
                 for _ in 0..self.options.local_name_reserve {
                     self.local_name_reservations
@@ -8259,7 +8302,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             IdentifierAlphabet::canonical()
         };
-        let mut mangler = Mangler::for_role_in(alphabet, "property", self.bind_table.clone());
+        let mut mangler = Mangler::for_role_in(alphabet, "property", self.bind_table.clone(), self.literal_table.clone());
         self.stable_property_names = stable_property_names.clone();
         for name in stable_property_names {
             mangler.reserve(&name);
@@ -8331,7 +8374,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .then_with(|| left.0 .1.cmp(&right.0 .1))
             });
             let mut mangler =
-                Mangler::for_role_in(alphabet, "owned-property", self.bind_table.clone());
+                Mangler::for_role_in(alphabet, "owned-property", self.bind_table.clone(), self.literal_table.clone());
             for reserved in PROTOTYPE_SENSITIVE_PROPERTY_NAMES {
                 mangler.reserve(reserved);
             }
@@ -9257,7 +9300,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         reserved: &[&str],
     ) -> Result<(), CodegenError> {
         let mut inner =
-            Mangler::for_role_in(self.options.identifier_alphabet, "inner", self.bind_table.clone());
+            Mangler::for_role_in(
+                self.options.identifier_alphabet,
+                "inner",
+                self.bind_table.clone(),
+                self.literal_table.clone(),
+            );
         for name in reserved {
             inner.reserve(name);
         }
@@ -11482,10 +11530,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     JsExpression::index(
                         object,
-                        JsExpression::atom(render_string_literal(
+                        JsExpression::string_literal(
+                            &self.literal_table,
                             property,
                             self.options.string_quote,
-                        )),
+                        ),
                         self.options.elide_call_chain_parentheses,
                     )
                 };
@@ -15138,12 +15187,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "caught exception pseudo-value escaped its catch clause",
                 ));
             }
-            ControlFlowOp::Const(ConstValue::String(value)) => JsExpression::atom(
-                self.string_aliases
-                    .get(value)
-                    .cloned()
-                    .unwrap_or_else(|| render_string_literal(value, self.options.string_quote)),
-            ),
+            ControlFlowOp::Const(ConstValue::String(value)) => match self.string_aliases.get(value) {
+                Some(alias) => JsExpression::atom(alias.clone()),
+                None => JsExpression::string_literal(
+                    &self.literal_table,
+                    value,
+                    self.options.string_quote,
+                ),
+            },
             ControlFlowOp::Const(value) => {
                 let rendered = render_const(
                     value,
@@ -15462,10 +15513,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     JsExpression::index(
                         object,
-                        JsExpression::atom(render_string_literal(
+                        JsExpression::string_literal(
+                            &self.literal_table,
                             property,
                             self.options.string_quote,
-                        )),
+                        ),
                         self.options.elide_call_chain_parentheses,
                     )
                 };
@@ -16004,10 +16056,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut ExpressionCache,
     ) -> Result<JsExpression, CodegenError> {
         if let Some(property) = static_identifier_property(key, &context.string_constants) {
-            return Ok(JsExpression::atom(render_string_literal(
+            return Ok(JsExpression::string_literal(
+                &self.literal_table,
                 self.property_name(property),
                 self.options.string_quote,
-            )));
+            ));
         }
         take_value(key, context, cache)
     }
@@ -21767,7 +21820,16 @@ impl LocalNames {
                             || savings < options.string_pool_minimum_savings.max(1)
                             || (!options.pool_identifier_strings
                                 && is_js_property_identifier(value)))
-                        .then_some((out, JsExpression::atom(rendered)))
+                        .then(|| {
+                            (
+                                out,
+                                JsExpression::string_literal(
+                                    &parent.literals,
+                                    value,
+                                    options.string_quote,
+                                ),
+                            )
+                        })
                     }
                 }
                 (Some(out), ControlFlowOp::LoadGlobal(symbol)) => global_names
@@ -23164,6 +23226,7 @@ impl JsHead {
 /// asserts exactly that.
 struct Respell<'a> {
     table: &'a BindTable,
+    literals: &'a LiteralTable,
     closures: &'a RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     options: JsRenderOptions,
     statement_options: JsStatementOptions,
@@ -23186,6 +23249,17 @@ impl Respell<'_> {
             JsExpressionRoot::Bool(value) => {
                 let spelled = JsExpression::boolean(value, self.options.compact_boolean_literals);
                 (self.force && spelled.code != expression.code).then_some(spelled)
+            }
+            JsExpressionRoot::Str(lit) => {
+                if !self.force {
+                    return None;
+                }
+                let code =
+                    render_string_literal(&self.literals.contents(lit), self.options.string_quote);
+                (code != expression.code).then(|| JsExpression {
+                    code,
+                    ..expression.clone()
+                })
             }
             JsExpressionRoot::Atom | JsExpressionRoot::Raw => None,
             _ => {
@@ -23428,6 +23502,7 @@ fn printer_options(options: &IrJsOptions) -> (JsRenderOptions, JsStatementOption
         JsRenderOptions {
             elide_call_chain_parentheses: options.elide_call_chain_parentheses,
             compact_boolean_literals: options.compact_boolean_literals,
+            string_quote: options.string_quote,
         },
         JsStatementOptions {
             elide_block_terminal_semicolons: options.elide_block_terminal_semicolons,
@@ -23443,6 +23518,7 @@ pub(crate) struct ModuleTree {
     block: JsBlock,
     closures: RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     table: BindTable,
+    literals: LiteralTable,
 }
 
 impl ModuleTree {
@@ -23454,6 +23530,7 @@ impl ModuleTree {
         let closures = RefCell::new(self.closures.borrow().clone());
         Respell {
             table: &self.table,
+            literals: &self.literals,
             closures: &closures,
             options: render,
             statement_options: statement,
@@ -24401,6 +24478,7 @@ impl Renamer<'_> {
         let marker_closures = RefCell::new(closures.borrow().clone());
         let marked = Respell {
             table: &markers,
+            literals: respell.literals,
             closures: &marker_closures,
             options: respell.options,
             statement_options: respell.statement_options,
@@ -31700,6 +31778,34 @@ struct Bind(u32);
 
 /// One emission's spellings, indexed by `Bind`. Shared by every mangler the
 /// emission clones or creates, so ids never collide across pools.
+/// A string literal's contents, by index into the emission's `LiteralTable`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct Lit(u32);
+
+/// The contents of every string literal an emission spells, so the printer
+/// can re-spell them under another `string_quote`. Interned: equal contents
+/// share one `Lit`, so two nodes spelling the same string compare equal, as
+/// two atoms with the same text did (an arm merge depends on it).
+#[derive(Debug, Clone, Default)]
+struct LiteralTable(std::rc::Rc<RefCell<(Vec<String>, AHashMap<String, Lit>)>>);
+
+impl LiteralTable {
+    fn intern(&self, value: &str) -> Lit {
+        let mut table = self.0.borrow_mut();
+        if let Some(lit) = table.1.get(value) {
+            return *lit;
+        }
+        let lit = Lit(u32::try_from(table.0.len()).expect("fewer than 2^32 literals"));
+        table.0.push(value.to_string());
+        table.1.insert(value.to_string(), lit);
+        lit
+    }
+
+    fn contents(&self, lit: Lit) -> String {
+        self.0.borrow().0[lit.0 as usize].clone()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 struct BindTable(std::rc::Rc<RefCell<Vec<String>>>);
 
@@ -31734,6 +31840,9 @@ struct Mangler {
     role: &'static str,
     /// The emission's binding table: every request allocates a `Bind`.
     binds: BindTable,
+    /// The emission's literal table, carried with the pool so the naming
+    /// context can build string leaves too.
+    literals: LiteralTable,
 }
 
 impl Default for Mangler {
@@ -31748,16 +31857,22 @@ impl Mangler {
     }
 
     fn for_role(alphabet: IdentifierAlphabet, role: &'static str) -> Self {
-        Self::for_role_in(alphabet, role, BindTable::default())
+        Self::for_role_in(alphabet, role, BindTable::default(), LiteralTable::default())
     }
 
-    fn for_role_in(alphabet: IdentifierAlphabet, role: &'static str, binds: BindTable) -> Self {
+    fn for_role_in(
+        alphabet: IdentifierAlphabet,
+        role: &'static str,
+        binds: BindTable,
+        literals: LiteralTable,
+    ) -> Self {
         Self {
             next: 0,
             reserved: AHashSet::default(),
             alphabet,
             role,
             binds,
+            literals,
         }
     }
 
