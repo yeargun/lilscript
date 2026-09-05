@@ -469,7 +469,9 @@ impl ProjectConfig {
                 self.javascript.function_spelling,
                 Some(FunctionSpelling::Arrow)
             ),
-            name_ordering: self.javascript.name_ordering.unwrap_or_default(),
+            name_ordering: name_ordering_override()
+                .or(self.javascript.name_ordering)
+                .unwrap_or_default(),
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -3667,5 +3669,21 @@ optimization_level = 15
         assert!(!options.specialize_tagged_constants);
         assert!(!config.js_profile_guided_optimization());
         assert!(!config.native_profile_guided_optimization());
+    }
+}
+
+/// `LILSCRIPT_NAME_ORDERING=<emission-walk|frequency-desc>` pins the
+/// post-layout ordering from the environment, so the pool can run one A/B
+/// across every port without editing their configs (`workers.mjs build`
+/// forwards `LILSCRIPT_*`). Unset or empty: the config decides.
+fn name_ordering_override() -> Option<NameOrdering> {
+    match std::env::var("LILSCRIPT_NAME_ORDERING").ok()?.as_str() {
+        "emission-walk" => Some(NameOrdering::EmissionWalk),
+        "frequency-desc" => Some(NameOrdering::FrequencyDesc),
+        "" => None,
+        other => {
+            eprintln!("LILSCRIPT_NAME_ORDERING: unknown ordering `{other}` ignored");
+            None
+        }
     }
 }
