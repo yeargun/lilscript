@@ -8,6 +8,7 @@ identical_function_folding = true
 
 [javascript]
 name_ordering = "idiom-converged"
+idiom_group = 1
 priority = "size-first"
 # 13 is the compiler default and the measured effort plateau: level 15 costs
 # roughly 20x the CPU for 1.4% of the Brotli bytes on a large artifact.

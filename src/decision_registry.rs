@@ -369,6 +369,10 @@ pub const IR_JS_OPTION_FIELDS: &[IrJsOptionFieldSpec] = &[
         class: DecisionClass::Scored,
     },
     IrJsOptionFieldSpec {
+        field: "idiom_group",
+        class: DecisionClass::Scored,
+    },
+    IrJsOptionFieldSpec {
         field: "public_function_arrows",
         class: DecisionClass::Abi,
     },
@@ -704,6 +708,31 @@ pub const CARTESIAN_EMISSION_AXES: &[CartesianEmissionAxis] = &[
                 phi_affinity_candidates(ctx.config, ctx.configured.phi_affinity_mode),
                 |options, phi_affinity_mode| options.phi_affinity_mode = phi_affinity_mode,
             )
+        },
+    },
+    // Post-layout naming is a baseline, not a late re-spell: the names steer
+    // layout and every text-scored decision after them, so a late candidate
+    // wins nothing while the same ordering under the whole search does. An
+    // axis runs the search under both baselines and lets the codec pick per
+    // port. Off unless `name_ordering_search` (or its environment switch).
+    CartesianEmissionAxis {
+        name: "name-ordering",
+        expand: |ctx, seed| {
+            let search = ctx.config.javascript.name_ordering.is_none()
+                && (ctx.config.javascript.name_ordering_search
+                    || crate::config::name_ordering_search_override());
+            let alternatives = if search {
+                [
+                    (ctx.configured.name_ordering, ctx.configured.idiom_group),
+                    (crate::codegen_ir_js::NameOrdering::IdiomConverged, 1),
+                ]
+            } else {
+                [(ctx.configured.name_ordering, ctx.configured.idiom_group); 2]
+            };
+            unique_with(seed, alternatives, |options, (name_ordering, idiom_group)| {
+                options.name_ordering = name_ordering;
+                options.idiom_group = idiom_group;
+            })
         },
     },
 ];
@@ -1042,28 +1071,6 @@ pub const SCORED_EMISSION_FAMILIES: &[ScoredEmissionFamily] = &[
             function_spelling: toggle_function_spelling(options.function_spelling),
             ..options
         }]
-    ),
-    family!(
-        "name-ordering",
-        EmissionPhase::AfterEntropy,
-        BeamAdmission::Priority,
-        BeamWidthPolicy::Full,
-        FinalistPolicy::Top,
-        |ctx| {
-            ctx.config.javascript.name_ordering.is_none()
-                && (ctx.config.javascript.name_ordering_search
-                    || crate::config::name_ordering_search_override())
-        },
-        |_, options| vec![
-            IrJsOptions {
-                name_ordering: crate::codegen_ir_js::NameOrdering::FrequencyDesc,
-                ..options
-            },
-            IrJsOptions {
-                name_ordering: crate::codegen_ir_js::NameOrdering::IdiomConverged,
-                ..options
-            },
-        ]
     ),
     family!(
         "function-spelling-stable-local-names",
@@ -1807,7 +1814,7 @@ mod tests {
 
     #[test]
     fn every_ir_js_options_field_is_classified_once() {
-        assert_eq!(IR_JS_OPTION_FIELDS.len(), 79);
+        assert_eq!(IR_JS_OPTION_FIELDS.len(), 80);
         assert_eq!(
             IR_JS_OPTION_FIELDS
                 .iter()
@@ -1848,7 +1855,7 @@ mod tests {
 
     #[test]
     fn scored_emission_families_are_named_uniquely_and_skip_illegal_axes() {
-        assert_eq!(SCORED_EMISSION_FAMILIES.len(), 50);
+        assert_eq!(SCORED_EMISSION_FAMILIES.len(), 49);
         assert_eq!(
             SCORED_EMISSION_FAMILIES
                 .iter()

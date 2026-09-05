@@ -252,6 +252,10 @@ pub struct IrJsOptions {
     pub function_spelling: FunctionSpelling,
     /// Post-layout naming: which ordering re-spells the module's bindings.
     pub name_ordering: NameOrdering,
+    /// Under `IdiomConverged`: 0 applies every idiom group at once (the
+    /// whole assignment, which loses); `k` applies only the k-th ranked
+    /// group, so the search can price idioms one at a time.
+    pub idiom_group: u8,
     pub public_function_arrows: bool,
     pub loop_spelling: LoopSpelling,
     pub mutation_spelling: MutationSpelling,
@@ -369,6 +373,7 @@ impl Default for IrJsOptions {
             function_layout_exact_limit: 13,
             function_spelling: FunctionSpelling::Arrow,
             name_ordering: NameOrdering::EmissionWalk,
+            idiom_group: 0,
             public_function_arrows: false,
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
@@ -3247,7 +3252,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             NameOrdering::EmissionWalk => (0, 0, 0, 0),
             NameOrdering::FrequencyDesc => renamer.frequency_desc(&AHashMap::default(), false),
             NameOrdering::IdiomConverged => {
-                let preferences = renamer.idiom_preferences(out, &self.closure_trees, self.respell());
+                let groups = renamer.idiom_preferences(out, &self.closure_trees, self.respell());
+                let preferences = match self.options.idiom_group {
+                    0 => {
+                        let mut merged = AHashMap::default();
+                        for group in &groups {
+                            for (bind, spelling) in group {
+                                merged.entry(*bind).or_insert_with(|| spelling.clone());
+                            }
+                        }
+                        merged
+                    }
+                    k => groups.get(usize::from(k) - 1).cloned().unwrap_or_default(),
+                };
                 renamer.frequency_desc(&preferences, true)
             }
         };
@@ -23740,7 +23757,7 @@ impl Renamer<'_> {
         module: &JsBlock,
         closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
         respell: Respell<'_>,
-    ) -> AHashMap<Bind, String> {
+    ) -> Vec<AHashMap<Bind, String>> {
         use std::hash::{Hash as _, Hasher as _};
         const WIDTHS: std::ops::RangeInclusive<usize> = 4..=10;
         const MIN_SPAN: usize = 12;
@@ -23763,7 +23780,7 @@ impl Renamer<'_> {
         marked.block(&mut copy);
         let text = copy.into_string();
         let Ok(tokens) = crate::js_peephole::lex_javascript(&text) else {
-            return AHashMap::default();
+            return Vec::new();
         };
         let spellings: Vec<String> = (0..self.table.len())
             .map(|index| self.table.spelling(Bind(index as u32)))
@@ -23772,7 +23789,7 @@ impl Renamer<'_> {
         if tokens.iter().any(|token| {
             token.kind == crate::js_peephole::JsTokenKind::Template && token.text.contains("${")
         }) {
-            return AHashMap::default();
+            return Vec::new();
         }
         // Which tokens are bindings this pass may move: a marker whose
         // binding is declared below the module scope.
@@ -23877,11 +23894,13 @@ impl Renamer<'_> {
             }
             slots
         };
-        // Highest-value idiom first; a binding takes the first spelling an
-        // idiom wants for it and keeps it.
-        let mut wanted: AHashMap<Bind, String> = AHashMap::default();
-        let mut claimed: Vec<bool> = vec![false; tokens.len()];
+        // One idiom, one group, ranked by the novel text converging it
+        // would remove; overlap is tracked only inside a group, as in the
+        // text pass, because the caller prices groups one at a time.
+        let mut groups: Vec<AHashMap<Bind, String>> = Vec::new();
         for (_, _, key) in ranked {
+            let mut wanted: AHashMap<Bind, String> = AHashMap::default();
+            let mut claimed: Vec<bool> = vec![false; tokens.len()];
             let Some(shape) = shapes.get(&key) else {
                 continue;
             };
@@ -23935,9 +23954,13 @@ impl Renamer<'_> {
                     wanted.entry(bind).or_insert_with(|| name.clone());
                 }
             }
+            if !wanted.is_empty() {
+                groups.push(wanted);
+            }
         }
-        crate::timing::RENAME_IDIOM_PREFERENCES.event(wanted.len() as u64);
-        wanted
+        crate::timing::RENAME_IDIOM_PREFERENCES
+            .event(groups.iter().map(AHashMap::len).sum::<usize>() as u64);
+        groups
     }
 }
 

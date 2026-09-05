@@ -142,6 +142,18 @@ build.
   caught by a guard: a scope whose declared bindings would not spell distinctly is put back exactly
   as it was (`rename_scopes_reverted`), and `LILSCRIPT_RENAME_TRACE=1` says which bindings collided.
 
+### The verdict on the orderings (2026-09-05, end of day)
+
+One idiom group, applied as the baseline of the whole search (`name_ordering = "idiom-converged"`,
+`idiom_group = 1`), on six ports: remarklil −811 (−2.1%), micromarklil −391 (−1.5%), mobxlil −37,
+markedlil −5, cnlil +3, zodlil +73. Net −1,168; four wins, two losses. Neither search form reaches
+it: as a late candidate the re-spell of a finished finalist wins nothing, and as a Cartesian axis the
+extra seed is sampled away by the production proposal budget before it emits. So the ordering ships
+**as a per-port pin, default off** — the ports it wins on set the two keys in their config; the
+default stays byte-identical to the incumbent, and no port gets worse. The machinery — the scope tree,
+the sound renamer, the census, the guard, the lanes and switches — is what phase 5 delivers; the
+byte win is the ports' to take.
+
 ### 5.5 — Deletions
 
 `rename.rs`, `binding.rs`'s `BindingResolution`, the third `Mangler`, `rename_ambiguous` — after

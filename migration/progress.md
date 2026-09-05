@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a–c landed** — both orderings measured on the fleet and off; the renamer is sound (guard + placement), the residues are named; next: per-idiom candidates — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **mechanism complete (gate, 5.1–5.5c)** — scope tree, sound renamer, census, guard, lanes; one idiom group as a per-port pin wins −1,168 net on six ports (remarklil −2.1%), default stays byte-identical. Deletions (5.5) deferred: the tree pass must first match the text pass. Next phase: 6 — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -744,4 +744,31 @@ names the collision). Also: `ScopeTree` indexes declaring scopes once (the renam
 scanning every scope per reference) and the census snapshots spellings. Gate: 0 byte diffs, 0 trace
 diffs, both renamer lanes 73/73 and deterministic with 0 reverts, probe 21/22 configurations,
 1,716 tests.
+
+**5.5b — one idiom group per candidate, and where naming has to happen.** `idiom_group` (an
+`IrJsOptions` field, `LILSCRIPT_IDIOM_GROUP=<k>`) applies only the k-th ranked idiom group; the
+`name-ordering` family proposes groups 1–3 in the priority slot after entropy. **Pinned, one group
+is a real win:** remarklil 38,007 → 37,196 (g1, −811, −2.1%) and 37,185 (g3), micromarklil 27,980
+→ 27,703 (g1, −277, −1.0%), cnlil 9,344 → 9,337 (g1). **As a late search candidate the same group
+wins nothing** (remarklil 38,007, micromarklil 27,980; the variants ran — 25,163 preferences on
+remarklil — and lost): re-spelling a finished finalist is not the same artifact as emitting every
+candidate under the ordering, because the names steer `CompressionSimilarity` layout (an 8-gram
+profile of the printed text) and every text-scored decision downstream. So the ordering's value is
+as the baseline of the whole search, i.e. a config default, and the fleet A/B of pinned `g1` is what
+decides it. Two lessons on the search: the priority slot admits few plans per finalist, so the
+variant order inside a family decides which run at all (the losing frequency ordering had been
+first); and "the search proposes it" is only the shipping form for decisions whose effect is local.
+
+**5.5c — the fleet verdict, and the axis that the budget samples away.** Pinned `idiom-converged`
+group 1 on six ports: remarklil −811 (−2.1%), micromarklil −391 (−1.5%), mobxlil −37, markedlil −5,
+cnlil +3, zodlil +73 — net −1,168, four wins, two losses. A `name-ordering` Cartesian axis (both
+baselines under one search, the codec picking per port) replaced the late family, and in the
+production budget its second seed is sampled away before it emits (`proposal_limit` keeps the
+configured seed and a sample of the cross product), so the search form stays equal to the default
+on every port. **Decision, by the plan's own rule and the owner's:** the default stays off and
+byte-identical; the ports that win pin the two keys (`name_ordering = "idiom-converged"`,
+`idiom_group = 1`) in their own config, and no port gets worse. The lane
+`tests/config/idiom-converged.toml` now tests that form. Phase 5's mechanism is complete; its
+deletions (5.5) wait on the tree pass matching the text pass, which the census says is a
+per-idiom pricing question the search cannot afford as a base.
 

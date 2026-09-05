@@ -472,6 +472,7 @@ impl ProjectConfig {
             name_ordering: name_ordering_override()
                 .or(self.javascript.name_ordering)
                 .unwrap_or_default(),
+            idiom_group: idiom_group_override().unwrap_or(self.javascript.idiom_group),
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -1356,6 +1357,9 @@ pub struct JavaScriptConfig {
     /// Let the search propose the post-layout orderings as candidates. Off
     /// until the fleet A/B says an ordering wins.
     pub name_ordering_search: bool,
+    /// Under `idiom-converged`: 0 applies every idiom at once, `k` only the
+    /// k-th ranked idiom group (the search prices groups one at a time).
+    pub idiom_group: u8,
     /// Spell an object method as `k(){…}` rather than `k:function(){…}`.
     /// Shorthand is shorter, and shorter is not always smaller: measured on
     /// jQuery, turning it off is -94 Brotli *and* -404 raw, because the shapes
@@ -1447,6 +1451,7 @@ impl Default for JavaScriptConfig {
             function_spelling: None,
             name_ordering: None,
             name_ordering_search: false,
+            idiom_group: 0,
             struct_method_shorthand: None,
             local_phi_expression_regions: None,
             rematerialize_member_reads: None,
@@ -3694,4 +3699,9 @@ fn name_ordering_override() -> Option<NameOrdering> {
 /// decision ships in, measured across the pool without editing configs.
 pub(crate) fn name_ordering_search_override() -> bool {
     std::env::var("LILSCRIPT_NAME_ORDERING_SEARCH").as_deref() == Ok("1")
+}
+
+/// `LILSCRIPT_IDIOM_GROUP=<k>` pins the idiom group under `idiom-converged`.
+fn idiom_group_override() -> Option<u8> {
+    std::env::var("LILSCRIPT_IDIOM_GROUP").ok()?.parse().ok()
 }
