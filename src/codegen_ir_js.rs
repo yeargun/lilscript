@@ -10701,10 +10701,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.options.elide_call_chain_parentheses,
                     )
                 };
-                out.push_str(&access);
-                out.push('=');
-                out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-                out.push(';');
+                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(format!("{}={value}", &*access), JsPrecedence::Assignment),
+                });
                 return Ok(());
             }
             ControlFlowOp::IndexSet {
@@ -12138,7 +12138,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             };
                             let mut exit_branch = JsBlock::new();
                             exit_branch.push_block(&exit_output);
-                            exit_branch.push_str("break");
+                            exit_branch.push_statement(JsStatement::Break);
                             body_output.push_statement_with(
                                 JsStatement::If {
                                     condition: test,
@@ -12421,7 +12421,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         self.emit_cached_block(function, block, uses, context, cache, out)?;
                         let continuation = finally_block.unwrap_or(merge_block);
-                        out.push_str("try{");
+                        // Each clause is a value; the later ones nest off the
+                        // earlier so their keyword counters see what precedes
+                        // them in the text, as they did when it was one buffer.
+                        let mut try_body = out.nested();
                         let mut body_visited = visited.clone();
                         let mut body_cache = cache.clone();
                         let body_end = self.emit_structured_path(
@@ -12433,24 +12436,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             uses,
                             &mut body_cache,
                             &mut body_visited,
-                            out,
+                            &mut try_body,
                         )?;
-                        close_statement_block(out, self.options.elide_block_terminal_semicolons);
                         let mut catch_end = None;
+                        let mut catch = None;
                         if let Some(catch_block) = catch_block {
-                            out.push_str("catch");
-                            if let Some(value) = catch_value.filter(|value| {
+                            let binding = if let Some(value) = catch_value.filter(|value| {
                                 !self.options.unused_catch_binding_elision
                                     || uses.get(value).copied().unwrap_or(0) != 0
                             }) {
                                 context.mark_declared(value)?;
-                                out.push('(');
-                                out.push_str(context.value_name(value)?);
-                                out.push(')');
+                                Some(format!("({})", context.value_name(value)?))
                             } else if !self.options.allows(JsSyntaxFeature::OptionalCatchBinding) {
-                                out.push_str("(_e)");
-                            }
-                            out.push('{');
+                                Some("(_e)".to_string())
+                            } else {
+                                None
+                            };
+                            let mut catch_body = try_body.nested();
                             let mut catch_visited = visited.clone();
                             let mut catch_cache = cache.clone();
                             catch_end = Some(self.emit_structured_path(
@@ -12462,16 +12464,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 uses,
                                 &mut catch_cache,
                                 &mut catch_visited,
-                                out,
+                                &mut catch_body,
                             )?);
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
-                            );
+                            catch = Some(JsCatch {
+                                binding,
+                                body: catch_body,
+                            });
                         }
                         let mut finally_end = None;
+                        let mut finally = None;
                         if let Some(finally_block) = finally_block {
-                            out.push_str("finally{");
+                            let mut finally_body = catch
+                                .as_ref()
+                                .map_or_else(|| try_body.nested(), |catch| catch.body.nested());
                             let mut finally_visited = visited.clone();
                             let mut finally_cache = cache.clone();
                             finally_end = Some(self.emit_structured_path(
@@ -12483,13 +12488,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 uses,
                                 &mut finally_cache,
                                 &mut finally_visited,
-                                out,
+                                &mut finally_body,
                             )?);
-                            close_statement_block(
-                                out,
-                                self.options.elide_block_terminal_semicolons,
-                            );
+                            finally = Some(finally_body);
                         }
+                        out.push_statement_with(
+                            JsStatement::Try {
+                                body: try_body,
+                                catch,
+                                finally,
+                            },
+                            JsStatementOptions {
+                                elide_block_terminal_semicolons: self
+                                    .options
+                                    .elide_block_terminal_semicolons,
+                            },
+                        );
                         cache.clear();
                         let finally_terminates = finally_end == Some(PathEnd::Terminated);
                         let protected_reaches_merge = body_end == PathEnd::ReachedStop
@@ -14321,14 +14335,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .chain(&self.module.classes)
                     .find(|layout| layout.name == *name)
                     .filter(|_| self.class_uses_named_fields(name));
-                let mut rendered = JsBlock::from(String::from(if named.is_some() { "{" } else { "[" }));
+                let mut rendered = String::from(if named.is_some() { "{" } else { "[" });
                 for (index, item) in values.iter().enumerate() {
                     if index != 0 {
                         rendered.push(',');
                     }
                     if let Some(layout) = named {
                         if let Some(field) = layout.fields.get(index) {
-                            self.push_named_literal_key(
+                            self.push_named_literal_key_text(
                                 &mut rendered,
                                 self.owned_property_name(name, field.index, field.name),
                             );
@@ -18614,13 +18628,14 @@ fn peek_merge_return_expression(
 }
 
 fn push_return_conditional(out: &mut JsBlock, condition: &str, then_ret: &str, else_ret: &str) {
-    out.push_str("return ");
-    out.push_str(&parenthesize_ternary_test(condition));
-    out.push('?');
-    push_conditional_arm(out, then_ret);
-    out.push(':');
-    push_conditional_arm(out, else_ret);
-    out.push(';');
+    let mut conditional = parenthesize_ternary_test(condition);
+    conditional.push('?');
+    conditional.push_str(&conditional_arm_text(then_ret));
+    conditional.push(':');
+    conditional.push_str(&conditional_arm_text(else_ret));
+    out.push_statement(JsStatement::Return {
+        value: Some(JsExpression::raw(conditional, JsPrecedence::Conditional)),
+    });
 }
 
 fn parenthesize_ternary_test(condition: &str) -> String {
@@ -18854,13 +18869,15 @@ fn trailing_expression_statement(output: &str) -> Option<(usize, &str)> {
 }
 
 fn push_conditional_arm(out: &mut JsBlock, expression: &str) {
-    let grouped = split_top_level_comma(expression).is_some();
-    if grouped {
-        out.push('(');
-    }
-    out.push_str(expression);
-    if grouped {
-        out.push(')');
+    out.push_str(&conditional_arm_text(expression));
+}
+
+/// A conditional arm, grouped when it is a comma sequence.
+fn conditional_arm_text(expression: &str) -> String {
+    if split_top_level_comma(expression).is_some() {
+        format!("({expression})")
+    } else {
+        expression.to_string()
     }
 }
 
@@ -21704,6 +21721,12 @@ enum JsStatement {
         body: JsFunctionBody,
         terminated: bool,
     },
+    /// `try{..}catch(e){..}finally{..}` with either clause optional.
+    Try {
+        body: JsBlock,
+        catch: Option<JsCatch>,
+        finally: Option<JsBlock>,
+    },
     /// `while(c){..}`, `for(i;c;u){..}`, `for(;;){..}`, and the do-shape
     /// `if(c)do{..}while(c);` -- a head, a body branch, and the trailing
     /// condition the do-shape repeats.
@@ -21742,6 +21765,14 @@ impl BodyFrame {
     fn braced(self) -> bool {
         self == Self::BracedFunction
     }
+}
+
+/// A `catch` clause: its binding as spelled -- `(e)`, `(_e)` for a target
+/// without optional catch bindings, or nothing -- and its block.
+#[derive(Debug, Clone)]
+struct JsCatch {
+    binding: Option<String>,
+    body: JsBlock,
 }
 
 /// The clause a loop opens with. `For` with nothing in it is `for(;;)`.
@@ -21997,6 +22028,27 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
+            Self::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                let mut text = String::from("try{");
+                text.push_str(&Self::close_branch(body, options));
+                if let Some(catch) = catch {
+                    text.push_str("catch");
+                    if let Some(binding) = catch.binding {
+                        text.push_str(&binding);
+                    }
+                    text.push('{');
+                    text.push_str(&Self::close_branch(catch.body, options));
+                }
+                if let Some(finally) = finally {
+                    text.push_str("finally{");
+                    text.push_str(&Self::close_branch(finally, options));
+                }
+                text
+            }
             Self::Function {
                 head,
                 body,

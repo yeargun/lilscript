@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 98.7% nodes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 99.5% nodes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **167** |
-| statement nodes (`push_statement`) | 0 | **33** |
+| fragment appends (`push_str`) | 324 | **158** |
+| statement nodes (`push_statement`) | 0 | **35** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -153,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **98.7% of statement bytes arrive as nodes** (probe, shipped config). Functions, loops, `let`/`var` lists, stores, the closure paths (rendered through the `Function` node), the global store — all nodes; `concise_arrow_body_text` and `push_concise_arrow_body` are gone. Raw bytes 1,255,537 → … → 29,035 over 46 sites; what remains: `try`/`catch`/`finally`, the state machine, expression scratches still typed as blocks | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **99.5% of statement bytes arrive as nodes** (probe, shipped config). `try`/`catch`/`finally` is `JsStatement::Try` with each clause a block nested off the one before it; the conditional return is a `Return` node (the `{return X;}` text check had been matching it and the structural check could not — zodlil's +18); the access store, the literal scratch and the loop-exit `break` are nodes. Raw bytes 1,255,537 → … → 10,682 over 28 sites; what remains is one conditional-merge scratch typed as a block and the state machine | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |
@@ -276,3 +276,7 @@ node). On values, variants can be structural (grouping, statement shapes, reorde
 effect-free runs, `if`/`?:`/`&&` forms), scoring can re-render subtrees instead of the whole
 artifact, and names become values — where the katexlil gap lives. Headroom for the later
 phases, measured against the ±100 noise floor like everything else.
+
+**Port verification of `19bc243` (global store, closure paths), pool, background:** markedlil
+9,431 and zodlil 32,627 — identical bytes to `2d7a01a` (the +18 stands until the fix below
+lands on the pool).
