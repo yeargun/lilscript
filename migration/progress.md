@@ -456,3 +456,13 @@ pre-peephole scoring — which is the phase 7 argument for scoring final text.
 instead of wrapping the test in `!(..)`. Raw-emission residue of negated comparisons: 2 → 0 over
 the probe and the 74 cases; zero byte diffs in three lanes; 1710 tests. The fold's remaining
 activity is on text other folds write.
+
+**`braceless_control_bodies` is a knob and a scored variant.** `CompressionDecision::
+BracelessControlBodies` (`"braceless-control-bodies"`, on in every priority), `IrJsOptions::
+braceless_control_bodies` (default true), the registry family `braceless-control-bodies`
+(`BeforeEntropy`, sequential, proposes the braced variant), and `JsBranch::body`/`before_else`
+at both `if/else` emission sites. Default behaviour is byte-identical to `78aaf49` on the probe
+and the 74 cases in the shipped lane; the new variant adds candidates (as it should). One
+none-lane case picks the braced variant at Brotli 266 vs 265 — the search's admission is not
+final-Brotli-exact, phase 7's problem. Port verification of `78aaf49` (UndefinedTest): markedlil
+9,342 and zodlil 32,619, identical bytes to `e5c40c3`.

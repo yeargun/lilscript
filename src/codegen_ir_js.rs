@@ -89,6 +89,11 @@ pub struct IrJsOptions {
     pub elide_length_tonumber: bool,
     pub compact_boolean_literals: bool,
     pub elide_block_terminal_semicolons: bool,
+    /// Spell a single-statement `if`/`else` body without braces when the
+    /// statement cannot capture the `else`. A codec-dependent shape: zodlil's
+    /// `}else{if(` chains compress better braced, markedlil's layout prefers
+    /// braceless -- so a knob, and a scored variant where the search runs.
+    pub braceless_control_bodies: bool,
     pub elide_new_parentheses: bool,
     pub elide_call_chain_parentheses: bool,
     pub inline_structured_closures: bool,
@@ -311,6 +316,7 @@ impl Default for IrJsOptions {
             elide_length_tonumber: false,
             compact_boolean_literals: true,
             elide_block_terminal_semicolons: true,
+            braceless_control_bodies: true,
             elide_new_parentheses: true,
             elide_call_chain_parentheses: true,
             inline_structured_closures: true,
@@ -11050,8 +11056,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     case_body.push_statement_with(
                         JsStatement::If {
                             condition: String::from(&*condition),
-                            then_branch: JsBranch::compact_before_else(then_branch),
-                            else_branch: Some(JsBranch::compact(else_branch)),
+                            then_branch: JsBranch::before_else(
+                                then_branch,
+                                self.options.braceless_control_bodies,
+                            ),
+                            else_branch: Some(JsBranch::body(
+                                else_branch,
+                                self.options.braceless_control_bodies,
+                            )),
                         },
                         options,
                     );
@@ -11757,8 +11769,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_statement_with(
                                 JsStatement::If {
                                     condition: condition.clone(),
-                                    then_branch: JsBranch::compact_before_else(then_output),
-                                    else_branch: Some(JsBranch::compact(else_output)),
+                                    then_branch: JsBranch::before_else(
+                                        then_output,
+                                        self.options.braceless_control_bodies,
+                                    ),
+                                    else_branch: Some(JsBranch::body(
+                                        else_output,
+                                        self.options.braceless_control_bodies,
+                                    )),
                                 },
                                 JsStatementOptions {
                                     elide_block_terminal_semicolons: self
@@ -21856,6 +21874,24 @@ impl JsBranch {
         Self { block, braceless }
     }
 
+    /// `compact` or `braced`, as the `braceless_control_bodies` knob says.
+    fn body(block: JsBlock, braceless: bool) -> Self {
+        if braceless {
+            Self::compact(block)
+        } else {
+            Self::braced(block)
+        }
+    }
+
+    /// `compact_before_else` or `braced`, as the knob says.
+    fn before_else(block: JsBlock, braceless: bool) -> Self {
+        if braceless {
+            Self::compact_before_else(block)
+        } else {
+            Self::braced(block)
+        }
+    }
+
     fn render(self, options: JsStatementOptions) -> String {
         if self.braceless {
             return self.block.into_string();
@@ -28901,6 +28937,27 @@ mod tests {
         JsStatement::Expression {
             value: JsExpression::raw(text, JsPrecedence::Assignment),
         }
+    }
+
+    #[test]
+    fn braceless_control_bodies_is_a_knob() {
+        let source = "extern int read();extern void barrier();void pick(int a){if(a>0){print(read());}else{barrier();}}pick(read());";
+        // Without the conditional-expression cascade the `if` reaches the
+        // branch renderer as an `if`.
+        let plain = IrJsOptions {
+            conditional_expressions: false,
+            ..IrJsOptions::default()
+        };
+        let braceless = compile_with_options(source, plain.clone());
+        assert!(braceless.contains(")console.log(read());else barrier()"), "{braceless}");
+        let braced = compile_with_options(
+            source,
+            IrJsOptions {
+                braceless_control_bodies: false,
+                ..plain
+            },
+        );
+        assert!(braced.contains("){console.log(read())}else{barrier()}"), "{braced}");
     }
 
     #[test]

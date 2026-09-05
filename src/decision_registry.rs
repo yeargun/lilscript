@@ -177,6 +177,10 @@ pub const IR_JS_OPTION_FIELDS: &[IrJsOptionFieldSpec] = &[
         class: DecisionClass::Scored,
     },
     IrJsOptionFieldSpec {
+        field: "braceless_control_bodies",
+        class: DecisionClass::Scored,
+    },
+    IrJsOptionFieldSpec {
         field: "elide_new_parentheses",
         class: DecisionClass::Scored,
     },
@@ -1012,6 +1016,18 @@ pub const SCORED_EMISSION_FAMILIES: &[ScoredEmissionFamily] = &[
         }]
     ),
     family!(
+        "braceless-control-bodies",
+        EmissionPhase::BeforeEntropy,
+        BeamAdmission::Sequential,
+        BeamWidthPolicy::Full,
+        FinalistPolicy::Top,
+        |ctx| ctx.configured.braceless_control_bodies,
+        |_, options| vec![IrJsOptions {
+            braceless_control_bodies: false,
+            ..options
+        }]
+    ),
+    family!(
         "function-spelling",
         EmissionPhase::BeforeEntropy,
         BeamAdmission::Priority,
@@ -1765,7 +1781,7 @@ mod tests {
 
     #[test]
     fn every_ir_js_options_field_is_classified_once() {
-        assert_eq!(IR_JS_OPTION_FIELDS.len(), 77);
+        assert_eq!(IR_JS_OPTION_FIELDS.len(), 78);
         assert_eq!(
             IR_JS_OPTION_FIELDS
                 .iter()
@@ -1806,7 +1822,7 @@ mod tests {
 
     #[test]
     fn scored_emission_families_are_named_uniquely_and_skip_illegal_axes() {
-        assert_eq!(SCORED_EMISSION_FAMILIES.len(), 48);
+        assert_eq!(SCORED_EMISSION_FAMILIES.len(), 49);
         assert_eq!(
             SCORED_EMISSION_FAMILIES
                 .iter()

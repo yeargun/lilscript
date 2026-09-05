@@ -310,6 +310,9 @@ impl ProjectConfig {
             elide_block_terminal_semicolons: self
                 .javascript
                 .compression_enabled(CompressionDecision::StandardGrammarElision),
+            braceless_control_bodies: self
+                .javascript
+                .compression_enabled(CompressionDecision::BracelessControlBodies),
             elide_new_parentheses: self
                 .javascript
                 .compression_enabled(CompressionDecision::StandardGrammarElision),
@@ -1022,6 +1025,7 @@ impl JavaScriptPriority {
             CompressionDecision::LengthToNumberElision => matches!(self, Self::SizeFirst),
             CompressionDecision::CompactBooleanLiterals => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::StandardGrammarElision => true,
+            CompressionDecision::BracelessControlBodies => true,
             CompressionDecision::StructuredClosureInlining => {
                 !matches!(self, Self::PerformanceFirst)
             }
@@ -1102,6 +1106,7 @@ pub enum CompressionDecision {
     LengthToNumberElision,
     CompactBooleanLiterals,
     StandardGrammarElision,
+    BracelessControlBodies,
     StructuredClosureInlining,
     PureHelperInlining,
     DenseStringReturnTables,
@@ -1133,7 +1138,7 @@ pub enum CompressionDecision {
 }
 
 impl CompressionDecision {
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 40] = [
         Self::IdentifierMangling,
         Self::EntropyAwareMangling,
         Self::QuoteStyleSelection,
@@ -1145,6 +1150,7 @@ impl CompressionDecision {
         Self::LengthToNumberElision,
         Self::CompactBooleanLiterals,
         Self::StandardGrammarElision,
+        Self::BracelessControlBodies,
         Self::StructuredClosureInlining,
         Self::PureHelperInlining,
         Self::DenseStringReturnTables,
@@ -1188,6 +1194,7 @@ impl CompressionDecision {
             Self::LengthToNumberElision => "length-to-number-elision",
             Self::CompactBooleanLiterals => "compact-boolean-literals",
             Self::StandardGrammarElision => "standard-grammar-elision",
+            Self::BracelessControlBodies => "braceless-control-bodies",
             Self::StructuredClosureInlining => "structured-closure-inlining",
             Self::PureHelperInlining => "pure-helper-inlining",
             Self::DenseStringReturnTables => "dense-string-return-tables",
