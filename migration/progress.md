@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c landed** (binding identity on references, declarations, heads, loop heads, catch, module names) — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c landed** — binding identity on references, declarations, heads, loop heads, catch clauses, module names and closures; spelling is a side table and a name changed through it re-spells the module, witnessed both ways. Next: 5.3 the post-layout renamer (scopes, free names, unrenameable text) and the orderings — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -595,4 +595,36 @@ remainder is text the emitter only holds as `String` — parallel-copy targets, 
 patterns, class-instance bindings, export aliases, closure-statement helpers — and it is what 5.2
 turns into either bindings or *unrenameable* marks. Gate held: 0 byte diffs over 74 × 3, 0 trace
 diffs over 146 case-lanes, probe both lanes + 17/18, 1,714 tests, pool 146/146.
+
+**5.2a — function heads as pieces.** `JsStatement::Function { head: String }` becomes
+`head: JsHead`, a list of `Text` / `Name(bind, spelling)` / `Unbound(spelling)` pieces built where
+the text was — the statement-level head builder, `render_arrow_parameters` (now returns pieces; the
+capture-wrapper path renders them), `named_function_expression_head` + `arrow_head` +
+`parenthesized_parameters` for the six closure-head sites. The head still renders to the same
+bytes; what changed is that the name and every parameter are bindings the table can re-spell, and
+the census counts exactly the declared names (`decl_unbound` 31,277 → 31,151: anonymous heads no
+longer count an empty name). Gate held: 0 byte diffs over 74 × 3, 0 trace diffs over 146, probe both
+lanes + 17/18, 1,714 tests, pool 146/146; ports byte-identical (`6cdbe83`).
+
+**5.2b — closures as nodes with their trees kept.** A closure inside an expression was rendered to
+text and wrapped in `raw`/`atom`, which would have made every closure body unrenameable. Now
+`render_closure_statement` records the head and body tree in `closure_trees` (per emission, by
+function id) and the expression node is `JsExpressionRoot::Closure(function)`: a leaf to the
+expression grammar, a subtree to the renamer. Byte-identical by construction; gate held (0 / 0 /
+probe / 1,714 / 146); ports byte-identical (`c491f98`). The capture-snapshot wrapper
+`((p)=>closure)(args)` and the named recursive IIFE stay text — two residues on the list.
+
+**5.2c — spelling is a side table: the re-spell pass, witnessed.** `Respell` walks a module from
+the `BindTable`: a `Name` atom, a declared name, a head piece, a loop-head or catch binding whose text
+no longer matches its binding's spelling is rebuilt, a composite node whose child changed is rebuilt
+through `rebuilt_with` (the one place the grammar of every kind is spelled, now shared with the
+witness), a closure whose kept tree changed is re-rendered into its expression node. Anything
+untouched is left alone: an unchanged subtree costs one walk and no allocation, as
+[003](003-target-representation.md) requires. Two proofs. The twin (`LILSCRIPT_TWIN=1`) re-spells
+every finished module from its own table and asserts nothing changes — 0 failures over 74 cases × 3
+lanes and the probe. And a test renames every binding of a module one at a time through the table,
+checks the text changes, renames it back and checks the bytes are the original's exactly. `emit`
+is now `build_module` (the tree) + render, so the tests read the tree the emission renders. Gate:
+0 byte diffs, 0 trace diffs, probe both lanes + 17/18, 1,715 tests, pool 146/146; ports
+byte-identical (`578625f`).
 
