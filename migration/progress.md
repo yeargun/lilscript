@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | not started | — |
+| 5 — naming moves post-layout | **gate instrument landed** — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -545,4 +545,14 @@ word of an add, a struct read and write, an array index and a `print`; and `Valu
 pool 146/146. Phase 4 is complete on the node: the eight predicates of
 [010](010-what-this-unlocks.md) are all on the word. The side tables keyed by origin wait for their
 first consumer, as the plan says they should.
+
+**5-gate — the name-request-order trace, before any naming moves.** [005](005-printer-and-naming.md)
+makes the `(order, name)` sequence a phase gate stronger than bytes, so the instrument lands first,
+on the incumbent, and every naming change is judged against the trace it prints today. `Mangler`
+carries a role; `next_name` and `unique_name` record `(role, name)` into a thread-local per
+emission, and `emit` prints one block per emission on stderr (an emission runs on one thread; blocks
+are whole `eprint!`s, so parallel candidates do not interleave). The script reduces each block to a
+line and sorts, because candidate emissions run in any order. Shape on the probe: 759 requests per
+emission, 381 emissions under the shipped config. Self-gate: the same binary twice, 0 of 12 case-lanes
+differ. Off, it costs one `OnceLock` load per name. Byte-neutral by construction.
 

@@ -1142,6 +1142,42 @@ fn twin_witness_enabled() -> bool {
     *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_TWIN").as_deref() == Ok("1"))
 }
 
+/// `LILSCRIPT_NAME_TRACE=1` prints every name an emission requests, in the
+/// order it requested them, one block per emission on stderr. Identifiers
+/// are a function of request order (`Mangler::next_name` is a counter), so
+/// a naming change is judged on this sequence, not on the bytes: two
+/// systems that disagree here and still print the same artifact agreed by
+/// luck. `migration/tools/name-trace-diff.sh` compares two compilers.
+fn name_trace_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_NAME_TRACE").as_deref() == Ok("1"))
+}
+
+thread_local! {
+    /// The current emission's name requests: (mangler role, name).
+    static NAME_TRACE: RefCell<Vec<(&'static str, String)>> = const { RefCell::new(Vec::new()) };
+}
+
+fn trace_name_request(role: &'static str, name: &str) {
+    if name_trace_enabled() {
+        NAME_TRACE.with(|trace| trace.borrow_mut().push((role, name.to_string())));
+    }
+}
+
+/// One emission's trace as a report: a header with the request count, then
+/// `name-trace <order> <role> <name>` per request.
+fn name_trace_report() -> String {
+    NAME_TRACE.with(|trace| {
+        let trace = trace.borrow();
+        let mut report = String::new();
+        let _ = writeln!(report, "name-trace emission {} requests", trace.len());
+        for (order, (role, name)) in trace.iter().enumerate() {
+            let _ = writeln!(report, "name-trace {order} {role} {name}");
+        }
+        report
+    })
+}
+
 /// The receiver text shared by `o.p`, `o[k]` and both of their `?.` spellings,
 /// so a node's two renderings cannot disagree about how far to parenthesise.
 fn access_receiver(
@@ -2897,7 +2933,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             function_names: AHashMap::default(),
             identity_class_names: AHashMap::default(),
             foreign_import_names: AHashMap::default(),
-            top_level_mangler: Mangler::new(options.identifier_alphabet),
+            top_level_mangler: Mangler::for_role(options.identifier_alphabet, "top-level"),
             local_name_reservations: Vec::new(),
             preferred_local_names: AHashMap::default(),
             declared_globals: AHashSet::default(),
@@ -2955,7 +2991,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
-    fn emit(mut self) -> Result<String, CodegenError> {
+    fn emit(self) -> Result<String, CodegenError> {
+        if !name_trace_enabled() {
+            return self.emit_traced();
+        }
+        NAME_TRACE.with(|trace| trace.borrow_mut().clear());
+        let result = self.emit_traced();
+        eprint!("{}", name_trace_report());
+        result
+    }
+
+    fn emit_traced(mut self) -> Result<String, CodegenError> {
         self.validate_caller_materialized_default_abis()?;
         self.prepare();
         let entry = self.function(self.module.entry)?.clone();
@@ -6685,7 +6731,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if self.options.precise_cross_scope_shadowing
                 && !self.options.reserved_local_name_prefix
             {
-                let mut local_reservation_mangler = Mangler::new(self.options.identifier_alphabet);
+                let mut local_reservation_mangler =
+                    Mangler::for_role(self.options.identifier_alphabet, "local-reservation");
                 for _ in 0..self.options.local_name_reserve {
                     self.local_name_reservations
                         .push(local_reservation_mangler.next_name());
@@ -7533,7 +7580,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             IdentifierAlphabet::canonical()
         };
-        let mut mangler = Mangler::new(alphabet);
+        let mut mangler = Mangler::for_role(alphabet, "property");
         self.stable_property_names = stable_property_names.clone();
         for name in stable_property_names {
             mangler.reserve(&name);
@@ -7604,7 +7651,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .then_with(|| source_names[&left.0].cmp(source_names[&right.0]))
                     .then_with(|| left.0 .1.cmp(&right.0 .1))
             });
-            let mut mangler = Mangler::new(alphabet);
+            let mut mangler = Mangler::for_role(alphabet, "owned-property");
             for reserved in PROTOTYPE_SENSITIVE_PROPERTY_NAMES {
                 mangler.reserve(reserved);
             }
@@ -8526,7 +8573,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         helpers: &[FunctionId],
         reserved: &[&str],
     ) -> Result<(), CodegenError> {
-        let mut inner = Mangler::new(self.options.identifier_alphabet);
+        let mut inner = Mangler::for_role(self.options.identifier_alphabet, "inner");
         for name in reserved {
             inner.reserve(name);
         }
@@ -29013,6 +29060,8 @@ struct Mangler {
     next: usize,
     reserved: AHashSet<String>,
     alphabet: IdentifierAlphabet,
+    /// Which pool this is, for the name-request trace.
+    role: &'static str,
 }
 
 impl Default for Mangler {
@@ -29023,10 +29072,15 @@ impl Default for Mangler {
 
 impl Mangler {
     fn new(alphabet: IdentifierAlphabet) -> Self {
+        Self::for_role(alphabet, "mangler")
+    }
+
+    fn for_role(alphabet: IdentifierAlphabet, role: &'static str) -> Self {
         Self {
             next: 0,
             reserved: AHashSet::default(),
             alphabet,
+            role,
         }
     }
 
@@ -29052,6 +29106,7 @@ impl Mangler {
             self.next += 1;
             if !self.reserved.contains(&name) && !is_js_reserved(&name) {
                 self.reserved.insert(name.clone());
+                trace_name_request(self.role, &name);
                 return name;
             }
         }
@@ -29066,12 +29121,14 @@ impl Mangler {
             preferred.to_string()
         };
         if self.reserved.insert(base.clone()) {
+            trace_name_request(self.role, &base);
             return base;
         }
         let mut suffix = 2;
         loop {
             let candidate = format!("{base}${suffix}");
             if self.reserved.insert(candidate.clone()) {
+                trace_name_request(self.role, &candidate);
                 return candidate;
             }
             suffix += 1;
