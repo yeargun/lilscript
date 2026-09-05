@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 100% nodes on the probe and on all 72 cases in three lanes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **emitter side done** — no emitter path pushes text into a block (every `push_str` left is on a `String` scratch or a render arm); `BracedFunction` and `close_statement_block` gone. Remaining: the text-reading classifiers (`compact_*`, `is_braceless_statement`, `merge_conditional_assignments`, …) move onto the list, the three `JsBlock::from(compact)` folds and the rotation's `from(rest)` become list operations, `Raw` is retired, then `text` is deleted and G1/G2 follow the fold-deletion protocol | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **28** (most on `String` scratches) |
-| statement nodes (`push_statement`) | 0 | **67** |
+| fragment appends (`push_str`) | 324 | **0 into blocks** (10 on `String` scratches and render arms) |
+| statement nodes (`push_statement`) | 0 | **73** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -319,3 +319,20 @@ members }` with `ClassField` members and `Function` methods; the object-literal 
 `String`s (`push_object_literal_key` takes one); the entry state machine is an `Expression`
 over a nested body; the `;` the module needs before an export list is an explicit `Empty`
 statement. Zero byte diffs in three lanes, candidate sets identical, pool 144/144.
+
+**Port verification of `5622552` (module-level and class nodes), pool, background:** markedlil
+9,431 and zodlil 32,609 — identical bytes to `7012629`.
+
+**Batch 13 — the emitter side of phase 3 is done.** The last block-typed pushes (a second entry
+state machine, `var name;`, `s??(e);`, `t=t||v;`, `t=m?i:t;`, the structured fusion batch) are
+nodes; the `BracedFunction` frame and `close_statement_block` are deleted because no path wants a
+dispatcher to own braces any more. Static census: 0 `push_str` into a block. What still turns
+text into blocks: `compact_top_level_expression_statements` (a byte-scanning fold over a loop
+body, three call sites), `rotate_guarded_decrement`'s `JsBlock::from(rest)`, `truncate` (list
+mirroring), and three `Raw` constructions (the local-update fallback, the empty import, the merge
+tail fallback). What still reads block text to decide: ~25 `Deref<str>` uses and the classifier
+family (`is_braceless_statement`, `is_comma_eligible_statement`, `compact_branch_expression`,
+`compact_ternary_arm`, `compact_return_expression`, `compact_sequence_expression`,
+`merge_conditional_assignments`, `conditional_assignment_expression`, `negated_self_or_assign`,
+`optional_method_reassign`, `concise_arrow_body` is already structural). Those are phase 3's
+remaining work, and they are where the G1/G2 folds live.

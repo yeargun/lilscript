@@ -2980,7 +2980,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let mut body = out.nested();
             self.emit_state_machine(&entry, &mut body)?;
             out.push_statement(JsStatement::Expression {
-                value: JsExpression::raw(format!("(()=>{})()", body.into_string()), JsPrecedence::Call),
+                value: JsExpression::raw(
+                    format!("(()=>{{{}}})()", body.into_string()),
+                    JsPrecedence::Call,
+                ),
             });
         }
         self.loop_captured_closures.clear();
@@ -6478,9 +6481,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else if can_structure(&entry) {
             self.emit_structured(&entry, BodyFrame::Bare, out)
         } else {
-            out.push_str("(()=>");
-            self.emit_state_machine(&entry, out)?;
-            out.push_str(")();");
+            let mut body = out.nested();
+            self.emit_state_machine(&entry, &mut body)?;
+            out.push_statement(JsStatement::Expression {
+                value: JsExpression::raw(
+                    format!("(()=>{{{}}})()", body.into_string()),
+                    JsPrecedence::Call,
+                ),
+            });
             Ok(())
         };
         self.loop_captured_closures = restored_loop_captures;
@@ -10064,9 +10072,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
         context.inline_declarations = true;
-        if frame.braced() {
-            out.push('{');
-        }
         if frame.is_function() {
             self.emit_nested_once_run_helpers(function.id, out)?;
             self.emit_calling_convention_aliases(function, &context, out)?;
@@ -10258,9 +10263,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "single-block function has a control-flow terminator",
                 ));
             }
-        }
-        if frame.braced() {
-            close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
         Ok(())
     }
@@ -10535,9 +10537,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let declare = context.claim_local_declaration(*local)?;
                 if declare && context.is_js_undefined(*value) {
                     let _ = take_value(*value, context, cache)?;
-                    out.push_str("var ");
-                    out.push_str(&name);
-                    out.push(';');
+                    out.push_statement(JsStatement::Declaration {
+                        keyword: "var ",
+                        name,
+                    });
                     return Ok(());
                 }
                 if !declare {
@@ -10557,7 +10560,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             Some(expression) => out.push_statement(JsStatement::Expression {
                                 value: JsExpression::raw(expression, JsPrecedence::Assignment),
                             }),
-                            None => out.push_str(&update),
+                            None => out.push_statement(JsStatement::Raw(update)),
                         }
                         return Ok(());
                     }
@@ -11095,7 +11098,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.global_names,
         );
         self.with_published_js_scope(function.id, context.binding_names(), |this| {
-            this.emit_state_machine_with_context(function, BodyFrame::BracedFunction, context, out)
+            this.emit_state_machine_with_context(function, BodyFrame::Function, context, out)
         })
     }
 
@@ -11106,9 +11109,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: LocalNames,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
-        if frame.braced() {
-            out.push('{');
-        }
         self.emit_nested_once_run_helpers(function.id, out)?;
         self.emit_calling_convention_aliases(function, &context, out)?;
         let declared = context.non_parameter_names(function);
@@ -11335,9 +11335,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             },
             options,
         );
-        if frame.braced() {
-            close_statement_block(out, self.options.elide_block_terminal_semicolons);
-        }
         Ok(())
     }
 
@@ -11374,9 +11371,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: LocalNames,
         out: &mut JsBlock,
     ) -> Result<(), CodegenError> {
-        if frame.braced() {
-            out.push('{');
-        }
         if frame.is_function() {
             self.emit_nested_once_run_helpers(function.id, out)?;
             self.emit_calling_convention_aliases(function, &context, out)?;
@@ -11405,9 +11399,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // A function whose body falls off the end after a bare `return;` has a
         // statement that does nothing; the block knows it emitted one.
         out.drop_trailing_bare_return();
-        if frame.braced() {
-            close_statement_block(out, self.options.elide_block_terminal_semicolons);
-        }
         Ok(())
     }
 
@@ -11827,10 +11818,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         }
                                         deferred_merge = Some((phi_out, fused));
                                     } else {
-                                        out.push_str(source_name);
-                                        out.push_str("??(");
-                                        out.push_str(&expression);
-                                        out.push_str(");");
+                                        out.push_statement(JsStatement::Expression {
+                                            value: JsExpression::raw(
+                                                format!("{source_name}??({expression})"),
+                                                JsPrecedence::LogicalOr,
+                                            ),
+                                        });
                                     }
                                 }
                             } else {
@@ -11851,12 +11844,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             if let Some((target, value)) =
                                 negated_self_or_assign(&condition, &then_output)
                             {
-                                out.push_str(&target);
-                                out.push('=');
-                                out.push_str(&target);
-                                out.push_str("||");
-                                out.push_str(&value);
-                                out.push(';');
+                                out.push_statement(JsStatement::Expression {
+                                    value: JsExpression::raw(
+                                        format!("{target}={target}||{value}"),
+                                        JsPrecedence::Assignment,
+                                    ),
+                                });
                             } else {
                                 let method_condition = if condition_was_negated {
                                     &negated_condition
@@ -11866,14 +11859,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 if let Some((target, method, invoke)) =
                                     optional_method_reassign(method_condition, &then_output)
                                 {
-                                    out.push_str(target);
-                                    out.push('=');
-                                    out.push_str(method);
-                                    out.push('?');
-                                    out.push_str(invoke);
-                                    out.push(':');
-                                    out.push_str(target);
-                                    out.push(';');
+                                    out.push_statement(JsStatement::Expression {
+                                        value: JsExpression::raw(
+                                            format!("{target}={method}?{invoke}:{target}"),
+                                            JsPrecedence::Assignment,
+                                        ),
+                                    });
                                 } else if let Some(then_expression) = self
                                     .options
                                     .conditional_expressions
@@ -13708,7 +13699,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 cache,
                 &fuse_with_next,
             )? {
-                out.push_str(&batched);
+                out.push_block(&batched);
                 index += consumed;
                 continue;
             }
@@ -18315,15 +18306,6 @@ fn expression_statement(expression: JsExpression) -> String {
     }
 }
 
-fn close_statement_block(out: &mut JsBlock, elide_terminal_semicolon: bool) {
-    // Call only at an emitter-owned StatementList boundary. A blind `;}`
-    // rewrite could erase the required body of `if(test);` or `for(;;);`.
-    if elide_terminal_semicolon {
-        out.drop_trailing_semicolon();
-    }
-    out.push('}');
-}
-
 fn is_braceless_statement(output: &str) -> bool {
     let statement = output.strip_suffix(';').unwrap_or(output);
     if statement.is_empty()
@@ -21868,24 +21850,17 @@ enum JsFunctionBody {
 }
 
 /// How a body dispatcher frames what it emits. `Bare` is the module entry:
-/// no braces, no function helpers. `Function` emits the once-run helpers and
-/// calling-convention aliases but no braces -- the `Function` node owns those.
-/// `BracedFunction` is the old wrapped shape, kept for the closure paths that
-/// still take a body as text.
+/// no function helpers. `Function` emits the once-run helpers and the
+/// calling-convention aliases; the braces are always the enclosing node's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BodyFrame {
     Bare,
     Function,
-    BracedFunction,
 }
 
 impl BodyFrame {
     fn is_function(self) -> bool {
         self != Self::Bare
-    }
-
-    fn braced(self) -> bool {
-        self == Self::BracedFunction
     }
 }
 
