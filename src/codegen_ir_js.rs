@@ -10608,17 +10608,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out,
                     )?;
                 }
-                if self.declared_globals.insert(*global) && context.claim_name(&name) {
-                    out.push_str(if self.deferred_global_declarations.contains(global) {
+                let declared = self.declared_globals.insert(*global) && context.claim_name(&name);
+                let keyword = declared.then(|| {
+                    if self.deferred_global_declarations.contains(global) {
                         "var "
                     } else {
                         "let "
-                    });
-                }
-                out.push_str(&name);
-                out.push('=');
-                out.push_str(&value);
-                out.push(';');
+                    }
+                });
+                out.push_statement(JsStatement::Binding {
+                    keyword,
+                    name,
+                    value: JsExpression::raw(value, JsPrecedence::Assignment),
+                });
                 return Ok(());
             }
             ControlFlowOp::FieldSet {
@@ -16633,43 +16635,42 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let ordinary_function = recursive_name.is_some()
                         || self.emits_ordinary_function_expression(&function, calling_convention);
                     if ordinary_function {
-                        let mut body = JsBlock::from(String::from("{"));
+                        let mut body = JsBlock::new();
                         self.emit_calling_convention_aliases(&function, &context, &mut body)?;
-                        body.push_str("return ");
-                        body.push_str(&expression);
-                        close_statement_block(
-                            &mut body,
-                            self.options.elide_block_terminal_semicolons,
-                        );
-                        return Ok(format!(
-                            "{}{body}",
-                            named_function_expression_head(recursive_name.as_deref(), &parameters)
+                        body.push_statement(JsStatement::Return {
+                            value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
+                        });
+                        return Ok(self.render_closure_statement(
+                            named_function_expression_head(recursive_name.as_deref(), &parameters),
+                            JsFunctionBody::Block(body),
                         ));
                     }
-                    let mut rendered = JsBlock::from(format!("{parameters}=>"));
-                    push_concise_arrow_body(&mut rendered, &expression);
-                    return Ok(rendered.into_string());
+                    return Ok(self.render_closure_statement(
+                        format!("{parameters}=>"),
+                        JsFunctionBody::Concise(expression),
+                    ));
                 }
             }
             context.inline_declarations = true;
             let mut body = JsBlock::new();
             if can_structure(&function) {
-                self.emit_structured_with_context(&function, BodyFrame::BracedFunction, context, &mut body)?;
+                self.emit_structured_with_context(&function, BodyFrame::Function, context, &mut body)?;
             } else {
-                self.emit_state_machine_with_context(&function, BodyFrame::BracedFunction, context, &mut body)?;
+                self.emit_state_machine_with_context(
+                    &function,
+                    BodyFrame::Function,
+                    context,
+                    &mut body,
+                )?;
             }
-            return Ok(
-                if recursive_name.is_some()
-                    || self.emits_ordinary_function_expression(&function, calling_convention)
-                {
-                    format!(
-                        "{}{body}",
-                        named_function_expression_head(recursive_name.as_deref(), &parameters)
-                    )
-                } else {
-                    format!("{parameters}=>{body}")
-                },
-            );
+            let head = if recursive_name.is_some()
+                || self.emits_ordinary_function_expression(&function, calling_convention)
+            {
+                named_function_expression_head(recursive_name.as_deref(), &parameters)
+            } else {
+                format!("{parameters}=>")
+            };
+            return Ok(self.render_closure_statement(head, JsFunctionBody::Block(body)));
         }
         let expression_closure = match function.blocks[0].terminator {
             Some(Terminator::Return(Some(value))) => !context.is_js_undefined(value),
@@ -16681,27 +16682,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !expression_closure {
             let parameters = self.render_closure_parameter_list(&function, &context)?;
             let mut body = JsBlock::new();
-            self.emit_single_block_with_context(&function, BodyFrame::BracedFunction, context, &mut body)?;
-            return Ok(
-                if recursive_name.is_some()
-                    || self.emits_ordinary_function_expression(&function, calling_convention)
-                {
-                    format!(
-                        "{}{body}",
-                        named_function_expression_head(recursive_name.as_deref(), &parameters)
-                    )
-                } else {
-                    let body = match concise_arrow_body_text(&body) {
-                        Some(expression) => {
-                            let mut concise = JsBlock::new();
-                            push_concise_arrow_body(&mut concise, &expression);
-                            concise.into_string()
-                        }
-                        None => body.into_string(),
-                    };
-                    format!("{parameters}=>{body}")
-                },
-            );
+            self.emit_single_block_with_context(&function, BodyFrame::Function, context, &mut body)?;
+            if recursive_name.is_some()
+                || self.emits_ordinary_function_expression(&function, calling_convention)
+            {
+                return Ok(self.render_closure_statement(
+                    named_function_expression_head(recursive_name.as_deref(), &parameters),
+                    JsFunctionBody::Block(body),
+                ));
+            }
+            let body = match concise_arrow_body(&body) {
+                Some(expression) => JsFunctionBody::Concise(expression),
+                None => JsFunctionBody::Block(body),
+            };
+            return Ok(self.render_closure_statement(format!("{parameters}=>"), body));
         }
         let uses = use_counts(&function);
         let mut cache = AHashMap::default();
@@ -16737,37 +16731,50 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let parameters = self.render_closure_parameter_list(&function, &context)?;
         let ordinary_function = recursive_name.is_some()
             || self.emits_ordinary_function_expression(&function, calling_convention);
-        let mut rendered = JsBlock::from(if ordinary_function {
-            format!(
-                "{}{{",
-                named_function_expression_head(recursive_name.as_deref(), &parameters)
-            )
+        let head = if ordinary_function {
+            named_function_expression_head(recursive_name.as_deref(), &parameters)
         } else {
             format!("{parameters}=>")
-        });
-        // `{let a=..;return v}` -- the body statements, then the return
-        // with its terminator elided against the closing brace, as the text
-        // always spelled it.
-        let mut push_body = |rendered: &mut JsBlock, prefix: Vec<JsStatement>| {
-            for statement in prefix {
-                rendered.push_statement(statement);
-            }
-            rendered.push_statement(JsStatement::Return {
-                value: Some(JsExpression::raw(returned.as_str(), JsPrecedence::Assignment)),
-            });
-            rendered.drop_trailing_semicolon();
-            rendered.push('}');
         };
-        if ordinary_function {
-            self.emit_calling_convention_aliases(&function, &context, &mut rendered)?;
-            push_body(&mut rendered, prefix);
-        } else if prefix.is_empty() {
-            push_concise_arrow_body(&mut rendered, &returned);
+        // `{let a=..;return v}` -- the body statements, then the return with
+        // its terminator elided against the closing brace, as the text always
+        // spelled it whatever the block option said.
+        let body = if ordinary_function || !prefix.is_empty() {
+            let mut body = JsBlock::new();
+            if ordinary_function {
+                self.emit_calling_convention_aliases(&function, &context, &mut body)?;
+            }
+            for statement in prefix {
+                body.push_statement(statement);
+            }
+            body.push_statement(JsStatement::Return {
+                value: Some(JsExpression::raw(returned, JsPrecedence::Assignment)),
+            });
+            JsFunctionBody::Block(body)
         } else {
-            rendered.push('{');
-            push_body(&mut rendered, prefix);
+            JsFunctionBody::Concise(returned)
+        };
+        Ok(JsStatement::Function {
+            head,
+            body,
+            terminated: false,
         }
-        Ok(rendered.into_string())
+        .render(JsStatementOptions {
+            elide_block_terminal_semicolons: true,
+        }))
+    }
+
+    /// An inlined closure as text: the `Function` node rendered with this
+    /// emitter's options. Closures are expressions, never terminated.
+    fn render_closure_statement(&self, head: String, body: JsFunctionBody) -> String {
+        JsStatement::Function {
+            head,
+            body,
+            terminated: false,
+        }
+        .render(JsStatementOptions {
+            elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
+        })
     }
 
     fn default_class_value(&self, class: &str, boundary: bool) -> Result<String, CodegenError> {
@@ -16784,13 +16791,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })?;
         let named = (boundary && self.options.public_aggregate_fields)
             || self.class_uses_named_fields(class);
-        let mut value = JsBlock::from(String::from(if named { "{" } else { "[" }));
+        let mut value = String::from(if named { "{" } else { "[" });
         for (index, field) in layout.fields.iter().enumerate() {
             if index != 0 {
                 value.push(',');
             }
             if named {
-                self.push_named_literal_key(
+                self.push_named_literal_key_text(
                     &mut value,
                     self.owned_property_name(class, field.index, field.name),
                 );
@@ -16801,7 +16808,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ));
         }
         value.push(if named { '}' } else { ']' });
-        Ok(value.into_string())
+        Ok(value)
     }
 
     fn render_inlined_class_value(
@@ -16859,6 +16866,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn push_named_literal_key(&self, out: &mut JsBlock, property: &str) {
+        let mut text = String::new();
+        self.push_named_literal_key_text(&mut text, property);
+        out.push_str(&text);
+    }
+
+    fn push_named_literal_key_text(&self, out: &mut String, property: &str) {
         if property == "__proto__" {
             out.push('[');
             out.push_str(&render_property_key_literal(
@@ -17649,30 +17662,6 @@ fn concise_arrow_body(body: &JsBlock) -> Option<String> {
         return None;
     }
     Some(expression)
-}
-
-/// The same decision on a braced body as text, for the closure path that
-/// still takes its body that way.
-fn concise_arrow_body_text(body: &JsBlock) -> Option<String> {
-    let inner = body.strip_prefix('{')?.strip_suffix('}')?;
-    let expression = inner.strip_prefix("return ")?;
-    let expression = expression.strip_suffix(';').unwrap_or(expression);
-    if expression.is_empty() || expression_has_top_level_statement_break(expression) {
-        return None;
-    }
-    Some(expression.to_string())
-}
-
-/// A concise arrow body starting with `{` would parse as a block statement, so an object
-/// literal keeps parentheses. Two bytes still beat spelling out `{return ;}`.
-fn push_concise_arrow_body(out: &mut JsBlock, expression: &str) {
-    if expression.starts_with('{') {
-        out.push('(');
-        out.push_str(expression);
-        out.push(')');
-        return;
-    }
-    out.push_str(expression);
 }
 
 fn object_method_shorthand(property: &str, expression: &JsExpression) -> Option<String> {

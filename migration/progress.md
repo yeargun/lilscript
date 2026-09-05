@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 97% nodes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 98.7% nodes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **171** |
-| statement nodes (`push_statement`) | 0 | **32** |
+| fragment appends (`push_str`) | 324 | **167** |
+| statement nodes (`push_statement`) | 0 | **33** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -153,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **97% of statement bytes arrive as nodes** (probe, shipped config). Functions are `JsStatement::Function { head, body: JsFunctionBody, terminated }` — the node owns the braces, the terminal-semicolon elision and the arrow binding's `;`; the three body dispatchers take a `BodyFrame` (`Bare` / `Function` / `BracedFunction`) instead of a `wrapped` flag that bundled braces with the helper emission; the concise-arrow decision is `[Return v]` on the list, not `{return X;}` on text; the `int` parameter coercions are the body's first statements, not a `strip_prefix('{')` splice. Raw bytes 1,255,537 → … → 57,738 over 57 sites; what remains: the global store, the closure paths' text bodies, `try`/`catch`/`finally`, the state machine | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **98.7% of statement bytes arrive as nodes** (probe, shipped config). Functions, loops, `let`/`var` lists, stores, the closure paths (rendered through the `Function` node), the global store — all nodes; `concise_arrow_body_text` and `push_concise_arrow_body` are gone. Raw bytes 1,255,537 → … → 29,035 over 46 sites; what remains: `try`/`catch`/`finally`, the state machine, expression scratches still typed as blocks | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |
@@ -259,3 +259,20 @@ across all 72 cases.
 
 **Port verification of `dae03f2` (stores as nodes), pool, background:** markedlil 9,431 and
 zodlil 32,609 — identical bytes to `6b8062f` on both.
+
+**Port verification of `2d7a01a` (the `Function` node), pool, background:** markedlil 9,431
+identical; **zodlil 32,627 (+18 Brotli-11, raw +9)**. Cause found: `push_return_conditional`
+still pushed `return c?a:b;` as text, so the structural concise-arrow check (`[Return v]`) no
+longer saw what the `{return X;}` text check had matched — one arrow in zodlil lost its concise
+spelling (`{return }` is the 9 raw bytes). Not reproducible on the 72 cases in any lane
+(shipped, none, arrow, level-15 production). Fixed in the next commit by making that return a
+node; the zodlil number is expected back at 32,609.
+
+**Why the tree matters for the codec objectives (owner's question, 2026-09-05):** every variant
+the search scores today is a text rewrite (`top_level_declaration_variants` flips `let`/`var`
+with `strip_prefix`; `compact_return_expression` is a list of `starts_with` guards; the let
+grouping refused any value containing a `;` — worth 638 B on one case once decided on the
+node). On values, variants can be structural (grouping, statement shapes, reordering of
+effect-free runs, `if`/`?:`/`&&` forms), scoring can re-render subtrees instead of the whole
+artifact, and names become values — where the katexlil gap lives. Headroom for the later
+phases, measured against the ±100 noise floor like everything else.
