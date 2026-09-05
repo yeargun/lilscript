@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **46** |
-| statement nodes (`push_statement`) | 0 | **60** |
+| fragment appends (`push_str`) | 324 | **28** (most on `String` scratches) |
+| statement nodes (`push_statement`) | 0 | **67** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -308,3 +308,14 @@ lanes: 12,198 + 63,508 + 19,562 raw bytes before → 0 + 0 + 0 after. Candidate 
 (1,274 each, 152 state-machine renders) under `candidate-diff.sh`. One compile in the
 forced-search lane fails on both binaries (`type_guards`: the startup-cost guard rejects every
 candidate under that synthetic config) — not a regression, a limit of the lane.
+
+**Port verification of `7012629` (module let list, cluster IIFEs, dynamic remainder), pool,
+background:** markedlil 9,431 and zodlil 32,609 — identical bytes to `9254eeb`.
+
+**Batch 12 (the static remainder, by reading):** the export list and the chunk imports use the
+existing `Export`/`Import` nodes (an empty import list stays exact as `Raw`, since the node's
+empty shape is the side-effect import); identity classes are `JsStatement::Class { head,
+members }` with `ClassField` members and `Function` methods; the object-literal scratches are
+`String`s (`push_object_literal_key` takes one); the entry state machine is an `Expression`
+over a nested body; the `;` the module needs before an export list is an explicit `Empty`
+statement. Zero byte diffs in three lanes, candidate sets identical, pool 144/144.

@@ -2977,9 +2977,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else if entry_can_structure {
             self.emit_structured(&entry, BodyFrame::Bare, &mut out)?;
         } else {
-            out.push_str("(()=>");
-            self.emit_state_machine(&entry, &mut out)?;
-            out.push_str(")();");
+            let mut body = out.nested();
+            self.emit_state_machine(&entry, &mut body)?;
+            out.push_statement(JsStatement::Expression {
+                value: JsExpression::raw(format!("(()=>{})()", body.into_string()), JsPrecedence::Call),
+            });
         }
         self.loop_captured_closures.clear();
         if self.module_output {
@@ -6072,11 +6074,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if module.exports.is_empty() {
             return Ok(());
         }
-        out.push_str("export{");
-        for (index, export) in module.exports.iter().enumerate() {
-            if index != 0 {
-                out.push(',');
-            }
+        let mut bindings = Vec::new();
+        for export in &module.exports {
             let binding = match export.binding {
                 ExportBinding::Function(function) => self.function_name(function)?,
                 ExportBinding::Global(global) => self.global_name(global)?,
@@ -6087,13 +6086,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     ));
                 }
             };
-            out.push_str(binding);
-            if binding != export.name {
-                out.push_str(" as ");
-                out.push_str(export.name);
-            }
+            bindings.push(JsModuleBinding {
+                name: binding.to_string(),
+                alias: (binding != export.name).then(|| export.name.to_string()),
+            });
         }
-        out.push_str("};");
+        out.push_statement(JsStatement::Export { bindings });
         Ok(())
     }
 
@@ -6496,7 +6494,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut names = names.iter().collect::<Vec<_>>();
         names.sort_unstable();
         if !out.is_empty() && !out.ends_with_semicolon() {
-            out.push(';');
+            out.push_statement(JsStatement::Empty);
         }
         out.push_statement(JsStatement::Export {
             bindings: names
@@ -6541,7 +6539,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(());
         }
         if !out.is_empty() && !out.ends_with_semicolon() {
-            out.push(';');
+            out.push_statement(JsStatement::Empty);
         }
         out.push_statement(JsStatement::Export {
             bindings: runtime_exports
@@ -9356,8 +9354,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         methods.sort_unstable_by_key(|(name, id)| (*name, id.0));
-        out.push_str("class ");
-        out.push_str(&binding);
+        let mut head = format!("class {binding}");
         if let Some(base) = self
             .module
             .classes
@@ -9365,10 +9362,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .find(|layout| layout.name == class)
             .and_then(|layout| layout.base)
         {
-            out.push_str(" extends ");
-            out.push_str(self.identity_class_binding(base)?);
+            head.push_str(" extends ");
+            head.push_str(self.identity_class_binding(base)?);
         }
-        out.push('{');
+        let mut members = out.nested();
         let layout = self
             .module
             .classes
@@ -9391,29 +9388,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         for field in layout.fields.iter().skip(inherited_fields) {
             let property = self.owned_property_name(class, field.index, field.name);
-            if is_js_property_identifier(property) {
-                out.push_str(property);
+            let key = if is_js_property_identifier(property) {
+                property.to_string()
             } else {
-                out.push('[');
-                out.push_str(&render_string_literal(property, self.options.string_quote));
-                out.push(']');
-            }
-            out.push('=');
-            out.push_str(default_value(
-                &field.ty,
-                self.options.compact_boolean_literals,
-            ));
-            out.push(';');
+                format!("[{}]", render_string_literal(property, self.options.string_quote))
+            };
+            members.push_statement(JsStatement::ClassField {
+                key,
+                value: default_value(&field.ty, self.options.compact_boolean_literals).to_string(),
+            });
         }
         if let Some(constructor) = constructor {
             let function = self.function(constructor)?.clone();
-            self.emit_function_body(&function, "constructor".to_string(), false, true, out)?;
+            self.emit_function_body(&function, "constructor".to_string(), false, true, &mut members)?;
         }
         for (name, id) in methods {
             let function = self.function(id)?.clone();
-            self.emit_function_body(&function, name.to_string(), false, true, out)?;
+            self.emit_function_body(&function, name.to_string(), false, true, &mut members)?;
         }
-        out.push('}');
+        out.push_statement(JsStatement::Class { head, members });
         Ok(())
     }
 
@@ -10361,7 +10354,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &mut rendered,
             )?;
         }
-        let mut literal = JsBlock::from(String::from("{"));
+        let mut literal = String::from("{");
         for (index, (key, value)) in pairs.iter().enumerate() {
             if index != 0 {
                 literal.push(',');
@@ -10483,22 +10476,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             cache,
             &mut rendered,
         )?;
-        rendered.push_str("Object.assign(");
-        rendered.push_str(&take_value(object, context, cache)?);
-        rendered.push_str(",{");
+        let mut assign = format!("Object.assign({},{{", &*take_value(object, context, cache)?);
         for (index, (key, value)) in pairs.iter().enumerate() {
             if index != 0 {
-                rendered.push(',');
+                assign.push(',');
             }
-            push_object_literal_key(
-                &mut rendered,
-                self.property_name(key),
-                self.options.string_quote,
-            );
-            rendered.push(':');
-            rendered.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+            push_object_literal_key(&mut assign, self.property_name(key), self.options.string_quote);
+            assign.push(':');
+            assign.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
         }
-        rendered.push_str("});");
+        assign.push_str("})");
+        rendered.push_statement(JsStatement::Expression {
+            value: JsExpression::raw(assign, JsPrecedence::Call),
+        });
         Ok(Some((last_assign + 1 - start, rendered)))
     }
 
@@ -17357,19 +17347,23 @@ fn emit_chunk_imports(
         }
         let mut names = names.iter().collect::<Vec<_>>();
         names.sort_unstable();
-        out.push_str("import{");
-        for (index, name) in names.iter().enumerate() {
-            if index != 0 {
-                out.push(',');
-            }
-            out.push_str(name);
+        let source = render_generated_module_specifier(&format!("./{}", files[*source]), quote);
+        if names.is_empty() {
+            // `import{}from"x";` -- the node's empty-binding shape is the
+            // side-effect import, which this is not.
+            out.push_statement(JsStatement::Raw(format!("import{{}}from{source};")));
+        } else {
+            out.push_statement(JsStatement::Import {
+                bindings: names
+                    .iter()
+                    .map(|name| JsModuleBinding {
+                        name: name.to_string(),
+                        alias: None,
+                    })
+                    .collect(),
+                source,
+            });
         }
-        out.push_str("}from");
-        out.push_str(&render_generated_module_specifier(
-            &format!("./{}", files[*source]),
-            quote,
-        ));
-        out.push(';');
     }
 }
 
@@ -19648,7 +19642,7 @@ fn object_literal_key(source_key: &str, quote: StringQuote) -> String {
     render_property_key_literal(source_key, quote)
 }
 
-fn push_object_literal_key(out: &mut JsBlock, source_key: &str, quote: StringQuote) {
+fn push_object_literal_key(out: &mut String, source_key: &str, quote: StringQuote) {
     out.push_str(&object_literal_key(source_key, quote));
 }
 
@@ -21845,6 +21839,16 @@ enum JsStatement {
         discriminant: String,
         cases: Vec<JsCase>,
     },
+    /// `class X extends Y{..}` -- the head text and the members as statements:
+    /// fields as `ClassField`, the constructor and methods as `Function`.
+    /// A class body has no terminal-semicolon elision.
+    Class { head: String, members: JsBlock },
+    /// `key=value;` inside a class body; the key is spelled (`[..]` for a
+    /// non-identifier).
+    ClassField { key: String, value: String },
+    /// `;` on its own -- the separator the module needs between a bare
+    /// closing brace and what follows.
+    Empty,
     /// `while(c){..}`, `for(i;c;u){..}`, `for(;;){..}`, and the do-shape
     /// `if(c)do{..}while(c);` -- a head, a body branch, and the trailing
     /// condition the do-shape repeats.
@@ -22154,6 +22158,9 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
+            Self::Class { head, members } => format!("{head}{{{}}}", members.into_string()),
+            Self::ClassField { key, value } => format!("{key}={value};"),
+            Self::Empty => ";".to_string(),
             Self::Switch {
                 discriminant,
                 cases,
