@@ -1400,7 +1400,10 @@ fn render(
             ))
         }
         // Leaves: their text is the datum, not a rendering of children.
-        JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Raw => None,
+        JsExpressionRoot::Atom
+        | JsExpressionRoot::Name(_)
+        | JsExpressionRoot::Closure(_)
+        | JsExpressionRoot::Raw => None,
     }
 }
 
@@ -1442,6 +1445,10 @@ enum JsExpressionRoot {
     /// An identifier that names a binding of this emission. Its `code` is the
     /// binding's spelling at construction; the `Bind` is its identity.
     Name(Bind),
+    /// A closure rendered as text, whose head and body tree the emitter keeps
+    /// in `closure_trees` under this function id: a leaf to the expression
+    /// grammar, a subtree to the renamer.
+    Closure(FunctionId),
     Unary(JsUnary),
     Binary(IrBinaryOp),
     Nullish,
@@ -1475,7 +1482,7 @@ impl JsExpressionRoot {
     /// spread across the constructors. See `migration/003-target-representation.md`.
     const fn grammar_arity(self) -> Option<usize> {
         match self {
-            Self::Atom | Self::Name(_) | Self::Raw => Some(0),
+            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw => Some(0),
             Self::Unary(_)
             | Self::IntegerNormalization
             | Self::NullNormalized
@@ -1509,7 +1516,7 @@ impl JsExpressionRoot {
             Self::Conditional => 3,
             // Variadic: callee plus arguments, all retained.
             Self::Call => 0,
-            Self::Atom | Self::Name(_) | Self::Raw => 0,
+            Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw => 0,
         }
     }
 
@@ -1950,6 +1957,14 @@ impl JsExpression {
         node
     }
 
+    /// A closure as text, with the function whose tree renders it.
+    fn closure(function: FunctionId, code: impl Into<String>, precedence: JsPrecedence) -> Self {
+        Self {
+            root: JsExpressionRoot::Closure(function),
+            ..Self::raw(code, precedence)
+        }
+    }
+
     fn raw(code: impl Into<String>, precedence: JsPrecedence) -> Self {
         Self {
             code: code.into(),
@@ -2261,9 +2276,10 @@ impl JsExpression {
         let child = |index: usize| self.operands[index].rebuilt(options);
         match self.root {
             // Leaves: the text is the datum, so there is nothing to rebuild.
-            JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Raw => {
-                self.clone()
-            }
+            JsExpressionRoot::Atom
+            | JsExpressionRoot::Name(_)
+            | JsExpressionRoot::Closure(_)
+            | JsExpressionRoot::Raw => self.clone(),
             JsExpressionRoot::Unary(operator) => Self::unary(operator.as_str(), child(0)),
             JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
             JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
@@ -2320,7 +2336,9 @@ impl JsExpression {
     fn may_have_effects(&self) -> bool {
         match self.root {
             JsExpressionRoot::Call | JsExpressionRoot::Raw => true,
-            JsExpressionRoot::Atom | JsExpressionRoot::Name(_) => false,
+            JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Closure(_) => {
+                false
+            }
             _ => self.operands.iter().any(Self::may_have_effects),
         }
     }
@@ -2788,6 +2806,9 @@ struct IrJsEmitter<'module, 'src> {
     /// Module-level bindings: the function and global names, by id.
     function_name_binds: AHashMap<FunctionId, Bind>,
     global_binds: AHashMap<SymbolId, Bind>,
+    /// The head and body tree of every closure rendered into an expression,
+    /// by function: the text in the expression node is their rendering.
+    closure_trees: RefCell<AHashMap<FunctionId, (JsHead, JsFunctionBody)>>,
     local_name_reservations: Vec<String>,
     preferred_local_names: AHashMap<String, String>,
     declared_globals: AHashSet<SymbolId>,
@@ -3007,6 +3028,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             bind_table,
             function_name_binds: AHashMap::default(),
             global_binds: AHashMap::default(),
+            closure_trees: RefCell::new(AHashMap::default()),
             local_name_reservations: Vec::new(),
             preferred_local_names: AHashMap::default(),
             declared_globals: AHashSet::default(),
@@ -14744,7 +14766,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     let rendered = self.render_closure(*function, &closure_captures)?;
                     if wrapper_parameters.is_empty() {
-                        return Ok(JsExpression::raw(rendered, JsPrecedence::Assignment));
+                        return Ok(JsExpression::closure(
+                            *function,
+                            rendered,
+                            JsPrecedence::Assignment,
+                        ));
                     }
                     return Ok(JsExpression::atom(format!(
                         "(({})=>{rendered})({})",
@@ -14753,11 +14779,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     )));
                 }
                 let rendered = self.render_closure(*function, &captures)?;
-                if rendered.contains("=>") {
-                    JsExpression::raw(rendered, JsPrecedence::Assignment)
+                let precedence = if rendered.contains("=>") {
+                    JsPrecedence::Assignment
                 } else {
-                    JsExpression::atom(rendered)
-                }
+                    JsPrecedence::Primary
+                };
+                JsExpression::closure(*function, rendered, precedence)
             }
             ControlFlowOp::LoadGlobal(symbol) => JsExpression::atom(self.global_name(*symbol)?),
             ControlFlowOp::FieldGet {
@@ -17002,11 +17029,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
                         });
                         return Ok(self.render_closure_statement(
+                            function.id,
                             named_function_expression_head(recursive_head_name, &parameters),
                             JsFunctionBody::Block(body),
                         ));
                     }
                     return Ok(self.render_closure_statement(
+                            function.id,
                         arrow_head(&parameters),
                         JsFunctionBody::Concise(expression),
                     ));
@@ -17026,7 +17055,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } else {
                 arrow_head(&parameters)
             };
-            return Ok(self.render_closure_statement(head, JsFunctionBody::Block(body)));
+            return Ok(self.render_closure_statement(function.id, head, JsFunctionBody::Block(body)));
         }
         let expression_closure = match function.blocks[0].terminator {
             Some(Terminator::Return(Some(value))) => !context.is_js_undefined(value),
@@ -17043,6 +17072,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 || self.emits_ordinary_function_expression(&function, calling_convention)
             {
                 return Ok(self.render_closure_statement(
+                            function.id,
                     named_function_expression_head(recursive_head_name, &parameters),
                     JsFunctionBody::Block(body),
                 ));
@@ -17051,7 +17081,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 Some(expression) => JsFunctionBody::Concise(expression),
                 None => JsFunctionBody::Block(body),
             };
-            return Ok(self.render_closure_statement(arrow_head(&parameters), body));
+            return Ok(self.render_closure_statement(function.id, arrow_head(&parameters), body));
         }
         let uses = use_counts(&function);
         let mut cache = AHashMap::default();
@@ -17131,7 +17161,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     /// An inlined closure as text: the `Function` node rendered with this
     /// emitter's options. Closures are expressions, never terminated.
-    fn render_closure_statement(&self, head: JsHead, body: JsFunctionBody) -> String {
+    fn render_closure_statement(
+        &self,
+        function: FunctionId,
+        head: JsHead,
+        body: JsFunctionBody,
+    ) -> String {
+        self.closure_trees
+            .borrow_mut()
+            .insert(function, (head.clone(), body.clone()));
         JsStatement::Function {
             head,
             body,
@@ -38363,6 +38401,7 @@ consume(field(JS.object("type", 1), "type"));
         let complete = [
             JsExpressionRoot::Atom,
             JsExpressionRoot::Name(Bind(0)),
+            JsExpressionRoot::Closure(FunctionId(0)),
             JsExpressionRoot::Raw,
             JsExpressionRoot::Unary(JsUnary::Not),
             JsExpressionRoot::Binary(IrBinaryOp::Add),
