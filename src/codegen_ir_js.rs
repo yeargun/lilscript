@@ -250,6 +250,8 @@ pub struct IrJsOptions {
     pub function_layout: FunctionLayout,
     pub function_layout_exact_limit: usize,
     pub function_spelling: FunctionSpelling,
+    /// Post-layout naming: which ordering re-spells the module's bindings.
+    pub name_ordering: NameOrdering,
     pub public_function_arrows: bool,
     pub loop_spelling: LoopSpelling,
     pub mutation_spelling: MutationSpelling,
@@ -366,6 +368,7 @@ impl Default for IrJsOptions {
             function_layout: FunctionLayout::Source,
             function_layout_exact_limit: 13,
             function_spelling: FunctionSpelling::Arrow,
+            name_ordering: NameOrdering::EmissionWalk,
             public_function_arrows: false,
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
@@ -482,6 +485,21 @@ pub enum FunctionSpelling {
     #[default]
     Arrow,
     Function,
+}
+
+/// How bindings are spelled after layout (phase 5 of `migration/`).
+///
+/// `EmissionWalk` is the anchor: the spellings the pre-render naming produced,
+/// printed by the re-spell pass, which is the identity. `FrequencyDesc`
+/// re-spells every scope the renamer can prove sound, most-referenced binding
+/// first, from a pool that excludes what the scope sees and what its inner
+/// scopes declare.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NameOrdering {
+    #[default]
+    EmissionWalk,
+    FrequencyDesc,
 }
 
 const MIN_IIFE_CLUSTER_HELPERS: usize = 2;
@@ -1446,9 +1464,10 @@ enum JsExpressionRoot {
     /// binding's spelling at construction; the `Bind` is its identity.
     Name(Bind),
     /// A closure rendered as text, whose head and body tree the emitter keeps
-    /// in `closure_trees` under this function id: a leaf to the expression
-    /// grammar, a subtree to the renamer.
-    Closure(FunctionId),
+    /// in `closure_trees` under this id: a leaf to the expression grammar, a
+    /// subtree to the renamer. One id per *rendering*: the same IR function
+    /// is rendered once per specialised clone, each with its own captures.
+    Closure(ClosureId),
     Unary(JsUnary),
     Binary(IrBinaryOp),
     Nullish,
@@ -1957,10 +1976,10 @@ impl JsExpression {
         node
     }
 
-    /// A closure as text, with the function whose tree renders it.
-    fn closure(function: FunctionId, code: impl Into<String>, precedence: JsPrecedence) -> Self {
+    /// A closure as text, with the kept tree that renders it.
+    fn closure(closure: ClosureId, code: impl Into<String>, precedence: JsPrecedence) -> Self {
         Self {
-            root: JsExpressionRoot::Closure(function),
+            root: JsExpressionRoot::Closure(closure),
             ..Self::raw(code, precedence)
         }
     }
@@ -2813,9 +2832,13 @@ struct IrJsEmitter<'module, 'src> {
     /// Module-level bindings: the function and global names, by id.
     function_name_binds: AHashMap<FunctionId, Bind>,
     global_binds: AHashMap<SymbolId, Bind>,
-    /// The head and body tree of every closure rendered into an expression,
-    /// by function: the text in the expression node is their rendering.
-    closure_trees: RefCell<AHashMap<FunctionId, (JsHead, JsFunctionBody)>>,
+    /// The head and body tree of every closure rendered into an expression:
+    /// the text in the expression node is their rendering.
+    closure_trees: RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    next_closure_id: Cell<u32>,
+    /// The closure `render_closure_statement` rendered last, with its text,
+    /// so the expression site can tell a bare closure from a wrapped one.
+    last_closure: RefCell<Option<(ClosureId, String)>>,
     local_name_reservations: Vec<String>,
     preferred_local_names: AHashMap<String, String>,
     declared_globals: AHashSet<SymbolId>,
@@ -3036,6 +3059,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             function_name_binds: AHashMap::default(),
             global_binds: AHashMap::default(),
             closure_trees: RefCell::new(AHashMap::default()),
+            next_closure_id: Cell::new(0),
+            last_closure: RefCell::new(None),
             local_name_reservations: Vec::new(),
             preferred_local_names: AHashMap::default(),
             declared_globals: AHashSet::default(),
@@ -3130,11 +3155,34 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit_traced(mut self) -> Result<String, CodegenError> {
-        let out = self.build_module()?;
+        let mut out = self.build_module()?;
         if twin_witness_enabled() {
             self.witness_identity_respell(&out);
         }
+        if self.options.name_ordering != NameOrdering::EmissionWalk {
+            self.rename_module(&mut out);
+        }
         Ok(out.into_string())
+    }
+
+    /// Phase 5.3: re-spell the finished module's bindings by the configured
+    /// ordering, through the table, then let the tree follow.
+    fn rename_module(&self, out: &mut JsBlock) {
+        let tree = ScopeCollector::module(&self.closure_trees, out);
+        let renamer = Renamer {
+            tree,
+            table: &self.bind_table,
+            alphabet: &self.options.identifier_alphabet,
+        };
+        let (scopes, scopes_full, binds, renamed) = match self.options.name_ordering {
+            NameOrdering::EmissionWalk => (0, 0, 0, 0),
+            NameOrdering::FrequencyDesc => renamer.frequency_desc(),
+        };
+        crate::timing::RENAME_SCOPES.event(scopes as u64);
+        crate::timing::RENAME_SCOPES_FULL.event(scopes_full as u64);
+        crate::timing::RENAME_BINDS.event(binds as u64);
+        crate::timing::RENAME_BINDS_RENAMED.event(renamed as u64);
+        self.respell().block(out);
     }
 
     /// The whole module as a tree: the statement list every emission renders
@@ -9368,13 +9416,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if function.is_async {
                 head.push_text("async ");
             }
-            head.push_name(name_bind, &name);
+            // A method's name is a property key, never a binding.
+            head.push_text(name.as_str());
             head.push_text("(");
             head.extend(&params);
             head.push_text(")");
         } else if arrow_binding {
             head.push_text("let ");
-            head.push_name(name_bind, &name);
+            head.push_function_name(name_bind, &name);
             head.push_text("=");
             if function.is_async {
                 head.push_text("async ");
@@ -9408,7 +9457,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 },
             );
             if !name.is_empty() {
-                head.push_name(name_bind, &name);
+                head.push_function_name(name_bind, &name);
             }
             head.push_text("(");
             head.extend(&params);
@@ -14809,11 +14858,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     let rendered = self.render_closure(*function, &closure_captures)?;
                     if wrapper_parameters.is_empty() {
-                        return Ok(JsExpression::closure(
-                            *function,
-                            rendered,
-                            JsPrecedence::Assignment,
-                        ));
+                        return Ok(self.closure_node(rendered, JsPrecedence::Assignment));
                     }
                     return Ok(JsExpression::atom(format!(
                         "(({})=>{rendered})({})",
@@ -14827,7 +14872,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     JsPrecedence::Primary
                 };
-                JsExpression::closure(*function, rendered, precedence)
+                self.closure_node(rendered, precedence)
             }
             ControlFlowOp::LoadGlobal(symbol) => JsExpression::atom(self.global_name(*symbol)?),
             ControlFlowOp::FieldGet {
@@ -17072,13 +17117,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
                         });
                         return Ok(self.render_closure_statement(
-                            function.id,
                             named_function_expression_head(recursive_head_name, &parameters),
                             JsFunctionBody::Block(body),
                         ));
                     }
                     return Ok(self.render_closure_statement(
-                            function.id,
                         arrow_head(&parameters),
                         JsFunctionBody::Concise(expression),
                     ));
@@ -17098,7 +17141,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             } else {
                 arrow_head(&parameters)
             };
-            return Ok(self.render_closure_statement(function.id, head, JsFunctionBody::Block(body)));
+            return Ok(self.render_closure_statement(head, JsFunctionBody::Block(body)));
         }
         let expression_closure = match function.blocks[0].terminator {
             Some(Terminator::Return(Some(value))) => !context.is_js_undefined(value),
@@ -17115,7 +17158,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 || self.emits_ordinary_function_expression(&function, calling_convention)
             {
                 return Ok(self.render_closure_statement(
-                            function.id,
                     named_function_expression_head(recursive_head_name, &parameters),
                     JsFunctionBody::Block(body),
                 ));
@@ -17124,7 +17166,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 Some(expression) => JsFunctionBody::Concise(expression),
                 None => JsFunctionBody::Block(body),
             };
-            return Ok(self.render_closure_statement(function.id, arrow_head(&parameters), body));
+            return Ok(self.render_closure_statement(arrow_head(&parameters), body));
         }
         let uses = use_counts(&function);
         let mut cache = AHashMap::default();
@@ -17204,23 +17246,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     /// An inlined closure as text: the `Function` node rendered with this
     /// emitter's options. Closures are expressions, never terminated.
-    fn render_closure_statement(
-        &self,
-        function: FunctionId,
-        head: JsHead,
-        body: JsFunctionBody,
-    ) -> String {
+    fn render_closure_statement(&self, head: JsHead, body: JsFunctionBody) -> String {
+        let id = ClosureId(self.next_closure_id.get());
+        self.next_closure_id.set(id.0 + 1);
         self.closure_trees
             .borrow_mut()
-            .insert(function, (head.clone(), body.clone()));
-        JsStatement::Function {
+            .insert(id, (head.clone(), body.clone()));
+        let rendered = JsStatement::Function {
             head,
             body,
             terminated: false,
         }
         .render(JsStatementOptions {
             elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
-        })
+        });
+        *self.last_closure.borrow_mut() = Some((id, rendered.clone()));
+        rendered
+    }
+
+    /// The closure node for `rendered`, when it is exactly the tree's own
+    /// rendering; a wrapped closure (a cluster IIFE) stays opaque text.
+    fn closure_node(&self, rendered: String, precedence: JsPrecedence) -> JsExpression {
+        match self.last_closure.borrow_mut().take() {
+            Some((id, text)) if text == rendered => JsExpression::closure(id, rendered, precedence),
+            _ => JsExpression::raw(rendered, precedence),
+        }
     }
 
     fn default_class_value(&self, class: &str, boundary: bool) -> Result<String, CodegenError> {
@@ -20562,7 +20612,7 @@ fn named_function_expression_head(
     let mut head = JsHead::text("function");
     if let Some((bind, name)) = name.filter(|(_, name)| !name.is_empty()) {
         head.push_text(" ");
-        head.push_name(bind, name);
+        head.push_function_name(bind, name);
     }
     head.extend(&parenthesized_parameters(parameters));
     head
@@ -22351,6 +22401,10 @@ enum JsHeadPiece {
     Text(String),
     /// A declared name with its binding, spelled as it was at construction.
     Name(Bind, String),
+    /// The function's own name: a binding of the *enclosing* scope for a
+    /// declaration or `let f=` binding, of the function's own scope for a
+    /// named function expression.
+    FunctionName(Bind, String),
     /// A declared name the emitter could not tie to a binding: renders as
     /// text, counts as unbound in the census, and makes the head unrenameable.
     Unbound(String),
@@ -22390,6 +22444,13 @@ impl JsHead {
         });
     }
 
+    fn push_function_name(&mut self, bind: Option<Bind>, name: &str) {
+        self.pieces.push(match bind {
+            Some(bind) => JsHeadPiece::FunctionName(bind, name.to_string()),
+            None => JsHeadPiece::Unbound(name.to_string()),
+        });
+    }
+
     fn extend(&mut self, other: &JsHead) {
         for piece in &other.pieces {
             match piece {
@@ -22405,6 +22466,7 @@ impl JsHead {
             match piece {
                 JsHeadPiece::Text(piece)
                 | JsHeadPiece::Name(_, piece)
+                | JsHeadPiece::FunctionName(_, piece)
                 | JsHeadPiece::Unbound(piece) => text.push_str(piece),
             }
         }
@@ -22415,7 +22477,7 @@ impl JsHead {
     fn binds(&self) -> impl Iterator<Item = Option<Bind>> + '_ {
         self.pieces.iter().filter_map(|piece| match piece {
             JsHeadPiece::Text(_) => None,
-            JsHeadPiece::Name(bind, _) => Some(Some(*bind)),
+            JsHeadPiece::Name(bind, _) | JsHeadPiece::FunctionName(bind, _) => Some(Some(*bind)),
             JsHeadPiece::Unbound(_) => Some(None),
         })
     }
@@ -22434,7 +22496,7 @@ impl JsHead {
 /// asserts exactly that.
 struct Respell<'a> {
     table: &'a BindTable,
-    closures: &'a RefCell<AHashMap<FunctionId, (JsHead, JsFunctionBody)>>,
+    closures: &'a RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     options: JsRenderOptions,
     statement_options: JsStatementOptions,
 }
@@ -22446,9 +22508,9 @@ impl Respell<'_> {
                 let spelling = self.table.spelling(bind);
                 (spelling != expression.code).then(|| JsExpression::name(bind, spelling))
             }
-            JsExpressionRoot::Closure(function) => self
-                .closure(function)
-                .map(|code| JsExpression::closure(function, code, expression.precedence)),
+            JsExpressionRoot::Closure(closure) => self
+                .closure(closure)
+                .map(|code| JsExpression::closure(closure, code, expression.precedence)),
             JsExpressionRoot::Atom | JsExpressionRoot::Raw => None,
             _ => {
                 let children = expression
@@ -22480,8 +22542,8 @@ impl Respell<'_> {
     }
 
     /// The closure's re-rendered text, when its tree changed.
-    fn closure(&self, function: FunctionId) -> Option<String> {
-        let (mut head, mut body) = self.closures.borrow().get(&function).cloned()?;
+    fn closure(&self, closure: ClosureId) -> Option<String> {
+        let (mut head, mut body) = self.closures.borrow().get(&closure).cloned()?;
         let mut changed = self.head(&mut head);
         changed |= self.function_body(&mut body);
         if !changed {
@@ -22489,7 +22551,7 @@ impl Respell<'_> {
         }
         self.closures
             .borrow_mut()
-            .insert(function, (head.clone(), body.clone()));
+            .insert(closure, (head.clone(), body.clone()));
         Some(
             JsStatement::Function {
                 head,
@@ -22503,7 +22565,9 @@ impl Respell<'_> {
     fn head(&self, head: &mut JsHead) -> bool {
         let mut changed = false;
         for piece in &mut head.pieces {
-            if let JsHeadPiece::Name(bind, spelling) = piece {
+            if let JsHeadPiece::Name(bind, spelling) | JsHeadPiece::FunctionName(bind, spelling) =
+                piece
+            {
                 let current = self.table.spelling(*bind);
                 if current != *spelling {
                     *spelling = current;
@@ -22631,6 +22695,437 @@ impl Respell<'_> {
             | JsStatement::ClassField { .. }
             | JsStatement::Empty => false,
         }
+    }
+}
+
+/// One lexical scope of a finished module -- the module, a statement-level
+/// function, a closure, a class method -- as the renamer sees it.
+#[derive(Debug, Default)]
+struct RenameScope {
+    parent: Option<usize>,
+    /// Bindings declared here, in first-seen order, each once.
+    declared: Vec<Bind>,
+    /// Every `Name` reference made from this scope's own text (multiplicity
+    /// kept: it is the frequency).
+    referenced: Vec<Bind>,
+    /// Identifiers this scope uses without a binding: globals, host names,
+    /// callee atoms, unbound heads.
+    free: AHashSet<String>,
+    /// Identifiers found in text the re-spell cannot rewrite: raw nodes,
+    /// conditions, loop heads, concise bodies, class heads, exports.
+    opaque: AHashSet<String>,
+    children: Vec<usize>,
+}
+
+struct ScopeTree {
+    scopes: Vec<RenameScope>,
+}
+
+impl ScopeTree {
+    fn child(&mut self, parent: usize) -> usize {
+        let index = self.scopes.len();
+        self.scopes.push(RenameScope {
+            parent: Some(parent),
+            ..RenameScope::default()
+        });
+        self.scopes[parent].children.push(index);
+        index
+    }
+
+    fn declare(&mut self, scope: usize, bind: Bind) {
+        let declared = &mut self.scopes[scope].declared;
+        if !declared.contains(&bind) {
+            declared.push(bind);
+        }
+    }
+
+    /// The scope and every scope nested in it, preorder.
+    fn subtree(&self, scope: usize) -> Vec<usize> {
+        let mut out = vec![scope];
+        let mut cursor = 0;
+        while cursor < out.len() {
+            out.extend(self.scopes[out[cursor]].children.iter().copied());
+            cursor += 1;
+        }
+        out
+    }
+
+    fn declaring_scope(&self, bind: Bind) -> Option<usize> {
+        self.scopes
+            .iter()
+            .position(|scope| scope.declared.contains(&bind))
+    }
+}
+
+/// Every identifier-shaped run in a piece of text, reserved words included:
+/// what an opaque string might be referring to.
+fn identifiers_in(text: &str, into: &mut AHashSet<String>) {
+    let bytes = text.as_bytes();
+    let mut start = None;
+    for (index, byte) in bytes.iter().enumerate() {
+        let continues = match start {
+            Some(_) => is_js_identifier_byte(*byte),
+            None => is_js_identifier_start(*byte),
+        };
+        if continues {
+            start.get_or_insert(index);
+        } else if let Some(from) = start.take() {
+            into.insert(text[from..index].to_string());
+        }
+    }
+    if let Some(from) = start {
+        into.insert(text[from..].to_string());
+    }
+}
+
+/// Builds the scope tree of a module from its statement list and the kept
+/// closure trees.
+struct ScopeCollector<'a> {
+    tree: ScopeTree,
+    closures: &'a RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+}
+
+impl ScopeCollector<'_> {
+    fn module(
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+        out: &JsBlock,
+    ) -> ScopeTree {
+        let mut collector = ScopeCollector {
+            tree: ScopeTree {
+                scopes: vec![RenameScope::default()],
+            },
+            closures,
+        };
+        collector.block(0, out);
+        collector.tree
+    }
+
+    fn opaque(&mut self, scope: usize, text: &str) {
+        let mut found = AHashSet::default();
+        identifiers_in(text, &mut found);
+        self.tree.scopes[scope].opaque.extend(found);
+    }
+
+    fn block(&mut self, scope: usize, block: &JsBlock) {
+        for emitted in &block.statements {
+            self.statement(scope, &emitted.statement);
+        }
+    }
+
+    /// A head declares its parameters in `inner` and its function name in
+    /// `outer` -- or in `inner` for a named function expression.
+    fn head(&mut self, outer: usize, inner: usize, head: &JsHead, name_binds_inner: bool) {
+        for piece in &head.pieces {
+            match piece {
+                JsHeadPiece::Text(text) => self.opaque(inner, text),
+                JsHeadPiece::Name(bind, _) => self.tree.declare(inner, *bind),
+                JsHeadPiece::FunctionName(bind, _) => self
+                    .tree
+                    .declare(if name_binds_inner { inner } else { outer }, *bind),
+                JsHeadPiece::Unbound(name) => {
+                    self.tree.scopes[inner].opaque.insert(name.clone());
+                }
+            }
+        }
+    }
+
+    fn function_body(&mut self, scope: usize, body: &JsFunctionBody) {
+        match body {
+            JsFunctionBody::Block(block) => self.block(scope, block),
+            JsFunctionBody::Concise(text) => self.opaque(scope, text),
+        }
+    }
+
+    fn statement(&mut self, scope: usize, statement: &JsStatement) {
+        match statement {
+            JsStatement::Declaration { name, bind, .. } => match bind {
+                Some(bind) => self.tree.declare(scope, *bind),
+                None => self.opaque(scope, name),
+            },
+            JsStatement::Binding {
+                keyword,
+                name,
+                bind,
+                value,
+            } => {
+                match (bind, keyword) {
+                    (Some(bind), Some(_)) => self.tree.declare(scope, *bind),
+                    (Some(bind), None) => self.tree.scopes[scope].referenced.push(*bind),
+                    (None, _) => self.opaque(scope, name),
+                }
+                self.expression(scope, value);
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    match declarator.bind {
+                        Some(bind) => self.tree.declare(scope, bind),
+                        None => self.opaque(scope, &declarator.name),
+                    }
+                    if let Some(value) = &declarator.value {
+                        self.expression(scope, value);
+                    }
+                }
+            }
+            JsStatement::DeclarationGroup { names, .. } => {
+                for name in names {
+                    self.opaque(scope, name);
+                }
+            }
+            JsStatement::Return { value: Some(value) }
+            | JsStatement::Throw { value }
+            | JsStatement::Expression { value } => self.expression(scope, value),
+            JsStatement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                self.opaque(scope, condition);
+                self.block(scope, &then_branch.block);
+                if let Some(else_branch) = else_branch {
+                    self.block(scope, &else_branch.block);
+                }
+            }
+            JsStatement::Function { head, body, .. } => {
+                let inner = self.tree.child(scope);
+                self.head(scope, inner, head, false);
+                self.function_body(inner, body);
+            }
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                self.block(scope, body);
+                if let Some(catch) = catch {
+                    match (catch.bind, &catch.binding) {
+                        (Some(bind), _) => self.tree.declare(scope, bind),
+                        (None, Some(binding)) => self.opaque(scope, binding),
+                        (None, None) => {}
+                    }
+                    self.block(scope, &catch.body);
+                }
+                if let Some(finally) = finally {
+                    self.block(scope, finally);
+                }
+            }
+            JsStatement::Switch {
+                discriminant,
+                cases,
+            } => {
+                self.opaque(scope, discriminant);
+                for case in cases {
+                    self.opaque(scope, &case.label);
+                    self.block(scope, &case.body);
+                }
+            }
+            JsStatement::Class { head, members } => {
+                self.opaque(scope, head);
+                self.block(scope, members);
+            }
+            JsStatement::ClassField { key, value } => {
+                self.opaque(scope, key);
+                self.opaque(scope, value);
+            }
+            JsStatement::Loop {
+                head,
+                body,
+                do_condition,
+            } => {
+                match head {
+                    JsLoopHead::ForIn {
+                        declare,
+                        key,
+                        bind,
+                        object,
+                    } => {
+                        match (bind, declare) {
+                            (Some(bind), true) => self.tree.declare(scope, *bind),
+                            (Some(bind), false) => {
+                                self.tree.scopes[scope].referenced.push(*bind)
+                            }
+                            (None, _) => self.opaque(scope, key),
+                        }
+                        self.opaque(scope, object);
+                    }
+                    JsLoopHead::ForOf {
+                        declare,
+                        element,
+                        bind,
+                        iterable,
+                    } => {
+                        match (bind, declare) {
+                            (Some(bind), true) => self.tree.declare(scope, *bind),
+                            (Some(bind), false) => {
+                                self.tree.scopes[scope].referenced.push(*bind)
+                            }
+                            (None, _) => self.opaque(scope, element),
+                        }
+                        self.opaque(scope, iterable);
+                    }
+                    JsLoopHead::For {
+                        initializer,
+                        condition,
+                        update,
+                    } => {
+                        for text in [initializer, condition, update].into_iter().flatten() {
+                            self.opaque(scope, text);
+                        }
+                    }
+                    JsLoopHead::While { condition } => self.opaque(scope, condition),
+                    JsLoopHead::DoWhile { guard } => self.opaque(scope, guard),
+                }
+                if let Some(condition) = do_condition {
+                    self.opaque(scope, condition);
+                }
+                self.block(scope, &body.block);
+            }
+            JsStatement::Import { bindings, .. } | JsStatement::Export { bindings } => {
+                for binding in bindings {
+                    self.tree.scopes[scope].opaque.insert(binding.name.clone());
+                    if let Some(alias) = &binding.alias {
+                        self.tree.scopes[scope].opaque.insert(alias.clone());
+                    }
+                }
+            }
+            JsStatement::Return { value: None }
+            | JsStatement::Break
+            | JsStatement::Continue
+            | JsStatement::Empty => {}
+        }
+    }
+
+    fn expression(&mut self, scope: usize, expression: &JsExpression) {
+        match expression.root {
+            JsExpressionRoot::Name(bind) => self.tree.scopes[scope].referenced.push(bind),
+            JsExpressionRoot::Closure(closure) => {
+                let tree = self.closures.borrow().get(&closure).cloned();
+                match tree {
+                    Some((head, body)) => {
+                        let inner = self.tree.child(scope);
+                        self.head(scope, inner, &head, true);
+                        self.function_body(inner, &body);
+                    }
+                    None => self.opaque(scope, &expression.code),
+                }
+            }
+            JsExpressionRoot::Atom => {
+                let code = expression.code.as_str();
+                if is_js_property_identifier(code) && !is_js_reserved(code) {
+                    self.tree.scopes[scope].free.insert(code.to_string());
+                } else if !is_js_property_identifier(code) {
+                    // A literal spelled with letters (a regex, a template)
+                    // could still mention a name.
+                    self.opaque(scope, code);
+                }
+            }
+            JsExpressionRoot::Raw => self.opaque(scope, &expression.code),
+            JsExpressionRoot::Member => {
+                // The property is a key, not a reference.
+                if let Some(object) = expression.operands.first() {
+                    self.expression(scope, object);
+                }
+            }
+            _ => {
+                for operand in &expression.operands {
+                    self.expression(scope, operand);
+                }
+            }
+        }
+    }
+}
+
+/// The post-layout renamer: re-spells each scope's bindings where the rename
+/// is provably sound, most-referenced first, from a pool that excludes what
+/// the scope sees and what its inner scopes declare.
+struct Renamer<'a> {
+    tree: ScopeTree,
+    table: &'a BindTable,
+    alphabet: &'a IdentifierAlphabet,
+}
+
+impl Renamer<'_> {
+    /// Rename every scope, top down, and report (scopes, scopes fully
+    /// renameable, bindings, bindings renamed).
+    fn frequency_desc(&self) -> (usize, usize, usize, usize) {
+        let mut counts = AHashMap::<Bind, usize>::default();
+        for scope in &self.tree.scopes {
+            for bind in &scope.referenced {
+                *counts.entry(*bind).or_insert(0) += 1;
+            }
+        }
+        let mut scopes_full = 0;
+        let mut binds_total = 0;
+        let mut binds_renamed = 0;
+        for scope in 0..self.tree.scopes.len() {
+            let declared = self.tree.scopes[scope].declared.clone();
+            if declared.is_empty() {
+                scopes_full += 1;
+                continue;
+            }
+            binds_total += declared.len();
+            let subtree = self.tree.subtree(scope);
+            // Everything a new spelling in this scope must avoid, and
+            // everything text in the scope might already be referring to.
+            let mut forbidden = AHashSet::<String>::default();
+            let mut mentioned = AHashSet::<String>::default();
+            for inner in &subtree {
+                let inner_scope = &self.tree.scopes[*inner];
+                forbidden.extend(inner_scope.free.iter().cloned());
+                forbidden.extend(inner_scope.opaque.iter().cloned());
+                mentioned.extend(inner_scope.free.iter().cloned());
+                mentioned.extend(inner_scope.opaque.iter().cloned());
+                if *inner != scope {
+                    for bind in &inner_scope.declared {
+                        forbidden.insert(self.table.spelling(*bind));
+                    }
+                }
+                for bind in &inner_scope.referenced {
+                    if !declared.contains(bind)
+                        && self
+                            .tree
+                            .declaring_scope(*bind)
+                            .is_none_or(|owner| !subtree.contains(&owner))
+                    {
+                        forbidden.insert(self.table.spelling(*bind));
+                    }
+                }
+            }
+            // A binding whose spelling appears in text the re-spell cannot
+            // rewrite keeps it, and keeps it reserved.
+            let (mut renameable, kept): (Vec<Bind>, Vec<Bind>) = declared
+                .iter()
+                .copied()
+                .partition(|bind| !mentioned.contains(&self.table.spelling(*bind)));
+            for bind in &kept {
+                forbidden.insert(self.table.spelling(*bind));
+            }
+            if kept.is_empty() {
+                scopes_full += 1;
+            }
+            renameable.sort_by(|left, right| {
+                counts
+                    .get(right)
+                    .copied()
+                    .unwrap_or(0)
+                    .cmp(&counts.get(left).copied().unwrap_or(0))
+                    .then_with(|| left.cmp(right))
+            });
+            let mut next = 0;
+            for bind in renameable {
+                let spelling = loop {
+                    let candidate = encode_identifier(next, self.alphabet);
+                    next += 1;
+                    if !is_js_reserved(&candidate) && !forbidden.contains(&candidate) {
+                        break candidate;
+                    }
+                };
+                forbidden.insert(spelling.clone());
+                trace_name_request("rename", &spelling);
+                self.table.respell(bind, &spelling);
+                binds_renamed += 1;
+            }
+        }
+        (self.tree.scopes.len(), scopes_full, binds_total, binds_renamed)
     }
 }
 
@@ -29682,6 +30177,10 @@ fn js_atom_is_number_literal(value: &str) -> bool {
         && bytes.iter().any(|byte| byte.is_ascii_digit())
 }
 
+/// One rendered closure of an emission, the key of its kept tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ClosureId(u32);
+
 /// A lexical binding of one emission: dense, allocated in name-request
 /// order, so the id order is the trace order. Identifiers on the tree name a
 /// `Bind`; the spelling lives in the emission's `BindTable`.
@@ -30959,6 +31458,25 @@ mod tests {
 
     fn compile_with_options(source: &str, options: IrJsOptions) -> String {
         compile_try_with_options(source, options).unwrap()
+    }
+
+    /// Phase 5.3: the frequency ordering prints a complete, runnable module
+    /// that differs from the anchor only in identifiers.
+    #[test]
+    fn frequency_ordering_renames_and_keeps_the_module_whole() {
+        let source = "extern int read();struct P{int x;int y;}int f(P p,int[] a,int n){int s=p.x+n;for(int i=0;i<a.length;i=i+1){s=s+a[i];}p.y=s;print(s);return s;}int g(int k){int t=f(P{k,2},[3,k],4);return t*2;}print(g(read()));";
+        let anchor = compile(source);
+        let renamed = compile_with_options(
+            source,
+            IrJsOptions {
+                name_ordering: NameOrdering::FrequencyDesc,
+                ..IrJsOptions::default()
+            },
+        );
+        eprintln!("anchor:  {anchor}");
+        eprintln!("renamed: {renamed}");
+        assert!(!renamed.is_empty(), "the renamed module is empty");
+        assert_eq!(anchor.len(), renamed.len(), "renaming changed more than identifiers");
     }
 
     /// Phase 5.2: a binding's spelling lives in the table, and the tree
@@ -38706,7 +39224,7 @@ consume(field(JS.object("type", 1), "type"));
         let complete = [
             JsExpressionRoot::Atom,
             JsExpressionRoot::Name(Bind(0)),
-            JsExpressionRoot::Closure(FunctionId(0)),
+            JsExpressionRoot::Closure(ClosureId(0)),
             JsExpressionRoot::Raw,
             JsExpressionRoot::Unary(JsUnary::Not),
             JsExpressionRoot::Binary(IrBinaryOp::Add),

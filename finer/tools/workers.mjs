@@ -16,7 +16,7 @@
 //   node finer/tools/workers.mjs build --ports a,b   # build those ports on the pool, copy dist/ back
 //   node finer/tools/workers.mjs fleet [--down]      # up, sync, build every port, measure, [down]
 //   node finer/tools/workers.mjs run '<shell>'       # run a command on every running worker
-//   node finer/tools/workers.mjs check [--ports a,b] # the case matrix, sharded across workers (+ those ports)
+//   node finer/tools/workers.mjs check [--ports a,b] [--lanes none,maximum,frequency-desc] # the case matrix, sharded across workers (+ those ports)
 //
 // Options: --compiler <path> (default target/release/lilscript), --rg, --vmss,
 // --user, --timeout <s> per port build (default 5400), --no-sync, --measure,
@@ -277,7 +277,10 @@ function syncTests(workers) {
  * contiguous shard and reports one line per failure, so the summary is the same
  * whether it ran on one machine or six.
  */
-async function check(workers, cases) {
+// A lane names its config: `none` and `maximum` are the two the release gate
+// runs; any other lane is `tests/config/<lane>.toml` (the phase 5 orderings
+// live there, e.g. `frequency-desc`).
+async function check(workers, cases, lanes = ["none", "maximum"]) {
   const shards = workers.map(() => [])
   cases.forEach((name, index) => shards[index % workers.length].push(name))
   const script = (names) => `
@@ -285,9 +288,10 @@ set -u
 cd ~/${REMOTE}/lilscript
 L=target/release/lilscript
 for n in ${names.join(" ")}; do
-  for lane in none maximum; do
+  for lane in ${lanes.join(" ")}; do
     cfg="--config lilscript.toml"
     [ "$lane" = none ] && cfg="--config tests/config/no-optimization.toml"
+    [ "$lane" != none ] && [ "$lane" != maximum ] && cfg="--config tests/config/$lane.toml"
     out=$($L $cfg tests/cases/$n.lil --target js -o /tmp/$n.$lane.js 2>&1)
     if [ -n "$out" ]; then echo "FAIL $n $lane compile"; continue; fi
     if ! diff -q <(node /tmp/$n.$lane.js 2>&1) tests/cases/$n.out >/dev/null 2>&1; then
@@ -443,10 +447,11 @@ async function main() {
       const cases = readdirSync(join(repo, "tests", "cases"))
         .filter((n) => n.endsWith(".lil"))
         .map((n) => n.slice(0, -4))
-      log(`checking ${cases.length} cases x 2 lanes across ${workers.length} worker(s)`)
-      const failures = await check(workers, cases)
+      const lanes = (flag("lanes") ?? "none,maximum").split(",").filter(Boolean)
+      log(`checking ${cases.length} cases x ${lanes.length} lanes (${lanes.join(", ")}) across ${workers.length} worker(s)`)
+      const failures = await check(workers, cases, lanes)
       for (const line of failures) log(line)
-      log(`${cases.length * 2 - failures.length} of ${cases.length * 2} case-lanes pass`)
+      log(`${cases.length * lanes.length - failures.length} of ${cases.length * lanes.length} case-lanes pass`)
       let portFailures = 0
       if (ports.length) {
         const results = await build(workers, ports)

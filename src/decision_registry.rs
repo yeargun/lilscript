@@ -365,6 +365,10 @@ pub const IR_JS_OPTION_FIELDS: &[IrJsOptionFieldSpec] = &[
         class: DecisionClass::Scored,
     },
     IrJsOptionFieldSpec {
+        field: "name_ordering",
+        class: DecisionClass::Scored,
+    },
+    IrJsOptionFieldSpec {
         field: "public_function_arrows",
         class: DecisionClass::Abi,
     },
@@ -1036,6 +1040,21 @@ pub const SCORED_EMISSION_FAMILIES: &[ScoredEmissionFamily] = &[
         |ctx| ctx.config.javascript.function_spelling.is_none(),
         |_, options| vec![IrJsOptions {
             function_spelling: toggle_function_spelling(options.function_spelling),
+            ..options
+        }]
+    ),
+    family!(
+        "name-ordering",
+        EmissionPhase::BeforeEntropy,
+        BeamAdmission::Sequential,
+        BeamWidthPolicy::Full,
+        FinalistPolicy::Top,
+        |ctx| {
+            ctx.config.javascript.name_ordering.is_none()
+                && ctx.config.javascript.name_ordering_search
+        },
+        |_, options| vec![IrJsOptions {
+            name_ordering: crate::codegen_ir_js::NameOrdering::FrequencyDesc,
             ..options
         }]
     ),
@@ -1781,7 +1800,7 @@ mod tests {
 
     #[test]
     fn every_ir_js_options_field_is_classified_once() {
-        assert_eq!(IR_JS_OPTION_FIELDS.len(), 78);
+        assert_eq!(IR_JS_OPTION_FIELDS.len(), 79);
         assert_eq!(
             IR_JS_OPTION_FIELDS
                 .iter()
@@ -1822,7 +1841,7 @@ mod tests {
 
     #[test]
     fn scored_emission_families_are_named_uniquely_and_skip_illegal_axes() {
-        assert_eq!(SCORED_EMISSION_FAMILIES.len(), 49);
+        assert_eq!(SCORED_EMISSION_FAMILIES.len(), 50);
         assert_eq!(
             SCORED_EMISSION_FAMILIES
                 .iter()

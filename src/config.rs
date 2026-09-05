@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::codegen_ir_js::{
     ControlFlowSpelling, FunctionLayout, FunctionSpelling, HostAliasSpelling, IdentifierAlphabet,
+    NameOrdering,
     IrJsOptions, LoopSpelling, MutationSpelling, PhiAffinityMode, StateMachineSpelling,
     StringQuote,
 };
@@ -468,6 +469,7 @@ impl ProjectConfig {
                 self.javascript.function_spelling,
                 Some(FunctionSpelling::Arrow)
             ),
+            name_ordering: self.javascript.name_ordering.unwrap_or_default(),
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -1345,6 +1347,13 @@ pub struct JavaScriptConfig {
     /// the hoisted function group. Off by default.
     pub sink_entry_function_declarations: bool,
     pub function_spelling: Option<FunctionSpelling>,
+    /// Post-layout naming (`migration/011`). A value pins one ordering; `None`
+    /// is the anchor (`emission-walk`) unless `name_ordering_search` lets the
+    /// candidate search score the others.
+    pub name_ordering: Option<NameOrdering>,
+    /// Let the search propose the post-layout orderings as candidates. Off
+    /// until the fleet A/B says an ordering wins.
+    pub name_ordering_search: bool,
     /// Spell an object method as `k(){…}` rather than `k:function(){…}`.
     /// Shorthand is shorter, and shorter is not always smaller: measured on
     /// jQuery, turning it off is -94 Brotli *and* -404 raw, because the shapes
@@ -1434,6 +1443,8 @@ impl Default for JavaScriptConfig {
             aggregate_operand_order_fusion: false,
             sink_entry_function_declarations: false,
             function_spelling: None,
+            name_ordering: None,
+            name_ordering_search: false,
             struct_method_shorthand: None,
             local_phi_expression_regions: None,
             rematerialize_member_reads: None,

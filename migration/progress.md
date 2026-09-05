@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c landed** — binding identity on references, declarations, heads, loop heads, catch clauses, module names and closures; spelling is a side table and a name changed through it re-spells the module, witnessed both ways. Next: 5.3 the post-layout renamer (scopes, free names, unrenameable text) and the orderings — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3 landed** — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -627,4 +627,28 @@ checks the text changes, renames it back and checks the bytes are the original's
 is now `build_module` (the tree) + render, so the tests read the tree the emission renders. Gate:
 0 byte diffs, 0 trace diffs, probe both lanes + 17/18, 1,715 tests, pool 146/146; ports
 byte-identical (`578625f`).
+
+**5.3 — the renamer, and the first ordering, off by default.** A `ScopeCollector` builds the scope
+tree of a finished module — module, statement-level functions, closures (from their kept trees),
+class methods — recording per scope the bindings declared, every `Name` reference (multiplicity is
+the frequency), the identifiers used without a binding (globals, host names, callee atoms, unbound
+heads) and the identifiers found in text the re-spell cannot rewrite (raw nodes, `if`/`switch`/loop
+conditions, concise bodies, class heads, imports and exports). `Renamer::frequency_desc` then
+re-spells each scope top-down, most-referenced binding first, from the alphabet, skipping every
+spelling the scope or its inner scopes see, declare or mention; a binding whose current spelling
+appears in opaque text keeps it — that text may be referring to it. The table takes the new
+spellings and `Respell` makes the module follow. `NameOrdering::{EmissionWalk, FrequencyDesc}` is
+a config key (`name_ordering`), an `IrJsOptions` field, a registry row and a scored family gated on
+`name_ordering_search` (off), so the default artifact is untouched; a method's name is now a property
+key on the tree, never a binding. **A wrong program found and fixed before landing:** closure trees
+were keyed by IR function, and one IR closure is rendered once per specialised clone with its own
+capture text, so clone 1 was re-rendered from clone 12's tree (`closure_factory_variant`: 165 for
+88). Now every rendering has its own `ClosureId`, and a node is a `Closure` only when its text is
+exactly the tree's own rendering; a cluster-wrapped closure stays opaque. Frequency lane over the 73
+cases: 73/73 behave, deterministic, twin clean, trace identical at 1 and 8 threads; the probe's 20
+configurations agree. What it moves today: nothing — 100 of 14,532 bindings on the probe are
+renameable (`rename_binds_renamed`), the artifact is byte-identical, and the case sum is 6,003 →
+6,006 Brotli. The residues are the point: conditions, loop heads and raw nodes as text make almost
+every scope opaque, and the census names them. Default lane: 0 byte diffs, 0 trace diffs, 1,716
+tests, pool 219/219 over three lanes (`workers.mjs check --lanes none,maximum,frequency-desc`).
 
