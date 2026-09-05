@@ -123,6 +123,8 @@ one worker; the current profile is under *Measurement facts*.
 
 | 7.3 | string literals are a `Str(Lit)` leaf over a per-emission `LiteralTable` (interned: equal contents, one id — an arm merge compares nodes), spelled by the printer from `JsRenderOptions.string_quote`; the table rides the `Mangler` so the naming context's inlined constants are leaves too | byte-identical to `a32eb07` in three lanes after two parity fixes the none lane caught (the constant-operand swap must not widen to template quotes; equal strings must compare equal); twin: `string_quote` 38 effects → 24 print-ok / 14 emit-dep (call arguments, array elements and ternary arms are still text); 1,717 tests |
 
+| 7.4 | array literals are an `Array` node over element nodes (the packed `"a,b".split(",")` spelling stays an atom, chosen by length as before) | byte-identical to `bf6d05c` in three lanes; twin: `compact_boolean_literals` 19 of 24 print-ok, `string_quote` 25 of 38; 1,717 tests |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |

@@ -1520,6 +1520,14 @@ fn render(
                 value.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::Array => Some(format!(
+            "[{}]",
+            operands
+                .iter()
+                .map(|element| element.clone().at_least(JsPrecedence::Assignment))
+                .collect::<Vec<_>>()
+                .join(",")
+        )),
         JsExpressionRoot::Comma => {
             if operands.is_empty() {
                 return None;
@@ -1620,6 +1628,8 @@ enum JsExpressionRoot {
     /// A string literal; the contents live in the emission's literal table
     /// and the quote character is the printer's (`string_quote`).
     Str(Lit),
+    /// `[a,b,c]`, variadic; the elements are the operands.
+    Array,
 }
 
 impl JsExpressionRoot {
@@ -1646,7 +1656,7 @@ impl JsExpressionRoot {
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
             Self::Conditional => Some(3),
-            Self::Call | Self::Comma => None,
+            Self::Call | Self::Comma | Self::Array => None,
         }
     }
 
@@ -1671,7 +1681,7 @@ impl JsExpressionRoot {
             Self::Conditional => 3,
             Self::Assign => 2,
             // Variadic: callee plus arguments, all retained.
-            Self::Call | Self::Comma => 0,
+            Self::Call | Self::Comma | Self::Array => 0,
             Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) | Self::Str(_) => 0,
         }
     }
@@ -1681,7 +1691,7 @@ impl JsExpressionRoot {
         match self {
             // Variadic, and `call` retains callee plus every argument, so the
             // fixed-arity comparison below does not apply.
-            Self::Call | Self::Comma => true,
+            Self::Call | Self::Comma | Self::Array => true,
             _ => match self.grammar_arity() {
                 Some(arity) => arity == self.retained_arity(),
                 None => false,
@@ -2480,6 +2490,21 @@ impl JsExpression {
         Self::grouped(code, JsPrecedence::Comma, JsExpressionRoot::Comma).with_operands(operands)
     }
 
+    /// `[a,b,c]`: an array literal over its element nodes.
+    fn array(elements: Vec<Self>) -> Self {
+        Self {
+            code: render(JsExpressionRoot::Array, &elements, JsRenderOptions::UNUSED)
+                .expect("render covers Array"),
+            ungrouped: None,
+            precedence: JsPrecedence::Primary,
+            root: JsExpressionRoot::Array,
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands: elements,
+        }
+    }
+
     /// `target=value` as an expression: the store and the fused-run member.
     /// The value is spelled at assignment precedence, so a sequence value is
     /// grouped (`x=(a,b)`), which the text form never was.
@@ -2692,6 +2717,9 @@ impl JsExpression {
                 Self::comma((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
             JsExpressionRoot::Assign => Self::assign(child(0), child(1)),
+            JsExpressionRoot::Array => {
+                Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
+            }
         }
     }
 
@@ -15281,22 +15309,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 )
             }
             ControlFlowOp::Array(values) => {
-                let mut rendered = String::from("[");
-                for (index, item) in values.iter().enumerate() {
-                    if index != 0 {
-                        rendered.push(',');
-                    }
-                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
-                }
-                rendered.push(']');
+                let elements = values
+                    .iter()
+                    .map(|item| value(*item, cache))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let literal = JsExpression::array(elements);
                 if self.options.pack_string_arrays {
-                    JsExpression::atom(
-                        packed_string_array(values, context, self.options.string_quote)
-                            .filter(|packed| packed.len() < rendered.len())
-                            .unwrap_or(rendered),
-                    )
+                    match packed_string_array(values, context, self.options.string_quote)
+                        .filter(|packed| packed.len() < literal.code.len())
+                    {
+                        Some(packed) => JsExpression::atom(packed),
+                        None => literal,
+                    }
                 } else {
-                    JsExpression::atom(rendered)
+                    literal
                 }
             }
             ControlFlowOp::ArraySpread(operands) => {
