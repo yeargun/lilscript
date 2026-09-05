@@ -2406,8 +2406,9 @@ pub(crate) fn emit_optimized_ir_js_with_options_and_analysis(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
     integer_analysis: Arc<IntegerValueAnalysis>,
+    facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<String, CodegenError> {
-    IrJsEmitter::with_integer_analysis(module, false, *options, integer_analysis).emit()
+    IrJsEmitter::with_facts(module, false, *options, integer_analysis, facts).emit()
 }
 
 pub fn emit_optimized_ir_js_module_with_options(
@@ -2421,8 +2422,9 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
     integer_analysis: Arc<IntegerValueAnalysis>,
+    facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<String, CodegenError> {
-    IrJsEmitter::with_integer_analysis(module, true, *options, integer_analysis).emit()
+    IrJsEmitter::with_facts(module, true, *options, integer_analysis, facts).emit()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2551,6 +2553,9 @@ fn inlineable_fresh_empty_array_factories(module: &ControlFlowModule<'_>) -> AHa
 struct IrJsEmitter<'module, 'src> {
     module: &'module ControlFlowModule<'src>,
     integer_analysis: Arc<IntegerValueAnalysis>,
+    /// The optimizer's proven facts, delivered (phase 4). Read them; never
+    /// re-derive them from text.
+    facts: Arc<crate::optimizer::IrFacts>,
     global_names: AHashMap<SymbolId, String>,
     external_export_aliases: AHashMap<SymbolId, String>,
     function_names: AHashMap<FunctionId, String>,
@@ -2626,20 +2631,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         module_output: bool,
         options: IrJsOptions,
     ) -> Self {
-        Self::with_integer_analysis(
+        Self::with_facts(
             module,
             module_output,
             options,
             Arc::new(analyze_integer_values(module)),
+            Arc::new(crate::optimizer::analyze_ir_facts(module)),
         )
     }
 
-    fn with_integer_analysis(
+    /// The delivered facts. Phase 4 delivers; the passes that consume them
+    /// land in phase 6 with their own measurements.
+    #[allow(dead_code)]
+    fn facts(&self) -> &crate::optimizer::IrFacts {
+        &self.facts
+    }
+
+    fn with_facts(
         module: &'module ControlFlowModule<'src>,
         module_output: bool,
         options: IrJsOptions,
         integer_analysis: Arc<IntegerValueAnalysis>,
+        facts: Arc<crate::optimizer::IrFacts>,
     ) -> Self {
+        crate::timing::FACTS_DELIVERED.event(facts.delivered() as u64);
         // The witness needs the options that produce this emission; nothing
         // else reads this, and it is overwritten by the next emission on this
         // thread, which is exactly the scope a candidate has.
@@ -2651,6 +2666,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Self {
             module,
             integer_analysis,
+            facts,
             global_names: AHashMap::default(),
             external_export_aliases: AHashMap::default(),
             function_names: AHashMap::default(),

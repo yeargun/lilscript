@@ -1772,12 +1772,14 @@ fn optimize_and_select_javascript_inner<'src>(
                     &guidance,
                 )?;
                 let integer_analysis = Arc::new(analyze_javascript_integer_values(&candidate_ir));
+                let facts = Arc::new(crate::optimizer::analyze_ir_facts(&candidate_ir));
                 let configured_js = config.js_options();
                 let emitted = emit_javascript_candidate(
                     &candidate_ir,
                     preserve_exports,
                     configured_js,
                     Arc::clone(&integer_analysis),
+                    Arc::clone(&facts),
                 )?;
                 let outlined = reports.iter().any(|report| {
                     report.pass_name == "repeated-region-outlining" && report.changed
@@ -1806,6 +1808,7 @@ fn optimize_and_select_javascript_inner<'src>(
                         preserve_exports,
                         options,
                         Arc::clone(&integer_analysis),
+                        Arc::clone(&facts),
                     )
                     .ok()
                     .map(|code| (code, options))
@@ -2123,12 +2126,14 @@ fn optimize_and_select_javascript_inner<'src>(
                 continue;
             }
             let integer_analysis = Arc::new(analyze_javascript_integer_values(&projected_ir));
+            let facts = Arc::new(crate::optimizer::analyze_ir_facts(&projected_ir));
             let options = config.js_options();
             let Ok(code) = emit_javascript_candidate(
                 &projected_ir,
                 preserve_exports,
                 options,
                 Arc::clone(&integer_analysis),
+                Arc::clone(&facts),
             ) else {
                 continue;
             };
@@ -2881,7 +2886,14 @@ struct JavaScriptEmissionContext<'ir, 'src> {
     baseline: &'ir ControlFlowModule<'src>,
     configured_seed: Option<&'ir ScoredJavaScriptEmissionSeed>,
     baseline_integer_analysis: OnceLock<Arc<IntegerValueAnalysis>>,
-    constructor_fused: OnceLock<Option<(ControlFlowModule<'src>, Arc<IntegerValueAnalysis>)>>,
+    baseline_facts: OnceLock<Arc<crate::optimizer::IrFacts>>,
+    constructor_fused: OnceLock<
+        Option<(
+            ControlFlowModule<'src>,
+            Arc<IntegerValueAnalysis>,
+            Arc<crate::optimizer::IrFacts>,
+        )>,
+    >,
     enable_constructor_fusion: bool,
 }
 
@@ -2904,6 +2916,7 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
             baseline,
             configured_seed,
             baseline_integer_analysis: analysis,
+            baseline_facts: OnceLock::new(),
             constructor_fused: OnceLock::new(),
             enable_constructor_fusion,
         }
@@ -2916,7 +2929,20 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
         )
     }
 
-    fn constructor_fused(&self) -> Option<&(ControlFlowModule<'src>, Arc<IntegerValueAnalysis>)> {
+    fn baseline_facts(&self) -> Arc<crate::optimizer::IrFacts> {
+        Arc::clone(
+            self.baseline_facts
+                .get_or_init(|| Arc::new(crate::optimizer::analyze_ir_facts(self.baseline))),
+        )
+    }
+
+    fn constructor_fused(
+        &self,
+    ) -> Option<&(
+        ControlFlowModule<'src>,
+        Arc<IntegerValueAnalysis>,
+        Arc<crate::optimizer::IrFacts>,
+    )> {
         self.constructor_fused
             .get_or_init(|| {
                 self.enable_constructor_fusion.then(|| {
@@ -2924,10 +2950,11 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
                     let report = crate::optimizer::project_direct_constructor_initializers_for_javascript(
                         &mut projected,
                     );
-                    report
-                        .changed
-                        .then(|| Arc::new(analyze_javascript_integer_values(&projected)))
-                        .map(|analysis| (projected, analysis))
+                    report.changed.then(|| {
+                        let analysis = Arc::new(analyze_javascript_integer_values(&projected));
+                        let facts = Arc::new(crate::optimizer::analyze_ir_facts(&projected));
+                        (projected, analysis, facts)
+                    })
                 })
                 .flatten()
             })
@@ -2939,14 +2966,16 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
     ) -> Result<String, crate::codegen_js::CodegenError> {
-        let (ir, integer_analysis) = if options.constructor_initializer_fusion {
+        let (ir, integer_analysis, facts) = if options.constructor_initializer_fusion {
             self.constructor_fused()
-                .map(|(ir, analysis)| (ir, Arc::clone(analysis)))
-                .unwrap_or_else(|| (self.baseline, self.baseline_integer_analysis()))
+                .map(|(ir, analysis, facts)| (ir, Arc::clone(analysis), Arc::clone(facts)))
+                .unwrap_or_else(|| {
+                    (self.baseline, self.baseline_integer_analysis(), self.baseline_facts())
+                })
         } else {
-            (self.baseline, self.baseline_integer_analysis())
+            (self.baseline, self.baseline_integer_analysis(), self.baseline_facts())
         };
-        emit_javascript_candidate(ir, module_output, options, integer_analysis)
+        emit_javascript_candidate(ir, module_output, options, integer_analysis, facts)
     }
 }
 
@@ -3959,7 +3988,8 @@ fn select_javascript_candidate(
         Some(seed) => seed,
         None => {
             let analysis = Arc::new(analyze_javascript_integer_values(ir));
-            let code = emit_javascript_candidate(ir, module_output, configured_options, analysis)?;
+            let facts = Arc::new(crate::optimizer::analyze_ir_facts(ir));
+            let code = emit_javascript_candidate(ir, module_output, configured_options, analysis, facts)?;
             ScoredJavaScriptEmissionSeed {
                 emission: ScoredJavaScriptEmission::measure(code, config.javascript.cost_model)?,
                 options: configured_options,
@@ -9911,14 +9941,15 @@ fn emit_javascript_candidate(
     module_output: bool,
     options: crate::codegen_ir_js::IrJsOptions,
     integer_analysis: Arc<IntegerValueAnalysis>,
+    facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<String, crate::codegen_js::CodegenError> {
     #[cfg(test)]
     JAVASCRIPT_CANDIDATE_EMISSIONS.with(|count| count.set(count.get() + 1));
     let started = std::time::Instant::now();
     let code = if module_output {
-        emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis)?
+        emit_optimized_ir_js_module_with_options_and_analysis(ir, &options, integer_analysis, facts)?
     } else {
-        emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis)?
+        emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis, facts)?
     };
     // Each of these six re-scans the whole artifact, on every emission, which
     // is the hottest path in the compiler on a large program. Routing them

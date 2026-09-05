@@ -227,6 +227,11 @@ pub struct FiniteValueAnalysis {
 }
 
 impl FiniteValueAnalysis {
+    /// How many values the analysis has a fact for.
+    pub fn len(&self) -> usize {
+        self.functions.len()
+    }
+
     pub fn function(&self, function: FunctionId) -> &FunctionFiniteFacts {
         &self.functions[function.0 as usize]
     }

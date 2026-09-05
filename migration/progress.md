@@ -29,7 +29,7 @@ Brotli and on compile time.
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
-| 4 — deliver the facts | **next** | — |
+| 4 — deliver the facts | **4a landed** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; the escape lattice already rides on the IR; no consumer yet. Next: provenance made required (`NodeId` on every instruction, the 18 `node_id: None` sites derive theirs) | BEHAVIOUR + NEUTRAL (byte-identical) |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
@@ -466,3 +466,16 @@ and the 74 cases in the shipped lane; the new variant adds candidates (as it sho
 none-lane case picks the braced variant at Brotli 266 vs 265 — the search's admission is not
 final-Brotli-exact, phase 7's problem. Port verification of `78aaf49` (UndefinedTest): markedlil
 9,342 and zodlil 32,619, identical bytes to `e5c40c3`.
+
+## Phase 4 — deliver the facts
+
+**4a — the facts cross the boundary (landing).** `optimizer::IrFacts { effect_summaries,
+finite_values, parameter_array_lengths }` is computed once per module the emitter sees
+(`analyze_ir_facts`, beside `IntegerValueAnalysis` on the emission context and once per IR
+variant on the candidate paths) and delivered to `IrJsEmitter::with_facts` as an `Arc`; the
+escape lattice already crosses as `value_escapes` on the IR. No pass consumes it yet — phase 4
+delivers, phase 6 consumes with its own measurement — so the gate is byte-identity: the probe and
+the 74 cases in three lanes are identical to `1516ad0` and the candidate sets match. Delivery is
+observable: `LILSCRIPT_TIMING` reports `facts_delivered` (82,181 facts over the probe's 381
+emissions). First cut computed the facts inside the IR-variant emission loops and cost 3 s on
+the probe; hoisted to one analysis per variant.

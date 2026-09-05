@@ -5524,7 +5524,7 @@ pub(crate) fn fixed_typed_array_lengths(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum ArrayLengthFact {
+pub(crate) enum ArrayLengthFact {
     #[default]
     Bottom,
     Exact(usize),
@@ -12138,6 +12138,39 @@ pub fn summarize_module_effects(
         );
     }
     crate::package::PackageEffectSummary { functions }
+}
+
+/// The facts the optimizer proves about a finished module, delivered across
+/// the emission boundary (phase 4 of `migration/`): the interprocedural
+/// effect summaries, the finite-value analysis, and the array-parameter
+/// lengths. Computed once per module the emitter sees and shared by every
+/// candidate emission, like `IntegerValueAnalysis`. The escape lattice is
+/// already on the IR as `value_escapes`.
+#[derive(Debug, Clone)]
+pub struct IrFacts {
+    pub(crate) effect_summaries: Vec<FunctionEffectSummary>,
+    pub(crate) finite_values: crate::value_analysis::FiniteValueAnalysis,
+    pub(crate) parameter_array_lengths: Vec<Vec<ArrayLengthFact>>,
+}
+
+impl IrFacts {
+    /// How many facts crossed: one per function summary, one per finite
+    /// value, one per array-parameter length fact.
+    pub fn delivered(&self) -> usize {
+        self.effect_summaries.len()
+            + self.finite_values.len()
+            + self.parameter_array_lengths.iter().map(Vec::len).sum::<usize>()
+    }
+}
+
+pub fn analyze_ir_facts(module: &ControlFlowModule<'_>) -> IrFacts {
+    let effect_summaries = analyze_function_effects(module);
+    let parameter_array_lengths = analyze_array_parameter_lengths(module, &effect_summaries);
+    IrFacts {
+        effect_summaries,
+        finite_values: crate::value_analysis::analyze_finite_values(module),
+        parameter_array_lengths,
+    }
 }
 
 fn analyze_function_effects(module: &ControlFlowModule<'_>) -> Vec<FunctionEffectSummary> {
