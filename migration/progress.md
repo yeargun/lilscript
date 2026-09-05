@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 99.97% nodes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 100% nodes on the probe | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **145** |
-| statement nodes (`push_statement`) | 0 | **40** |
+| fragment appends (`push_str`) | 324 | **116** |
+| statement nodes (`push_statement`) | 0 | **44** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -153,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **99.97% of statement bytes arrive as nodes** (probe, shipped config: 667 raw bytes over 15 sites). The conditional-merge scratch is a `String`; the merged assignment shapes (`var t=c?a:b,x,y;`, `c?t=a:e=b;`, effect ternaries) are `Declarators`/`Expression` nodes. What remains on the probe is the class-construction and record-rest statements and one literal scratch; the state machine (not exercised by the probe under the shipped config) is the last text-built construct | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **100% of statement bytes arrive as nodes on the probe** (shipped config: `stmt_raw_sum` 0). The state machine is `Binding` + `Loop(for(;;))` around a `Switch` node (or a chain of `If`s), each case body nested off the one before it; the class construction and record-rest statements are `Binding`/`Expression` nodes (`binding_keyword` returns the keyword instead of pushing it). The dynamic census is exhausted on the probe; what is left is *static*: `out.push_str` sites in paths the probe and the 72 cases do not reach, to be found by reading and by `migration/tools/candidate-diff.sh` (which forces the search and the control-flow variant families and diffs the whole candidate set between two binaries) | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |
@@ -284,3 +284,18 @@ lands on the pool).
 **Port verification of `229b728` (Try node, conditional return as a node), pool, background:**
 markedlil 9,431 identical; **zodlil 32,609 — the +18 from `2d7a01a` is recovered**, as
 predicted by the `{return }` diagnosis.
+
+**Port verification of `f3e9165` (merge scratch), pool, background:** markedlil 9,431 and
+zodlil 32,609 — identical bytes to `229b728`.
+
+**Batch 10 (state machine on nodes) — how it was verified.** No case and no probe config
+reaches the state machine; it is a scored variant the registry proposes only when
+`structural-control-flow-variants` / `switch-lowering-variants` are enabled. With those forced
+(`migration/tools/candidate-diff.sh`), both binaries emit 152 state-machine candidates over
+four loop cases and the candidate sets are identical except one losing variant: under the
+search's `elide_block_terminal_semicolons=false` option the text path always wrote
+`if(c){s=1}else{s=2}` and the `If` node spells it per the option (`{s=1;}`). The elided twin
+wins every time; outputs are byte-identical in all four lanes. Two facts for later: the
+branch condition there carries a redundant pair of parentheses (`if((c<=1))`) in both old and
+new — a byte to win once the state machine is worth scoring — and the state machine only ever
+renders as a candidate in these ports.

@@ -10738,32 +10738,43 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 })?;
                 let name = context.value_name(result)?;
                 materialize_cache_before_binding_write(context, name, predeclared, cache, out)?;
-                emit_binding_prefix(context, result, predeclared, out)?;
-                out.push_str(name);
-                out.push('=');
+                let keyword = binding_keyword(context, result, predeclared)?;
+                let mut rendered_args = Vec::new();
+                for arg in args {
+                    rendered_args.push(strip_outer_parens(take_value(*arg, context, cache)?));
+                }
                 if self.module.class_identity_observed(class) {
-                    out.push_str("new ");
-                    out.push_str(self.identity_class_binding(class)?);
-                    out.push('(');
-                    for (index, arg) in args.iter().enumerate() {
-                        if index != 0 {
-                            out.push(',');
-                        }
-                        out.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
-                    }
-                    out.push_str(");");
+                    out.push_statement(JsStatement::Binding {
+                        keyword,
+                        name: name.to_string(),
+                        value: JsExpression::raw(
+                            format!(
+                                "new {}({})",
+                                self.identity_class_binding(class)?,
+                                rendered_args.join(",")
+                            ),
+                            JsPrecedence::Call,
+                        ),
+                    });
                     return Ok(());
                 }
-                out.push_str(&self.default_class_value(class, context.is_untyped(result))?);
-                out.push(';');
-                out.push_str(self.function_name(*constructor)?);
-                out.push('(');
-                out.push_str(name);
-                for arg in args {
-                    out.push(',');
-                    out.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
+                out.push_statement(JsStatement::Binding {
+                    keyword,
+                    name: name.to_string(),
+                    value: JsExpression::raw(
+                        self.default_class_value(class, context.is_untyped(result))?,
+                        JsPrecedence::Primary,
+                    ),
+                });
+                let mut call = format!("{}({name}", self.function_name(*constructor)?);
+                for arg in rendered_args {
+                    call.push(',');
+                    call.push_str(&arg);
                 }
-                out.push_str(");");
+                call.push(')');
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(call, JsPrecedence::Call),
+                });
                 return Ok(());
             }
             _ => {}
@@ -10794,24 +10805,36 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.require_syntax(JsSyntaxFeature::ObjectRestSpread)?;
             if uses.get(&output).copied().unwrap_or(0) != 0 {
                 let name = context.value_name(output)?;
-                emit_binding_prefix(context, output, predeclared, out)?;
-                out.push_str(name);
-                out.push_str(if self.options.ordinary_record_literals {
-                    "={..."
-                } else {
-                    "={__proto__:null,..."
+                let keyword = binding_keyword(context, output, predeclared)?;
+                let object = strip_outer_parens(take_value(*object, context, cache)?);
+                out.push_statement(JsStatement::Binding {
+                    keyword,
+                    name: name.to_string(),
+                    value: JsExpression::raw(
+                        format!(
+                            "{}{object}}}",
+                            if self.options.ordinary_record_literals {
+                                "{..."
+                            } else {
+                                "{__proto__:null,..."
+                            }
+                        ),
+                        JsPrecedence::Primary,
+                    ),
                 });
-                out.push_str(&strip_outer_parens(take_value(*object, context, cache)?));
-                out.push_str("};");
                 for key in excluded {
-                    out.push_str("delete ");
-                    out.push_str(name);
-                    out.push('[');
-                    out.push_str(&render_string_literal(
-                        self.property_name(key),
-                        self.options.string_quote,
-                    ));
-                    out.push_str("];");
+                    out.push_statement(JsStatement::Expression {
+                        value: JsExpression::raw(
+                            format!(
+                                "delete {name}[{}]",
+                                render_string_literal(
+                                    self.property_name(key),
+                                    self.options.string_quote,
+                                )
+                            ),
+                            JsPrecedence::Unary,
+                        ),
+                    });
                 }
             }
             return Ok(());
@@ -11099,14 +11122,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.emit_calling_convention_aliases(function, &context, out)?;
         let declared = context.non_parameter_names(function);
         if !declared.is_empty() {
-            out.push_str("let ");
-            for (index, name) in declared.iter().enumerate() {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
-            }
-            out.push(';');
+            out.push_statement(JsStatement::DeclarationGroup {
+                keyword: "let ",
+                names: declared.iter().map(|name| (*name).to_string()).collect(),
+            });
         }
         // The up-front list is a declaration like any other, so record it.
         //
@@ -11129,30 +11148,37 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context.inline_declarations = true;
         let context = context;
         let state = context.state_name();
-        out.push_str("let ");
-        out.push_str(state);
-        match self.options.state_machine_spelling {
-            StateMachineSpelling::Switch => {
-                write!(out, "={};for(;;)switch({state}){{", function.entry.0)
-                    .expect("writing to String cannot fail");
-            }
-            StateMachineSpelling::Conditional => {
-                write!(out, "={};for(;;){{", function.entry.0)
-                    .expect("writing to String cannot fail");
-            }
-        }
+        out.push_statement(JsStatement::Binding {
+            keyword: Some("let "),
+            name: state.to_string(),
+            value: JsExpression::atom(function.entry.0.to_string()),
+        });
+        let options = JsStatementOptions {
+            elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
+        };
+        let spelling = self.options.state_machine_spelling;
+        // The dispatch is `for(;;)` around a switch, or around a chain of
+        // `if(state==n){..}`. Every case body nests off what precedes it in
+        // the text, so its keyword counters read as they did in one buffer.
+        let loop_head = JsLoopHead::For {
+            initializer: None,
+            condition: None,
+            update: None,
+        };
+        let mut dispatch = out.nested_after(&loop_head.render());
+        let mut cases: Vec<JsCase> = Vec::new();
+        let set_state = |target: BlockId| JsStatement::Binding {
+            keyword: None,
+            name: state.to_string(),
+            value: JsExpression::atom(target.0.to_string()),
+        };
 
         let uses = &context.use_counts;
         for block in &function.blocks {
-            match self.options.state_machine_spelling {
-                StateMachineSpelling::Switch => {
-                    write!(out, "case {}:", block.id.0).expect("writing to String cannot fail");
-                }
-                StateMachineSpelling::Conditional => {
-                    write!(out, "if({state}=={}){{", block.id.0)
-                        .expect("writing to String cannot fail");
-                }
-            }
+            let mut case_body = match (spelling, cases.last()) {
+                (StateMachineSpelling::Switch, Some(JsCase { body, .. })) => body.nested(),
+                _ => dispatch.nested(),
+            };
             let mut cache = AHashMap::default();
             let phi_edge = self.options.phi_edge_value_forwarding;
             let fuse_with_next = block
@@ -11187,7 +11213,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     &mut cache,
                     &fuse_with_next,
                 )? {
-                    out.push_str(&batched);
+                    case_body.push_block(&batched);
                     index += consumed;
                     continue;
                 }
@@ -11200,7 +11226,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     true,
                     &context,
                     &mut cache,
-                    out,
+                    &mut case_body,
                 )?;
                 index += 1;
             }
@@ -11211,10 +11237,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             {
                 Terminator::Jump(target) => {
                     self.emit_phi_edge_cached(
-                        function, block.id.0, target.0, &context, &mut cache, out,
+                        function,
+                        block.id.0,
+                        target.0,
+                        &context,
+                        &mut cache,
+                        &mut case_body,
                     )?;
-                    write!(out, "{state}={};continue;", target.0)
-                        .expect("writing to String cannot fail");
+                    case_body.push_statement(set_state(*target));
+                    case_body.push_statement(JsStatement::Continue);
                 }
                 Terminator::Branch {
                     condition,
@@ -11222,44 +11253,50 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     else_block,
                 } => {
                     let condition = take_value(*condition, &context, &mut cache)?;
-                    out.push_str("if(");
-                    out.push_str(&condition);
-                    out.push_str("){");
                     let mut then_cache = cache.clone();
+                    let mut then_branch = case_body.nested();
                     self.emit_phi_edge_cached(
                         function,
                         block.id.0,
                         then_block.0,
                         &context,
                         &mut then_cache,
-                        out,
+                        &mut then_branch,
                     )?;
-                    write!(out, "{state}={}", then_block.0).expect("writing to String cannot fail");
-                    out.push_str("}else{");
+                    then_branch.push_statement(set_state(*then_block));
+                    let mut else_branch = then_branch.nested();
                     self.emit_phi_edge_cached(
                         function,
                         block.id.0,
                         else_block.0,
                         &context,
                         &mut cache,
-                        out,
+                        &mut else_branch,
                     )?;
-                    write!(out, "{state}={}", else_block.0).expect("writing to String cannot fail");
-                    out.push_str("}continue;");
+                    else_branch.push_statement(set_state(*else_block));
+                    case_body.push_statement_with(
+                        JsStatement::If {
+                            condition: String::from(&*condition),
+                            then_branch: JsBranch::braced(then_branch),
+                            else_branch: Some(JsBranch::braced(else_branch)),
+                        },
+                        options,
+                    );
+                    case_body.push_statement(JsStatement::Continue);
                 }
                 Terminator::Return(Some(value)) => {
                     let returned = (!context.is_js_undefined(*value))
                         .then(|| take_value(*value, &context, &mut cache))
                         .transpose()?;
-                    out.push_statement(JsStatement::Return { value: returned });
+                    case_body.push_statement(JsStatement::Return { value: returned });
                 }
                 Terminator::Return(None) => {
-                    out.push_statement(JsStatement::Return { value: None });
+                    case_body.push_statement(JsStatement::Return { value: None });
                 }
                 Terminator::Throw(value) => {
-                    out.push_statement(JsStatement::Throw {
-                            value: take_value(*value, &context, &mut cache)?,
-                        });
+                    case_body.push_statement(JsStatement::Throw {
+                        value: take_value(*value, &context, &mut cache)?,
+                    });
                 }
                 Terminator::Try { .. } => {
                     return Err(CodegenError::new(
@@ -11268,14 +11305,45 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     ));
                 }
                 Terminator::Unreachable => {
-                    self.emit_unreachable_terminator(block.instructions.last(), out);
+                    self.emit_unreachable_terminator(block.instructions.last(), &mut case_body);
                 }
             }
-            if self.options.state_machine_spelling == StateMachineSpelling::Conditional {
-                close_statement_block(out, self.options.elide_block_terminal_semicolons);
+            match spelling {
+                StateMachineSpelling::Switch => cases.push(JsCase {
+                    label: block.id.0.to_string(),
+                    body: case_body,
+                }),
+                StateMachineSpelling::Conditional => dispatch.push_statement_with(
+                    JsStatement::If {
+                        condition: format!("{state}=={}", block.id.0),
+                        then_branch: JsBranch::braced(case_body),
+                        else_branch: None,
+                    },
+                    options,
+                ),
             }
         }
-        close_statement_block(out, self.options.elide_block_terminal_semicolons);
+        let body = match spelling {
+            StateMachineSpelling::Switch => {
+                dispatch.push_statement(JsStatement::Switch {
+                    discriminant: state.to_string(),
+                    cases,
+                });
+                JsBranch {
+                    block: dispatch,
+                    braceless: true,
+                }
+            }
+            StateMachineSpelling::Conditional => JsBranch::braced(dispatch),
+        };
+        out.push_statement_with(
+            JsStatement::Loop {
+                head: loop_head,
+                body,
+                do_condition: None,
+            },
+            options,
+        );
         if frame.braced() {
             close_statement_block(out, self.options.elide_block_terminal_semicolons);
         }
@@ -14025,7 +14093,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .ok_or_else(|| {
                         CodegenError::new(instruction.span, "missing boundary struct layout")
                     })?;
-                let mut rendered = JsBlock::from(String::from("{"));
+                let mut rendered = String::from("{");
                 for (index, (field, value)) in layout.fields.iter().zip(fields).enumerate() {
                     if index != 0 {
                         rendered.push(',');
@@ -14038,7 +14106,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             continue;
                         }
                     }
-                    self.push_named_literal_key(&mut rendered, property);
+                    self.push_named_literal_key_text(&mut rendered, property);
                     rendered.push_str(&value);
                 }
                 rendered.push('}');
@@ -21755,6 +21823,13 @@ enum JsStatement {
         catch: Option<JsCatch>,
         finally: Option<JsBlock>,
     },
+    /// `switch(d){case a:..case b:..}` -- the state machine's dispatch. The
+    /// last case closes the switch, so its terminal semicolon is elided like
+    /// a block's.
+    Switch {
+        discriminant: String,
+        cases: Vec<JsCase>,
+    },
     /// `while(c){..}`, `for(i;c;u){..}`, `for(;;){..}`, and the do-shape
     /// `if(c)do{..}while(c);` -- a head, a body branch, and the trailing
     /// condition the do-shape repeats.
@@ -21800,6 +21875,13 @@ impl BodyFrame {
 #[derive(Debug, Clone)]
 struct JsCatch {
     binding: Option<String>,
+    body: JsBlock,
+}
+
+/// One `case label:` and the statements under it.
+#[derive(Debug, Clone)]
+struct JsCase {
+    label: String,
     body: JsBlock,
 }
 
@@ -22056,6 +22138,27 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
+            Self::Switch {
+                discriminant,
+                cases,
+            } => {
+                let mut text = format!("switch({discriminant}){{");
+                let last = cases.len().checked_sub(1);
+                for (index, case) in cases.into_iter().enumerate() {
+                    text.push_str("case ");
+                    text.push_str(&case.label);
+                    text.push(':');
+                    if Some(index) == last {
+                        text.push_str(&Self::close_branch(case.body, options));
+                    } else {
+                        text.push_str(&case.body.into_string());
+                    }
+                }
+                if last.is_none() {
+                    text.push('}');
+                }
+                text
+            }
             Self::Try {
                 body,
                 catch,
@@ -22157,16 +22260,17 @@ impl JsStatement {
     }
 }
 
-fn emit_binding_prefix(
+/// The keyword a fresh binding of `value` needs -- `var` when it is
+/// predeclared at function level, `let` otherwise, nothing when the name is
+/// already bound.
+fn binding_keyword(
     context: &LocalNames,
     value: ValueId,
     predeclared: bool,
-    out: &mut JsBlock,
-) -> Result<(), CodegenError> {
-    if context.claim_declaration(value)? {
-        out.push_str(if predeclared { "var " } else { "let " });
-    }
-    Ok(())
+) -> Result<Option<&'static str>, CodegenError> {
+    Ok(context
+        .claim_declaration(value)?
+        .then_some(if predeclared { "var " } else { "let " }))
 }
 
 fn emit_bound_value(
