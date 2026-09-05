@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **emitter side done; classifiers twinned** — no emitter path pushes text into a block (every `push_str` left is on a `String` scratch or a render arm); `BracedFunction` and `close_statement_block` gone. Remaining: the text-reading classifiers (`compact_*`, `is_braceless_statement`, `merge_conditional_assignments`, …) move onto the list, the three `JsBlock::from(compact)` folds and the rotation's `from(rest)` become list operations, `Raw` is retired, then `text` is deleted and G1/G2 follow the fold-deletion protocol | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **emitter side done; classifiers on the list** — no emitter path pushes text into a block (every `push_str` left is on a `String` scratch or a render arm); `BracedFunction` and `close_statement_block` gone. Remaining: the text-reading classifiers (`compact_*`, `is_braceless_statement`, `merge_conditional_assignments`, …) move onto the list, the three `JsBlock::from(compact)` folds and the rotation's `from(rest)` become list operations, `Raw` is retired, then `text` is deleted and G1/G2 follow the fold-deletion protocol | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -353,3 +353,11 @@ batch 9 is an assignment, and the twin wanted the `Binding` — fixed at the pro
 (a digit is an identifier byte), and `conditional_assignment_expression` then spelled the else
 arm as `1` `=` `=v58%3?..` — right by accident. The structural twin refuses it; the text side
 now requires an identifier start. Found by the twin on `function_subsumption`.
+
+**Port verification of `7e5975e` (classifier twins), pool, background:** markedlil 9,431 and
+zodlil 32,609 — identical bytes to `d0667b5`.
+
+**Batch 15 — the call sites read the list.** Every classifier call site uses the structural
+version; `twin_check` is gone. Zero byte diffs in three lanes, candidate sets identical
+(2,011 each over six cases), probe both lanes, 17/18, 1706 tests, pool 144/144. The text
+classifiers survive only as the `Raw` fallback inside their twins, which is the next thing to go.

@@ -10186,11 +10186,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             } else {
                 flush_pending_lets(out, &mut pending_lets);
-                if twin_check(
-                    "comma-eligible",
-                    is_comma_eligible_statement(&statement),
-                    block_is_comma_eligible(&statement),
-                ) {
+                if block_is_comma_eligible(&statement) {
                     pending_run.push(JsExpression::raw(
                         statement
                             .strip_suffix(';')
@@ -11543,21 +11539,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             .options
                             .conditional_expressions
                             .then(|| {
-                                twin_check(
-                                    "merge-conditional",
-                                    merge_conditional_assignments(&then_output, &else_output).map(
-                                        |(declare, target, then_value, else_value, trailing)| {
-                                            (
-                                                declare,
-                                                target.to_string(),
-                                                then_value.to_string(),
-                                                else_value.to_string(),
-                                                trailing.to_string(),
-                                            )
-                                        },
-                                    ),
-                                    block_merge_conditional_assignments(&then_output, &else_output),
-                                )
+                                block_merge_conditional_assignments(&then_output, &else_output)
                             })
                             .flatten()
                         {
@@ -11663,22 +11645,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             self.options
                                 .conditional_expressions
                                 .then(|| {
-                                    twin_check(
-                                        "conditional-assignment",
-                                        conditional_assignment_expression(&then_output, &else_output)
-                                            .map(|(a, b, c, d)| {
-                                                (
-                                                    a.to_string(),
-                                                    b.to_string(),
-                                                    c.to_string(),
-                                                    d.to_string(),
-                                                )
-                                            }),
-                                        block_conditional_assignment_expression(
+                                    block_conditional_assignment_expression(
                                             &then_output,
                                             &else_output,
-                                        ),
-                                    )
+                                        )
                                 })
                                 .flatten()
                         {
@@ -11695,16 +11665,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             (self.options.conditional_expressions && self.options.effect_ternary)
                                 .then(|| {
                                     Some((
-                                        twin_check(
-                                            "ternary-arm",
-                                            compact_ternary_arm(&then_output),
-                                            block_compact_ternary_arm(&then_output),
-                                        )?,
-                                        twin_check(
-                                            "ternary-arm",
-                                            compact_ternary_arm(&else_output),
-                                            block_compact_ternary_arm(&else_output),
-                                        )?,
+                                        block_compact_ternary_arm(&then_output)?,
+                                        block_compact_ternary_arm(&else_output)?,
                                     ))
                                 })
                                 .flatten()
@@ -11722,27 +11684,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             });
                         } else if let (true, Some(then_ret), Some(else_ret)) = (
                             self.options.conditional_expressions,
-                            twin_check(
-                                "return-expression",
-                                compact_return_expression(&then_output).map(str::to_string),
-                                block_compact_return_expression(&then_output),
-                            ),
-                            twin_check(
-                                "return-expression",
-                                compact_return_expression(&else_output).map(str::to_string),
-                                block_compact_return_expression(&else_output),
-                            ),
+                            block_compact_return_expression(&then_output),
+                            block_compact_return_expression(&else_output),
                         ) {
                             push_return_conditional(out, &condition, &then_ret, &else_ret);
                             cache.clear();
                             return Ok(PathEnd::Terminated);
                         } else if let (true, Some(then_ret), Some(merge_ret)) = (
                             self.options.conditional_expressions && else_output.is_empty(),
-                            twin_check(
-                                "return-expression",
-                                compact_return_expression(&then_output).map(str::to_string),
-                                block_compact_return_expression(&then_output),
-                            ),
+                            block_compact_return_expression(&then_output),
                             peek_merge_return_expression(function, merge_block, context, cache),
                         ) {
                             push_return_conditional(out, &condition, &then_ret, &merge_ret);
@@ -11750,20 +11700,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             return Ok(PathEnd::Terminated);
                         } else if let (true, Some(guard)) = (
                             self.options.conditional_expressions && else_output.is_empty(),
-                            {
-                                let text = parse_assignment_guard_return(&then_output);
-                                let _ = twin_check(
-                                    "assignment-guard-return",
-                                    text.as_ref().map(|guard| OwnedAssignmentGuardReturn {
-                                        declare: guard.declare,
-                                        name: guard.name.map(str::to_string),
-                                        condition: guard.condition.clone(),
-                                        returned: guard.returned.to_string(),
-                                    }),
-                                    block_parse_assignment_guard_return(&then_output),
-                                );
-                                text
-                            },
+                            block_parse_assignment_guard_return(&then_output),
                         ) {
                             if let Some(name) = guard.name.filter(|_| guard.declare) {
                                 out.push_statement(JsStatement::Declaration {
@@ -11785,7 +11722,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     push_return_conditional(
                                         out,
                                         &combined,
-                                        guard.returned,
+                                        &guard.returned,
                                         &merge_ret,
                                     );
                                     cache.clear();
@@ -11820,17 +11757,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 ) || context.value_name(source).is_ok()
                             })
                         {
-                            let expression = twin_check(
-                                "branch-expression",
-                                compact_branch_expression(&else_output).map(str::to_string),
-                                block_compact_branch_expression(&else_output),
-                            )
+                            let expression = block_compact_branch_expression(&else_output)
                                 .or_else(|| {
-                                    twin_check(
-                                        "top-level-expressions",
-                                        compact_top_level_expression_statements(&else_output),
-                                        block_compact_top_level_expression_statements(&else_output),
-                                    )
+                                    block_compact_top_level_expression_statements(&else_output)
                                 });
                             if let Some(expression) = expression {
                                 let source = nullish_condition_source(function, header)
@@ -11931,11 +11860,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                         } else if else_output.is_empty() {
                             if let Some((target, value)) =
-                                twin_check(
-                                    "negated-self-or",
-                                    negated_self_or_assign(&condition, &then_output),
-                                    block_negated_self_or_assign(&condition, &then_output),
-                                )
+                                block_negated_self_or_assign(&condition, &then_output)
                             {
                                 out.push_statement(JsStatement::Expression {
                                     value: JsExpression::raw(
@@ -11950,12 +11875,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     &condition
                                 };
                                 if let Some((target, method, invoke)) =
-                                    twin_check(
-                                        "optional-method-reassign",
-                                        optional_method_reassign(method_condition, &then_output)
-                                            .map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string())),
-                                        block_optional_method_reassign(method_condition, &then_output),
-                                    )
+                                    block_optional_method_reassign(method_condition, &then_output)
                                 {
                                     out.push_statement(JsStatement::Expression {
                                         value: JsExpression::raw(
@@ -11967,11 +11887,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     .options
                                     .conditional_expressions
                                     .then(|| {
-                                        twin_check(
-                                            "sequence-expression",
-                                            compact_sequence_expression(&then_output),
-                                            block_compact_sequence_expression(&then_output),
-                                        )
+                                        block_compact_sequence_expression(&then_output)
                                     })
                                     .flatten()
                                 {
@@ -12027,11 +11943,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 .options
                                 .conditional_expressions
                                 .then(|| {
-                                    twin_check(
-                                        "sequence-expression",
-                                        compact_sequence_expression(&else_output),
-                                        block_compact_sequence_expression(&else_output),
-                                    )
+                                    block_compact_sequence_expression(&else_output)
                                 })
                                 .flatten()
                             {
@@ -12360,11 +12272,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut compacted_loop_body = false;
                         if self.options.comma_expressions && compact_loop {
                             if let Some(compact) =
-                                twin_check(
-                                    "top-level-expressions",
-                                    compact_top_level_expression_statements(&body_output),
-                                    block_compact_top_level_expression_statements(&body_output),
-                                )
+                                block_compact_top_level_expression_statements(&body_output)
                             {
                                 body_output = JsBlock::from(compact);
                                 compacted_loop_body = true;
@@ -12372,11 +12280,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         let braceless = compact_loop
                             && !do_loop
-                            && (compacted_loop_body || twin_check(
-                                "braceless",
-                                is_braceless_statement(&body_output),
-                                block_is_braceless(&body_output),
-                            ));
+                            && (compacted_loop_body || block_is_braceless(&body_output));
                         // `while(n>0){--n;..}` becomes `while(n--){..}`. A
                         // decision about the header and the body as values --
                         // the same two checks the old rewrite made by searching
@@ -12468,21 +12372,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut compacted_body = false;
                         if self.options.comma_expressions {
                             if let Some(compact) =
-                                twin_check(
-                                    "top-level-expressions",
-                                    compact_top_level_expression_statements(&body_output),
-                                    block_compact_top_level_expression_statements(&body_output),
-                                )
+                                block_compact_top_level_expression_statements(&body_output)
                             {
                                 body_output = JsBlock::from(compact);
                                 compacted_body = true;
                             }
                         }
-                        let braceless = compacted_body || twin_check(
-                                "braceless",
-                                is_braceless_statement(&body_output),
-                                block_is_braceless(&body_output),
-                            );
+                        let braceless = compacted_body || block_is_braceless(&body_output);
                         out.push_statement_with(
                             JsStatement::Loop {
                                 head: loop_head,
@@ -12555,21 +12451,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut compacted_body = false;
                         if self.options.comma_expressions {
                             if let Some(compact) =
-                                twin_check(
-                                    "top-level-expressions",
-                                    compact_top_level_expression_statements(&body_output),
-                                    block_compact_top_level_expression_statements(&body_output),
-                                )
+                                block_compact_top_level_expression_statements(&body_output)
                             {
                                 body_output = JsBlock::from(compact);
                                 compacted_body = true;
                             }
                         }
-                        let braceless = compacted_body || twin_check(
-                                "braceless",
-                                is_braceless_statement(&body_output),
-                                block_is_braceless(&body_output),
-                            );
+                        let braceless = compacted_body || block_is_braceless(&body_output);
                         out.push_statement_with(
                             JsStatement::Loop {
                                 head: loop_head,
@@ -18449,21 +18337,12 @@ fn expression_statement(expression: JsExpression) -> String {
 // The classifiers, read from the statement list.
 //
 // Every function below is the structural twin of a text classifier that
-// scans emitted bytes. Under `LILSCRIPT_TWIN` each call site computes both
-// and `twin_check` panics on a disagreement, so the list versions are proved
-// against the text ones on every compile before the text ones are deleted.
-// A `Raw` statement -- text the list did not model -- falls back to the text
-// classifier on its own bytes, which is exactly what the text version saw.
+// scanned emitted bytes; the two were run side by side under the twin
+// witness over the probe, the 72 cases and the forced-search candidates
+// before the call sites switched. A `Raw` statement -- text the list did not
+// model -- still falls back to the text classifier on its own bytes; those
+// text classifiers go with `Raw`.
 // ---------------------------------------------------------------------------
-
-/// Under `LILSCRIPT_TWIN`, the two classifiers must agree; the text answer is
-/// what flows on until the switch.
-fn twin_check<T: PartialEq + core::fmt::Debug>(site: &str, text: T, structural: T) -> T {
-    if twin_witness_enabled() && text != structural {
-        panic!("classifier twin `{site}` disagrees: text {text:?}, list {structural:?}");
-    }
-    text
-}
 
 /// The expression text a statement contributes to a sequence, if it is an
 /// expression statement: `e;` or a keyword-less `t=v;`.
@@ -22531,11 +22410,7 @@ impl JsBranch {
 
     /// Braceless when the arm's content allows it, braced otherwise.
     fn compact(block: JsBlock) -> Self {
-        let braceless = twin_check(
-            "braceless",
-            is_braceless_statement(&block),
-            block_is_braceless(&block),
-        );
+        let braceless = block_is_braceless(&block);
         Self { block, braceless }
     }
 
