@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a–c landed** — fleet A/B of `frequency-desc`: one win, four losses, stays off; the port twin lane found and fixed a bind leak — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a–c landed** — both orderings measured on the fleet and off; the renamer is sound (guard + placement), the residues are named; next: per-idiom candidates — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -723,4 +723,25 @@ foreign import spelled by its source stays an atom). Probe under `frequency-desc
 1,509). Default lane: 0 byte diffs, twin 0 failures over two lanes, frequency lane 73/73, 1,716
 tests; the port twin lane on remarklil, cnlil, micromarklil (the script now resolves the compiler
 path before it changes directory).
+
+**5.5a — `NameOrdering::IdiomConverged`, the census on binding identity, and the guard.** `rename.rs`'s
+idiom census ported to the tree: a copy of the module is re-spelled with one marker per binding,
+lexed, and every token window of an idiom's width (4–10 tokens, 12–220 bytes, recurring ≥ 4×) is
+hashed as a shape (wildcards for the bindings this pass may move, kinds for literals, text
+otherwise) and as a spelling; a shape wants its commonest spelling everywhere, and the preference
+(binding → spelling) is honoured by the scope pass where it is sound — every other binding keeps its
+name. Module-level bindings are never idiom slots, as in the text pass. **Measured, pinned, idiom-only:**
+markedlil +31, cnlil +24, micromarklil +27, remarklil −19 (then +1 after the fix below); the mixed
+form (frequency pool for the rest) markedlil −11, cnlil +25, micromarklil +4, remarklil −34. The
+same lesson 059 measured in text — the whole assignment loses; the idioms must be priced one at a
+time by the codec (060's wins) — now on the tree, so the next shape is one idiom group per search
+candidate. **Both orderings stay off.** A collision the census made possible — two bindings of one
+scope both preferred `g`, one of them already spelled so, the other moved onto it (zodlil:
+`Duplicate parameter name`) — is caught twice now: the placement reserves a binding already spelled
+as its idiom wants before moving others, and a guard puts a scope back exactly as it was if its
+declared bindings would not spell distinctly (`rename_scopes_reverted`, `LILSCRIPT_RENAME_TRACE=1`
+names the collision). Also: `ScopeTree` indexes declaring scopes once (the renamer had been
+scanning every scope per reference) and the census snapshots spellings. Gate: 0 byte diffs, 0 trace
+diffs, both renamer lanes 73/73 and deterministic with 0 reverts, probe 21/22 configurations,
+1,716 tests.
 

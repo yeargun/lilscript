@@ -38,6 +38,7 @@ mod rename;
 mod rewrite;
 mod scope;
 mod token;
+pub(crate) use token::{lex as lex_javascript, Token as JsToken, TokenKind as JsTokenKind};
 
 #[cfg(test)]
 mod keyword_space_tests;

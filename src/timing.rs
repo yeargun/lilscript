@@ -150,6 +150,10 @@ pub static RENAME_KEPT_CLASS: Bucket = Bucket::new("rename_kept_class");
 pub static RENAME_KEPT_DECLARATION: Bucket = Bucket::new("rename_kept_declaration");
 pub static RENAME_KEPT_MODULE: Bucket = Bucket::new("rename_kept_module");
 pub static RENAME_KEPT_HEAD: Bucket = Bucket::new("rename_kept_head");
+/// Bindings an idiom wanted spelled a particular way (sum per emission).
+pub static RENAME_IDIOM_PREFERENCES: Bucket = Bucket::new("rename_idiom_preferences");
+/// Scopes the guard put back because their new spellings collided.
+pub static RENAME_SCOPES_REVERTED: Bucket = Bucket::new("rename_scopes_reverted");
 pub static STATEMENT_RAW: Bucket = Bucket::new("stmt_raw");
 /// Peephole folds that rewrote nothing, and the time they spent proving it.
 /// A fold whose enabling syntax is absent from the artifact still pays a full
@@ -238,8 +242,8 @@ const BYTE_BUCKETS: [&Bucket; 17] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 49] = [
-    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND, &DECL_BOUND, &DECL_UNBOUND, &RENAME_SCOPES, &RENAME_SCOPES_FULL, &RENAME_BINDS, &RENAME_BINDS_RENAMED, &RENAME_KEPT_FREE, &RENAME_KEPT_RAW, &RENAME_KEPT_LITERAL, &RENAME_KEPT_CONCISE, &RENAME_KEPT_CONDITION, &RENAME_KEPT_LOOP_TEXT, &RENAME_KEPT_SWITCH, &RENAME_KEPT_CLASS, &RENAME_KEPT_DECLARATION, &RENAME_KEPT_MODULE, &RENAME_KEPT_HEAD,
+const EVENT_BUCKETS: [&Bucket; 51] = [
+    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND, &DECL_BOUND, &DECL_UNBOUND, &RENAME_SCOPES, &RENAME_SCOPES_FULL, &RENAME_BINDS, &RENAME_BINDS_RENAMED, &RENAME_KEPT_FREE, &RENAME_KEPT_RAW, &RENAME_KEPT_LITERAL, &RENAME_KEPT_CONCISE, &RENAME_KEPT_CONDITION, &RENAME_KEPT_LOOP_TEXT, &RENAME_KEPT_SWITCH, &RENAME_KEPT_CLASS, &RENAME_KEPT_DECLARATION, &RENAME_KEPT_MODULE, &RENAME_KEPT_HEAD, &RENAME_IDIOM_PREFERENCES, &RENAME_SCOPES_REVERTED,
     &STATEMENT_RAW,
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,

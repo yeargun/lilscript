@@ -127,6 +127,21 @@ spelling (raw node, literal, concise body, condition without a tree, loop text, 
 unbound declaration, module name, head text, free reference). That census picks the next node to
 build.
 
+### What the orderings measured (2026-09-05)
+
+- `FrequencyDesc`, pinned, on six ports: markedlil −35, zodlil +55, cnlil +77, micromarklil +591,
+  mobxlil +22, remarklil (fine). Off.
+- `IdiomConverged` as `rename.rs`'s census on binding identity, **every idiom applied at once**:
+  with the frequency pool for the other bindings markedlil −11, cnlil +25, micromarklil +4,
+  remarklil −34; *idiom-only* (every other binding keeps its spelling) markedlil +31, cnlil +24,
+  micromarklil +27, remarklil −19. The same lesson 059 measured in text: the whole assignment is a
+  loss, the idioms inside it have to be priced one at a time by the codec (060's two wins came from
+  that). On the tree that means the search proposes one idiom group per candidate and the codec
+  rules, which is the next shape of this ordering.
+- A collision the census made possible — two bindings of one scope both preferred `e` — is now
+  caught by a guard: a scope whose declared bindings would not spell distinctly is put back exactly
+  as it was (`rename_scopes_reverted`), and `LILSCRIPT_RENAME_TRACE=1` says which bindings collided.
+
 ### 5.5 — Deletions
 
 `rename.rs`, `binding.rs`'s `BindingResolution`, the third `Mangler`, `rename_ambiguous` — after

@@ -500,6 +500,10 @@ pub enum NameOrdering {
     #[default]
     EmissionWalk,
     FrequencyDesc,
+    /// `rename.rs`'s idiom convergence on binding identity: repeated token
+    /// shapes get the same spellings, decided from the tree, where a
+    /// duplicate declaration can no longer make a rename ambiguous.
+    IdiomConverged,
 }
 
 const MIN_IIFE_CLUSTER_HELPERS: usize = 2;
@@ -1246,6 +1250,13 @@ fn report_raw_sites(kept: &[String]) {
         let _ = writeln!(report, "raw-sites {line} {nodes} {hits}");
     }
     eprint!("{report}");
+}
+
+/// `LILSCRIPT_RENAME_TRACE=1`: the renamer explains what it kept and what
+/// the guard put back, on stderr.
+fn rename_trace_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_RENAME_TRACE").as_deref() == Ok("1"))
 }
 
 fn trace_name_request(role: &'static str, name: &str) {
@@ -3234,7 +3245,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         let (scopes, scopes_full, binds, renamed) = match self.options.name_ordering {
             NameOrdering::EmissionWalk => (0, 0, 0, 0),
-            NameOrdering::FrequencyDesc => renamer.frequency_desc(),
+            NameOrdering::FrequencyDesc => renamer.frequency_desc(&AHashMap::default(), false),
+            NameOrdering::IdiomConverged => {
+                let preferences = renamer.idiom_preferences(out, &self.closure_trees, self.respell());
+                renamer.frequency_desc(&preferences, true)
+            }
         };
         crate::timing::RENAME_SCOPES.event(scopes as u64);
         crate::timing::RENAME_SCOPES_FULL.event(scopes_full as u64);
@@ -23097,6 +23112,8 @@ struct RenameScope {
 
 struct ScopeTree {
     scopes: Vec<RenameScope>,
+    /// Which scope declares each binding, filled once after collection.
+    declaring: AHashMap<Bind, usize>,
 }
 
 impl ScopeTree {
@@ -23129,9 +23146,18 @@ impl ScopeTree {
     }
 
     fn declaring_scope(&self, bind: Bind) -> Option<usize> {
-        self.scopes
-            .iter()
-            .position(|scope| scope.declared.contains(&bind))
+        self.declaring.get(&bind).copied()
+    }
+
+    /// Index the declarations once, after the walk: the renamer asks for a
+    /// binding's scope once per reference, and a port has hundreds of scopes.
+    fn index_declarations(&mut self) {
+        self.declaring.clear();
+        for (index, scope) in self.scopes.iter().enumerate() {
+            for bind in &scope.declared {
+                self.declaring.entry(*bind).or_insert(index);
+            }
+        }
     }
 }
 
@@ -23232,10 +23258,12 @@ impl ScopeCollector<'_> {
         let mut collector = ScopeCollector {
             tree: ScopeTree {
                 scopes: vec![RenameScope::default()],
+                declaring: AHashMap::default(),
             },
             closures,
         };
         collector.block(0, out);
+        collector.tree.index_declarations();
         collector.tree
     }
 
@@ -23515,7 +23543,11 @@ struct Renamer<'a> {
 impl Renamer<'_> {
     /// Rename every scope, top down, and report (scopes, scopes fully
     /// renameable, bindings, bindings renamed).
-    fn frequency_desc(&self) -> (usize, usize, usize, usize) {
+    fn frequency_desc(
+        &self,
+        preferences: &AHashMap<Bind, String>,
+        keep_the_rest: bool,
+    ) -> (usize, usize, usize, usize) {
         let mut kept_spellings = Vec::new();
         let mut counts = AHashMap::<Bind, usize>::default();
         for scope in &self.tree.scopes {
@@ -23599,8 +23631,49 @@ impl Renamer<'_> {
                     .cmp(&counts.get(left).copied().unwrap_or(0))
                     .then_with(|| left.cmp(right))
             });
+            // A preferred spelling (an idiom's) is honoured when the scope
+            // can take it; the rest draw from the pool in frequency order.
             let mut next = 0;
-            for bind in renameable {
+            let before = declared
+                .iter()
+                .map(|bind| (*bind, self.table.spelling(*bind)))
+                .collect::<Vec<_>>();
+            let (preferred, pooled): (Vec<Bind>, Vec<Bind>) = renameable
+                .iter()
+                .copied()
+                .partition(|bind| preferences.contains_key(bind));
+            // Idioms only: every other binding keeps its spelling, and keeps
+            // it reserved before a preference is placed beside it.
+            if keep_the_rest {
+                for bind in &pooled {
+                    forbidden.insert(self.table.spelling(*bind));
+                }
+            }
+            // A binding already spelled as its idiom wants keeps that
+            // spelling and reserves it first; only then are the others
+            // moved onto theirs. Conflating "already spelled so" with
+            // "placed" is how two bindings of one scope both became `g`.
+            let (keepers, movers): (Vec<Bind>, Vec<Bind>) = preferred
+                .iter()
+                .copied()
+                .partition(|bind| self.table.spelling(*bind) == preferences[bind]);
+            for bind in &keepers {
+                forbidden.insert(preferences[bind].clone());
+            }
+            let mut unplaced = Vec::new();
+            for bind in &movers {
+                let wanted = &preferences[bind];
+                if is_js_reserved(wanted) || forbidden.contains(wanted) {
+                    unplaced.push(*bind);
+                    continue;
+                }
+                forbidden.insert(wanted.clone());
+                trace_name_request("rename", wanted);
+                self.table.respell(*bind, wanted);
+                binds_renamed += 1;
+            }
+            let pooled = if keep_the_rest { Vec::new() } else { pooled };
+            for bind in pooled.into_iter().chain(unplaced) {
                 let spelling = loop {
                     let candidate = encode_identifier(next, self.alphabet);
                     next += 1;
@@ -23613,11 +23686,258 @@ impl Renamer<'_> {
                 self.table.respell(bind, &spelling);
                 binds_renamed += 1;
             }
+            // The guard: a scope's declared bindings must spell distinctly.
+            // If they do not, the scope is put back exactly as it was and,
+            // under the twin, says which bindings collided.
+            let mut seen = AHashSet::<String>::default();
+            let collision = declared
+                .iter()
+                .find(|bind| !seen.insert(self.table.spelling(**bind)));
+            if let Some(collision) = collision {
+                if twin_witness_enabled() || rename_trace_enabled() {
+                    let spelling = self.table.spelling(*collision);
+                    let others = declared
+                        .iter()
+                        .filter(|bind| self.table.spelling(**bind) == spelling)
+                        .map(|bind| {
+                            format!(
+                                "bind {} (was `{}`, preferred {:?}, kept {})",
+                                bind.0,
+                                before
+                                    .iter()
+                                    .find(|(b, _)| b == bind)
+                                    .map(|(_, s)| s.as_str())
+                                    .unwrap_or("?"),
+                                preferences.get(bind),
+                                kept.contains(bind)
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    eprintln!("rename-guard: scope {scope} collides on `{spelling}`: {others}");
+                }
+                for (bind, spelling) in &before {
+                    self.table.respell(*bind, spelling);
+                }
+                crate::timing::RENAME_SCOPES_REVERTED.event(1);
+            }
         }
         if raw_sites_enabled() {
             report_raw_sites(&kept_spellings);
         }
         (self.tree.scopes.len(), scopes_full, binds_total, binds_renamed)
+    }
+
+    /// `rename.rs`'s idiom census on binding identity. The module is
+    /// re-spelled with one marker per binding, lexed, and every token window
+    /// of an idiom's width is hashed as a *shape* (wildcards for the
+    /// bindings this pass may rename, kinds for literals, text otherwise)
+    /// and as a *spelling* (the bindings' real names). A shape that recurs
+    /// enough wants its commonest spelling everywhere; the preference is a
+    /// binding -> spelling map the frequency pass honours where it is sound.
+    fn idiom_preferences(
+        &self,
+        module: &JsBlock,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+        respell: Respell<'_>,
+    ) -> AHashMap<Bind, String> {
+        use std::hash::{Hash as _, Hasher as _};
+        const WIDTHS: std::ops::RangeInclusive<usize> = 4..=10;
+        const MIN_SPAN: usize = 12;
+        const MAX_SPAN: usize = 220;
+        const MIN_OCCURRENCES: usize = 4;
+
+        // One marker per binding, on a throwaway copy of the module.
+        let markers = BindTable::default();
+        for index in 0..self.table.len() {
+            markers.alloc(&format!("$q${index}$"));
+        }
+        let marker_closures = RefCell::new(closures.borrow().clone());
+        let marked = Respell {
+            table: &markers,
+            closures: &marker_closures,
+            options: respell.options,
+            statement_options: respell.statement_options,
+        };
+        let mut copy = module.clone();
+        marked.block(&mut copy);
+        let text = copy.into_string();
+        let Ok(tokens) = crate::js_peephole::lex_javascript(&text) else {
+            return AHashMap::default();
+        };
+        let spellings: Vec<String> = (0..self.table.len())
+            .map(|index| self.table.spelling(Bind(index as u32)))
+            .collect();
+        let spelling_of = |bind: Bind| spellings[bind.0 as usize].as_str();
+        if tokens.iter().any(|token| {
+            token.kind == crate::js_peephole::JsTokenKind::Template && token.text.contains("${")
+        }) {
+            return AHashMap::default();
+        }
+        // Which tokens are bindings this pass may move: a marker whose
+        // binding is declared below the module scope.
+        let renameable: Vec<Option<Bind>> = tokens
+            .iter()
+            .map(|token| {
+                if token.kind != crate::js_peephole::JsTokenKind::Identifier {
+                    return None;
+                }
+                let id = token.text.strip_prefix("$q$")?.strip_suffix('$')?;
+                let bind = Bind(id.parse().ok()?);
+                match self.tree.declaring_scope(bind) {
+                    Some(0) | None => None,
+                    Some(_) => Some(bind),
+                }
+            })
+            .collect();
+        struct Shape {
+            occurrences: Vec<(usize, usize)>,
+            spellings: AHashMap<u64, usize>,
+            span: usize,
+        }
+        let mut shapes: AHashMap<u64, Shape> = AHashMap::default();
+        for width in WIDTHS {
+            let mut last_end: AHashMap<u64, usize> = AHashMap::default();
+            for start in 0..tokens.len().saturating_sub(width) {
+                let from = tokens[start].start;
+                let to = tokens[start + width - 1].end;
+                if to <= from || to - from < MIN_SPAN || to - from > MAX_SPAN {
+                    continue;
+                }
+                let mut shape = std::collections::hash_map::DefaultHasher::new();
+                let mut spelling = std::collections::hash_map::DefaultHasher::new();
+                let mut slots: Vec<Bind> = Vec::new();
+                let mut wildcards = 0usize;
+                for index in start..start + width {
+                    match renameable[index] {
+                        Some(bind) => {
+                            let slot = slots
+                                .iter()
+                                .position(|held| *held == bind)
+                                .unwrap_or_else(|| {
+                                    slots.push(bind);
+                                    slots.len() - 1
+                                });
+                            0u8.hash(&mut shape);
+                            slot.hash(&mut shape);
+                            spelling_of(bind).hash(&mut spelling);
+                            wildcards += 1;
+                        }
+                        None => match tokens[index].kind {
+                            crate::js_peephole::JsTokenKind::Number
+                            | crate::js_peephole::JsTokenKind::String
+                            | crate::js_peephole::JsTokenKind::Template
+                            | crate::js_peephole::JsTokenKind::Regex => {
+                                1u8.hash(&mut shape);
+                                std::mem::discriminant(&tokens[index].kind).hash(&mut shape);
+                            }
+                            _ => {
+                                2u8.hash(&mut shape);
+                                tokens[index].text.hash(&mut shape);
+                            }
+                        },
+                    }
+                }
+                if wildcards == 0 {
+                    continue;
+                }
+                let key = shape.finish();
+                if last_end.get(&key).is_some_and(|previous| from < *previous) {
+                    continue;
+                }
+                last_end.insert(key, to);
+                let entry = shapes.entry(key).or_insert_with(|| Shape {
+                    occurrences: Vec::new(),
+                    spellings: AHashMap::default(),
+                    span: to - from,
+                });
+                entry.occurrences.push((start, width));
+                *entry.spellings.entry(spelling.finish()).or_insert(0) += 1;
+            }
+        }
+        let mut ranked: Vec<(usize, usize, u64)> = shapes
+            .iter()
+            .filter(|(_, shape)| shape.occurrences.len() >= MIN_OCCURRENCES)
+            .map(|(key, shape)| {
+                let best = shape.spellings.values().copied().max().unwrap_or(0);
+                let convertible = shape.occurrences.len().saturating_sub(best);
+                (convertible * shape.span, shape.occurrences[0].0, *key)
+            })
+            .filter(|(value, _, _)| *value > 0)
+            .collect();
+        ranked.sort_unstable_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
+        let slots_of = |start: usize, width: usize| -> Vec<Bind> {
+            let mut slots: Vec<Bind> = Vec::new();
+            for index in start..start + width {
+                if let Some(bind) = renameable[index] {
+                    if !slots.contains(&bind) {
+                        slots.push(bind);
+                    }
+                }
+            }
+            slots
+        };
+        // Highest-value idiom first; a binding takes the first spelling an
+        // idiom wants for it and keeps it.
+        let mut wanted: AHashMap<Bind, String> = AHashMap::default();
+        let mut claimed: Vec<bool> = vec![false; tokens.len()];
+        for (_, _, key) in ranked {
+            let Some(shape) = shapes.get(&key) else {
+                continue;
+            };
+            let Some((target_spelling, _)) = shape
+                .spellings
+                .iter()
+                .max_by_key(|(spelling, count)| (**count, std::cmp::Reverse(**spelling)))
+            else {
+                continue;
+            };
+            let Some(target) = shape
+                .occurrences
+                .iter()
+                .find(|(start, width)| {
+                    let mut spelling = std::collections::hash_map::DefaultHasher::new();
+                    for index in *start..*start + *width {
+                        if let Some(bind) = renameable[index] {
+                            spelling_of(bind).hash(&mut spelling);
+                        }
+                    }
+                    spelling.finish() == *target_spelling
+                })
+                .map(|(start, width)| {
+                    slots_of(*start, *width)
+                        .into_iter()
+                        .map(|bind| spelling_of(bind).to_string())
+                        .collect::<Vec<_>>()
+                })
+            else {
+                continue;
+            };
+            for (start, width) in &shape.occurrences {
+                if claimed[*start..*start + *width].iter().any(|token| *token) {
+                    continue;
+                }
+                let slots = slots_of(*start, *width);
+                if slots.len() != target.len() {
+                    continue;
+                }
+                if slots
+                    .iter()
+                    .zip(&target)
+                    .any(|(bind, name)| wanted.get(bind).is_some_and(|held| held != name))
+                {
+                    continue;
+                }
+                for token in claimed[*start..*start + *width].iter_mut() {
+                    *token = true;
+                }
+                for (bind, name) in slots.into_iter().zip(&target) {
+                    wanted.entry(bind).or_insert_with(|| name.clone());
+                }
+            }
+        }
+        crate::timing::RENAME_IDIOM_PREFERENCES.event(wanted.len() as u64);
+        wanted
     }
 }
 

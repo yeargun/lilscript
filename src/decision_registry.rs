@@ -1054,10 +1054,16 @@ pub const SCORED_EMISSION_FAMILIES: &[ScoredEmissionFamily] = &[
                 && (ctx.config.javascript.name_ordering_search
                     || crate::config::name_ordering_search_override())
         },
-        |_, options| vec![IrJsOptions {
-            name_ordering: crate::codegen_ir_js::NameOrdering::FrequencyDesc,
-            ..options
-        }]
+        |_, options| vec![
+            IrJsOptions {
+                name_ordering: crate::codegen_ir_js::NameOrdering::FrequencyDesc,
+                ..options
+            },
+            IrJsOptions {
+                name_ordering: crate::codegen_ir_js::NameOrdering::IdiomConverged,
+                ..options
+            },
+        ]
     ),
     family!(
         "function-spelling-stable-local-names",

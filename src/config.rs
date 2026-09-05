@@ -3680,6 +3680,7 @@ fn name_ordering_override() -> Option<NameOrdering> {
     match std::env::var("LILSCRIPT_NAME_ORDERING").ok()?.as_str() {
         "emission-walk" => Some(NameOrdering::EmissionWalk),
         "frequency-desc" => Some(NameOrdering::FrequencyDesc),
+        "idiom-converged" => Some(NameOrdering::IdiomConverged),
         "" => None,
         other => {
             eprintln!("LILSCRIPT_NAME_ORDERING: unknown ordering `{other}` ignored");
