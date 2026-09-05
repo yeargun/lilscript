@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a, 5.1b landed** — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c landed** (binding identity on references, declarations, heads, loop heads, catch, module names) — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -583,4 +583,16 @@ their bind, 31,151 do not** (probe, shipped). Gate held: 0 byte diffs over 74 ×
 146 case-lanes, probe both lanes + 17/18, 1,714 tests, pool 146/146. Lesson from the edit: a
 brace-matching pass over source text is not a parser — it walked into a `fn` body whose return type
 spelled the struct's name and into a format string with `}}}`; the compiler caught both.
+
+**5.1c — heads, loop heads, catch clauses and module names.** `JsStatement::Function` carries
+`declares: Vec<Option<Bind>>` — the name it binds (when it binds one) then its parameters in order,
+from the function's `LocalNames` and the new module-level tables `function_name_binds` /
+`global_binds`, filled at every top-level request (helpers, cluster helpers, the ordered binding
+walk, foreign-import names reserved rather than requested, which allocate straight from the table).
+`JsLoopHead::ForIn`/`ForOf` and `JsCatch` carry the bind of the key, element or exception they
+declare. Census: **53,505 declarations bound, 31,277 unbound** (was 42,956 / 31,151); the unbound
+remainder is text the emitter only holds as `String` — parallel-copy targets, destructuring
+patterns, class-instance bindings, export aliases, closure-statement helpers — and it is what 5.2
+turns into either bindings or *unrenameable* marks. Gate held: 0 byte diffs over 74 × 3, 0 trace
+diffs over 146 case-lanes, probe both lanes + 17/18, 1,714 tests, pool 146/146.
 

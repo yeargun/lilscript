@@ -1155,6 +1155,19 @@ fn census_declaration_binds(statement: &JsStatement) {
                 count(declarator.bind);
             }
         }
+        JsStatement::Function { declares, .. } => {
+            for bind in declares {
+                count(*bind);
+            }
+        }
+        JsStatement::Loop {
+            head: JsLoopHead::ForIn { bind, .. } | JsLoopHead::ForOf { bind, .. },
+            ..
+        } => count(*bind),
+        JsStatement::Try {
+            catch: Some(JsCatch { bind, binding: Some(_), .. }),
+            ..
+        } => count(*bind),
         _ => {}
     }
 }
@@ -2772,6 +2785,9 @@ struct IrJsEmitter<'module, 'src> {
     top_level_mangler: Mangler,
     /// The spellings of every binding this emission allocates.
     bind_table: BindTable,
+    /// Module-level bindings: the function and global names, by id.
+    function_name_binds: AHashMap<FunctionId, Bind>,
+    global_binds: AHashMap<SymbolId, Bind>,
     local_name_reservations: Vec<String>,
     preferred_local_names: AHashMap<String, String>,
     declared_globals: AHashSet<SymbolId>,
@@ -2989,6 +3005,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 bind_table.clone(),
             ),
             bind_table,
+            function_name_binds: AHashMap::default(),
+            global_binds: AHashMap::default(),
             local_name_reservations: Vec::new(),
             preferred_local_names: AHashMap::default(),
             declared_globals: AHashSet::default(),
@@ -5192,8 +5210,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             {
                 continue;
             }
-            let name = if self.options.mangle_identifiers {
-                self.top_level_mangler.next_name()
+            let (bind, name) = if self.options.mangle_identifiers {
+                self.top_level_mangler.request()
             } else {
                 let source = self
                     .module
@@ -5201,9 +5219,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .get(helper.0 as usize)
                     .and_then(|function| function.name)
                     .unwrap_or("helper");
-                self.top_level_mangler.unique_name(source)
+                self.top_level_mangler.unique_request(source)
             };
             self.function_names.insert(helper, name);
+            self.function_name_binds.insert(helper, bind);
         }
     }
 
@@ -6760,7 +6779,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 self.top_level_mangler.reserve(name);
                                 name.to_string()
                             });
+                    let bind = self.bind_table.alloc(&emitted);
                     self.function_names.insert(function.id, emitted);
+                    self.function_name_binds.insert(function.id, bind);
                 }
             }
         }
@@ -6774,7 +6795,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.top_level_mangler.reserve(global.name);
                         global.name.to_string()
                     });
+                let bind = self.bind_table.alloc(&emitted);
                 self.global_names.insert(global.symbol, emitted);
+                self.global_binds.insert(global.symbol, bind);
             }
         }
 
@@ -6845,15 +6868,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     FunctionKind::Extern => source_name.to_string(),
                     _ => source_name.to_string(),
                 };
-                let name = self.top_level_mangler.unique_name(&preferred);
+                let (bind, name) = self.top_level_mangler.unique_request(&preferred);
                 self.function_names.insert(function.id, name);
+                self.function_name_binds.insert(function.id, bind);
             }
             for global in &self.module.globals {
                 if global.external {
                     continue;
                 }
-                let name = self.top_level_mangler.unique_name(global.name);
+                let (bind, name) = self.top_level_mangler.unique_request(global.name);
                 self.global_names.insert(global.symbol, name);
+                self.global_binds.insert(global.symbol, bind);
             }
             self.coalesce_js_host_alias_names();
             return;
@@ -6970,11 +6995,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .then_with(|| left.2.cmp(&right.2))
         });
         for (_, kind, id) in bindings {
-            let name = self.top_level_mangler.next_name();
+            let (bind, name) = self.top_level_mangler.request();
             if kind == 0 {
                 self.function_names.insert(FunctionId(id), name);
+                self.function_name_binds.insert(FunctionId(id), bind);
             } else if kind == 1 {
                 self.global_names.insert(SymbolId(id), name);
+                self.global_binds.insert(SymbolId(id), bind);
             } else if kind == 2 {
                 let convention = JsCallingConvention::ALL[id as usize];
                 self.js_adapter_factory_names.insert(convention, name);
@@ -8657,13 +8684,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             inner.reserve(name);
         }
         for helper in helpers {
-            let name = if self.options.mangle_identifiers {
-                inner.next_name()
+            let (bind, name) = if self.options.mangle_identifiers {
+                inner.request()
             } else {
                 let source = self.function(*helper)?.name.unwrap_or("helper").to_string();
-                inner.unique_name(&source)
+                inner.unique_request(&source)
             };
             self.function_names.insert(*helper, name);
+            self.function_name_binds.insert(*helper, bind);
         }
         Ok(())
     }
@@ -9269,6 +9297,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if function.is_async {
             self.require_syntax(JsSyntaxFeature::AsyncAwait)?;
         }
+        let head_declares = std::iter::once(self.function_name_binds.get(&function.id).copied())
+            .chain(
+                emitted_params
+                    .iter()
+                    .map(|param| context.value_bind(param.value)),
+            )
+            .collect::<Vec<_>>();
         let mut head = String::new();
         if class_member {
             if function.is_async {
@@ -9371,6 +9406,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_statement_with(
                         JsStatement::Function {
                             head,
+                            declares: head_declares,
                             body: JsFunctionBody::Block(body),
                             terminated: arrow_binding,
                         },
@@ -9391,6 +9427,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_statement_with(
                     JsStatement::Function {
                         head,
+                        declares: head_declares,
                         body,
                         terminated: arrow_binding,
                     },
@@ -9450,6 +9487,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out.push_statement_with(
             JsStatement::Function {
                 head,
+                declares: head_declares,
                 body,
                 terminated: arrow_binding,
             },
@@ -12530,10 +12568,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         let object = take_value(object, context, cache)?.into_minimal();
                         let declare_key = context.claim_declaration(key)?;
+                        let key_value = key;
                         let key = context.value_name(key)?;
                         let loop_head = JsLoopHead::ForIn {
                             declare: declare_key,
                             key: key.to_string(),
+                            bind: context.value_bind(key_value),
                             object,
                         };
                         // The body is a value emitted ahead of its head; it
@@ -12615,10 +12655,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         }
                         let iterable = take_value(iterable, context, cache)?.into_minimal();
                         let declare_element = context.claim_declaration(element)?;
+                        let element_value = element;
                         let element = context.value_name(element)?;
                         let loop_head = JsLoopHead::ForOf {
                             declare: declare_element,
                             element: element.to_string(),
+                            bind: context.value_bind(element_value),
                             iterable,
                         };
                         // As for `for-in`: the body is a value, nested after
@@ -12721,11 +12763,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut catch_end = None;
                         let mut catch = None;
                         if let Some(catch_block) = catch_block {
+                            let mut catch_bind = None;
                             let binding = if let Some(value) = catch_value.filter(|value| {
                                 !self.options.unused_catch_binding_elision
                                     || uses.get(value).copied().unwrap_or(0) != 0
                             }) {
                                 context.mark_declared(value)?;
+                                catch_bind = context.value_bind(value);
                                 Some(format!("({})", context.value_name(value)?))
                             } else if !self.options.allows(JsSyntaxFeature::OptionalCatchBinding) {
                                 Some("(_e)".to_string())
@@ -12748,6 +12792,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             )?);
                             catch = Some(JsCatch {
                                 binding,
+                                bind: catch_bind,
                                 body: catch_body,
                             });
                         }
@@ -16887,6 +16932,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 mangler.unique_request(function.name.unwrap_or("fn"))
             };
             self.function_names.insert(function.id, name.clone());
+            self.function_name_binds.insert(function.id, bind);
             if let Some(local) = self.exclusive_recursive_iife_self_slots.get(&function.id) {
                 context.local_names.insert(*local, name.clone());
                 context.local_binds.insert(*local, bind);
@@ -17078,6 +17124,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         Ok(JsStatement::Function {
             head,
+            declares: std::iter::once(
+                recursive_name
+                    .as_ref()
+                    .and_then(|_| self.function_name_binds.get(&function.id).copied()),
+            )
+                .chain(
+                    function.params[function.capture_count..]
+                        .iter()
+                        .map(|param| context.value_bind(param.value)),
+                )
+                .collect(),
             body,
             terminated: false,
         }
@@ -17091,6 +17148,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn render_closure_statement(&self, head: String, body: JsFunctionBody) -> String {
         JsStatement::Function {
             head,
+            declares: Vec::new(),
             body,
             terminated: false,
         }
@@ -22137,6 +22195,9 @@ enum JsStatement {
     /// terminal-semicolon elision and the arrow binding's `;` are rendering.
     Function {
         head: String,
+        /// The bindings the head declares -- the name (when it binds one)
+        /// then the parameters in order -- where the emitter knows them.
+        declares: Vec<Option<Bind>>,
         body: JsFunctionBody,
         terminated: bool,
     },
@@ -22201,6 +22262,9 @@ impl BodyFrame {
 #[derive(Debug, Clone)]
 struct JsCatch {
     binding: Option<String>,
+    /// The binding the clause declares, when it declares one the emitter
+    /// named.
+    bind: Option<Bind>,
     body: JsBlock,
 }
 
@@ -22228,12 +22292,14 @@ enum JsLoopHead {
     ForIn {
         declare: bool,
         key: String,
+        bind: Option<Bind>,
         object: String,
     },
     /// `for(var e of i)` / `for(e of i)`.
     ForOf {
         declare: bool,
         element: String,
+        bind: Option<Bind>,
         iterable: String,
     },
 }
@@ -22247,6 +22313,7 @@ impl JsLoopHead {
                 declare,
                 key,
                 object,
+                ..
             } => format!(
                 "for({}{key} in {object})",
                 if *declare { "var " } else { "" }
@@ -22255,6 +22322,7 @@ impl JsLoopHead {
                 declare,
                 element,
                 iterable,
+                ..
             } => format!(
                 "for({}{element} of {iterable})",
                 if *declare { "var " } else { "" }
@@ -22549,6 +22617,7 @@ impl JsStatement {
                 head,
                 body,
                 terminated,
+                ..
             } => {
                 let mut text = head;
                 match body {
@@ -29500,6 +29569,7 @@ mod tests {
         let mut block = JsBlock::new();
         block.push_statement_with(
             JsStatement::Function {
+                declares: Vec::new(),
                 head: head.to_string(),
                 body: JsFunctionBody::Block(body),
                 terminated: false,
