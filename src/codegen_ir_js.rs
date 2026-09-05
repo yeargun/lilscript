@@ -2273,7 +2273,14 @@ impl JsExpression {
     /// the constant-operand swap on `==`) are exercised for idempotence at the
     /// same time: a canonicalisation that fired twice would change the text.
     fn rebuilt(&self, options: JsRenderOptions) -> Self {
-        let child = |index: usize| self.operands[index].rebuilt(options);
+        self.rebuilt_with(options, &|index| self.operands[index].rebuilt(options))
+    }
+
+    /// Rebuild this node from `child(i)` in place of each operand: the one
+    /// place the grammar of every kind is spelled, shared by the witness
+    /// (children rebuilt recursively) and the re-spell (children replaced
+    /// only where a binding's spelling changed).
+    fn rebuilt_with(&self, options: JsRenderOptions, child: &dyn Fn(usize) -> Self) -> Self {
         match self.root {
             // Leaves: the text is the datum, so there is nothing to rebuild.
             JsExpressionRoot::Atom
@@ -3096,7 +3103,43 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         result
     }
 
+    /// The re-spell pass over this emission's table and closure trees.
+    fn respell(&self) -> Respell<'_> {
+        Respell {
+            table: &self.bind_table,
+            closures: &self.closure_trees,
+            options: JsRenderOptions {
+                elide_call_chain_parentheses: self.options.elide_call_chain_parentheses,
+            },
+            statement_options: JsStatementOptions {
+                elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
+            },
+        }
+    }
+
+    /// The 5.2 witness: re-spelling the finished module from its own table
+    /// changes nothing. A `Name` atom, declared name or head piece whose text
+    /// disagrees with its binding's spelling would be renamed by an identity
+    /// pass, and that is the defect this catches.
+    fn witness_identity_respell(&self, out: &JsBlock) {
+        let mut identity = out.clone();
+        assert!(
+            !self.respell().block(&mut identity),
+            "an identity re-spell changed the module: a name on the tree disagrees with its binding's spelling"
+        );
+    }
+
     fn emit_traced(mut self) -> Result<String, CodegenError> {
+        let out = self.build_module()?;
+        if twin_witness_enabled() {
+            self.witness_identity_respell(&out);
+        }
+        Ok(out.into_string())
+    }
+
+    /// The whole module as a tree: the statement list every emission renders
+    /// from, and the re-spell pass and its tests read.
+    fn build_module(&mut self) -> Result<JsBlock, CodegenError> {
         self.validate_caller_materialized_default_abis()?;
         self.prepare();
         let entry = self.function(self.module.entry)?.clone();
@@ -3181,7 +3224,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         // The boundary: past here it is an artifact, not a block under
         // construction, so the counters have nothing left to answer.
-        Ok(out.into_string())
+        Ok(out)
     }
 
     fn prepare(&mut self) {
@@ -22382,6 +22425,215 @@ impl JsHead {
     }
 }
 
+/// Re-spell a tree from the binding table: every `Name` atom, declared name,
+/// head piece, loop-head binding, catch binding and closure tree whose
+/// binding's spelling no longer matches its text is rebuilt; everything else
+/// is left untouched (an untouched subtree costs one walk and no
+/// allocation). Returns whether anything changed. With the table as it was
+/// when the tree was built this is the identity, and the twin witness
+/// asserts exactly that.
+struct Respell<'a> {
+    table: &'a BindTable,
+    closures: &'a RefCell<AHashMap<FunctionId, (JsHead, JsFunctionBody)>>,
+    options: JsRenderOptions,
+    statement_options: JsStatementOptions,
+}
+
+impl Respell<'_> {
+    fn expression(&self, expression: &JsExpression) -> Option<JsExpression> {
+        match expression.root {
+            JsExpressionRoot::Name(bind) => {
+                let spelling = self.table.spelling(bind);
+                (spelling != expression.code).then(|| JsExpression::name(bind, spelling))
+            }
+            JsExpressionRoot::Closure(function) => self
+                .closure(function)
+                .map(|code| JsExpression::closure(function, code, expression.precedence)),
+            JsExpressionRoot::Atom | JsExpressionRoot::Raw => None,
+            _ => {
+                let children = expression
+                    .operands
+                    .iter()
+                    .map(|operand| self.expression(operand))
+                    .collect::<Vec<_>>();
+                if children.iter().all(Option::is_none) {
+                    return None;
+                }
+                let child = |index: usize| {
+                    children[index]
+                        .clone()
+                        .unwrap_or_else(|| expression.operands[index].clone())
+                };
+                Some(expression.rebuilt_with(self.options, &child))
+            }
+        }
+    }
+
+    fn value(&self, value: &mut JsExpression) -> bool {
+        match self.expression(value) {
+            Some(respelled) => {
+                *value = respelled;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// The closure's re-rendered text, when its tree changed.
+    fn closure(&self, function: FunctionId) -> Option<String> {
+        let (mut head, mut body) = self.closures.borrow().get(&function).cloned()?;
+        let mut changed = self.head(&mut head);
+        changed |= self.function_body(&mut body);
+        if !changed {
+            return None;
+        }
+        self.closures
+            .borrow_mut()
+            .insert(function, (head.clone(), body.clone()));
+        Some(
+            JsStatement::Function {
+                head,
+                body,
+                terminated: false,
+            }
+            .render(self.statement_options),
+        )
+    }
+
+    fn head(&self, head: &mut JsHead) -> bool {
+        let mut changed = false;
+        for piece in &mut head.pieces {
+            if let JsHeadPiece::Name(bind, spelling) = piece {
+                let current = self.table.spelling(*bind);
+                if current != *spelling {
+                    *spelling = current;
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+
+    fn name(&self, name: &mut String, bind: Option<Bind>) -> bool {
+        let Some(bind) = bind else {
+            return false;
+        };
+        let current = self.table.spelling(bind);
+        if current == *name {
+            return false;
+        }
+        *name = current;
+        true
+    }
+
+    fn function_body(&self, body: &mut JsFunctionBody) -> bool {
+        match body {
+            JsFunctionBody::Block(block) => self.block(block),
+            JsFunctionBody::Concise(_) => false,
+        }
+    }
+
+    fn block(&self, block: &mut JsBlock) -> bool {
+        let mut changed = false;
+        for emitted in &mut block.statements {
+            changed |= self.statement(&mut emitted.statement);
+        }
+        changed
+    }
+
+    fn branch(&self, branch: &mut JsBranch) -> bool {
+        self.block(&mut branch.block)
+    }
+
+    fn statement(&self, statement: &mut JsStatement) -> bool {
+        match statement {
+            JsStatement::Declaration { name, bind, .. } => self.name(name, *bind),
+            JsStatement::Binding {
+                name, bind, value, ..
+            } => {
+                let mut changed = self.name(name, *bind);
+                changed |= self.value(value);
+                changed
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                let mut changed = false;
+                for declarator in declarators {
+                    changed |= self.name(&mut declarator.name, declarator.bind);
+                    if let Some(value) = &mut declarator.value {
+                        changed |= self.value(value);
+                    }
+                }
+                changed
+            }
+            JsStatement::Return { value: Some(value) }
+            | JsStatement::Throw { value }
+            | JsStatement::Expression { value } => self.value(value),
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                let mut changed = self.branch(then_branch);
+                if let Some(else_branch) = else_branch {
+                    changed |= self.branch(else_branch);
+                }
+                changed
+            }
+            JsStatement::Function { head, body, .. } => {
+                let mut changed = self.head(head);
+                changed |= self.function_body(body);
+                changed
+            }
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                let mut changed = self.block(body);
+                if let Some(catch) = catch {
+                    if let (Some(binding), Some(bind)) = (&mut catch.binding, catch.bind) {
+                        let current = format!("({})", self.table.spelling(bind));
+                        if current != *binding {
+                            *binding = current;
+                            changed = true;
+                        }
+                    }
+                    changed |= self.block(&mut catch.body);
+                }
+                if let Some(finally) = finally {
+                    changed |= self.block(finally);
+                }
+                changed
+            }
+            JsStatement::Switch { cases, .. } => {
+                let mut changed = false;
+                for case in cases {
+                    changed |= self.block(&mut case.body);
+                }
+                changed
+            }
+            JsStatement::Class { members, .. } => self.block(members),
+            JsStatement::Loop { head, body, .. } => {
+                let mut changed = match head {
+                    JsLoopHead::ForIn { key, bind, .. } => self.name(key, *bind),
+                    JsLoopHead::ForOf { element, bind, .. } => self.name(element, *bind),
+                    _ => false,
+                };
+                changed |= self.branch(body);
+                changed
+            }
+            JsStatement::Return { value: None }
+            | JsStatement::Break
+            | JsStatement::Continue
+            | JsStatement::Import { .. }
+            | JsStatement::Export { .. }
+            | JsStatement::DeclarationGroup { .. }
+            | JsStatement::ClassField { .. }
+            | JsStatement::Empty => false,
+        }
+    }
+}
+
 /// A `catch` clause: its binding as spelled -- `(e)`, `(_e)` for a target
 /// without optional catch bindings, or nothing -- and its block.
 #[derive(Debug, Clone)]
@@ -29453,6 +29705,11 @@ impl BindTable {
         self.0.borrow()[bind.0 as usize].clone()
     }
 
+    /// Change a binding's spelling; the tree follows through `Respell`.
+    fn respell(&self, bind: Bind, spelling: &str) {
+        self.0.borrow_mut()[bind.0 as usize] = spelling.to_string();
+    }
+
     fn len(&self) -> usize {
         self.0.borrow().len()
     }
@@ -30702,6 +30959,54 @@ mod tests {
 
     fn compile_with_options(source: &str, options: IrJsOptions) -> String {
         compile_try_with_options(source, options).unwrap()
+    }
+
+    /// Phase 5.2: a binding's spelling lives in the table, and the tree
+    /// follows it. Rename one binding, and every reference, declaration and
+    /// head that names it changes; rename it back, and the bytes are the
+    /// original's exactly. Run over every binding the module has, so a kind
+    /// of name the re-spell does not reach (a residue) shows as a binding
+    /// whose rename changes nothing while its spelling is in the text.
+    #[test]
+    fn respelling_a_binding_renames_its_every_mention_and_round_trips() {
+        let arena = Bump::new();
+        let source = "extern int read();struct P{int x;int y;}int f(P p,int[] a,int n){int s=p.x+n;for(int i=0;i<a.length;i=i+1){s=s+a[i];}p.y=s;print(s);return s;}int g(int k){int t=f(P{k,2},[3,k],4);return t*2;}print(g(read()));";
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow(&mut ir).unwrap();
+        let mut emitter = IrJsEmitter::new(&ir, false, IrJsOptions::default());
+        let module = emitter.build_module().unwrap();
+        let original = module.clone().into_string();
+        let mut renamed_any = false;
+        for index in 0..emitter.bind_table.len() {
+            let bind = Bind(index as u32);
+            let spelling = emitter.bind_table.spelling(bind);
+            emitter.bind_table.respell(bind, "zq$renamed");
+            let mut renamed = module.clone();
+            let changed = emitter.respell().block(&mut renamed);
+            let renamed_text = renamed.clone().into_string();
+            emitter.bind_table.respell(bind, &spelling);
+            if changed {
+                renamed_any = true;
+                assert!(
+                    renamed_text.contains("zq$renamed") && renamed_text != original,
+                    "bind {index} ({spelling}) changed the tree but not the text"
+                );
+                assert!(emitter.respell().block(&mut renamed), "renaming back changes it again");
+                assert_eq!(
+                    renamed.into_string(),
+                    original,
+                    "bind {index} ({spelling}) does not round-trip"
+                );
+            }
+        }
+        assert!(renamed_any, "no binding of the module reached a name on the tree");
+        assert_eq!(
+            original,
+            compile(source),
+            "the tree renders the same module `emit` does"
+        );
     }
 
     /// The four fact bits phase 4 delivers after the origin: purity from the
