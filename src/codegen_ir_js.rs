@@ -1169,7 +1169,7 @@ thread_local! {
 /// knowing their binding. `LILSCRIPT_TIMING=1` reports `decl_bound` and
 /// `decl_unbound`.
 fn census_declaration_binds(statement: &JsStatement) {
-    let mut count = |bind: Option<Bind>| {
+    let count = |bind: Option<Bind>| {
         if bind.is_some() {
             crate::timing::DECL_BOUND.event(0);
         } else {
@@ -2939,7 +2939,35 @@ pub fn emit_optimized_ir_js_with_options(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
 ) -> Result<String, CodegenError> {
+    if print_twin_enabled() {
+        return print_twin(IrJsEmitter::new(module, false, *options), options, |flipped| {
+            IrJsEmitter::new(module, false, flipped).emit()
+        });
+    }
     IrJsEmitter::new(module, false, *options).emit()
+}
+
+/// `LILSCRIPT_PRINT_TWIN=1`: emit once, then for every candidate printer field
+/// compare a full re-emission under the flipped field with a re-print of the
+/// kept tree under it. One `[print-twin]` line per field on stderr.
+fn print_twin(
+    emitter: IrJsEmitter<'_, '_>,
+    options: &IrJsOptions,
+    emit_flipped: impl Fn(IrJsOptions) -> Result<String, CodegenError>,
+) -> Result<String, CodegenError> {
+    let (text, tree) = emitter.emit_with_tree()?;
+    for (name, flipped) in print_twin_variants(options) {
+        let emitted = emit_flipped(flipped)?;
+        let printed = tree.reprint(&flipped);
+        // `effect`: the flip changed the emission at all; a `same` without it
+        // proves nothing about the field.
+        eprintln!(
+            "[print-twin] {name} {} {}",
+            if emitted == printed { "same" } else { "diff" },
+            if emitted == text { "noop" } else { "effect" }
+        );
+    }
+    Ok(text)
 }
 
 pub(crate) fn emit_optimized_ir_js_with_options_and_analysis(
@@ -2948,6 +2976,25 @@ pub(crate) fn emit_optimized_ir_js_with_options_and_analysis(
     integer_analysis: Arc<IntegerValueAnalysis>,
     facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<String, CodegenError> {
+    if print_twin_enabled() {
+        let emitter = IrJsEmitter::with_facts(
+            module,
+            false,
+            *options,
+            Arc::clone(&integer_analysis),
+            Arc::clone(&facts),
+        );
+        return print_twin(emitter, options, |flipped| {
+            IrJsEmitter::with_facts(
+                module,
+                false,
+                flipped,
+                Arc::clone(&integer_analysis),
+                Arc::clone(&facts),
+            )
+            .emit()
+        });
+    }
     IrJsEmitter::with_facts(module, false, *options, integer_analysis, facts).emit()
 }
 
@@ -2955,6 +3002,11 @@ pub fn emit_optimized_ir_js_module_with_options(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
 ) -> Result<String, CodegenError> {
+    if print_twin_enabled() {
+        return print_twin(IrJsEmitter::new(module, true, *options), options, |flipped| {
+            IrJsEmitter::new(module, true, flipped).emit()
+        });
+    }
     IrJsEmitter::new(module, true, *options).emit()
 }
 
@@ -2964,6 +3016,25 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
     integer_analysis: Arc<IntegerValueAnalysis>,
     facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<String, CodegenError> {
+    if print_twin_enabled() {
+        let emitter = IrJsEmitter::with_facts(
+            module,
+            true,
+            *options,
+            Arc::clone(&integer_analysis),
+            Arc::clone(&facts),
+        );
+        return print_twin(emitter, options, |flipped| {
+            IrJsEmitter::with_facts(
+                module,
+                true,
+                flipped,
+                Arc::clone(&integer_analysis),
+                Arc::clone(&facts),
+            )
+            .emit()
+        });
+    }
     IrJsEmitter::with_facts(module, true, *options, integer_analysis, facts).emit()
 }
 
@@ -3394,16 +3465,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit(self) -> Result<String, CodegenError> {
-        let text = self.emit_inner()?;
+        self.emit_with_tree().map(|(text, _)| text)
+    }
+
+    /// The text and the tree it was printed from, for a re-print under other
+    /// printer options without a second emission.
+    fn emit_with_tree(self) -> Result<(String, ModuleTree), CodegenError> {
+        let (text, tree) = self.emit_inner()?;
         // Phase 6 instrument: every rendered candidate, so a peephole `input`
         // snapshot can be told apart from a text-derived variant of one.
         if statement_trace_enabled() {
             eprintln!("[emission]\n{text}");
         }
-        Ok(text)
+        Ok((text, tree))
     }
 
-    fn emit_inner(self) -> Result<String, CodegenError> {
+    fn emit_inner(self) -> Result<(String, ModuleTree), CodegenError> {
         if !name_trace_enabled() {
             return self.emit_traced();
         }
@@ -3415,15 +3492,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     /// The re-spell pass over this emission's table and closure trees.
     fn respell(&self) -> Respell<'_> {
+        let (options, statement_options) = printer_options(&self.options);
         Respell {
             table: &self.bind_table,
             closures: &self.closure_trees,
-            options: JsRenderOptions {
-                elide_call_chain_parentheses: self.options.elide_call_chain_parentheses,
-            },
-            statement_options: JsStatementOptions {
-                elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
-            },
+            options,
+            statement_options,
+            force: false,
         }
     }
 
@@ -3444,7 +3519,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
-    fn emit_traced(mut self) -> Result<String, CodegenError> {
+    fn emit_traced(mut self) -> Result<(String, ModuleTree), CodegenError> {
         let mut out = self.build_module()?;
         if twin_witness_enabled() {
             self.witness_identity_respell(&out);
@@ -3452,7 +3527,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if self.options.name_ordering != NameOrdering::EmissionWalk {
             self.rename_module(&mut out);
         }
-        Ok(out.into_string())
+        let text = out.render();
+        Ok((
+            text,
+            ModuleTree {
+                block: out,
+                closures: self.closure_trees,
+                table: self.bind_table,
+            },
+        ))
     }
 
     /// Phase 5.3: re-spell the finished module's bindings by the configured
@@ -22949,6 +23032,10 @@ struct Respell<'a> {
     closures: &'a RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     options: JsRenderOptions,
     statement_options: JsStatementOptions,
+    /// Rebuild every node whether or not a spelling changed: the re-print
+    /// under other printer options (phase 7). Off, the walk touches only what
+    /// the table moved.
+    force: bool,
 }
 
 impl Respell<'_> {
@@ -22968,7 +23055,7 @@ impl Respell<'_> {
                     .iter()
                     .map(|operand| self.expression(operand))
                     .collect::<Vec<_>>();
-                if children.iter().all(Option::is_none) {
+                if !self.force && children.iter().all(Option::is_none) {
                     return None;
                 }
                 let child = |index: usize| {
@@ -22996,7 +23083,7 @@ impl Respell<'_> {
         let (mut head, mut body) = self.closures.borrow().get(&closure).cloned()?;
         let mut changed = self.head(&mut head);
         changed |= self.function_body(&mut body);
-        if !changed {
+        if !changed && !self.force {
             return None;
         }
         self.closures
@@ -23067,6 +23154,10 @@ impl Respell<'_> {
     fn block(&self, block: &mut JsBlock) -> bool {
         let mut changed = false;
         for emitted in &mut block.statements {
+            if self.force && emitted.options != self.statement_options {
+                emitted.options = self.statement_options;
+                changed = true;
+            }
             changed |= self.statement(&mut emitted.statement);
         }
         changed
@@ -23188,6 +23279,95 @@ impl Respell<'_> {
             | JsStatement::Empty => false,
         }
     }
+}
+
+/// The options the printer reads. Everything else in `IrJsOptions` the emitter
+/// consults while it builds the tree; phase 7 moves fields from there to here
+/// one at a time, and `LILSCRIPT_PRINT_TWIN=1` says which ones already could.
+fn printer_options(options: &IrJsOptions) -> (JsRenderOptions, JsStatementOptions) {
+    (
+        JsRenderOptions {
+            elide_call_chain_parentheses: options.elide_call_chain_parentheses,
+        },
+        JsStatementOptions {
+            elide_block_terminal_semicolons: options.elide_block_terminal_semicolons,
+        },
+    )
+}
+
+/// A finished emission kept as its tree: the module block, the closure trees
+/// its `Closure` nodes point at, and the binding table its names spell from.
+/// A re-print under other printer options is a forced re-spell of every node
+/// -- one walk, no emission (phase 7: one emission, many prints).
+pub(crate) struct ModuleTree {
+    block: JsBlock,
+    closures: RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    table: BindTable,
+}
+
+impl ModuleTree {
+    pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
+        let (render, statement) = printer_options(options);
+        let mut block = self.block.clone();
+        // The walk writes re-rendered closures back into the map it reads
+        // from; a copy keeps this tree's own renderings intact.
+        let closures = RefCell::new(self.closures.borrow().clone());
+        Respell {
+            table: &self.table,
+            closures: &closures,
+            options: render,
+            statement_options: statement,
+            force: true,
+        }
+        .block(&mut block);
+        block.into_string()
+    }
+}
+
+fn print_twin_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_PRINT_TWIN").as_deref() == Ok("1"))
+}
+
+/// One flipped copy of `base` per field that could be a printer decision: the
+/// twin re-emits under each and re-prints the base tree under each, and says
+/// which pairs agree. A field whose pairs always agree is print-only in
+/// practice; one that disagrees is still an emission-time decision.
+fn print_twin_variants(base: &IrJsOptions) -> Vec<(&'static str, IrJsOptions)> {
+    let mut variants = Vec::new();
+    macro_rules! flip {
+        ($name:ident) => {{
+            let mut options = *base;
+            options.$name = !base.$name;
+            variants.push((stringify!($name), options));
+        }};
+        ($name:ident, $alternative:expr, $default:expr) => {{
+            let mut options = *base;
+            options.$name = if base.$name == $default { $alternative } else { $default };
+            variants.push((stringify!($name), options));
+        }};
+    }
+    flip!(elide_call_chain_parentheses);
+    flip!(elide_block_terminal_semicolons);
+    flip!(elide_new_parentheses);
+    flip!(compact_boolean_literals);
+    flip!(braceless_control_bodies);
+    flip!(comma_expressions);
+    flip!(regex_literals);
+    flip!(conditional_expressions);
+    flip!(struct_method_shorthand);
+    flip!(compact_generator_star);
+    flip!(truthy_nullable_checks);
+    flip!(effect_ternary);
+    flip!(pack_string_arrays);
+    flip!(unused_catch_binding_elision);
+    flip!(update_loop_layout);
+    flip!(string_quote, StringQuote::Single, StringQuote::Double);
+    flip!(mutation_spelling, MutationSpelling::Postfix, MutationSpelling::Assignment);
+    flip!(loop_spelling, LoopSpelling::For, LoopSpelling::Auto);
+    flip!(function_spelling, FunctionSpelling::Arrow, FunctionSpelling::Function);
+    flip!(host_alias_spelling, HostAliasSpelling::Direct, HostAliasSpelling::Shared);
+    variants
 }
 
 /// The first `Name` atom whose text disagrees with its binding's spelling,
@@ -24084,6 +24264,7 @@ impl Renamer<'_> {
             closures: &marker_closures,
             options: respell.options,
             statement_options: respell.statement_options,
+            force: false,
         };
         let mut copy = module.clone();
         marked.block(&mut copy);
@@ -24511,7 +24692,7 @@ impl JsBranch {
 /// before its `}`. It is an emitter setting the search varies, so it belongs to
 /// the printer and not to the node -- the same argument, and the same shape, as
 /// `elide_call_chain_parentheses`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct JsStatementOptions {
     elide_block_terminal_semicolons: bool,
 }

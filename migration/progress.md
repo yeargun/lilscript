@@ -112,6 +112,13 @@ one worker; the current profile is under *Measurement facts*.
 | `e20d700` | the port twin lane (`port-twin.sh`); the `this`/`arguments` receiver bind leak fixed | remarklil, cnlil, micromarklil clean; live-13 recorded (pre-existing) |
 | `e0436a3`, `8d255e1` | `IdiomConverged` on binding identity, the collision guard, one idiom group per candidate, the `name-ordering` Cartesian axis | **g1 pinned on six ports: remarklil −811, micromarklil −391, mobxlil −37, markedlil −5, cnlil +3, zodlil +73 — net −1,168; ships as a per-port pin, default byte-identical**; as a late candidate it wins nothing (names steer layout) |
 
+### Phase 7′ — one emission, many prints (`6ee42eb` …)
+
+| commit | step | evidence |
+|---|---|---|
+| `6ee42eb` 7.0 | the reading: Terser 5.44.0, Oxc 0.147.0, Closure master — each runs its last transform before the printer and scores nothing in between; `refs/competitor-techniques.md` §I | file:line for the pipeline order, the printer's own options, and `best_of` |
+| 7.1 | `ModuleTree` (block, closure trees, bind table) kept by `emit_with_tree`; `reprint(options)` is a forced `Respell` under new printer options; `LILSCRIPT_PRINT_TWIN=1` compares re-print with re-emission per candidate field | **census, 148 emissions (74 files × shipped-off, none-off):** every field with an effect is emission-dependent — `function_spelling` 40, `string_quote` 38, `conditional_expressions` 33, `comma_expressions` 30, `mutation_spelling` 28, `update_loop_layout` 27, `compact_boolean_literals` 24, `loop_spelling` 10, `elide_new_parentheses` 7, `truthy_nullable_checks` 6, `elide_call_chain_parentheses` 5 of 11, `unused_catch_binding_elision` 4, `effect_ternary` 3, `compact_generator_star` 2, `braceless_control_bodies` 1; `elide_block_terminal_semicolons` has no effect any more (6.4). Byte-identical to `acace54`; 1,717 tests |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |
