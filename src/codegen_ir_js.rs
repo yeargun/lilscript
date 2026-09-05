@@ -15248,21 +15248,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut sources = Vec::with_capacity(copies.len());
         for (_, source) in &copies {
-            sources.push(strip_outer_parens(take_value(*source, context, cache)?));
+            sources.push(take_value(*source, context, cache)?);
         }
-        let mut assignments = Vec::with_capacity(copies.len());
+        let mut assignments = Vec::<PhiCopy>::with_capacity(copies.len());
         let mut single_assignment_copy = None;
         let mut declaration_needed = false;
         for ((target, source_value), source) in copies.iter().zip(sources) {
             let target_value = *target;
             let target = context.value_name(target_value)?.to_string();
-            if target != source {
+            if target != source.clone().into_minimal() {
                 declaration_needed |= context.claim_declaration(target_value)?;
                 single_assignment_copy = assignments
                     .is_empty()
                     .then_some((target_value, *source_value));
                 materialize_cache_before_binding_write(context, &target, true, cache, out)?;
-                assignments.push((target, source));
+                assignments.push(PhiCopy {
+                    target,
+                    bind: context.value_bind(target_value),
+                    source,
+                });
             }
         }
         if assignments.len() == 1 {
@@ -15284,7 +15288,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if let Some((operator, operand)) = compound_update {
                 out.push_statement(JsStatement::Expression {
                     value: JsExpression::raw(
-                        format!("{}{operator}={operand}", assignments[0].0),
+                        format!("{}{operator}={operand}", assignments[0].target),
                         JsPrecedence::Assignment,
                     ),
                 });
@@ -15311,7 +15315,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .flatten();
             if let Some((spelling, delta)) = compact_update {
                 let operator = if delta > 0 { "++" } else { "--" };
-                let target = &assignments[0].0;
+                let target = &assignments[0].target;
                 let update = if spelling == MutationSpelling::Prefix {
                     format!("{operator}{target}")
                 } else {
@@ -15322,36 +15326,26 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 });
                 return Ok(());
             }
-            let (target, source) = &assignments[0];
+            let copy = &assignments[0];
             if declaration_needed {
-                let mut declarators = vec![JsDeclarator {
-                    name: target.clone(),
-                    value: Some(JsExpression::raw(source.as_str(), JsPrecedence::Assignment)),
-                    bind: None,
-                    function: None,
-                }];
+                let mut declarators = vec![copy.declarator()];
                 declarators.extend(context.claim_remaining_declarations());
                 out.push_statement(JsStatement::Declarators {
                     keyword: "var ",
                     declarators,
                 });
             } else {
-                out.push_statement(JsStatement::Binding {
-                    keyword: None,
-                    name: target.clone(),
-                    value: JsExpression::raw(source.as_str(), JsPrecedence::Assignment),
-                    bind: None,
-                });
+                out.push_statement(copy.assignment(None));
             }
         } else if !assignments.is_empty() {
             let targets = assignments
                 .iter()
-                .map(|(target, _)| target.as_str())
+                .map(|copy| copy.target.as_str())
                 .collect::<AHashSet<_>>();
             let scalar_declaration = declaration_needed
                 && assignments
                     .iter()
-                    .all(|(_, source)| !targets.contains(source.as_str()));
+                    .all(|copy| !targets.contains(copy.source_text().as_str()));
             if scalar_declaration {
                 push_var_declarators(out, &assignments, context.claim_remaining_declarations());
                 return Ok(());
@@ -15378,7 +15372,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if let Some(scalar) = scalar_parallel_assignments(&assignments, temporary) {
                     let tuple_size = assignments
                         .iter()
-                        .map(|(target, source)| target.len() + source.len())
+                        .map(|copy| copy.target.len() + copy.source_text().len())
                         .sum::<usize>()
                         + assignments.len().saturating_sub(1) * 2
                         + 6;
@@ -15406,31 +15400,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 "[{}]",
                 assignments
                     .iter()
-                    .map(|(target, _)| target.as_str())
+                    .map(|copy| copy.target.as_str())
                     .collect::<Vec<_>>()
                     .join(",")
             );
-            let tuple = format!(
-                "[{}]",
-                assignments
-                    .iter()
-                    .map(|(_, source)| source.as_str())
-                    .collect::<Vec<_>>()
-                    .join(",")
+            // The tuple is an array node over the sources; the pattern is a
+            // destructuring target the tree has no node for yet.
+            let tuple = JsExpression::array(
+                assignments.iter().map(|copy| copy.source.clone()).collect::<Vec<_>>(),
             );
             if declaration_needed {
                 out.push_statement(JsStatement::Declarators {
                     keyword: "var ",
                     declarators: vec![JsDeclarator {
                         name: pattern,
-                        value: Some(JsExpression::raw(tuple, JsPrecedence::Primary)),
+                        value: Some(tuple),
                         bind: None,
                         function: None,
                     }],
                 });
             } else {
                 out.push_statement(JsStatement::Expression {
-                    value: JsExpression::raw(format!("{pattern}={tuple}"), JsPrecedence::Assignment),
+                    value: JsExpression::assign(
+                        JsExpression::raw(pattern, JsPrecedence::Primary),
+                        tuple,
+                    ),
                 });
             }
         }
@@ -18873,36 +18867,65 @@ fn emit_chunk_imports(
     }
 }
 
-fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&str, &str)>> {
+/// One phi-edge copy: the target's name and binding, and the source as
+/// its node (phase 6, G4). The dependency checks read the source's text,
+/// as the copies always did; the statements keep the node.
+#[derive(Debug, Clone)]
+struct PhiCopy {
+    target: String,
+    bind: Option<Bind>,
+    source: JsExpression,
+}
+
+impl PhiCopy {
+    fn source_text(&self) -> String {
+        self.source.clone().into_minimal()
+    }
+
+    fn declarator(&self) -> JsDeclarator {
+        JsDeclarator {
+            name: self.target.clone(),
+            value: Some(self.source.clone()),
+            bind: self.bind,
+            function: None,
+        }
+    }
+
+    fn assignment(&self, keyword: Option<&'static str>) -> JsStatement {
+        JsStatement::Binding {
+            keyword,
+            name: self.target.clone(),
+            value: self.source.clone(),
+            bind: self.bind,
+        }
+    }
+}
+
+fn order_scalar_assignments(assignments: &[PhiCopy]) -> Option<Vec<PhiCopy>> {
     let mut remaining = assignments.iter().collect::<Vec<_>>();
     let mut ordered = Vec::with_capacity(assignments.len());
     while !remaining.is_empty() {
-        let index = remaining.iter().position(|(target, _)| {
-            remaining.iter().all(|(other_target, source)| {
-                other_target == target || !expression_references_name(source, target)
+        let index = remaining.iter().position(|copy| {
+            remaining.iter().all(|other| {
+                other.target == copy.target
+                    || !expression_references_name(&other.source_text(), &copy.target)
             })
         })?;
-        let (target, source) = remaining.remove(index);
-        ordered.push((target.as_str(), source.as_str()));
+        ordered.push(remaining.remove(index).clone());
     }
     Some(ordered)
 }
 
 /// `var a=b,c=d,e;` -- the phi copies as declarators, plus every name this
 /// block still owes a declaration for.
-fn push_var_declarators<S: AsRef<str>>(
+fn push_var_declarators(
     out: &mut JsBlock,
-    assignments: &[(S, S)],
+    assignments: &[PhiCopy],
     remaining_declarations: Vec<JsDeclarator>,
 ) {
     let mut declarators = assignments
         .iter()
-        .map(|(target, source)| JsDeclarator {
-            name: target.as_ref().to_string(),
-            value: Some(JsExpression::raw(source.as_ref(), JsPrecedence::Assignment)),
-            bind: None,
-            function: None,
-        })
+        .map(PhiCopy::declarator)
         .collect::<Vec<_>>();
     declarators.extend(remaining_declarations);
     out.push_statement(JsStatement::Declarators {
@@ -18912,26 +18935,26 @@ fn push_var_declarators<S: AsRef<str>>(
 }
 
 fn scalar_parallel_assignments(
-    assignments: &[(String, String)],
+    assignments: &[PhiCopy],
     temporary: Option<(&str, bool)>,
 ) -> Option<Vec<JsStatement>> {
+    if let Some(ordered) = order_scalar_assignments(assignments) {
+        return Some(ordered.iter().map(|copy| copy.assignment(None)).collect());
+    }
+
+    // The swap through a temporary rewrites names inside the sources; that
+    // is still done on text, so this path keeps the copies as text.
     let assign = |keyword: Option<&'static str>, target: &str, source: &str| JsStatement::Binding {
         keyword,
         name: target.to_string(),
         value: JsExpression::raw(source, JsPrecedence::Assignment),
         bind: None,
     };
-    if let Some(ordered) = order_scalar_assignments(assignments) {
-        return Some(
-            ordered
-                .into_iter()
-                .map(|(target, source)| assign(None, target, source))
-                .collect(),
-        );
-    }
-
     let (temporary, declare_temporary) = temporary?;
-    let mut remaining = assignments.to_vec();
+    let mut remaining = assignments
+        .iter()
+        .map(|copy| (copy.target.clone(), copy.source_text()))
+        .collect::<Vec<_>>();
     let mut output = Vec::new();
     let mut temporary_declared = false;
     while !remaining.is_empty() {
@@ -18970,7 +18993,7 @@ fn reusable_parallel_copy_temporary(
     function: &ControlFlowFunction<'_>,
     target: BlockId,
     context: &LocalNames,
-    assignments: &[(String, String)],
+    assignments: &[PhiCopy],
 ) -> Option<String> {
     let mut live_names = context.live_in_values[target.0 as usize]
         .iter()
@@ -18990,8 +19013,8 @@ fn reusable_parallel_copy_temporary(
         .values()
         .filter(|name| declared.contains(*name) && !live_names.contains(name))
         .filter(|name| {
-            assignments.iter().all(|(target, source)| {
-                target != *name && !expression_references_name(source, name)
+            assignments.iter().all(|copy| {
+                copy.target != **name && !expression_references_name(&copy.source_text(), name)
             })
         })
         .cloned()
@@ -40776,19 +40799,31 @@ consume(field(JS.object("type", 1), "type"));
 
     #[test]
     fn orders_acyclic_phi_copies_and_preserves_cycles() {
-        let assignments = vec![
-            ("b".to_string(), "(b+Math.imul(a,2)|0)".to_string()),
-            ("a".to_string(), "(a+1|0)".to_string()),
-        ];
+        let copy = |target: &str, source: &str| PhiCopy {
+            target: target.to_string(),
+            bind: None,
+            source: JsExpression::raw(source, JsPrecedence::Assignment),
+        };
+        let pairs = |copies: Vec<PhiCopy>| {
+            copies
+                .into_iter()
+                .map(|copy| {
+                    let source = copy.source_text();
+                    (copy.target, source)
+                })
+                .collect::<Vec<_>>()
+        };
+        let assignments = vec![copy("b", "(b+Math.imul(a,2)|0)"), copy("a", "(a+1|0)")];
         assert_eq!(
-            order_scalar_assignments(&assignments).unwrap(),
-            vec![("b", "(b+Math.imul(a,2)|0)"), ("a", "(a+1|0)")]
+            pairs(order_scalar_assignments(&assignments).unwrap()),
+            // A raw source keeps its own text, parentheses included.
+            vec![
+                ("b".to_string(), "(b+Math.imul(a,2)|0)".to_string()),
+                ("a".to_string(), "(a+1|0)".to_string())
+            ]
         );
 
-        let swap = vec![
-            ("a".to_string(), "b".to_string()),
-            ("b".to_string(), "a".to_string()),
-        ];
+        let swap = vec![copy("a", "b"), copy("b", "a")];
         assert!(order_scalar_assignments(&swap).is_none());
         assert_eq!(
             rendered_statements(scalar_parallel_assignments(&swap, Some(("c", true)))),
@@ -40801,20 +40836,14 @@ consume(field(JS.object("type", 1), "type"));
         assert!(!expression_references_name("data.a+'a'", "a"));
         assert_eq!(
             rendered_statements(scalar_parallel_assignments(
-                &[
-                    ("a".to_string(), "b".to_string()),
-                    ("b".to_string(), "data.a".to_string()),
-                ],
+                &[copy("a", "b"), copy("b", "data.a")],
                 Some(("c", true)),
             )),
             Some("a=b;b=data.a;".to_string())
         );
         assert_eq!(
             rendered_statements(scalar_parallel_assignments(
-                &[
-                    ("a".to_string(), "b".to_string()),
-                    ("b".to_string(), "`${a}`".to_string()),
-                ],
+                &[copy("a", "b"), copy("b", "`${a}`")],
                 Some(("c", true)),
             )),
             Some("var c=a;a=b;b=`${c}`;".to_string())
