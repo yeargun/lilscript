@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 90% nodes | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 94% nodes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **201** |
-| statement nodes (`push_statement`) | 0 | **28** |
+| fragment appends (`push_str`) | 324 | **192** |
+| statement nodes (`push_statement`) | 0 | **33** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -153,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **90% of statement bytes arrive as nodes** (probe, shipped config). Expression statements, loops (`for`/`while`/do-shape/`for-in`/`for-of` over a `JsLoopHead` value), `let` runs and `var` lists (`Declarators`), phi parallel copies, calling-convention aliases and the closure wrapper's prefix and `return` are nodes; the fusion loop classifies a `let` by matching its `Binding` node. Raw bytes 1,255,537 → 803,728 → 512,740 → 325,629 → 197,085 over 79 sites; what remains: the function head 16.8%, the `write!` sites (state machine, property writes) 7.0%, local/index/property assignment statements ~14% | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **94% of statement bytes arrive as nodes** (probe, shipped config). Expression statements, loops of every shape over a `JsLoopHead` value, `let` runs and `var` lists (`Declarators`), phi parallel copies, local/index/property stores, aliases and the closure wrapper are nodes; the fusion loop classifies a `let` by matching its `Binding` node. Raw bytes 1,255,537 → … → 115,931 over 64 sites; what remains is the function head (three sites, 37%) and the two brace pushes the body dispatchers still own | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |
@@ -247,3 +247,12 @@ HEAD row above. Two node kinds, zero bytes moved on both ports.
 9,431 (identical bytes); zodlil `zod.core.js` 32,609 (+6 Brotli-11, raw −140). The let-grouping
 of function-valued bindings reaches zodlil; +6 is inside the rename noise floor but it is real
 and on the ledger: the end state has to win it back with the rest.
+
+**Port verification of `6b8062f` (for-in/for-of, parallel copies, closure wrapper), pool,
+background:** markedlil 9,431 and zodlil 32,609 — identical bytes to `523ca17` on both.
+
+**Batch 5 (stores as nodes):** one case moves one byte, `33_algorithms` in the
+no-optimization lane, 353 → 354. With the search off both binaries emit the same 374 B, so the
+emission is unchanged; with it on, five more candidates are scored and a 353/354 tie flipped.
+Scoring noise in a lane the `none` preset still searches; the shipped lane is byte-identical
+across all 72 cases.

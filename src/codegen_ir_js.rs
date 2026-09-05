@@ -9212,8 +9212,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     out.push('{');
                     self.emit_calling_convention_aliases(function, &context, out)?;
-                    out.push_str("return ");
-                    out.push_str(&expression);
+                    out.push_statement(JsStatement::Return {
+                        value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
+                    });
                     close_statement_block(out, self.options.elide_block_terminal_semicolons);
                 }
                 return Ok(());
@@ -10536,7 +10537,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             cache,
                             out,
                         )?;
-                        out.push_str(&update);
+                        // The update helper still renders text; an update is an
+                        // expression statement whenever it ends in one.
+                        match update.strip_suffix(';') {
+                            Some(expression) => out.push_statement(JsStatement::Expression {
+                                value: JsExpression::raw(expression, JsPrecedence::Assignment),
+                            }),
+                            None => out.push_str(&update),
+                        }
                         return Ok(());
                     }
                 }
@@ -10553,13 +10561,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out,
                     )?;
                 }
-                if declare {
-                    out.push_str("var ");
-                }
-                out.push_str(&name);
-                out.push('=');
-                out.push_str(&value);
-                out.push(';');
+                out.push_statement(JsStatement::Binding {
+                    keyword: declare.then_some("var "),
+                    name: name.clone(),
+                    value: JsExpression::raw(value, JsPrecedence::Assignment),
+                });
                 return Ok(());
             }
             ControlFlowOp::StoreGlobal { global, value } => {
@@ -10622,17 +10628,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     cache,
                     out,
                 )?;
-                out.push_str(&take_value(*object, context, cache)?);
+                let object_text = take_value(*object, context, cache)?;
+                let mut assignment = String::from(&*object_text);
                 if (self.options.public_aggregate_fields && context.is_untyped(*object))
                     || self.class_uses_named_fields(owner)
                 {
-                    write!(out, ".{}=", self.owned_property_name(owner, *index, field))
+                    write!(assignment, ".{}=", self.owned_property_name(owner, *index, field))
                         .expect("writing to String cannot fail");
                 } else {
-                    write!(out, "[{index}]=").expect("writing to String cannot fail");
+                    write!(assignment, "[{index}]=").expect("writing to String cannot fail");
                 }
-                out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-                out.push(';');
+                assignment.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(assignment, JsPrecedence::Assignment),
+                });
                 return Ok(());
             }
             ControlFlowOp::RecordFieldSet {
@@ -10687,10 +10696,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out,
                 )?;
                 let access = self.render_index_access(*object, *index, context, cache)?;
-                out.push_str(&access);
-                out.push('=');
-                out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-                out.push(';');
+                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(format!("{access}={value}"), JsPrecedence::Assignment),
+                });
                 return Ok(());
             }
             ControlFlowOp::NewClass {
