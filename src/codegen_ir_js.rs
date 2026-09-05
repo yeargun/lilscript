@@ -3202,10 +3202,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn witness_identity_respell(&self, out: &JsBlock) {
         witness_condition_trees(out, &self.closure_trees);
         let mut identity = out.clone();
-        assert!(
-            !self.respell().block(&mut identity),
-            "an identity re-spell changed the module: a name on the tree disagrees with its binding's spelling"
-        );
+        if self.respell().block(&mut identity) {
+            let mismatch = first_name_mismatch(out, &self.bind_table, &self.closure_trees)
+                .map(|(bind, code, spelling)| {
+                    format!("bind {} spelled `{code}` on the tree, `{spelling}` in the table", bind.0)
+                })
+                .unwrap_or_else(|| "a declared name or head piece".to_string());
+            panic!("an identity re-spell changed the module: {mismatch}");
+        }
     }
 
     fn emit_traced(mut self) -> Result<String, CodegenError> {
@@ -8683,6 +8687,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             context
                 .value_names
                 .insert(parameter.value, (*name).to_string());
+            // `this` / `arguments` are keywords, not bindings.
+            context.value_binds.remove(&parameter.value);
             context
                 .local_names
                 .insert(parameter.local, (*name).to_string());
@@ -9392,6 +9398,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context
                     .value_names
                     .insert(this_param.value, "this".to_string());
+                // `this` is a keyword, not a binding: the parameter's bind
+                // must not follow it onto the tree.
+                context.value_binds.remove(&this_param.value);
             }
         }
         context.inline_declarations = structured;
@@ -22837,6 +22846,95 @@ impl Respell<'_> {
             | JsStatement::Empty => false,
         }
     }
+}
+
+/// The first `Name` atom whose text disagrees with its binding's spelling,
+/// for the witness's message: (bind, text, spelling).
+fn first_name_mismatch(
+    block: &JsBlock,
+    table: &BindTable,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) -> Option<(Bind, String, String)> {
+    fn expression(
+        e: &JsExpression,
+        table: &BindTable,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) -> Option<(Bind, String, String)> {
+        match e.root {
+            JsExpressionRoot::Name(bind) => {
+                let spelling = table.spelling(bind);
+                (spelling != e.code).then(|| (bind, e.code.clone(), spelling))
+            }
+            JsExpressionRoot::Closure(closure) => {
+                let tree = closures.borrow().get(&closure).cloned();
+                match tree {
+                    Some((_, JsFunctionBody::Block(body))) => first_name_mismatch(&body, table, closures),
+                    Some((_, JsFunctionBody::ConciseNode(node))) => expression(&node, table, closures),
+                    _ => None,
+                }
+            }
+            _ => e
+                .operands
+                .iter()
+                .find_map(|operand| expression(operand, table, closures)),
+        }
+    }
+    for emitted in &block.statements {
+        let found = match &emitted.statement {
+            JsStatement::Binding { value, .. }
+            | JsStatement::Throw { value }
+            | JsStatement::Expression { value }
+            | JsStatement::Return { value: Some(value) } => expression(value, table, closures),
+            JsStatement::Declarators { declarators, .. } => declarators
+                .iter()
+                .filter_map(|declarator| declarator.value.as_ref())
+                .find_map(|value| expression(value, table, closures)),
+            JsStatement::If {
+                condition_tree,
+                then_branch,
+                else_branch,
+                ..
+            } => condition_tree
+                .as_ref()
+                .and_then(|tree| expression(tree, table, closures))
+                .or_else(|| first_name_mismatch(&then_branch.block, table, closures))
+                .or_else(|| {
+                    else_branch
+                        .as_ref()
+                        .and_then(|branch| first_name_mismatch(&branch.block, table, closures))
+                }),
+            JsStatement::Function { body, .. } => match body {
+                JsFunctionBody::Block(body) => first_name_mismatch(body, table, closures),
+                JsFunctionBody::ConciseNode(node) => expression(node, table, closures),
+                JsFunctionBody::Concise(_) => None,
+            },
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => first_name_mismatch(body, table, closures)
+                .or_else(|| {
+                    catch
+                        .as_ref()
+                        .and_then(|catch| first_name_mismatch(&catch.body, table, closures))
+                })
+                .or_else(|| {
+                    finally
+                        .as_ref()
+                        .and_then(|finally| first_name_mismatch(finally, table, closures))
+                }),
+            JsStatement::Switch { cases, .. } => cases
+                .iter()
+                .find_map(|case| first_name_mismatch(&case.body, table, closures)),
+            JsStatement::Class { members, .. } => first_name_mismatch(members, table, closures),
+            JsStatement::Loop { body, .. } => first_name_mismatch(&body.block, table, closures),
+            _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
 }
 
 /// The 5.4 witness: every condition kept beside a tree is exactly that

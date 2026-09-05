@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a–c landed** — first port A/B: markedlil −35, zodlil +55; raw nodes are the residue — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a–c landed** — fleet A/B of `frequency-desc`: one win, four losses, stays off; the port twin lane found and fixed a bind leak — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -76,6 +76,7 @@ finished — which for zodlil means winning back 114 bytes honestly.
 | 3 | `lilscript.toml` ignored for a bare relative filename | fixed — `config_search_parent` |
 | 4 | `charCodeAt` out of range yields `NaN` not `0` | fixed — no longer elidable |
 | 5 | `preset = "none"` deletes a live binding | fixed — **two** fold miscompiles, `152b830` |
+| 13 | mobxlil with `candidate_search = "off"` fails standards-parser admission ("Unexpected token") | **pre-existing** — the pre-phase-5 binary `a24ee0f` fails identically; the port ships because the search has other candidates. Found by the port twin lane (`migration/tools/port-twin.sh`); not a migration regression, on the owner's list |
 | 6 | `JS.number(x["length"])` loses its `ToNumber` | fixed — at the family's admission predicate |
 | 7 | `optional_constructor_callback` fails to compile | fixed — `5fc2aac` |
 | 8 | local-phi region duplicates a side effect | fixed — `d07a529`, found by 0.3b |
@@ -691,4 +692,25 @@ Probe under `frequency-desc`: renamed bindings 1,242 → **4,322** of 14,545, fu
 1,493 → **3,445** of 5,805, raw-blocked bindings 9,736 → 6,958; artifact 1,500 Brotli (default
 1,509). Default lane: 0 byte diffs, 0 trace diffs, twin 0 failures over three lanes, frequency lane
 73/73, 1,716 tests.
+
+**5.4d — the port twin lane, and the `this` that carried a binding.** The four-port A/B failed two
+builds with *unresolved generated identifier*: `this.stack` had become `a.stack`. A method's or
+JS-convention function's receiver parameter is named `this` (and the next `arguments`) by
+overwriting `value_names` after naming — and the parameter's bind stayed, so the tree carried
+`Name(bind, "this")` with the table spelling the mangled name. The identity witness catches exactly
+this; it had only ever run on the 74 cases and the probe, none of which has a receiver parameter.
+So the witness now runs on ports: `migration/tools/port-twin.sh <lilscript> <port> <entry>` compiles
+a scratch copy with the search off under `LILSCRIPT_TWIN=1`, then under the ordering — remarklil,
+cnlil, micromarklil pass; mobxlil cannot run the search-off lane at all (live-13, pre-existing).
+Both overwrite sites drop the bind now, and the witness names the offending binding. Second
+lesson, from the same failure: every `value_names` overwrite after naming is a bind leak until
+proven otherwise — captures, promoted formals, `this`, `arguments` are the four found.
+
+**The fleet A/B of `frequency-desc`, pinned:** markedlil −35, zodlil +55, cnlil +77, micromarklil
++591 (esm), mobxlil +22. One win, four losses: **the ordering stays off**, as the plan's rule says
+(each ordering is its own A/B; a loss is a config default that never flips). The per-scope
+frequency pool re-spells against an incumbent that already orders locals by frequency and runs a
+text idiom pass afterwards; what the ports lose is cross-function convergence, which is
+`IdiomConverged`'s axis, not this one's. The renamer, the scope tree and the residues are the
+deliverable; the winning ordering is the next experiment.
 
