@@ -10574,10 +10574,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         match block.terminator.as_ref() {
             Some(Terminator::Return(Some(value))) => {
                 if !context.is_js_undefined(*value) {
-                    let returned = strip_outer_parens(take_value(*value, &context, &mut cache)?);
+                    let returned_node = take_value(*value, &context, &mut cache)?;
+                    let returned = strip_outer_parens(returned_node.clone());
                     let mut expressions = std::mem::take(&mut pending_run);
                     let value = if expressions.is_empty() {
-                        JsExpression::raw(returned, JsPrecedence::Assignment)
+                        // The node itself: `return` strips the outer
+                        // parentheses exactly as the text path did.
+                        returned_node
                     } else {
                         // These are adjacent emitter-produced expression
                         // statements screened by `is_comma_eligible_statement`.
@@ -10917,7 +10920,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         return Ok(());
                     }
                 }
-                let value = strip_outer_parens(take_value(*value, context, cache)?);
+                let value_node = take_value(*value, context, cache)?;
+                let value = strip_outer_parens(value_node.clone());
                 if !declare && value == name {
                     return Ok(());
                 }
@@ -10933,7 +10937,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_statement(JsStatement::Binding {
                     keyword: declare.then_some("var "),
                     name: name.clone(),
-                    value: JsExpression::raw(value, JsPrecedence::Assignment),
+                    value: value_node,
                     bind: context.local_bind(*local),
                 });
                 return Ok(());
@@ -17295,7 +17299,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 "closure has no returned expression",
             ));
         };
-        let returned = strip_outer_parens(take_value(value, &context, &mut cache)?);
+        let returned_node = take_value(value, &context, &mut cache)?;
+        let returned = strip_outer_parens(returned_node.clone());
         let parameters = self.render_closure_parameter_list(&function, &context)?;
         let ordinary_function = recursive_name.is_some()
             || self.emits_ordinary_function_expression(&function, calling_convention);
@@ -17316,11 +17321,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 body.push_statement(statement);
             }
             body.push_statement(JsStatement::Return {
-                value: Some(JsExpression::raw(returned, JsPrecedence::Assignment)),
+                value: Some(returned_node),
             });
             JsFunctionBody::Block(body)
         } else {
-            JsFunctionBody::Concise(returned)
+            JsFunctionBody::ConciseNode(returned_node)
         };
         Ok(JsStatement::Function {
             head,
@@ -22470,7 +22475,12 @@ enum JsStatement {
 #[derive(Debug, Clone)]
 enum JsFunctionBody {
     Block(JsBlock),
+    /// A concise arrow body the emitter only has as text (a classifier's
+    /// result); the renamer treats it as opaque.
     Concise(String),
+    /// A concise arrow body as its expression node: rendered stripped of its
+    /// outer parentheses, exactly as the text form was.
+    ConciseNode(JsExpression),
 }
 
 /// How a body dispatcher frames what it emits. `Bare` is the module entry:
@@ -22688,6 +22698,7 @@ impl Respell<'_> {
         match body {
             JsFunctionBody::Block(block) => self.block(block),
             JsFunctionBody::Concise(_) => false,
+            JsFunctionBody::ConciseNode(node) => self.value(node),
         }
     }
 
@@ -22848,8 +22859,10 @@ fn witness_condition_trees(
         body: &JsFunctionBody,
         closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     ) {
-        if let JsFunctionBody::Block(block) = body {
-            witness_condition_trees(block, closures);
+        match body {
+            JsFunctionBody::Block(block) => witness_condition_trees(block, closures),
+            JsFunctionBody::ConciseNode(node) => expression(node, closures),
+            JsFunctionBody::Concise(_) => {}
         }
     }
     fn expression(
@@ -23149,6 +23162,7 @@ impl ScopeCollector<'_> {
         match body {
             JsFunctionBody::Block(block) => self.block(scope, block),
             JsFunctionBody::Concise(text) => self.opaque(scope, text, OpaqueKind::Concise),
+            JsFunctionBody::ConciseNode(node) => self.expression(scope, node),
         }
     }
 
@@ -23869,6 +23883,16 @@ impl JsStatement {
                     JsFunctionBody::Concise(expression) => {
                         // A concise body starting with `{` would parse as a
                         // block, so an object literal keeps its parentheses.
+                        if expression.starts_with('{') {
+                            text.push('(');
+                            text.push_str(&expression);
+                            text.push(')');
+                        } else {
+                            text.push_str(&expression);
+                        }
+                    }
+                    JsFunctionBody::ConciseNode(node) => {
+                        let expression = strip_outer_parens(node);
                         if expression.starts_with('{') {
                             text.push('(');
                             text.push_str(&expression);

@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a landed** — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a–c, 5.2a–c, 5.3, 5.4a–c landed** — first port A/B: markedlil −35, zodlil +55; raw nodes are the residue — binding identity on the tree, spelling as a side table, the scope tree and the sound renamer, `NameOrdering::FrequencyDesc` as a scored decision off by default. Next: drive the opaque residues down (conditions, loop heads, raw nodes as nodes) until the renamer reaches the bindings, then the fleet A/B — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -667,4 +667,28 @@ scopes 1,071 → 1,493 of 5,805; the probe's artifact 4,055 → 4,033 raw, 1,509
 (the first byte the post-layout renamer has ever moved); the case sum 6,003 → 6,006 (+3, the
 same as before — these programs are tiny). Default lane: 0 byte diffs, 0 trace diffs, frequency
 lane 73/73 behave and deterministic, 1,716 tests.
+
+**5.4 — measured on the ports, and the residue census.** `LILSCRIPT_NAME_ORDERING=frequency-desc`
+pins the ordering from the environment (the pool forwards `LILSCRIPT_*`), so the A/B ran without
+touching a port config: **markedlil 9,342 → 9,307 (−35), zodlil 32,619 → 32,674 (+55)** — one win,
+one loss, the per-port split the owner's finer 059 saw, which is why it is a scored decision. The
+search form (`LILSCRIPT_NAME_ORDERING_SEARCH=1`, the `name-ordering` family) first never ran — the
+production search's structural budget was spent before the late family registered a plan — and once
+moved to the protected priority slot after entropy it ran and *lost to the pinned form* (probe
+1,509 vs 1,499): applied late it only re-spells a finished candidate, applied as the baseline it
+steers layout and every text-scored decision downstream. So the shipping form is a default flip
+on a fleet measure, and the fleet A/B is what decides it. The renamer now reports *why* it kept
+each binding (`rename_kept_<kind>`): on markedlil, raw nodes 222,466, free references 71,089,
+concise bodies 38,680, unbound declarations 27,075 — raw text is the residue, by an order of
+magnitude — and `LILSCRIPT_RAW_SITES=1` ranks the `raw()` construction sites by the kept bindings
+their text mentions.
+
+**5.4c — three raw sites keep their node.** The ranking's top entries were text made from a
+`take_value` node and forgotten: the plain `return`, the closure's return and concise body
+(`JsFunctionBody::ConciseNode`), the local-store value. Each keeps the node; the statement
+renderers strip the outer parentheses exactly as the text path did, so the bytes are the same.
+Probe under `frequency-desc`: renamed bindings 1,242 → **4,322** of 14,545, fully renameable scopes
+1,493 → **3,445** of 5,805, raw-blocked bindings 9,736 → 6,958; artifact 1,500 Brotli (default
+1,509). Default lane: 0 byte diffs, 0 trace diffs, twin 0 failures over three lanes, frequency lane
+73/73, 1,716 tests.
 
