@@ -137,6 +137,19 @@ pub static RENAME_SCOPES: Bucket = Bucket::new("rename_scopes");
 pub static RENAME_SCOPES_FULL: Bucket = Bucket::new("rename_scopes_full");
 pub static RENAME_BINDS: Bucket = Bucket::new("rename_binds");
 pub static RENAME_BINDS_RENAMED: Bucket = Bucket::new("rename_binds_renamed");
+/// Bindings the renamer had to keep, by the kind of text that mentioned their
+/// spelling (a binding may count under several kinds).
+pub static RENAME_KEPT_FREE: Bucket = Bucket::new("rename_kept_free");
+pub static RENAME_KEPT_RAW: Bucket = Bucket::new("rename_kept_raw");
+pub static RENAME_KEPT_LITERAL: Bucket = Bucket::new("rename_kept_literal");
+pub static RENAME_KEPT_CONCISE: Bucket = Bucket::new("rename_kept_concise");
+pub static RENAME_KEPT_CONDITION: Bucket = Bucket::new("rename_kept_condition");
+pub static RENAME_KEPT_LOOP_TEXT: Bucket = Bucket::new("rename_kept_loop_text");
+pub static RENAME_KEPT_SWITCH: Bucket = Bucket::new("rename_kept_switch");
+pub static RENAME_KEPT_CLASS: Bucket = Bucket::new("rename_kept_class");
+pub static RENAME_KEPT_DECLARATION: Bucket = Bucket::new("rename_kept_declaration");
+pub static RENAME_KEPT_MODULE: Bucket = Bucket::new("rename_kept_module");
+pub static RENAME_KEPT_HEAD: Bucket = Bucket::new("rename_kept_head");
 pub static STATEMENT_RAW: Bucket = Bucket::new("stmt_raw");
 /// Peephole folds that rewrote nothing, and the time they spent proving it.
 /// A fold whose enabling syntax is absent from the artifact still pays a full
@@ -225,8 +238,8 @@ const BYTE_BUCKETS: [&Bucket; 17] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 38] = [
-    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND, &DECL_BOUND, &DECL_UNBOUND, &RENAME_SCOPES, &RENAME_SCOPES_FULL, &RENAME_BINDS, &RENAME_BINDS_RENAMED,
+const EVENT_BUCKETS: [&Bucket; 49] = [
+    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND, &DECL_BOUND, &DECL_UNBOUND, &RENAME_SCOPES, &RENAME_SCOPES_FULL, &RENAME_BINDS, &RENAME_BINDS_RENAMED, &RENAME_KEPT_FREE, &RENAME_KEPT_RAW, &RENAME_KEPT_LITERAL, &RENAME_KEPT_CONCISE, &RENAME_KEPT_CONDITION, &RENAME_KEPT_LOOP_TEXT, &RENAME_KEPT_SWITCH, &RENAME_KEPT_CLASS, &RENAME_KEPT_DECLARATION, &RENAME_KEPT_MODULE, &RENAME_KEPT_HEAD,
     &STATEMENT_RAW,
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,

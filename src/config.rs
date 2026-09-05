@@ -3687,3 +3687,10 @@ fn name_ordering_override() -> Option<NameOrdering> {
         }
     }
 }
+
+/// `LILSCRIPT_NAME_ORDERING_SEARCH=1` lets the candidate search propose the
+/// post-layout orderings, as `name_ordering_search = true` would: the form the
+/// decision ships in, measured across the pool without editing configs.
+pub(crate) fn name_ordering_search_override() -> bool {
+    std::env::var("LILSCRIPT_NAME_ORDERING_SEARCH").as_deref() == Ok("1")
+}

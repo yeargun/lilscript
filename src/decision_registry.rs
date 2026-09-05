@@ -1051,7 +1051,8 @@ pub const SCORED_EMISSION_FAMILIES: &[ScoredEmissionFamily] = &[
         FinalistPolicy::Top,
         |ctx| {
             ctx.config.javascript.name_ordering.is_none()
-                && ctx.config.javascript.name_ordering_search
+                && (ctx.config.javascript.name_ordering_search
+                    || crate::config::name_ordering_search_override())
         },
         |_, options| vec![IrJsOptions {
             name_ordering: crate::codegen_ir_js::NameOrdering::FrequencyDesc,

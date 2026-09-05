@@ -22912,9 +22912,10 @@ struct RenameScope {
     /// Identifiers this scope uses without a binding: globals, host names,
     /// callee atoms, unbound heads.
     free: AHashSet<String>,
-    /// Identifiers found in text the re-spell cannot rewrite: raw nodes,
-    /// conditions, loop heads, concise bodies, class heads, exports.
-    opaque: AHashSet<String>,
+    /// Identifiers found in text the re-spell cannot rewrite, with the kinds
+    /// of text that mentioned them (`OpaqueKind` bits): raw nodes, conditions
+    /// without a tree, loop heads, concise bodies, class heads, exports.
+    opaque: AHashMap<String, u16>,
     children: Vec<usize>,
 }
 
@@ -22955,6 +22956,67 @@ impl ScopeTree {
         self.scopes
             .iter()
             .position(|scope| scope.declared.contains(&bind))
+    }
+}
+
+/// What kind of text an opaque identifier came from: the residue census the
+/// renamer reports, so the next node to build is the one that blocks the most
+/// renames on real ports.
+#[derive(Debug, Clone, Copy)]
+enum OpaqueKind {
+    /// A `Raw` expression node.
+    Raw = 0,
+    /// An `Atom` that is not an identifier (a literal spelled with letters).
+    Literal = 1,
+    /// A concise arrow body kept as text.
+    Concise = 2,
+    /// An `if` / loop condition with no tree.
+    Condition = 3,
+    /// A `for` initialiser or update, a loop's `object` / `iterable`.
+    LoopText = 4,
+    /// A `switch` discriminant or case label.
+    Switch = 5,
+    /// A class head or field.
+    Class = 6,
+    /// A declaration, declarator, group or catch binding without a bind.
+    Declaration = 7,
+    /// An import or export name.
+    Module = 8,
+    /// Head text or an unbound head name.
+    Head = 9,
+}
+
+impl OpaqueKind {
+    const ALL: [Self; 10] = [
+        Self::Raw,
+        Self::Literal,
+        Self::Concise,
+        Self::Condition,
+        Self::LoopText,
+        Self::Switch,
+        Self::Class,
+        Self::Declaration,
+        Self::Module,
+        Self::Head,
+    ];
+
+    fn bit(self) -> u16 {
+        1 << (self as u16)
+    }
+
+    fn bucket(self) -> &'static crate::timing::Bucket {
+        match self {
+            Self::Raw => &crate::timing::RENAME_KEPT_RAW,
+            Self::Literal => &crate::timing::RENAME_KEPT_LITERAL,
+            Self::Concise => &crate::timing::RENAME_KEPT_CONCISE,
+            Self::Condition => &crate::timing::RENAME_KEPT_CONDITION,
+            Self::LoopText => &crate::timing::RENAME_KEPT_LOOP_TEXT,
+            Self::Switch => &crate::timing::RENAME_KEPT_SWITCH,
+            Self::Class => &crate::timing::RENAME_KEPT_CLASS,
+            Self::Declaration => &crate::timing::RENAME_KEPT_DECLARATION,
+            Self::Module => &crate::timing::RENAME_KEPT_MODULE,
+            Self::Head => &crate::timing::RENAME_KEPT_HEAD,
+        }
     }
 }
 
@@ -23001,10 +23063,19 @@ impl ScopeCollector<'_> {
         collector.tree
     }
 
-    fn opaque(&mut self, scope: usize, text: &str) {
+    fn opaque(&mut self, scope: usize, text: &str, kind: OpaqueKind) {
         let mut found = AHashSet::default();
         identifiers_in(text, &mut found);
-        self.tree.scopes[scope].opaque.extend(found);
+        for identifier in found {
+            *self.tree.scopes[scope].opaque.entry(identifier).or_insert(0) |= kind.bit();
+        }
+    }
+
+    fn opaque_name(&mut self, scope: usize, name: &str, kind: OpaqueKind) {
+        *self.tree.scopes[scope]
+            .opaque
+            .entry(name.to_string())
+            .or_insert(0) |= kind.bit();
     }
 
     fn block(&mut self, scope: usize, block: &JsBlock) {
@@ -23018,14 +23089,12 @@ impl ScopeCollector<'_> {
     fn head(&mut self, outer: usize, inner: usize, head: &JsHead, name_binds_inner: bool) {
         for piece in &head.pieces {
             match piece {
-                JsHeadPiece::Text(text) => self.opaque(inner, text),
+                JsHeadPiece::Text(text) => self.opaque(inner, text, OpaqueKind::Head),
                 JsHeadPiece::Name(bind, _) => self.tree.declare(inner, *bind),
                 JsHeadPiece::FunctionName(bind, _) => self
                     .tree
                     .declare(if name_binds_inner { inner } else { outer }, *bind),
-                JsHeadPiece::Unbound(name) => {
-                    self.tree.scopes[inner].opaque.insert(name.clone());
-                }
+                JsHeadPiece::Unbound(name) => self.opaque_name(inner, name, OpaqueKind::Head),
             }
         }
     }
@@ -23033,7 +23102,7 @@ impl ScopeCollector<'_> {
     fn function_body(&mut self, scope: usize, body: &JsFunctionBody) {
         match body {
             JsFunctionBody::Block(block) => self.block(scope, block),
-            JsFunctionBody::Concise(text) => self.opaque(scope, text),
+            JsFunctionBody::Concise(text) => self.opaque(scope, text, OpaqueKind::Concise),
         }
     }
 
@@ -23042,7 +23111,7 @@ impl ScopeCollector<'_> {
     fn condition(&mut self, scope: usize, text: &str, tree: &Option<JsExpression>) {
         match tree {
             Some(tree) => self.expression(scope, tree),
-            None => self.opaque(scope, text),
+            None => self.opaque(scope, text, OpaqueKind::Condition),
         }
     }
 
@@ -23050,7 +23119,7 @@ impl ScopeCollector<'_> {
         match statement {
             JsStatement::Declaration { name, bind, .. } => match bind {
                 Some(bind) => self.tree.declare(scope, *bind),
-                None => self.opaque(scope, name),
+                None => self.opaque(scope, name, OpaqueKind::Declaration),
             },
             JsStatement::Binding {
                 keyword,
@@ -23061,7 +23130,7 @@ impl ScopeCollector<'_> {
                 match (bind, keyword) {
                     (Some(bind), Some(_)) => self.tree.declare(scope, *bind),
                     (Some(bind), None) => self.tree.scopes[scope].referenced.push(*bind),
-                    (None, _) => self.opaque(scope, name),
+                    (None, _) => self.opaque(scope, name, OpaqueKind::Declaration),
                 }
                 self.expression(scope, value);
             }
@@ -23069,7 +23138,7 @@ impl ScopeCollector<'_> {
                 for declarator in declarators {
                     match declarator.bind {
                         Some(bind) => self.tree.declare(scope, bind),
-                        None => self.opaque(scope, &declarator.name),
+                        None => self.opaque(scope, &declarator.name, OpaqueKind::Declaration),
                     }
                     if let Some(value) = &declarator.value {
                         self.expression(scope, value);
@@ -23078,7 +23147,7 @@ impl ScopeCollector<'_> {
             }
             JsStatement::DeclarationGroup { names, .. } => {
                 for name in names {
-                    self.opaque(scope, name);
+                    self.opaque(scope, name, OpaqueKind::Declaration);
                 }
             }
             JsStatement::Return { value: Some(value) }
@@ -23110,7 +23179,9 @@ impl ScopeCollector<'_> {
                 if let Some(catch) = catch {
                     match (catch.bind, &catch.binding) {
                         (Some(bind), _) => self.tree.declare(scope, bind),
-                        (None, Some(binding)) => self.opaque(scope, binding),
+                        (None, Some(binding)) => {
+                            self.opaque(scope, binding, OpaqueKind::Declaration)
+                        }
                         (None, None) => {}
                     }
                     self.block(scope, &catch.body);
@@ -23123,19 +23194,19 @@ impl ScopeCollector<'_> {
                 discriminant,
                 cases,
             } => {
-                self.opaque(scope, discriminant);
+                self.opaque(scope, discriminant, OpaqueKind::Switch);
                 for case in cases {
-                    self.opaque(scope, &case.label);
+                    self.opaque(scope, &case.label, OpaqueKind::Switch);
                     self.block(scope, &case.body);
                 }
             }
             JsStatement::Class { head, members } => {
-                self.opaque(scope, head);
+                self.opaque(scope, head, OpaqueKind::Class);
                 self.block(scope, members);
             }
             JsStatement::ClassField { key, value } => {
-                self.opaque(scope, key);
-                self.opaque(scope, value);
+                self.opaque(scope, key, OpaqueKind::Class);
+                self.opaque(scope, value, OpaqueKind::Class);
             }
             JsStatement::Loop {
                 head,
@@ -23155,9 +23226,9 @@ impl ScopeCollector<'_> {
                             (Some(bind), false) => {
                                 self.tree.scopes[scope].referenced.push(*bind)
                             }
-                            (None, _) => self.opaque(scope, key),
+                            (None, _) => self.opaque(scope, key, OpaqueKind::Declaration),
                         }
-                        self.opaque(scope, object);
+                        self.opaque(scope, object, OpaqueKind::LoopText);
                     }
                     JsLoopHead::ForOf {
                         declare,
@@ -23170,9 +23241,9 @@ impl ScopeCollector<'_> {
                             (Some(bind), false) => {
                                 self.tree.scopes[scope].referenced.push(*bind)
                             }
-                            (None, _) => self.opaque(scope, element),
+                            (None, _) => self.opaque(scope, element, OpaqueKind::Declaration),
                         }
-                        self.opaque(scope, iterable);
+                        self.opaque(scope, iterable, OpaqueKind::LoopText);
                     }
                     JsLoopHead::For {
                         initializer,
@@ -23181,7 +23252,7 @@ impl ScopeCollector<'_> {
                         update,
                     } => {
                         for text in [initializer, update].into_iter().flatten() {
-                            self.opaque(scope, text);
+                            self.opaque(scope, text, OpaqueKind::LoopText);
                         }
                         if let Some(condition) = condition {
                             self.condition(scope, condition, condition_tree);
@@ -23202,9 +23273,9 @@ impl ScopeCollector<'_> {
             }
             JsStatement::Import { bindings, .. } | JsStatement::Export { bindings } => {
                 for binding in bindings {
-                    self.tree.scopes[scope].opaque.insert(binding.name.clone());
+                    self.opaque_name(scope, &binding.name, OpaqueKind::Module);
                     if let Some(alias) = &binding.alias {
-                        self.tree.scopes[scope].opaque.insert(alias.clone());
+                        self.opaque_name(scope, alias, OpaqueKind::Module);
                     }
                 }
             }
@@ -23226,7 +23297,7 @@ impl ScopeCollector<'_> {
                         self.head(scope, inner, &head, true);
                         self.function_body(inner, &body);
                     }
-                    None => self.opaque(scope, &expression.code),
+                    None => self.opaque(scope, &expression.code, OpaqueKind::Raw),
                 }
             }
             JsExpressionRoot::Atom => {
@@ -23236,10 +23307,10 @@ impl ScopeCollector<'_> {
                 } else if !is_js_property_identifier(code) {
                     // A literal spelled with letters (a regex, a template)
                     // could still mention a name.
-                    self.opaque(scope, code);
+                    self.opaque(scope, code, OpaqueKind::Literal);
                 }
             }
-            JsExpressionRoot::Raw => self.opaque(scope, &expression.code),
+            JsExpressionRoot::Raw => self.opaque(scope, &expression.code, OpaqueKind::Raw),
             JsExpressionRoot::Member => {
                 // The property is a key, not a reference.
                 if let Some(object) = expression.operands.first() {
@@ -23288,13 +23359,19 @@ impl Renamer<'_> {
             // Everything a new spelling in this scope must avoid, and
             // everything text in the scope might already be referring to.
             let mut forbidden = AHashSet::<String>::default();
-            let mut mentioned = AHashSet::<String>::default();
+            // Every identifier text in the subtree mentions, with the kinds
+            // of text that mention it (bit 15: a free reference).
+            let mut mentioned = AHashMap::<String, u16>::default();
             for inner in &subtree {
                 let inner_scope = &self.tree.scopes[*inner];
                 forbidden.extend(inner_scope.free.iter().cloned());
-                forbidden.extend(inner_scope.opaque.iter().cloned());
-                mentioned.extend(inner_scope.free.iter().cloned());
-                mentioned.extend(inner_scope.opaque.iter().cloned());
+                forbidden.extend(inner_scope.opaque.keys().cloned());
+                for name in &inner_scope.free {
+                    *mentioned.entry(name.clone()).or_insert(0) |= 1 << 15;
+                }
+                for (name, kinds) in &inner_scope.opaque {
+                    *mentioned.entry(name.clone()).or_insert(0) |= kinds;
+                }
                 if *inner != scope {
                     for bind in &inner_scope.declared {
                         forbidden.insert(self.table.spelling(*bind));
@@ -23316,9 +23393,19 @@ impl Renamer<'_> {
             let (mut renameable, kept): (Vec<Bind>, Vec<Bind>) = declared
                 .iter()
                 .copied()
-                .partition(|bind| !mentioned.contains(&self.table.spelling(*bind)));
+                .partition(|bind| !mentioned.contains_key(&self.table.spelling(*bind)));
             for bind in &kept {
-                forbidden.insert(self.table.spelling(*bind));
+                let spelling = self.table.spelling(*bind);
+                let kinds = mentioned.get(&spelling).copied().unwrap_or(0);
+                if kinds & (1 << 15) != 0 {
+                    crate::timing::RENAME_KEPT_FREE.event(1);
+                }
+                for kind in OpaqueKind::ALL {
+                    if kinds & kind.bit() != 0 {
+                        kind.bucket().event(1);
+                    }
+                }
+                forbidden.insert(spelling);
             }
             if kept.is_empty() {
                 scopes_full += 1;
