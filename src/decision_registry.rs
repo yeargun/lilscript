@@ -1045,8 +1045,8 @@ pub const SCORED_EMISSION_FAMILIES: &[ScoredEmissionFamily] = &[
     ),
     family!(
         "name-ordering",
-        EmissionPhase::BeforeEntropy,
-        BeamAdmission::Sequential,
+        EmissionPhase::AfterEntropy,
+        BeamAdmission::Priority,
         BeamWidthPolicy::Full,
         FinalistPolicy::Top,
         |ctx| {

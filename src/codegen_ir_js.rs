@@ -1212,6 +1212,42 @@ thread_local! {
     static NAME_TRACE: RefCell<Vec<(&'static str, String)>> = const { RefCell::new(Vec::new()) };
 }
 
+/// `LILSCRIPT_RAW_SITES=1`: record every `JsExpression::raw` construction
+/// with its source line, and after a post-layout rename print which sites'
+/// text mentioned the bindings the renamer had to keep -- the ranking that
+/// says which raw site to turn into a node next.
+fn raw_sites_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_RAW_SITES").as_deref() == Ok("1"))
+}
+
+thread_local! {
+    static RAW_SITES: RefCell<Vec<(u32, String)>> = const { RefCell::new(Vec::new()) };
+}
+
+fn report_raw_sites(kept: &[String]) {
+    let kept = kept.iter().cloned().collect::<AHashSet<_>>();
+    let mut per_line = AHashMap::<u32, (usize, usize)>::default();
+    RAW_SITES.with(|sites| {
+        for (line, code) in sites.borrow().iter() {
+            let mut found = AHashSet::default();
+            identifiers_in(code, &mut found);
+            let hits = found.iter().filter(|name| kept.contains(*name)).count();
+            let entry = per_line.entry(*line).or_insert((0, 0));
+            entry.0 += 1;
+            entry.1 += hits;
+        }
+        sites.borrow_mut().clear();
+    });
+    let mut ranked = per_line.into_iter().collect::<Vec<_>>();
+    ranked.sort_by(|left, right| right.1 .1.cmp(&left.1 .1).then(left.0.cmp(&right.0)));
+    let mut report = String::from("raw-sites line nodes kept-name-hits\n");
+    for (line, (nodes, hits)) in ranked.iter().take(16) {
+        let _ = writeln!(report, "raw-sites {line} {nodes} {hits}");
+    }
+    eprint!("{report}");
+}
+
 fn trace_name_request(role: &'static str, name: &str) {
     if name_trace_enabled() {
         NAME_TRACE.with(|trace| trace.borrow_mut().push((role, name.to_string())));
@@ -1980,11 +2016,21 @@ impl JsExpression {
     fn closure(closure: ClosureId, code: impl Into<String>, precedence: JsPrecedence) -> Self {
         Self {
             root: JsExpressionRoot::Closure(closure),
-            ..Self::raw(code, precedence)
+            ..Self::raw_untracked(code, precedence)
         }
     }
 
+    #[track_caller]
     fn raw(code: impl Into<String>, precedence: JsPrecedence) -> Self {
+        let code = code.into();
+        if raw_sites_enabled() {
+            let line = std::panic::Location::caller().line();
+            RAW_SITES.with(|sites| sites.borrow_mut().push((line, code.clone())));
+        }
+        Self::raw_untracked(code, precedence)
+    }
+
+    fn raw_untracked(code: impl Into<String>, precedence: JsPrecedence) -> Self {
         Self {
             code: code.into(),
             ungrouped: None,
@@ -23339,6 +23385,7 @@ impl Renamer<'_> {
     /// Rename every scope, top down, and report (scopes, scopes fully
     /// renameable, bindings, bindings renamed).
     fn frequency_desc(&self) -> (usize, usize, usize, usize) {
+        let mut kept_spellings = Vec::new();
         let mut counts = AHashMap::<Bind, usize>::default();
         for scope in &self.tree.scopes {
             for bind in &scope.referenced {
@@ -23396,6 +23443,9 @@ impl Renamer<'_> {
                 .partition(|bind| !mentioned.contains_key(&self.table.spelling(*bind)));
             for bind in &kept {
                 let spelling = self.table.spelling(*bind);
+                if raw_sites_enabled() {
+                    kept_spellings.push(spelling.clone());
+                }
                 let kinds = mentioned.get(&spelling).copied().unwrap_or(0);
                 if kinds & (1 << 15) != 0 {
                     crate::timing::RENAME_KEPT_FREE.event(1);
@@ -23432,6 +23482,9 @@ impl Renamer<'_> {
                 self.table.respell(bind, &spelling);
                 binds_renamed += 1;
             }
+        }
+        if raw_sites_enabled() {
+            report_raw_sites(&kept_spellings);
         }
         (self.tree.scopes.len(), scopes_full, binds_total, binds_renamed)
     }
