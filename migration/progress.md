@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 100% nodes on the probe | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **started** — statement list beside the text, witnessed; 100% nodes on the probe and on all 72 cases in three lanes | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **116** |
-| statement nodes (`push_statement`) | 0 | **44** |
+| fragment appends (`push_str`) | 324 | **46** |
+| statement nodes (`push_statement`) | 0 | **60** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -153,7 +153,7 @@ both.
 
 | Phase | Blocking on | What is already known |
 |---|---|---|
-| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **100% of statement bytes arrive as nodes on the probe** (shipped config: `stmt_raw_sum` 0). The state machine is `Binding` + `Loop(for(;;))` around a `Switch` node (or a chain of `If`s), each case body nested off the one before it; the class construction and record-rest statements are `Binding`/`Expression` nodes (`binding_keyword` returns the keyword instead of pushing it). The dynamic census is exhausted on the probe; what is left is *static*: `out.push_str` sites in paths the probe and the 72 cases do not reach, to be found by reading and by `migration/tools/candidate-diff.sh` (which forces the search and the control-flow variant families and diffs the whole candidate set between two binaries) | 22 folds (G1, G2) become unreachable |
+| 3 tree authoritative, delete `code` | **started**: `JsBlock` is a statement list with the text as its cache, witnessed at every block boundary; **100% of statement bytes arrive as nodes on the probe and on all 72 cases in the shipped, none and forced-search lanes** (`stmt_raw_sum` 0 everywhere). The module's up-front `let` list is one `Declarators` node built by its five helpers instead of a `started` flag threaded through text pushes; the cluster IIFEs are `Binding`/`Expression` nodes over nested blocks; tuple copies, mutation spellings and `throw Error()` are nodes. What remains is static: sites in paths no case reaches (exports/imports of multi-chunk output, identity classes, the entry state machine), converted by reading in the next batch | 22 folds (G1, G2) become unreachable |
 | 4 deliver the facts | 3 | annotations, `NodeId` provenance |
 | 5 naming post-layout | 2–4 | the largest single lever (katexlil identifier stream, +2,113) |
 | 6 fold groups | 3 | **census taken**: 53 of 128 folds never fire; worth ~3% of CPU |
@@ -299,3 +299,12 @@ wins every time; outputs are byte-identical in all four lanes. Two facts for lat
 branch condition there carries a redundant pair of parentheses (`if((c<=1))`) in both old and
 new — a byte to win once the state machine is worth scoring — and the state machine only ever
 renders as a candidate in these ports.
+
+**Port verification of `9254eeb` (state machine on nodes), pool, background:** markedlil 9,431
+and zodlil 32,609 — identical bytes to `f3e9165`.
+
+**Batch 11 (the dynamic remainder).** Aggregate raw-site census over the 72 cases in three
+lanes: 12,198 + 63,508 + 19,562 raw bytes before → 0 + 0 + 0 after. Candidate sets identical
+(1,274 each, 152 state-machine renders) under `candidate-diff.sh`. One compile in the
+forced-search lane fails on both binaries (`type_guards`: the startup-cost guard rejects every
+candidate under that synthetic config) — not a regression, a limit of the lane.

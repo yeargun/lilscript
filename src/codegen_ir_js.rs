@@ -605,18 +605,11 @@ const ARRAY_PROTOTYPE_ALIAS_METHODS: [&str; 11] = [
     "concat",
 ];
 
-fn emit_let_item(out: &mut JsBlock, started: &mut bool) {
-    if *started {
-        out.push(',');
-    } else {
-        out.push_str("let ");
-        *started = true;
-    }
-}
-
-fn finish_let_list(out: &mut JsBlock, started: bool) {
-    if started {
-        out.push(';');
+/// One entry of the module's up-front `let` list.
+fn let_item(name: impl Into<String>, value: impl Into<String>, precedence: JsPrecedence) -> JsDeclarator {
+    JsDeclarator {
+        name: name.into(),
+        value: Some(JsExpression::raw(value, precedence)),
     }
 }
 
@@ -6012,9 +6005,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // bounded, globally required set in each chunk so an adapter
                 // inside an inline-owned callback can never reference an
                 // entry-only binding.
-                let mut started = false;
-                self.emit_js_adapter_factories(&mut code, &mut started)?;
-                finish_let_list(&mut code, started);
+                let mut declarators = Vec::new();
+                self.emit_js_adapter_factories(&mut declarators)?;
+                if !declarators.is_empty() {
+                    code.push_statement(JsStatement::Declarators {
+                        keyword: "let ",
+                        declarators,
+                    });
+                }
             }
             self.emit_function_group(&unit_functions[unit], &mut code)?;
             if unit == 0 {
@@ -6119,36 +6117,39 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out: &mut JsBlock,
         predeclared_globals: &[SymbolId],
     ) -> Result<(), CodegenError> {
-        let mut started = false;
-        self.emit_js_adapter_factories(out, &mut started)?;
-        self.emit_js_host_aliases(out, &mut started)?;
-        self.emit_array_prototype_aliases(out, &mut started);
-        self.emit_js_window_binding(out, &mut started);
-        self.emit_pooled_literals(out, &mut started);
+        let mut declarators = Vec::new();
+        self.emit_js_adapter_factories(&mut declarators)?;
+        self.emit_js_host_aliases(&mut declarators)?;
+        self.emit_array_prototype_aliases(&mut declarators);
+        self.emit_js_window_binding(&mut declarators);
+        self.emit_pooled_literals(&mut declarators);
         for symbol in predeclared_globals {
-            emit_let_item(out, &mut started);
-            out.push_str(self.global_name(*symbol)?);
-            if let Some(value) = self.constant_global_strings.get(symbol) {
-                out.push('=');
-                out.push_str(&render_string_literal(value, self.options.string_quote));
-            }
+            declarators.push(JsDeclarator {
+                name: self.global_name(*symbol)?.to_string(),
+                value: self.constant_global_strings.get(symbol).map(|value| {
+                    JsExpression::atom(render_string_literal(value, self.options.string_quote))
+                }),
+            });
         }
-        finish_let_list(out, started);
+        if !declarators.is_empty() {
+            out.push_statement(JsStatement::Declarators {
+                keyword: "let ",
+                declarators,
+            });
+        }
         Ok(())
     }
 
-    fn emit_pooled_literals(&self, out: &mut JsBlock, started: &mut bool) {
+    fn emit_pooled_literals(&self, declarators: &mut Vec<JsDeclarator>) {
         for (value, name) in &self.pooled_strings {
-            emit_let_item(out, started);
-            out.push_str(name);
-            out.push('=');
-            out.push_str(&render_string_literal(value, self.options.string_quote));
+            declarators.push(let_item(
+                name.clone(),
+                render_string_literal(value, self.options.string_quote),
+                JsPrecedence::Primary,
+            ));
         }
         for (value, name) in &self.pooled_numbers {
-            emit_let_item(out, started);
-            out.push_str(name);
-            out.push('=');
-            out.push_str(value);
+            declarators.push(let_item(name.clone(), value.clone(), JsPrecedence::Primary));
         }
     }
 
@@ -6256,22 +6257,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if last.is_some_and(|instruction| self.instruction_is_js_throw(instruction)) {
             return;
         }
-        out.push_str("throw Error();");
+        out.push_statement(JsStatement::Throw {
+            value: JsExpression::raw("Error()", JsPrecedence::Call),
+        });
     }
 
     fn emit_js_adapter_factories(
         &self,
-        out: &mut JsBlock,
-        started: &mut bool,
+        declarators: &mut Vec<JsDeclarator>,
     ) -> Result<(), CodegenError> {
         for convention in JsCallingConvention::ALL {
             if !self.js_adapter_fallbacks.contains(&convention) {
                 continue;
             }
-            emit_let_item(out, started);
-            out.push_str(self.js_adapter_factory_name(convention)?);
-            out.push_str("=e=>");
-            out.push_str(match convention {
+            let adapter = match convention {
                 JsCallingConvention::Method0 => "function(){return e(this)}",
                 JsCallingConvention::Method1 => "function(a){return e(this,a)}",
                 JsCallingConvention::Method2 => "function(a,b){return e(this,a,b)}",
@@ -6293,7 +6292,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 JsCallingConvention::MethodRest => "function(){return e(this,arguments)}",
                 JsCallingConvention::StaticRest => "function(){return e(arguments)}",
-            });
+            };
+            declarators.push(let_item(
+                self.js_adapter_factory_name(convention)?,
+                format!("e=>{adapter}"),
+                JsPrecedence::Assignment,
+            ));
         }
         Ok(())
     }
@@ -6344,8 +6348,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_js_host_aliases(
         &mut self,
-        out: &mut JsBlock,
-        started: &mut bool,
+        declarators: &mut Vec<JsDeclarator>,
     ) -> Result<(), CodegenError> {
         let aliases = self
             .module
@@ -6386,10 +6389,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
 
         for parent in &parents {
-            emit_let_item(out, started);
-            out.push_str(&parent_names[parent]);
-            out.push('=');
-            out.push_str(parent);
+            declarators.push(let_item(
+                parent_names[parent].clone(),
+                *parent,
+                JsPrecedence::Member,
+            ));
         }
         let mut emitted = AHashSet::<(&str, JsHostAliasConvention)>::default();
         for alias in &aliases {
@@ -6410,25 +6414,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     } else {
                         "call"
                     };
-                    emit_let_item(out, started);
-                    out.push_str(&root);
-                    out.push('=');
-                    out.push_str(&base);
-                    emit_let_item(out, started);
-                    out.push_str(self.function_name(alias.function)?);
-                    out.push('=');
-                    out.push_str(&root);
-                    out.push('.');
-                    out.push_str(method);
-                    out.push_str(".bind(");
-                    out.push_str(&root);
-                    out.push(')');
+                    declarators.push(let_item(root.clone(), base, JsPrecedence::Member));
+                    declarators.push(let_item(
+                        self.function_name(alias.function)?,
+                        format!("{root}.{method}.bind({root})"),
+                        JsPrecedence::Call,
+                    ));
                 }
                 _ => {
-                    emit_let_item(out, started);
-                    out.push_str(self.function_name(alias.function)?);
-                    out.push('=');
-                    out.push_str(&base);
+                    declarators.push(let_item(
+                        self.function_name(alias.function)?,
+                        base,
+                        JsPrecedence::Member,
+                    ));
                 }
             }
         }
@@ -6833,14 +6831,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.coalesce_js_host_alias_names();
     }
 
-    fn emit_array_prototype_aliases(&self, out: &mut JsBlock, started: &mut bool) {
+    fn emit_array_prototype_aliases(&self, declarators: &mut Vec<JsDeclarator>) {
         if self.array_prototype_method_aliases.is_empty() {
             return;
         }
         if let Some(root) = &self.array_prototype_root {
-            emit_let_item(out, started);
-            out.push_str(root);
-            out.push_str("=Array.prototype");
+            declarators.push(let_item(root.clone(), "Array.prototype", JsPrecedence::Member));
         }
         let mut aliases = self
             .array_prototype_method_aliases
@@ -6849,17 +6845,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         aliases
             .sort_unstable_by(|left, right| left.1.cmp(right.1).then_with(|| left.0.cmp(right.0)));
         for (method, name) in aliases {
-            emit_let_item(out, started);
-            out.push_str(name);
-            out.push('=');
-            if let Some(root) = &self.array_prototype_root {
-                out.push_str(root);
-                out.push('.');
-                out.push_str(method);
-            } else {
-                out.push_str("Array.prototype.");
-                out.push_str(method);
-            }
+            let value = match &self.array_prototype_root {
+                Some(root) => format!("{root}.{method}"),
+                None => format!("Array.prototype.{method}"),
+            };
+            declarators.push(let_item(name.clone(), value, JsPrecedence::Member));
         }
     }
 
@@ -6920,13 +6910,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         self.js_window_binding = Some(self.top_level_mangler.next_name());
     }
 
-    fn emit_js_window_binding(&self, out: &mut JsBlock, started: &mut bool) {
+    fn emit_js_window_binding(&self, declarators: &mut Vec<JsDeclarator>) {
         let Some(name) = &self.js_window_binding else {
             return;
         };
-        emit_let_item(out, started);
-        out.push_str(name);
-        out.push_str("=typeof window<\"u\"?window:globalThis");
+        declarators.push(let_item(
+            name.clone(),
+            "typeof window<\"u\"?window:globalThis",
+            JsPrecedence::Conditional,
+        ));
     }
 
     fn js_window_root(&self) -> JsExpression {
@@ -8543,22 +8535,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<(), CodegenError> {
         let outer = self.function_name(root.id)?.to_string();
         self.assign_cluster_helper_names(&[root.id], helpers, &[&outer])?;
-        out.push_str("var ");
-        out.push_str(&outer);
-        out.push_str("=(function(){");
-        self.emit_cluster_helpers(helpers, out)?;
-        out.push_str("return ");
+        // `var outer=(function(){helpers..;return function..})();` -- the
+        // IIFE body is a block of nodes; the root is emitted as an expression
+        // into a scratch of its own and returned.
+        let mut body = out.nested();
+        self.emit_cluster_helpers(helpers, &mut body)?;
+        let mut returned = body.nested();
         let restored_loop_captures = std::mem::replace(
             &mut self.loop_captured_closures,
             loop_captured_closures(root),
         );
-        let result = self.emit_function_body(root, String::new(), true, false, out);
+        let result = self.emit_function_body(root, String::new(), true, false, &mut returned);
         self.loop_captured_closures = restored_loop_captures;
         result?;
-        if !out.ends_with_semicolon() {
-            out.push(';');
-        }
-        out.push_str("})();");
+        body.push_statement(JsStatement::Return {
+            value: Some(JsExpression::raw(returned.into_string(), JsPrecedence::Primary)),
+        });
+        out.push_statement(JsStatement::Binding {
+            keyword: Some("var "),
+            name: outer,
+            value: JsExpression::raw(
+                format!("(function(){{{}}})()", body.into_string()),
+                JsPrecedence::Call,
+            ),
+        });
         Ok(())
     }
 
@@ -8577,32 +8577,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let reserved_refs = reserved.iter().map(String::as_str).collect::<Vec<_>>();
         self.assign_cluster_helper_names(&roots, &helpers, &reserved_refs)?;
-        out.push_str("var ");
-        for (offset, name) in reserved.iter().enumerate() {
-            if offset != 0 {
-                out.push(',');
-            }
-            out.push_str(name);
-        }
-        out.push_str(";(function(){");
-        self.emit_cluster_helpers(&helpers, out)?;
+        out.push_statement(JsStatement::DeclarationGroup {
+            keyword: "var ",
+            names: reserved.clone(),
+        });
+        let mut body = out.nested();
+        self.emit_cluster_helpers(&helpers, &mut body)?;
         for root_id in &roots {
             let root = self.function(*root_id)?.clone();
             let name = self.function_name(*root_id)?.to_string();
-            out.push_str(&name);
-            out.push('=');
+            let mut rendered = body.nested();
             let restored_loop_captures = std::mem::replace(
                 &mut self.loop_captured_closures,
                 loop_captured_closures(&root),
             );
-            let result = self.emit_function_body(&root, String::new(), true, false, out);
+            let result = self.emit_function_body(&root, String::new(), true, false, &mut rendered);
             self.loop_captured_closures = restored_loop_captures;
             result?;
-            if !out.ends_with_semicolon() {
-                out.push(';');
-            }
+            body.push_statement(JsStatement::Binding {
+                keyword: None,
+                name,
+                value: JsExpression::raw(rendered.into_string(), JsPrecedence::Primary),
+            });
         }
-        out.push_str("})();");
+        out.push_statement(JsStatement::Expression {
+            value: JsExpression::raw(
+                format!("(function(){{{}}})()", body.into_string()),
+                JsPrecedence::Call,
+            ),
+        });
         Ok(())
     }
 
@@ -8631,15 +8634,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         helpers: &[FunctionId],
         expression: String,
     ) -> Result<String, CodegenError> {
-        let mut out = JsBlock::from("(function(){");
-        self.emit_cluster_helpers(helpers, &mut out)?;
-        out.push_str("return ");
-        out.push_str(&expression);
-        if !out.ends_with_semicolon() {
-            out.push(';');
-        }
-        out.push_str("})()");
-        Ok(out.into_string())
+        let mut body = JsBlock::new();
+        self.emit_cluster_helpers(helpers, &mut body)?;
+        body.push_statement(JsStatement::Return {
+            value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
+        });
+        Ok(format!("(function(){{{}}})()", body.into_string()))
     }
 
     fn exclusive_recursive_iife_for_value(
@@ -11041,14 +11041,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &mut trial_cache,
                 out,
             )?;
-            if self.options.mutation_spelling == MutationSpelling::Prefix {
-                out.push_str(operator);
-            }
-            out.push_str(output_name);
-            if self.options.mutation_spelling == MutationSpelling::Postfix {
-                out.push_str(operator);
-            }
-            out.push(';');
+            let update = if self.options.mutation_spelling == MutationSpelling::Prefix {
+                format!("{operator}{output_name}")
+            } else {
+                format!("{output_name}{operator}")
+            };
+            out.push_statement(JsStatement::Expression {
+                value: JsExpression::raw(update, JsPrecedence::Unary),
+            });
             *cache = trial_cache;
             return Ok(true);
         }
@@ -11075,11 +11075,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &mut trial_cache,
             out,
         )?;
-        out.push_str(output_name);
-        out.push_str(operator);
-        out.push('=');
-        out.push_str(&operand);
-        out.push(';');
+        out.push_statement(JsStatement::Expression {
+            value: JsExpression::raw(
+                format!("{output_name}{operator}={operand}"),
+                JsPrecedence::Assignment,
+            ),
+        });
         *cache = trial_cache;
         Ok(true)
     }
@@ -11392,14 +11393,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let declared = context.non_parameter_names(function);
         if !context.inline_declarations && !declared.is_empty() {
-            out.push_str("let ");
-            for (index, name) in declared.iter().enumerate() {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
-            }
-            out.push(';');
+            out.push_statement(JsStatement::DeclarationGroup {
+                keyword: "let ",
+                names: declared.iter().map(|name| (*name).to_string()).collect(),
+            });
         }
         let uses = &context.use_counts;
         let mut visited = AHashSet::default();
@@ -11708,9 +11705,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             parse_assignment_guard_return(&then_output),
                         ) {
                             if let Some(name) = guard.name.filter(|_| guard.declare) {
-                                out.push_str("var ");
-                                out.push_str(name);
-                                out.push(';');
+                                out.push_statement(JsStatement::Declaration {
+                                    keyword: "var ",
+                                    name: name.to_string(),
+                                });
                             }
                             let mut combined = String::new();
                             push_logical_operand_text(&mut combined, &condition, IrBinaryOp::And);
@@ -11775,8 +11773,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     value_definition(function, source)
                                 {
                                     if matches!(constant, ConstValue::Null) {
-                                        out.push_str(&expression);
-                                        out.push(';');
+                                        out.push_statement(JsStatement::Expression {
+                                            value: JsExpression::raw(
+                                                String::from(&*expression),
+                                                JsPrecedence::Assignment,
+                                            ),
+                                        });
                                     }
                                 } else {
                                     let source_name = context.value_name(source)?;
@@ -11942,16 +11944,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 .then(|| compact_sequence_expression(&else_output))
                                 .flatten()
                             {
+                                let mut run = String::new();
                                 if condition_was_negated {
-                                    push_logical_operand(out, &negated_condition, IrBinaryOp::And);
-                                    out.push_str("&&");
-                                    push_logical_operand(out, &else_expression, IrBinaryOp::And);
+                                    push_logical_operand_text(&mut run, &negated_condition, IrBinaryOp::And);
+                                    run.push_str("&&");
+                                    push_logical_operand_text(&mut run, &else_expression, IrBinaryOp::And);
                                 } else {
-                                    push_logical_operand(out, &condition, IrBinaryOp::Or);
-                                    out.push_str("||");
-                                    push_logical_operand(out, &else_expression, IrBinaryOp::Or);
+                                    push_logical_operand_text(&mut run, &condition, IrBinaryOp::Or);
+                                    run.push_str("||");
+                                    push_logical_operand_text(&mut run, &else_expression, IrBinaryOp::Or);
                                 }
-                                out.push(';');
+                                out.push_statement(JsStatement::Expression {
+                                    value: JsExpression::raw(run, JsPrecedence::LogicalOr),
+                                });
                             } else {
                                 out.push_statement_with(
                                     JsStatement::If {
@@ -12721,10 +12726,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
         let use_count = expression_semantic_use_count(function, rendered.value, uses);
         if use_count == 0 {
-            out.push_str(&rewrite_optional_method_or_assign(
-                &rendered.expression.into_minimal(),
-            ));
-            out.push(';');
+            out.push_statement(JsStatement::Expression {
+                value: JsExpression::raw(
+                    rewrite_optional_method_or_assign(&rendered.expression.into_minimal()),
+                    JsPrecedence::Assignment,
+                ),
+            });
             trial_cache.remove(&rendered.value);
         } else if use_count == 1 {
             trial_cache.insert(rendered.value, rendered.expression);
@@ -13806,11 +13813,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 })
                 .flatten();
             if let Some((operator, operand)) = compound_update {
-                out.push_str(&assignments[0].0);
-                out.push_str(operator);
-                out.push('=');
-                out.push_str(&operand);
-                out.push(';');
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(
+                        format!("{}{operator}={operand}", assignments[0].0),
+                        JsPrecedence::Assignment,
+                    ),
+                });
                 return Ok(());
             }
             let compact_update = (!declaration_needed
@@ -13834,14 +13842,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .flatten();
             if let Some((spelling, delta)) = compact_update {
                 let operator = if delta > 0 { "++" } else { "--" };
-                if spelling == MutationSpelling::Prefix {
-                    out.push_str(operator);
-                }
-                out.push_str(&assignments[0].0);
-                if spelling == MutationSpelling::Postfix {
-                    out.push_str(operator);
-                }
-                out.push(';');
+                let target = &assignments[0].0;
+                let update = if spelling == MutationSpelling::Prefix {
+                    format!("{operator}{target}")
+                } else {
+                    format!("{target}{operator}")
+                };
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(update, JsPrecedence::Unary),
+                });
                 return Ok(());
             }
             let (target, source) = &assignments[0];
@@ -13925,24 +13934,36 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                 }
             }
+            // `[a,b]=[c,d]` -- a destructuring pattern as the declarator's name.
+            let pattern = format!(
+                "[{}]",
+                assignments
+                    .iter()
+                    .map(|(target, _)| target.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+            let tuple = format!(
+                "[{}]",
+                assignments
+                    .iter()
+                    .map(|(_, source)| source.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
             if declaration_needed {
-                out.push_str("var ");
+                out.push_statement(JsStatement::Declarators {
+                    keyword: "var ",
+                    declarators: vec![JsDeclarator {
+                        name: pattern,
+                        value: Some(JsExpression::raw(tuple, JsPrecedence::Primary)),
+                    }],
+                });
+            } else {
+                out.push_statement(JsStatement::Expression {
+                    value: JsExpression::raw(format!("{pattern}={tuple}"), JsPrecedence::Assignment),
+                });
             }
-            out.push('[');
-            for (index, (target, _)) in assignments.iter().enumerate() {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(target);
-            }
-            out.push_str("]=[");
-            for (index, (_, source)) in assignments.iter().enumerate() {
-                if index != 0 {
-                    out.push(',');
-                }
-                out.push_str(source);
-            }
-            out.push_str("];");
         }
         Ok(())
     }
@@ -16926,13 +16947,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })?;
         let named = (boundary && self.options.public_aggregate_fields)
             || self.class_uses_named_fields(class);
-        let mut rendered = JsBlock::from(String::from(if named { "{" } else { "[" }));
+        let mut rendered = String::from(if named { "{" } else { "[" });
         for (position, field) in layout.fields.iter().enumerate() {
             if position != 0 {
                 rendered.push(',');
             }
             if named {
-                self.push_named_literal_key(
+                self.push_named_literal_key_text(
                     &mut rendered,
                     self.owned_property_name(class, field.index, field.name),
                 );
@@ -16947,13 +16968,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
         rendered.push(if named { '}' } else { ']' });
-        Ok(rendered.into_string())
-    }
-
-    fn push_named_literal_key(&self, out: &mut JsBlock, property: &str) {
-        let mut text = String::new();
-        self.push_named_literal_key_text(&mut text, property);
-        out.push_str(&text);
+        Ok(rendered)
     }
 
     fn push_named_literal_key_text(&self, out: &mut String, property: &str) {
@@ -21947,7 +21962,8 @@ impl JsLoopHead {
     }
 }
 
-/// One `name` or `name=value` of a `Declarators` statement.
+/// One `name` or `name=value` of a `Declarators` statement; the name may be a
+/// destructuring pattern (`[a,b]=[c,d]`).
 #[derive(Debug, Clone)]
 struct JsDeclarator {
     name: String,
