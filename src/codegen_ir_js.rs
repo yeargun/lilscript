@@ -1799,6 +1799,13 @@ impl JsBlock {
         self.render()
     }
 
+    /// The text of a body that a caller wraps in braces: its last `;` is
+    /// before `}`, ASI territory, always dropped (see `close_branch`).
+    fn into_braced_body(mut self) -> String {
+        self.drop_trailing_semicolon();
+        self.render()
+    }
+
     fn is_empty(&self) -> bool {
         self.statements.is_empty()
     }
@@ -3558,7 +3565,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, &mut body)?;
             out.push_statement(JsStatement::Expression {
                 value: JsExpression::raw(
-                    format!("(()=>{{{}}})()", body.into_string()),
+                    format!("(()=>{{{}}})()", body.into_braced_body()),
                     JsPrecedence::Call,
                 ),
             });
@@ -3567,9 +3574,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if self.module_output {
             self.emit_exports(&mut out)?;
         }
-        if self.options.elide_block_terminal_semicolons {
-            out.drop_trailing_semicolon();
-        }
+        // The module's last `;` is before end of file: ASI territory, always
+        // dropped (see `close_branch`).
+        out.drop_trailing_semicolon();
         // The boundary: past here it is an artifact, not a block under
         // construction, so the counters have nothing left to answer.
         Ok(out)
@@ -7066,7 +7073,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_state_machine(&entry, &mut body)?;
             out.push_statement(JsStatement::Expression {
                 value: JsExpression::raw(
-                    format!("(()=>{{{}}})()", body.into_string()),
+                    format!("(()=>{{{}}})()", body.into_braced_body()),
                     JsPrecedence::Call,
                 ),
             });
@@ -9160,7 +9167,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             keyword: Some("var "),
             name: outer,
             value: JsExpression::raw(
-                format!("(function(){{{}}})()", body.into_string()),
+                format!("(function(){{{}}})()", body.into_braced_body()),
                 JsPrecedence::Call,
             ),
             bind: None,
@@ -9209,7 +9216,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         out.push_statement(JsStatement::Expression {
             value: JsExpression::raw(
-                format!("(function(){{{}}})()", body.into_string()),
+                format!("(function(){{{}}})()", body.into_braced_body()),
                 JsPrecedence::Call,
             ),
         });
@@ -9246,7 +9253,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         body.push_statement(JsStatement::Return {
             value: Some(JsExpression::raw(expression, JsPrecedence::Assignment)),
         });
-        Ok(format!("(function(){{{}}})()", body.into_string()))
+        Ok(format!("(function(){{{}}})()", body.into_braced_body()))
     }
 
     fn exclusive_recursive_iife_for_value(
@@ -24582,10 +24589,13 @@ impl JsStatement {
         text
     }
 
-    fn close_branch(mut branch: JsBlock, options: JsStatementOptions) -> String {
-        if options.elide_block_terminal_semicolons {
-            branch.drop_trailing_semicolon();
-        }
+    fn close_branch(mut branch: JsBlock, _options: JsStatementOptions) -> String {
+        // Phase 6 (G1): the `;` before `}` is always dropped -- ASI inserts it
+        // again, and `elide_asi_safe_semicolons` ran last on every artifact, so
+        // the option-off spelling never reached one. The option now decides
+        // nothing here; it is kept until the scored family that flips it is
+        // retired with the fold.
+        branch.drop_trailing_semicolon();
         let mut text = branch.into_string();
         text.push('}');
         text
@@ -24635,7 +24645,7 @@ impl JsStatement {
             // expression that *starts* with `function`, `async function` or
             // `class` would parse as a declaration, so it is grouped.
             Self::Expression { value } => format!("{};", expression_statement(value)),
-            Self::Class { head, members } => format!("{head}{{{}}}", members.into_string()),
+            Self::Class { head, members } => format!("{head}{{{}}}", members.into_braced_body()),
             Self::ClassField { key, value } => format!("{key}={value};"),
             Self::Empty => ";".to_string(),
             Self::Switch {
@@ -41398,7 +41408,10 @@ consume(field(JS.object("type", 1), "type"));
         assert!(compact.contains("new Map"), "{compact}");
         assert!(!compact.contains("new Map()"), "{compact}");
         assert!(explicit.contains("new Map()"), "{explicit}");
-        assert!(explicit.ends_with(';'), "{explicit}");
+        // The parentheses elisions are still independent knobs; the terminal
+        // semicolon is not one any more (migration 6.4): end of file is ASI
+        // territory and the printer always drops it.
+        assert!(!explicit.ends_with(';'), "{explicit}");
         assert!(!compact.ends_with(';'), "{compact}");
     }
 
@@ -41422,7 +41435,10 @@ consume(field(JS.object("type", 1), "type"));
         );
 
         assert!(!compact.contains(";}"), "{compact}");
-        assert!(explicit.matches(";}").count() >= 4, "{explicit}");
+        // Since migration 6.4 the `;` before `}` is a rendering decision the
+        // printer always makes (ASI-safe, and the fold that made it ran last on
+        // every artifact); the option no longer spells it back.
+        assert!(!explicit.contains(";}"), "{explicit}");
 
         let runtime_source = "int total=0;for(int index=0;index<2;index++){total=total+index;total=total+1;}if(total>0){print(total);print(7);}else{print(0);print(8);}";
         let compact_runtime = compile_with_options(

@@ -913,3 +913,18 @@ its `["A","B","C"]` binding instead of inlining it; shipped +5, zodlike +8 on th
 shape waits for the G4/G5 single-use work, and the ordering lesson holds for the whole of phase 6:
 **an emitter-side port is neutral exactly when the fold ran after everything that could have
 consumed its input.**
+
+**Phase 6.4 — the semicolon before `}` and at end of file is the printer's, always.**
+`elide_asi_safe_semicolons` ran second to last on every artifact, so the `elide_block_terminal_
+semicolons = false` spelling never reached one; its only life was what the intermediate folds saw.
+`close_branch` now drops a body's last `;` unconditionally, the module block drops its last one
+before end of file, and the bodies the emitter wraps itself — the entry and cluster IIFEs, class
+member lists — go through `into_braced_body`, which the fold's solo census found (07_deep_functions:
+`…}}` after `};` inside an IIFE). The option field stays until the scored family that flips it is
+retired with the fold; the two tests that pinned the option-off spelling now pin the property.
+Solo census (search on): shipped 79 → 0 emitted, zodlike 134 → 0, none 514 → 0. Gate against
+`4edeb38`: shipped byte-identical, zodlike 7,469 → 7,468, none 11,366 → 11,389 (six tiny files;
+`01_constants` is the same text minus its trailing `;` and Brotli says 55 → 63 — the small-input
+lottery, not a spelling to keep). Ports: markedlil 9,323 → 9,322, zodlil 32,438 → 32,415 (raw −12:
+zodlil runs no peephole, so the IIFE and class bodies had kept their `;`). Behaviour 0 wrong,
+twin 0, probe matrix 21 of 22 (live-9), 1,717 tests, pool 292/292.
