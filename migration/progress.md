@@ -437,3 +437,22 @@ Raw-emission residue of braced single-statement `if`/`else` bodies: 13 → 1 ove
 the 74 cases; zero byte diffs in three lanes (the fold had been producing exactly this); 1710
 tests. The loop-body brace fold's residue is inter-fold (bodies the comma folds join first) and
 `fold_single_return_arrow_bodies` has no emitter residue at all.
+
+**Finding: the brace spelling is a codec decision, not printer hygiene.** With the braceless
+`if/else` default: zodlil (no peephole, one emission) 32,572 → **32,619 (+47 Brotli, raw −38)** —
+its 73 `}else{if(` chains compressed better than the mixed `;else{` form; **markedlil 9,456 →
+9,342 (−114)** — the layout and rename stages, which score text before the peephole, now see the
+shape the peephole would have produced and choose better; the probe and the 74 cases with the
+peephole off are a wash (7,960 vs 7,955, two wins each, 70 ties). Net −67 over the two ports.
+So `fold_single_statement_control_braces` — and by the same token
+`fold_redundant_loop_body_braces` — are codec-dependent shaping decisions (G9's kind), to be a
+knob first (`braceless_control_bodies`, default true = this emission) and a scored variant where
+the search runs; zodlil's config, which runs no search, can set the knob. On markedlil the fold
+still runs after emission, so its final bytes depend on the default only through the
+pre-peephole scoring — which is the phase 7 argument for scoring final text.
+
+**G1, `fold_negated_equalities` — the emitter side.** The presence test `x===void 0` /
+`x!==void 0` is a node (`JsExpressionRoot::UndefinedTest`) so `negated()` flips the operator
+instead of wrapping the test in `!(..)`. Raw-emission residue of negated comparisons: 2 → 0 over
+the probe and the 74 cases; zero byte diffs in three lanes; 1710 tests. The fold's remaining
+activity is on text other folds write.

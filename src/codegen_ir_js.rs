@@ -1275,6 +1275,13 @@ fn render(
                 .binary_operand(IrBinaryOp::BitOr, BinaryOperandSide::Left);
             Some(format!("{rendered}|0"))
         }
+        JsExpressionRoot::UndefinedTest { absent } => {
+            let [operand] = operands else {
+                return None;
+            };
+            let operand = operand.clone().at_least(JsPrecedence::Equality);
+            Some(format!("{operand}{}void 0", if absent { "===" } else { "!==" }))
+        }
         JsExpressionRoot::Call => {
             // Variadic: operands[0] is the callee, operands[1..] the arguments.
             let [callee, arguments @ ..] = operands else {
@@ -1337,6 +1344,10 @@ enum JsExpressionRoot {
     /// access", which both forms are, so it matches on either.
     Index,
     IntegerNormalization,
+    /// `x===void 0` (`absent`) or `x!==void 0`: the presence test on a value
+    /// that is `undefined` when absent. A node so that negation flips the
+    /// operator instead of wrapping the test in `!(..)`.
+    UndefinedTest { absent: bool },
     Raw,
     /// An ordinary property/index read followed by `??null`, used to model
     /// LilScript's nullable collection lookup at a JavaScript boundary.
@@ -1353,7 +1364,10 @@ impl JsExpressionRoot {
     const fn grammar_arity(self) -> Option<usize> {
         match self {
             Self::Atom | Self::Raw => Some(0),
-            Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => Some(1),
+            Self::Unary(_)
+            | Self::IntegerNormalization
+            | Self::NullNormalized
+            | Self::UndefinedTest { .. } => Some(1),
             // `Member`'s second operand is the property name, which the
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
@@ -1374,7 +1388,10 @@ impl JsExpressionRoot {
     /// deliberate edit with a visible diff rather than an invisible drift.
     const fn retained_arity(self) -> usize {
         match self {
-            Self::Unary(_) | Self::IntegerNormalization | Self::NullNormalized => 1,
+            Self::Unary(_)
+            | Self::IntegerNormalization
+            | Self::NullNormalized
+            | Self::UndefinedTest { .. } => 1,
             Self::Binary(_) => 2,
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
@@ -1935,6 +1952,14 @@ impl JsExpression {
         normalized
     }
 
+    /// `value===void 0` / `value!==void 0`.
+    fn undefined_test(operand: Self, absent: bool) -> Self {
+        let root = JsExpressionRoot::UndefinedTest { absent };
+        let operands = vec![operand];
+        let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers UndefinedTest");
+        Self::grouped(code, JsPrecedence::Equality, root).with_operands(operands)
+    }
+
     /// `value??null`: LilScript's canonical absent value at a JavaScript
     /// boundary where the host would have produced `undefined`.
     fn null_normalized(value: Self) -> Self {
@@ -2018,6 +2043,7 @@ impl JsExpression {
             JsExpressionRoot::NullNormalized => Self::null_normalized(child(0)),
             JsExpressionRoot::Conditional => Self::conditional(child(0), child(1), child(2)),
             JsExpressionRoot::IntegerNormalization => Self::integer_normalization(child(0)),
+            JsExpressionRoot::UndefinedTest { absent } => Self::undefined_test(child(0), absent),
             JsExpressionRoot::Member => Self::member(
                 child(0),
                 &self.operands[1].code,
@@ -2170,6 +2196,11 @@ impl JsExpression {
                 if let Some((lhs, rhs)) = self.binary_operands() {
                     return Self::binary(inverse, lhs.clone(), rhs.clone()).into_minimal();
                 }
+            }
+        }
+        if let JsExpressionRoot::UndefinedTest { absent } = self.root {
+            if let Some(operand) = self.operands.first() {
+                return Self::undefined_test(operand.clone(), !absent).into_minimal();
             }
         }
         Self::unary("!", self).into_minimal()
@@ -14052,14 +14083,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let rhs = value(*rhs, cache)?;
                 if undefined_absent.is_some() {
                     let operand = if absent_on_lhs { lhs } else { rhs };
-                    let operator = if *op == IrBinaryOp::Eq { "===" } else { "!==" };
-                    JsExpression::raw(
-                        format!(
-                            "{}{operator}void 0",
-                            operand.at_least(JsPrecedence::Equality)
-                        ),
-                        JsPrecedence::Equality,
-                    )
+                    JsExpression::undefined_test(operand, *op == IrBinaryOp::Eq)
                 } else if truthy_nullable.is_some() {
                     let operand = if nullable_on_lhs { lhs } else { rhs };
                     let boolean = JsExpression::unary("!", operand);
