@@ -23559,6 +23559,52 @@ impl ModuleTree {
     }
 }
 
+/// A `ModuleTree` with its tables taken out of their `Rc`s, so it can cross
+/// threads: the search re-prints a candidate's tree on any worker.
+pub(crate) struct FrozenModuleTree {
+    block: JsBlock,
+    closures: AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
+    spellings: Vec<String>,
+    literals: Vec<String>,
+}
+
+impl ModuleTree {
+    pub(crate) fn freeze(self) -> FrozenModuleTree {
+        FrozenModuleTree {
+            block: self.block,
+            closures: self.closures.into_inner(),
+            spellings: self.table.0.borrow().clone(),
+            literals: self.literals.0.borrow().0.clone(),
+        }
+    }
+}
+
+impl FrozenModuleTree {
+    pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
+        let tree = ModuleTree {
+            block: self.block.clone(),
+            closures: RefCell::new(self.closures.clone()),
+            table: BindTable(std::rc::Rc::new(RefCell::new(self.spellings.clone()))),
+            literals: LiteralTable::from_contents(&self.literals),
+        };
+        tree.reprint(options)
+    }
+}
+
+/// The emission and its frozen tree, for the search's re-prints.
+pub(crate) fn emit_optimized_ir_js_frozen(
+    module: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: &IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+    facts: Arc<crate::optimizer::IrFacts>,
+) -> Result<(String, FrozenModuleTree), CodegenError> {
+    let (text, tree) =
+        IrJsEmitter::with_facts(module, module_output, *options, integer_analysis, facts)
+            .emit_with_tree()?;
+    Ok((text, tree.freeze()))
+}
+
 fn print_twin_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| matches!(std::env::var("LILSCRIPT_PRINT_TWIN").as_deref(), Ok("1" | "2")))
@@ -31821,6 +31867,14 @@ impl LiteralTable {
 
     fn contents(&self, lit: Lit) -> String {
         self.0.borrow().0[lit.0 as usize].clone()
+    }
+
+    fn from_contents(contents: &[String]) -> Self {
+        let table = Self::default();
+        for value in contents {
+            table.intern(value);
+        }
+        table
     }
 }
 

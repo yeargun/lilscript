@@ -97,6 +97,7 @@ pub static CODEC: Bucket = Bucket::new("codec");
 pub static ANALYZE: Bucket = Bucket::new("analyze");
 /// IR to JavaScript text, including the inline text folds that follow it.
 pub static EMIT: Bucket = Bucket::new("emit");
+pub static REPRINT: Bucket = Bucket::new("reprint");
 /// The parsed peephole over already-emitted JavaScript.
 pub static PEEPHOLE: Bucket = Bucket::new("peephole");
 /// Terminal cleanup passes over already-emitted JavaScript.
@@ -220,7 +221,7 @@ pub static RENAME_TEMPLATED: Bucket = Bucket::new("rename_templated");
 pub static RENAME_UNSOUND: Bucket = Bucket::new("rename_unsound");
 pub static RENAME_AMBIGUOUS: Bucket = Bucket::new("rename_ambiguous");
 
-const BYTE_BUCKETS: [&Bucket; 17] = [
+const BYTE_BUCKETS: [&Bucket; 18] = [
     &TRAILING_SCAN,
     &ADMISSION,
     &DIRECT_VALIDATE,
@@ -228,6 +229,7 @@ const BYTE_BUCKETS: [&Bucket; 17] = [
     &CODEC,
     &ANALYZE,
     &EMIT,
+    &REPRINT,
     &PEEPHOLE,
     &CLEANUP,
     &OPTIMIZE,

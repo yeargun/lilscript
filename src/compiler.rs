@@ -2977,6 +2977,24 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
         };
         emit_javascript_candidate(ir, module_output, options, integer_analysis, facts)
     }
+
+    fn emit_frozen(
+        &self,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Result<(String, crate::codegen_ir_js::FrozenModuleTree), crate::codegen_js::CodegenError>
+    {
+        let (ir, integer_analysis, facts) = if options.constructor_initializer_fusion {
+            self.constructor_fused()
+                .map(|(ir, analysis, facts)| (ir, Arc::clone(analysis), Arc::clone(facts)))
+                .unwrap_or_else(|| {
+                    (self.baseline, self.baseline_integer_analysis(), self.baseline_facts())
+                })
+        } else {
+            (self.baseline, self.baseline_integer_analysis(), self.baseline_facts())
+        };
+        emit_javascript_candidate_frozen(ir, module_output, options, integer_analysis, facts)
+    }
 }
 
 struct JavaScriptEmissionContexts<'ir, 'src> {
@@ -2984,6 +3002,10 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     contexts: Vec<JavaScriptEmissionContext<'ir, 'src>>,
     plan_registry: Mutex<JavaScriptPlanRegistry>,
     emissions_attempted: AtomicUsize,
+    /// Phase 7 (`LILSCRIPT_REPRINT_QUOTES=1`): the frozen tree of the first
+    /// emission per (context, options with the printer fields erased), so a
+    /// later plan that differs only in those fields is a re-print of it.
+    reprint_trees: Mutex<AHashMap<(usize, String), Arc<crate::codegen_ir_js::FrozenModuleTree>>>,
 }
 
 impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
@@ -3001,6 +3023,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             contexts,
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
             emissions_attempted: AtomicUsize::new(0),
+            reprint_trees: Mutex::new(AHashMap::default()),
         }
     }
 
@@ -3025,8 +3048,46 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
     ) -> Result<String, crate::codegen_js::CodegenError> {
+        if reprint_quotes_enabled() {
+            // `IrJsOptions` holds a borrowed set and is not `Hash`; its debug
+            // form is a faithful key and is built once per emission.
+            let erased = format!(
+                "{:?}",
+                crate::codegen_ir_js::IrJsOptions {
+                    string_quote: crate::codegen_ir_js::StringQuote::Double,
+                    ..options
+                }
+            );
+            let cached = self
+                .reprint_trees
+                .lock()
+                .expect("reprint tree cache lock")
+                .get(&(context_id, erased.clone()))
+                .cloned();
+            if let Some(tree) = cached {
+                return Ok(reprint_javascript_candidate(&tree, &options));
+            }
+            let (code, tree) = self.emit_frozen(context_id, module_output, options)?;
+            self.reprint_trees
+                .lock()
+                .expect("reprint tree cache lock")
+                .entry((context_id, erased))
+                .or_insert_with(|| Arc::new(tree));
+            return Ok(code);
+        }
         self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
         self.get(context_id).emit(module_output, options)
+    }
+
+    fn emit_frozen(
+        &self,
+        context_id: usize,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Result<(String, crate::codegen_ir_js::FrozenModuleTree), crate::codegen_js::CodegenError>
+    {
+        self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
+        self.get(context_id).emit_frozen(module_output, options)
     }
 
     fn plans_registered(&self) -> usize {
@@ -3788,40 +3849,90 @@ fn select_javascript_candidate_global(
         }
         spelling_plans.push((plan, emission));
     }
-    let spelling_candidates = spelling_plans
-        .into_par_iter()
+    // Phase 7 (`LILSCRIPT_REPRINT_QUOTES=1`): plans that differ only in
+    // `string_quote` are one emission and re-prints of its tree. The plans
+    // still needing an emission are grouped by their options with the quote
+    // erased; the first of a group is emitted with its tree, the rest are
+    // printed from it.
+    let reprint_quotes = std::env::var_os("LILSCRIPT_REPRINT_QUOTES").is_some();
+    let mut spelling_groups_by_base: Vec<Vec<JavaScriptEmissionPlan>> = Vec::new();
+    let mut scored_spelling_plans = Vec::new();
+    for (plan, emission) in spelling_plans {
+        match emission {
+            Some(emission) => scored_spelling_plans.push((plan, emission)),
+            None if reprint_quotes => {
+                let erased = crate::codegen_ir_js::IrJsOptions {
+                    string_quote: crate::codegen_ir_js::StringQuote::Double,
+                    ..plan.options
+                };
+                match spelling_groups_by_base.iter_mut().find(|group| {
+                    group[0].identity.context_id == plan.identity.context_id
+                        && crate::codegen_ir_js::IrJsOptions {
+                            string_quote: crate::codegen_ir_js::StringQuote::Double,
+                            ..group[0].options
+                        } == erased
+                }) {
+                    Some(group) => group.push(plan),
+                    None => spelling_groups_by_base.push(vec![plan]),
+                }
+            }
+            None => spelling_groups_by_base.push(vec![plan]),
+        }
+    }
+    let finish_spelling_candidate = |code: String, plan: JavaScriptEmissionPlan| {
+        validate_direct_javascript_artifact(
+            &code,
+            contexts.get(plan.identity.context_id).baseline,
+            config,
+            module_output,
+        )
+        .ok()?;
+        measure_optional_javascript_candidate(
+            code,
+            plan,
+            config.javascript.cost_model,
+            optional_raw_size_cap,
+        )
+        .ok()
+        .flatten()
+    };
+    let mut spelling_candidates = scored_spelling_plans
+        .into_iter()
         .filter_map(|(plan, emission)| {
-            let candidate = match emission {
-                Some(emission) => {
-                    if emission.code.len() > optional_raw_size_cap {
-                        return None;
-                    }
-                    JavaScriptEmissionCandidate::new_declaration_plan_with_scores(emission, plan)
-                }
-                None => {
-                    let code = contexts
-                        .emit(plan.identity.context_id, module_output, plan.options)
-                        .ok()?;
-                    validate_direct_javascript_artifact(
-                        &code,
-                        contexts.get(plan.identity.context_id).baseline,
-                        config,
-                        module_output,
-                    )
-                    .ok()?;
-                    measure_optional_javascript_candidate(
-                        code,
-                        plan,
-                        config.javascript.cost_model,
-                        optional_raw_size_cap,
-                    )
-                    .ok()
-                    .flatten()?
-                }
-            };
-            Some(candidate)
+            if emission.code.len() > optional_raw_size_cap {
+                return None;
+            }
+            Some(JavaScriptEmissionCandidate::new_declaration_plan_with_scores(emission, plan))
         })
         .collect::<Vec<_>>();
+    spelling_candidates.extend(
+        spelling_groups_by_base
+            .into_par_iter()
+            .flat_map_iter(|group| {
+                let mut produced = Vec::new();
+                let (first, rest) = group.split_first().expect("a group has a first plan");
+                if rest.is_empty() {
+                    if let Ok(code) =
+                        contexts.emit(first.identity.context_id, module_output, first.options)
+                    {
+                        produced.extend(finish_spelling_candidate(code, *first));
+                    }
+                    return produced;
+                }
+                let Ok((code, tree)) =
+                    contexts.emit_frozen(first.identity.context_id, module_output, first.options)
+                else {
+                    return produced;
+                };
+                produced.extend(finish_spelling_candidate(code, *first));
+                for plan in rest {
+                    let code = reprint_javascript_candidate(&tree, &plan.options);
+                    produced.extend(finish_spelling_candidate(code, *plan));
+                }
+                produced
+            })
+            .collect::<Vec<_>>(),
+    );
     candidates.merge_optional(spelling_candidates)?;
     extend_scored_emission_phase(
         ir,
@@ -9956,6 +10067,67 @@ fn emit_javascript_candidate(
     } else {
         emit_optimized_ir_js_with_options_and_analysis(ir, &options, integer_analysis, facts)?
     };
+    let code = finish_emitted_javascript(code, &options);
+    if crate::timing::enabled() {
+        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    Ok(code)
+}
+
+/// Phase 7: the emission and its tree, so plans that differ from it only in a
+/// printer option are re-prints of the tree rather than emissions.
+fn emit_javascript_candidate_frozen(
+    ir: &ControlFlowModule<'_>,
+    module_output: bool,
+    options: crate::codegen_ir_js::IrJsOptions,
+    integer_analysis: Arc<IntegerValueAnalysis>,
+    facts: Arc<crate::optimizer::IrFacts>,
+) -> Result<(String, crate::codegen_ir_js::FrozenModuleTree), crate::codegen_js::CodegenError> {
+    #[cfg(test)]
+    JAVASCRIPT_CANDIDATE_EMISSIONS.with(|count| count.set(count.get() + 1));
+    if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+        eprintln!("[emission-options] {options:?}");
+    }
+    let started = std::time::Instant::now();
+    let (code, tree) = crate::codegen_ir_js::emit_optimized_ir_js_frozen(
+        ir,
+        module_output,
+        &options,
+        integer_analysis,
+        facts,
+    )?;
+    let code = finish_emitted_javascript(code, &options);
+    if crate::timing::enabled() {
+        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    Ok((code, tree))
+}
+
+fn reprint_quotes_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("LILSCRIPT_REPRINT_QUOTES").is_some())
+}
+
+/// A re-print of a kept tree under other printer options, finished exactly as
+/// an emission is.
+fn reprint_javascript_candidate(
+    tree: &crate::codegen_ir_js::FrozenModuleTree,
+    options: &crate::codegen_ir_js::IrJsOptions,
+) -> String {
+    let started = std::time::Instant::now();
+    if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+        eprintln!("[reprint-options] {options:?}");
+    }
+    let code = finish_emitted_javascript(tree.reprint(options), options);
+    if crate::timing::enabled() {
+        crate::timing::REPRINT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    code
+}
+
+/// The six memoized folds every emission passes through before it is a
+/// candidate.
+fn finish_emitted_javascript(code: String, options: &crate::codegen_ir_js::IrJsOptions) -> String {
     // Each of these six re-scans the whole artifact, on every emission, which
     // is the hottest path in the compiler on a large program. Routing them
     // through the decline memo means an emission whose bytes a fold has already
@@ -9984,14 +10156,10 @@ fn emit_javascript_candidate(
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match crate::js_peephole::fold_once_memoized(&code, fold_nested_unguarded_ifs) {
+    match crate::js_peephole::fold_once_memoized(&code, fold_nested_unguarded_ifs) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
-    };
-    if crate::timing::enabled() {
-        crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
     }
-    Ok(code)
 }
 
 fn admitted_generated_javascript_size(
@@ -13941,6 +14109,7 @@ mod tests {
             ],
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
             emissions_attempted: AtomicUsize::new(0),
+            reprint_trees: Mutex::new(AHashMap::default()),
         };
         let mut config = ProjectConfig::default();
         config.javascript.priority = JavaScriptPriority::SizeFirst;
