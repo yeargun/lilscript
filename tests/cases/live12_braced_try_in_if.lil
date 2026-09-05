@@ -1,0 +1,20 @@
+// live-12: an `if` body of [try/catch, statement] is two statements. The
+// text classifier saw no top-level `;` after the try's braces and spelled
+// the body braceless, which moved the second statement outside the `if`.
+int total = 0;
+void absorb(int raw, bool coerce) {
+  int value = raw;
+  if (coerce) {
+    try {
+      value = raw * 2;
+    } catch (auto caught) {
+      return;
+    }
+    total = total + value;
+  }
+}
+int[] inputs = [7, 7];
+for (int index = 0; index < inputs.length; index++) {
+  absorb(inputs[index], index == 0);
+}
+print(total);

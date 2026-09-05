@@ -28,7 +28,7 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **emitter side done; classifiers on the list** — no emitter path pushes text into a block (every `push_str` left is on a `String` scratch or a render arm); `BracedFunction` and `close_statement_block` gone. Remaining: the text-reading classifiers (`compact_*`, `is_braceless_statement`, `merge_conditional_assignments`, …) move onto the list, the three `JsBlock::from(compact)` folds and the rotation's `from(rest)` become list operations, `Raw` is retired, then `text` is deleted and G1/G2 follow the fold-deletion protocol | BEHAVIOUR + NEUTRAL |
+| 3 — the tree becomes authoritative | **`Raw` is gone; no text enters a block** — `JsBlock` has no `push_str`/`push`/`From<str>`; every classifier reads the list; the text classifiers and their tests are deleted; `truncate` asserts a cut lands on a statement boundary or one `;`. Remaining: delete the `text` cache (render from the list), then G1/G2 by the fold-deletion protocol, `repair_fused_keyword_identifiers`, `keyword_space_tests.rs` | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | not started | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
@@ -132,8 +132,8 @@ a node. It is static and `grep`-able, so it cannot drift:
 
 | | at 2b | now |
 |---|---:|---:|
-| fragment appends (`push_str`) | 324 | **0 into blocks** (10 on `String` scratches and render arms) |
-| statement nodes (`push_statement`) | 0 | **73** |
+| fragment appends (`push_str`) | 324 | **0 — `JsBlock` has no text-appending API** |
+| statement nodes (`push_statement`) | 0 | **70** |
 | escapes into emitted text | 26 | **0** |
 
 `JsStatement` has ten kinds — `Declaration`, `DeclarationGroup`, `Binding`, `Return`, `Throw`,
@@ -361,3 +361,22 @@ zodlil 32,609 — identical bytes to `d0667b5`.
 version; `twin_check` is gone. Zero byte diffs in three lanes, candidate sets identical
 (2,011 each over six cases), probe both lanes, 17/18, 1706 tests, pool 144/144. The text
 classifiers survive only as the `Raw` fallback inside their twins, which is the next thing to go.
+
+| live-11 | `parse_single_assignment` accepted `1==x?..;` as an assignment to `1` (a digit is an identifier byte); the else arm survived by re-spelling `1` `=` `=x..` | **fixed** on the text side and impossible on the list; found by the classifier twin |
+| live-12 | `is_braceless_statement` called an `if` body of `[try{..}catch{..}, statement]` braceless — no top-level `;` after the braces — so the statement was emitted **outside the `if`**. The shipped compiler prints 21 for `tests/cases/live12_braced_try_in_if.lil`; the correct value is 14. Reached from zod's own source | **fixed** (`statement_is_braceless` on the list); zodlil +35 Brotli is the correct program's price |
+
+**Port verification of `3bb2322` (call sites on the list), pool, background:** markedlil 9,431
+identical; **zodlil 32,644 (+35 Brotli-11, raw +1)** — one site: the shipped text classifier
+spelled an `if` body of `[try{..}catch{..}, nk=g.value]` braceless and put `nk=g.value` outside
+the `if` — **live-12**, a wrong program in every compiler on `main`. The list version keeps the
+braces. `tests/cases/live12_braced_try_in_if.lil` and probe line 42 reproduce it (21 on the
+text-era compiler, 14 correct).
+
+**Batches 16–18 — `Raw` is gone.** The local-update helper returns an expression; the empty
+import branch was unreachable; the merge tail is declarators; the loop-body sequence fold and
+the guarded-decrement rotation rebuild their block from the list (`replace_with`,
+`retain_from`); `take_trailing_expression_statements` pops trailing expression statements off
+the list instead of scanning bytes backwards; `JsStatement::Raw`, `JsBlock::push_str`/`push`/
+`Write`/`From` and every text classifier with its tests are deleted; the classifiers have
+structural tests. Twin sweep 0 failures over the probe and the cases in four lanes; byte diffs
+vs `3bb2322`: none; candidate sets identical; 1710 unit tests; pool 146/146 with the new case.
