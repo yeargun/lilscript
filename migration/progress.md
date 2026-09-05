@@ -886,3 +886,30 @@ Verification on the pinned binary: behaviour 0 wrong in three lanes (compiled ca
 `timeout`, since live-14 was a hang), twin witnesses 0, probe matrix 21 of 22 (`level15` is live-9,
 known), 1,717 tests, pool 292/292 on four lanes, ports as above.
 
+**Phase 6.3 — the `for` head takes the assignments written before it (G8, first item).** 6.2
+hid a pattern: with the module-level sequence spelled by the printer,
+`fold_prior_assign_into_for_init` could no longer see `t=0;n=0;for(;n<6;…)` — the assignments
+were inside `console.log(f),t=0,n=0;` — and the emitter's own initialiser absorption
+(`take_trailing_expression_statements`) runs only under `comma_expressions`, taking every
+trailing expression statement and spelling the result `for(var …)`. The fold's first branch is
+now the emitter's: when a loop is spelled `for(` and has no initialiser of its own, the plain
+assignments written right before it (`Binding` with no keyword — names already declared, since
+the first write claims the keyword) come off the block as the initialiser, with no keyword,
+exactly as the fold wrote them (`take_trailing_assignment_statements`; the `for(;;)` shape and
+the two `for(c;…)` shapes). On the probe's raw emission, 21 of 22 `for(` heads now carry the
+initialiser the fold used to build; the state-machine dispatch loop is left alone. The fold's
+second branch — merging a prior assignment into a non-empty initialiser whose first right-hand
+side is the same cheap literal — stays with the fold for now.
+The gate, new binary against `06edd9b`: the 74 cases + probe are byte-identical on the none lane
+and differ on one file each on the shipped and zodlike lanes at equal Brotli (7,518 and 7,469 both
+ways); the ports are byte-identical (markedlil 9,323, zodlil 32,438); behaviour 0 wrong, twin 0,
+probe matrix 21 of 22 (`level15`, live-9), 1,717 tests, pool 292/292. Solo census of
+`fold_prior_assign_into_for_init` (`LILSCRIPT_ONLY_FOLDS`, search on): shipped 0 emitted / 444
+derived, zodlike 0 / 549, none 84 / 504. The none lane's 84 are the fold's third shape — a `var`
+declaration list right before the head, `var total=0,v29=0,v30;for(;…)` → `for(var …;…)` — which
+the emitter tried and reverted: taken at emit time it hides a single-use literal from
+`fold_single_use_literal_bindings`, which runs before the for-init fold did (31_string_array kept
+its `["A","B","C"]` binding instead of inlining it; shipped +5, zodlike +8 on the cases). That
+shape waits for the G4/G5 single-use work, and the ordering lesson holds for the whole of phase 6:
+**an emitter-side port is neutral exactly when the fold ran after everything that could have
+consumed its input.**

@@ -12801,6 +12801,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             && self.options.comma_expressions)
                             .then(|| take_trailing_expression_statements(out))
                             .flatten();
+                        // Phase 6 (G8): a `for(` head with no initialiser of its
+                        // own takes the plain assignments written right before
+                        // it, as `fold_prior_assign_into_for_init` did on the
+                        // text -- with no keyword, since the names are declared.
+                        let spelled_for = !do_loop
+                            && (update_clause.is_some() || !compact_loop || reuse_for_spelling);
+                        let prior_assignments = (for_initializer.is_none() && spelled_for)
+                            .then(|| take_trailing_assignment_statements(out))
+                            .flatten();
                         // The header is a value too, so the guarded-decrement
                         // rotation below can be a decision about a header and a
                         // body rather than a search backwards through `out`.
@@ -12828,7 +12837,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             hoist_for_initializer_declarations(out, for_initializer.as_deref());
                             (
                                 JsLoopHead::For {
-                                    initializer: for_initializer.as_deref().map(for_initializer_text),
+                                    initializer: for_initializer
+                                        .as_deref()
+                                        .map(for_initializer_text)
+                                        .or_else(|| prior_assignments.clone()),
                                     condition: Some(loop_condition),
                                     condition_tree: Some(loop_condition_tree.clone()),
                                     update: Some(update_clause.clone()),
@@ -12840,7 +12852,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 hoist_for_initializer_declarations(out, for_initializer.as_deref());
                                 (
                                     JsLoopHead::For {
-                                        initializer: for_initializer.as_deref().map(for_initializer_text),
+                                        initializer: for_initializer
+                                            .as_deref()
+                                            .map(for_initializer_text)
+                                            .or_else(|| prior_assignments.clone()),
                                         condition: Some(loop_condition),
                                         condition_tree: Some(loop_condition_tree.clone()),
                                         update: None,
@@ -12859,7 +12874,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else {
                             (
                                 JsLoopHead::For {
-                                    initializer: None,
+                                    initializer: prior_assignments.clone(),
                                     condition: None,
                                     condition_tree: None,
                                     update: None,
@@ -19760,6 +19775,43 @@ fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
     }
     expressions.reverse();
     Some(expressions.join(","))
+}
+
+/// The trailing run of plain assignments (`t=v;`, keyword-less, so to names
+/// already declared), taken off the block as the comma sequence they form: the
+/// initialiser a `for(` head with none of its own absorbs
+/// (`fold_prior_assign_into_for_init`). A declaration, any other statement, or
+/// a statement whose `;` was dropped ends the run.
+fn take_trailing_assignment_statements(output: &mut JsBlock) -> Option<String> {
+    let mut assignments = Vec::new();
+    while let Some(last) = output.statements.last() {
+        if last.dropped_semicolon {
+            break;
+        }
+        let JsStatement::Binding {
+            keyword: None,
+            name,
+            value,
+            ..
+        } = &last.statement
+        else {
+            break;
+        };
+        assignments.push(format!(
+            "{name}={}",
+            value.clone().at_least(JsPrecedence::Assignment)
+        ));
+        output.pop_statement();
+    }
+    if assignments.is_empty() {
+        // Not the fold's other shape, a `var` declaration list before the head
+        // (`var a=0,b=0;for(;..)` -> `for(var a=0,b=0;..)`): taken at emit time
+        // it hides a single-use literal from `fold_single_use_literal_bindings`,
+        // which runs before the for-init fold did. It waits for G4/G5.
+        return None;
+    }
+    assignments.reverse();
+    Some(assignments.join(","))
 }
 
 /// The separator a keyword needs before what follows it: nothing when the
