@@ -417,6 +417,8 @@ impl ProjectConfig {
                 .javascript
                 .rematerialize_member_reads
                 .unwrap_or(false),
+            text_peephole: self
+                .javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole),
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -1312,6 +1314,18 @@ pub struct JavaScriptConfig {
     /// body has run, which only an import cycle can observe. A port turns it on
     /// against its own measure.
     pub function_scope: Option<bool>,
+    /// Phase 7a of the migration: every candidate the search scores is the
+    /// text the pipeline would ship -- each emission passes the text
+    /// peephole, codec-verified, before anything measures it. Off by
+    /// default: the fleet A/B of 2026-09-05 (19 ports) read +653 bytes with
+    /// it on, mobxlil +429 and remark-gfm +173 against four small wins --
+    /// folded emissions collide more often, and the search's exploration
+    /// keys on distinct text, so it explores less. It stays the instrument
+    /// for byte-neutral fold retirements (migration 7.10) until the search
+    /// keys on plan identity instead. The `LILSCRIPT_EMISSION_PEEPHOLE=0|1`
+    /// switch overrides it, so the pool can carry the A/B without editing
+    /// every port's toml.
+    pub emission_peephole: Option<bool>,
     /// Spell `x != null` on a nullable whose present values are always truthy
     /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests
     /// an object for truthiness in about 3.8 ns against 2.6 for `x!==null`
@@ -1441,6 +1455,7 @@ impl Default for JavaScriptConfig {
             stable_local_names: true,
             local_name_coalescing: true,
             function_scope: None,
+            emission_peephole: None,
             truthy_nullable_checks: None,
             idiom_directed_naming: false,
             iife_private_callee_clusters: true,

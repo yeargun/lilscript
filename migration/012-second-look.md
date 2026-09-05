@@ -217,6 +217,16 @@ unchanged (7.9: markedlil's winner moved to another spelling family, +22). Byte 
 search is therefore 7a's to give, not the port's; with the search off the rule holds exactly.
 The terminal slot's first occupant is the leading `let`/`var`, re-decided on the final text.
 
+### 7a, measured (added 2026-09-05, ledger 7.10)
+
+Built as "peephole every emission before scoring, codec-verified", 7a wins on markedlil locally
+(−44) and loses on the fleet (+653 over 19 ports, mobxlil +429). The search's exploration keys on
+distinct text — the frontier dedup, `seen_code`, the entropy sources — and folded emissions collide,
+so it explores less. So 7a's true form is not "fold earlier" but "explore by plan identity, score by
+final text": the seeds and the dedup key on the plan (context, options, tree), the score on the
+text that ships. That is 7e's re-derivation, and until it lands the knob stays off and the
+chain-head rule is verified with the search off and with `LILSCRIPT_EMISSION_PEEPHOLE=1`.
+
 ### 8 — retire the text layer
 
 Unchanged exit criteria ([009](009-phases.md)), reached group by group.

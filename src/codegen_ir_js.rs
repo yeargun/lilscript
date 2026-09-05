@@ -125,6 +125,12 @@ pub struct IrJsOptions {
     /// duplicated text is short and evaluating it twice is a property read of a
     /// local -- not a call, not an index, and never order-sensitive.
     pub rematerialize_member_reads: bool,
+    /// The text peephole is configured for this compile. Phase 6 moves the
+    /// peephole's unconditional shapes into the emitter one chain head at a
+    /// time; until each fold is deleted the emitter writes that shape only
+    /// where the fold would have written it, so a port that ships without
+    /// the peephole keeps its own text.
+    pub text_peephole: bool,
     /// Emit a private function whose only use is one `Closure` site as a
     /// function expression there. A thin capture wrapper around a shared
     /// declaration is the same per-call allocation, so reusable and loop
@@ -337,6 +343,7 @@ impl Default for IrJsOptions {
             compact_generator_star: true,
             inline_single_use_functions: false,
             rematerialize_member_reads: false,
+            text_peephole: false,
             inline_exclusive_closures: true,
             iife_private_callee_clusters: false,
             nested_once_run_helpers: false,
@@ -1229,6 +1236,47 @@ thread_local! {
     static NAME_TRACE: RefCell<Vec<(&'static str, String)>> = const { RefCell::new(Vec::new()) };
 }
 
+thread_local! {
+    /// Phase 6: which peephole shapes the emitter writes at push time for
+    /// the emission being built -- the unit update and the assignment
+    /// guard, both when the text peephole is configured. Set by
+    /// `emit_traced` from the emission's options; a block has no options
+    /// of its own.
+    static STATEMENT_POLICY: Cell<StatementPolicy> = const { Cell::new(StatementPolicy::NONE) };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StatementPolicy {
+    unit_updates: bool,
+    assignment_guards: bool,
+}
+
+impl StatementPolicy {
+    const NONE: Self = Self {
+        unit_updates: false,
+        assignment_guards: false,
+    };
+
+    /// Both shapes are written exactly where the text peephole would have
+    /// written them: on a compile that runs it. A port that ships without
+    /// the peephole keeps the spelling its search chose (zodlil read +49
+    /// when the unit update reached its postfix variants unasked).
+    fn of(options: &IrJsOptions) -> Self {
+        Self {
+            unit_updates: options.text_peephole,
+            assignment_guards: options.text_peephole,
+        }
+    }
+
+    fn current() -> Self {
+        STATEMENT_POLICY.with(Cell::get)
+    }
+
+    fn install(self) {
+        STATEMENT_POLICY.with(|policy| policy.set(self));
+    }
+}
+
 /// `LILSCRIPT_RAW_SITES=1`: record every `JsExpression::raw` construction
 /// with its source line, and after a post-layout rename print which sites'
 /// text mentioned the bindings the renamer had to keep -- the ranking that
@@ -1282,8 +1330,31 @@ fn statement_trace_enabled() -> bool {
 fn statement_kind_for_trace(statement: &JsStatement) -> String {
     match statement {
         JsStatement::Declaration { keyword, name, .. } => format!("Declaration[{keyword}{name}]"),
-        JsStatement::Binding { keyword, name, .. } => {
-            format!("Binding[{}{name}]", keyword.unwrap_or(""))
+        JsStatement::Binding {
+            keyword,
+            name,
+            value,
+            ..
+        } => {
+            format!(
+                "Binding[{}{name}] value {:?}{} `{}`",
+                keyword.unwrap_or(""),
+                value.root,
+                value
+                    .operands
+                    .iter()
+                    .map(|operand| format!(
+                        " {:?}[{}]",
+                        operand.root,
+                        operand
+                            .operands
+                            .iter()
+                            .map(|inner| format!("{:?}`{}` ", inner.root, inner.code))
+                            .collect::<String>()
+                    ))
+                    .collect::<String>(),
+                value.code
+            )
         }
         JsStatement::Declarators {
             keyword,
@@ -1299,7 +1370,15 @@ fn statement_kind_for_trace(statement: &JsStatement) -> String {
         JsStatement::DeclarationGroup { keyword, names } => {
             format!("DeclarationGroup[{keyword}{}]", names.join(","))
         }
-        JsStatement::Expression { .. } => "Expression".to_string(),
+        JsStatement::Expression { value } => format!(
+            "Expression {:?}{}",
+            value.root,
+            value
+                .operands
+                .iter()
+                .map(|operand| format!(" {:?}", operand.root))
+                .collect::<String>()
+        ),
         JsStatement::Function { head, .. } => format!("Function[{}]", head.render()),
         other => format!("{:?}", std::mem::discriminant(other)),
     }
@@ -1520,6 +1599,12 @@ fn render(
                 value.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::Update(direction) => {
+            let [target] = operands else {
+                return None;
+            };
+            Some(format!("{}{}", target.code, direction.spelling()))
+        }
         JsExpressionRoot::New => {
             let [constructor, arguments @ ..] = operands else {
                 return None;
@@ -1567,6 +1652,22 @@ fn render(
 /// The prefix operators the tree spells. A token, not text: the root stays
 /// one machine word, which is what keeps `JsExpression` at 120 bytes with
 /// its origin and fact word on board.
+/// The direction of a statement-position unit update.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JsUpdate {
+    Increment,
+    Decrement,
+}
+
+impl JsUpdate {
+    fn spelling(self) -> &'static str {
+        match self {
+            Self::Increment => "++",
+            Self::Decrement => "--",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum JsUnary {
     Not,
@@ -1642,6 +1743,10 @@ enum JsExpressionRoot {
     /// `Member` or `Index` node, so a fused run or a store keeps every bind
     /// and every literal the re-print and the renamer need to reach.
     Assign,
+    /// `x++` / `x--` in statement position: the unit counter update the
+    /// text fold spelled from `x=x+1|0` (`fold_unit_counter_updates`). The
+    /// one operand is the target, a `Name` or `Member`.
+    Update(JsUpdate),
     /// A string literal; the contents live in the emission's literal table
     /// and the quote character is the printer's (`string_quote`).
     Str(Lit),
@@ -1667,6 +1772,7 @@ impl JsExpressionRoot {
             | Self::Bool(_)
             | Self::Str(_) => Some(0),
             Self::Assign => Some(2),
+            Self::Update(_) => Some(1),
             Self::Unary(_)
             | Self::IntegerNormalization
             | Self::NullNormalized
@@ -1699,6 +1805,7 @@ impl JsExpressionRoot {
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
             Self::Assign => 2,
+            Self::Update(_) => 1,
             // Variadic: callee plus arguments, all retained.
             Self::Call | Self::Comma | Self::Array | Self::New => 0,
             Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) | Self::Str(_) => 0,
@@ -2060,10 +2167,19 @@ impl JsBlock {
         }
         // Phase 6, chain head: `a=f();if(a)` is `if(a=f())` here, where the
         // assignment and the condition are still nodes (`fold_assignment_guards`).
-        if let Some(merged) = self.merge_assignment_guard(&statement) {
-            self.pop_statement();
-            return self.push_statement_with(merged, options);
+        let policy = StatementPolicy::current();
+        if policy.assignment_guards {
+            if let Some(merged) = self.merge_assignment_guard(&statement) {
+                self.pop_statement();
+                return self.push_statement_with(merged, options);
+            }
         }
+        // Phase 6, chain head: `x=x+1|0;` is `x++;` (`fold_unit_counter_updates`).
+        let statement = if policy.unit_updates {
+            unit_counter_update(statement)
+        } else {
+            statement
+        };
         let bare_return = matches!(statement, JsStatement::Return { value: None });
         let rendered = statement.clone().render(options);
         self.count_appended(&rendered);
@@ -2223,6 +2339,85 @@ impl JsBlock {
                 self.drop_trailing_semicolon();
             }
         }
+    }
+}
+
+/// `x=x+1|0;` and `x=x+1;` in statement position are `x++;`, `x=x-1|0;`
+/// is `x--;`, and the same for a member target `o.p=o.p+1|0;`
+/// (`fold_unit_counter_updates`). The statement stays what it was when the
+/// value is any other shape. The text fold carried no range proof and
+/// neither does this: it is the same spelling decision, made where the
+/// assignment is still a node.
+fn unit_counter_update(statement: JsStatement) -> JsStatement {
+    fn unit_step(target: &JsExpression, value: &JsExpression) -> Option<JsUpdate> {
+        let stepped = match value.root {
+            JsExpressionRoot::IntegerNormalization => value.operands.first()?,
+            JsExpressionRoot::Binary(IrBinaryOp::BitOr) => {
+                let [inner, zero] = value.operands.as_slice() else {
+                    return None;
+                };
+                if zero.root != JsExpressionRoot::Atom || zero.code != "0" {
+                    return None;
+                }
+                inner
+            }
+            _ => value,
+        };
+        let direction = match stepped.root {
+            JsExpressionRoot::Binary(IrBinaryOp::Add) => JsUpdate::Increment,
+            JsExpressionRoot::Binary(IrBinaryOp::Sub) => JsUpdate::Decrement,
+            _ => return None,
+        };
+        let [base, step] = stepped.operands.as_slice() else {
+            return None;
+        };
+        // The same binding under the same spelling, or the same member
+        // chain; the text fold compared spellings and so does this.
+        let same_target = match (base.root, target.root) {
+            (JsExpressionRoot::Name(read), JsExpressionRoot::Name(written)) => {
+                read == written && base.code == target.code
+            }
+            (JsExpressionRoot::Member, JsExpressionRoot::Member) => base.code == target.code,
+            _ => false,
+        };
+        (step.root == JsExpressionRoot::Atom && step.code == "1" && same_target)
+            .then_some(direction)
+    }
+    match statement {
+        JsStatement::Binding {
+            keyword: None,
+            name,
+            bind: Some(bind),
+            value,
+        } => {
+            let target = JsExpression::name(bind, name.clone());
+            match unit_step(&target, &value) {
+                Some(direction) => JsStatement::Expression {
+                    value: JsExpression::update(target, direction),
+                },
+                None => JsStatement::Binding {
+                    keyword: None,
+                    name,
+                    bind: Some(bind),
+                    value,
+                },
+            }
+        }
+        JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => {
+            let direction = match value.operands.as_slice() {
+                [target, assigned] if target.root == JsExpressionRoot::Member => {
+                    unit_step(target, assigned)
+                }
+                _ => None,
+            };
+            match direction {
+                Some(direction) => JsStatement::Expression {
+                    value: JsExpression::update(value.operands[0].clone(), direction),
+                },
+                None => JsStatement::Expression { value },
+            }
+        }
+        other => other,
     }
 }
 
@@ -2732,6 +2927,21 @@ impl JsExpression {
         }
     }
 
+    fn update(target: Self, direction: JsUpdate) -> Self {
+        let operands = vec![target];
+        Self {
+            code: render(JsExpressionRoot::Update(direction), &operands, JsRenderOptions::UNUSED)
+                .expect("render covers Update"),
+            ungrouped: None,
+            precedence: JsPrecedence::Unary,
+            root: JsExpressionRoot::Update(direction),
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
         // operands[0] is the callee; operands[1..] are the arguments in order.
         let mut operands = vec![callee];
@@ -2926,6 +3136,7 @@ impl JsExpression {
                 Self::comma((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
             JsExpressionRoot::Assign => Self::assign(child(0), child(1)),
+            JsExpressionRoot::Update(direction) => Self::update(child(0), direction),
             JsExpressionRoot::Array => {
                 Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
@@ -2976,6 +3187,7 @@ impl JsExpression {
             | JsExpressionRoot::Raw
             | JsExpressionRoot::Comma
             | JsExpressionRoot::Assign
+            | JsExpressionRoot::Update(_)
             | JsExpressionRoot::New => true,
             JsExpressionRoot::Atom
             | JsExpressionRoot::Name(_)
@@ -3891,6 +4103,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit_traced(mut self) -> Result<(String, ModuleTree), CodegenError> {
+        StatementPolicy::of(&self.options).install();
         let mut out = self.build_module()?;
         self.prune_unreferenced_declarators(&mut out);
         if twin_witness_enabled() {
@@ -13480,7 +13693,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         // decision about the header and the body as values --
                         // the same two checks the old rewrite made by searching
                         // backwards through `out` from the body's brace.
-                        if compact_loop && !do_loop {
+                        // Only under an explicit prefix/postfix spelling: the
+                        // default spelling never rotated (its decrement was
+                        // `n=n-1|0` text until the peephole), and phase 6's
+                        // push-time `n--` must not widen that boundary.
+                        if compact_loop
+                            && !do_loop
+                            && matches!(
+                                self.options.mutation_spelling,
+                                MutationSpelling::Prefix | MutationSpelling::Postfix
+                            )
+                        {
                             if let Some(counter) = rotation_counter {
                                 rotate_guarded_decrement(
                                     &mut loop_head,
@@ -26951,20 +27174,55 @@ fn rotate_guarded_decrement(head: &mut JsLoopHead, body: &mut JsBlock, counter: 
     }
     // Only the shapes the compact loop takes; the guard must be the last
     // thing in the condition (the old text check: only `)` and `;` after it).
-    let condition = match head {
-        JsLoopHead::While { condition, .. } => condition,
+    let (condition, condition_tree) = match head {
+        JsLoopHead::While {
+            condition,
+            condition_tree,
+        } => (condition, condition_tree),
         JsLoopHead::For {
             condition: Some(condition),
+            condition_tree,
             update: None,
             ..
-        } => condition,
+        } => (condition, condition_tree),
         _ => return false,
     };
     let guarded = format!("{counter}>0");
     let Some(kept) = condition.strip_suffix(guarded.as_str()) else {
         return false;
     };
+    // The tree follows the text: `n>0` becomes the update node on the same
+    // binding, alone or as the last operand of the `&&` it closed. Any
+    // other tree shape is dropped rather than left disagreeing with the text.
+    let rotated_tree = condition_tree.take().and_then(|tree| {
+        fn guard_to_update(tree: &JsExpression, counter: &str) -> Option<JsExpression> {
+            if tree.root != JsExpressionRoot::Binary(IrBinaryOp::Greater) {
+                return None;
+            }
+            let [name, zero] = tree.operands.as_slice() else {
+                return None;
+            };
+            (matches!(name.root, JsExpressionRoot::Name(_))
+                && name.code == counter
+                && zero.root == JsExpressionRoot::Atom
+                && zero.code == "0")
+                .then(|| JsExpression::update(name.clone(), JsUpdate::Decrement))
+        }
+        if kept.is_empty() {
+            return guard_to_update(&tree, counter);
+        }
+        if tree.root != JsExpressionRoot::Binary(IrBinaryOp::And) {
+            return None;
+        }
+        let [lhs, rhs] = tree.operands.as_slice() else {
+            return None;
+        };
+        let update = guard_to_update(rhs, counter)?;
+        let rebuilt = JsExpression::binary(IrBinaryOp::And, lhs.clone(), update);
+        (rebuilt.clone().into_minimal() == format!("{kept}{counter}--")).then_some(rebuilt)
+    });
     *condition = format!("{kept}{counter}--");
+    *condition_tree = rotated_tree;
     *body = body.retain_from(1);
     true
 }
@@ -42650,6 +42908,11 @@ consume(field(JS.object("type", 1), "type"));
     #[test]
     fn assignment_guard_merges_into_the_if_condition_at_push_time() {
         // `a=f();if(a){..}` is `if(a=f()){..}` where both are still nodes.
+        StatementPolicy {
+            unit_updates: true,
+            assignment_guards: true,
+        }
+        .install();
         let bind = Bind(7);
         let mut block = JsBlock::new();
         block.push_statement(JsStatement::Binding {
@@ -42684,6 +42947,7 @@ consume(field(JS.object("type", 1), "type"));
             else_branch: None,
         });
         assert_eq!(other.statements.len(), 2);
+        StatementPolicy::NONE.install();
     }
 
     #[test]

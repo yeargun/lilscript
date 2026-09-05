@@ -195,6 +195,10 @@ pub static PRUNED_DECLARATORS: Bucket = Bucket::new("pruned_declarators");
 /// measured smaller the other way.
 pub static TERMINAL_KEYWORD_KEPT: Bucket = Bucket::new("terminal_keyword_kept");
 pub static TERMINAL_KEYWORD_FLIPPED: Bucket = Bucket::new("terminal_keyword_flipped");
+/// Phase 7a: emissions whose folded text the codec preferred (sum: bytes
+/// saved) and emissions where the folds lost and the emission stayed.
+pub static EMISSION_PEEPHOLE_WON: Bucket = Bucket::new("emission_peephole_won");
+pub static EMISSION_PEEPHOLE_LOST: Bucket = Bucket::new("emission_peephole_lost");
 pub static CLEANUP_UNBUDGETED: Bucket = Bucket::new("cleanup_unbudgeted");
 pub static CLEANUP_SKIPPED: Bucket = Bucket::new("cleanup_skipped");
 // The late cleanup's canonical whole-artifact peephole candidate, by exit (047):
@@ -251,7 +255,9 @@ const BYTE_BUCKETS: [&Bucket; 18] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 54] = [
+const EVENT_BUCKETS: [&Bucket; 56] = [
+    &EMISSION_PEEPHOLE_WON,
+    &EMISSION_PEEPHOLE_LOST,
     &PRUNED_DECLARATORS,
     &TERMINAL_KEYWORD_KEPT,
     &TERMINAL_KEYWORD_FLIPPED,

@@ -2226,7 +2226,8 @@ fn optimize_and_select_javascript_inner<'src>(
                 )
             })
             .collect(),
-    );
+    )
+    .with_emission_peephole(EmissionPeephole::from_config(config));
     for candidate in candidate_arena.candidates() {
         let registered = contexts
             .register_plan(candidate.identity().context_id, candidate.options())
@@ -3004,6 +3005,106 @@ impl<'ir, 'src> JavaScriptEmissionContext<'ir, 'src> {
     }
 }
 
+/// Phase 7a: every candidate is scored on the text the pipeline will ship.
+/// While the text peephole exists it runs on each emission before anything
+/// measures it, under the same contract the finalist and canonical passes
+/// apply: the builtins assumption, and function elision only when the
+/// single-use function family is enabled.
+#[derive(Debug, Clone)]
+struct EmissionPeephole {
+    pristine_builtins: bool,
+    allow_function_elision: bool,
+    model: CompressionCostModel,
+    /// The startup limits every finalist leaf is held to; a fold that
+    /// breaks them against its own emission leaves the emission as it was,
+    /// so a candidate never loses the leaf the old pipeline kept.
+    startup: crate::config::StartupCostConfig,
+    startup_guard: bool,
+}
+
+impl EmissionPeephole {
+    fn from_config(config: &ProjectConfig) -> Option<Self> {
+        let enabled = match std::env::var("LILSCRIPT_EMISSION_PEEPHOLE").as_deref() {
+            Ok("0") | Ok("false") | Ok("off") => false,
+            Ok("1") | Ok("true") | Ok("on") => true,
+            _ => config.javascript.emission_peephole.unwrap_or(false),
+        };
+        (enabled && config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole))
+            .then(|| Self {
+                pristine_builtins: config.javascript.assume_pristine_builtins,
+                allow_function_elision: config.single_use_function_expression_candidates_enabled(),
+                model: config.javascript.cost_model,
+                startup: config.javascript.startup.clone(),
+                startup_guard: config
+                    .javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard),
+            })
+    }
+
+    /// The emission's final text: the folded text when the codec prefers
+    /// it, the emission itself otherwise -- the canonical pass's own
+    /// adoption rule, applied where the candidate is scored instead of
+    /// after it has won. The folds are not monotone under the codec (an
+    /// IIFE for a single-use function can lose to the binding it replaced),
+    /// so the unfolded text stays the floor. A pass that fails to parse, or
+    /// that elides a function the family did not admit, leaves the
+    /// emission as it was.
+    fn apply(&self, code: String) -> String {
+        let optimized = match optimize_generated_javascript_assuming(&code, self.pristine_builtins) {
+            Ok(optimized) if optimized.code != code => optimized,
+            _ => return code,
+        };
+        let Ok(before) = analyze_generated_javascript(&code) else {
+            return code;
+        };
+        let folded = if !self.allow_function_elision {
+            let functions_before = before.functions;
+            if optimized.metrics.functions < functions_before {
+                match optimize_generated_javascript_preserving_functions_assuming(
+                    &code,
+                    self.pristine_builtins,
+                ) {
+                    Ok(preserved) if preserved.metrics.functions >= functions_before => {
+                        repair_late_javascript_candidate(preserved.code)
+                    }
+                    _ => return code,
+                }
+            } else {
+                repair_late_javascript_candidate(optimized.code)
+            }
+        } else {
+            repair_late_javascript_candidate(optimized.code)
+        };
+        if folded == code {
+            return code;
+        }
+        let Ok(after) = analyze_generated_javascript(&folded) else {
+            return code;
+        };
+        if self
+            .startup
+            .max_nesting
+            .is_some_and(|maximum| after.max_nesting > maximum)
+            || (self.startup_guard && !startup_cost_allowed(after, before, &self.startup))
+        {
+            crate::timing::EMISSION_PEEPHOLE_LOST.event(0);
+            return code;
+        }
+        let (Ok(before), Ok(after)) = (
+            compressed_size(code.as_bytes(), self.model),
+            compressed_size(folded.as_bytes(), self.model),
+        ) else {
+            return code;
+        };
+        if after < before {
+            crate::timing::EMISSION_PEEPHOLE_WON.event((before - after) as u64);
+            folded
+        } else {
+            crate::timing::EMISSION_PEEPHOLE_LOST.event((after - before) as u64);
+            code
+        }
+    }
+}
+
 struct JavaScriptEmissionContexts<'ir, 'src> {
     root_configured_context_id: usize,
     contexts: Vec<JavaScriptEmissionContext<'ir, 'src>>,
@@ -3013,6 +3114,9 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     /// emission per (context, options with the printer fields erased), so a
     /// later plan that differs only in those fields is a re-print of it.
     reprint_trees: Mutex<AHashMap<(usize, String), Arc<crate::codegen_ir_js::FrozenModuleTree>>>,
+    /// Phase 7a: the peephole every emission passes through before it is
+    /// scored; `None` when the text peephole is not configured.
+    emission_peephole: Option<EmissionPeephole>,
 }
 
 impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
@@ -3031,7 +3135,26 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
             emissions_attempted: AtomicUsize::new(0),
             reprint_trees: Mutex::new(AHashMap::default()),
+            emission_peephole: None,
         }
+    }
+
+    fn with_emission_peephole(mut self, peephole: Option<EmissionPeephole>) -> Self {
+        self.emission_peephole = peephole;
+        self
+    }
+
+    /// Phase 7a: the text a candidate is scored on. An IR context that
+    /// carries explicit lowering obligations keeps its emission verbatim,
+    /// as the finalist and canonical passes already do.
+    fn scored_text(&self, context_id: usize, code: String) -> String {
+        let Some(peephole) = self.emission_peephole.as_ref() else {
+            return code;
+        };
+        if self.get(context_id).baseline.has_explicit_lowering_obligations() {
+            return code;
+        }
+        peephole.apply(code)
     }
 
     fn get(&self, context_id: usize) -> &JavaScriptEmissionContext<'ir, 'src> {
@@ -3075,7 +3198,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
                 .get(&(context_id, erased.clone()))
                 .cloned();
             if let Some(tree) = cached {
-                return Ok(reprint_javascript_candidate(&tree, &options));
+                return Ok(self.scored_text(context_id, reprint_javascript_candidate(&tree, &options)));
             }
             let (code, tree) = self.emit_frozen(context_id, module_output, options)?;
             self.reprint_trees
@@ -3083,10 +3206,11 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
                 .expect("reprint tree cache lock")
                 .entry((context_id, erased))
                 .or_insert_with(|| Arc::new(tree));
-            return Ok(code);
+            return Ok(self.scored_text(context_id, code));
         }
         self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
-        self.get(context_id).emit(module_output, options)
+        let code = self.get(context_id).emit(module_output, options)?;
+        Ok(self.scored_text(context_id, code))
     }
 
     fn emit_frozen(
@@ -14143,6 +14267,7 @@ mod tests {
 
         let contexts = JavaScriptEmissionContexts {
             root_configured_context_id: 0,
+            emission_peephole: None,
             contexts: vec![
                 JavaScriptEmissionContext::new(0, &ir, None, None, false),
                 JavaScriptEmissionContext::new(1, &ir, None, None, false),

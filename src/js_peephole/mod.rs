@@ -433,11 +433,24 @@ pub fn wrap_module_internals_in_function_scope(
     // The body: no further imports, no top-level await, no exported binding
     // written from inside a nested scope.
     let body = &tokens[body_start..export_at];
+    let matching_open = token::matching_openers(&matching_close);
     let mut depth = 0usize;
+    // The braces open around the current token, innermost last: a write to
+    // a name that an enclosing function declares (a parameter, a `var`) is
+    // a write to that local, not to the exported binding it shadows.
+    let mut opens = Vec::<usize>::new();
     for (offset, token) in body.iter().enumerate() {
         match token.text {
-            "{" | "(" | "[" => depth += 1,
-            "}" | ")" | "]" => depth = depth.saturating_sub(1),
+            "{" => {
+                depth += 1;
+                opens.push(body_start + offset);
+            }
+            "(" | "[" => depth += 1,
+            "}" => {
+                depth = depth.saturating_sub(1);
+                opens.pop();
+            }
+            ")" | "]" => depth = depth.saturating_sub(1),
             "import" if depth == 0 && body.get(offset + 1).map(|next| next.text) != Some("(") => {
                 return Ok(Err("import after the body started"));
             }
@@ -449,6 +462,19 @@ pub fn wrap_module_internals_in_function_scope(
             && specifiers.iter().any(|(internal, _)| *internal == token.text)
             && !is_property_identifier(&tokens, body_start + offset)
             && name_use_is_mutated(&tokens, body_start + offset)
+            && !opens.iter().rev().any(|open| {
+                open.checked_sub(1)
+                    .is_some_and(|before| matches!(tokens[before].text, ")" | "=>"))
+                    && matching_close[*open].is_some_and(|end| {
+                        scope::function_scope_declares(
+                            &tokens,
+                            &matching_open,
+                            *open,
+                            end,
+                            token.text,
+                        )
+                    })
+            })
         {
             return Ok(Err("exported binding written from a nested scope"));
         }
