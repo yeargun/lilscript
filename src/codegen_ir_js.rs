@@ -1364,7 +1364,7 @@ fn render(
             ))
         }
         // Leaves: their text is the datum, not a rendering of children.
-        JsExpressionRoot::Atom | JsExpressionRoot::Raw => None,
+        JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Raw => None,
     }
 }
 
@@ -1403,6 +1403,9 @@ impl JsUnary {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum JsExpressionRoot {
     Atom,
+    /// An identifier that names a binding of this emission. Its `code` is the
+    /// binding's spelling at construction; the `Bind` is its identity.
+    Name(Bind),
     Unary(JsUnary),
     Binary(IrBinaryOp),
     Nullish,
@@ -1436,7 +1439,7 @@ impl JsExpressionRoot {
     /// spread across the constructors. See `migration/003-target-representation.md`.
     const fn grammar_arity(self) -> Option<usize> {
         match self {
-            Self::Atom | Self::Raw => Some(0),
+            Self::Atom | Self::Name(_) | Self::Raw => Some(0),
             Self::Unary(_)
             | Self::IntegerNormalization
             | Self::NullNormalized
@@ -1470,7 +1473,7 @@ impl JsExpressionRoot {
             Self::Conditional => 3,
             // Variadic: callee plus arguments, all retained.
             Self::Call => 0,
-            Self::Atom | Self::Raw => 0,
+            Self::Atom | Self::Name(_) | Self::Raw => 0,
         }
     }
 
@@ -1880,8 +1883,15 @@ impl PartialEq for JsExpression {
 
 impl JsExpression {
     fn atom(code: impl Into<String>) -> Self {
+        let code = code.into();
+        if crate::timing::enabled()
+            && is_js_property_identifier(&code)
+            && !is_js_reserved(&code)
+        {
+            crate::timing::NAME_UNBOUND.event(0);
+        }
         Self {
-            code: code.into(),
+            code,
             ungrouped: None,
             precedence: JsPrecedence::Primary,
             root: JsExpressionRoot::Atom,
@@ -1890,6 +1900,15 @@ impl JsExpression {
             facts: JsFacts::NONE,
             operands: Vec::new(),
         }
+    }
+
+    /// An identifier naming `bind`, spelled `code` (the table's spelling at
+    /// construction).
+    fn name(bind: Bind, code: impl Into<String>) -> Self {
+        crate::timing::NAME_BOUND.event(0);
+        let mut node = Self::atom(code);
+        node.root = JsExpressionRoot::Name(bind);
+        node
     }
 
     fn raw(code: impl Into<String>, precedence: JsPrecedence) -> Self {
@@ -2203,7 +2222,9 @@ impl JsExpression {
         let child = |index: usize| self.operands[index].rebuilt(options);
         match self.root {
             // Leaves: the text is the datum, so there is nothing to rebuild.
-            JsExpressionRoot::Atom | JsExpressionRoot::Raw => self.clone(),
+            JsExpressionRoot::Atom | JsExpressionRoot::Name(_) | JsExpressionRoot::Raw => {
+                self.clone()
+            }
             JsExpressionRoot::Unary(operator) => Self::unary(operator.as_str(), child(0)),
             JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
             JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
@@ -2260,7 +2281,7 @@ impl JsExpression {
     fn may_have_effects(&self) -> bool {
         match self.root {
             JsExpressionRoot::Call | JsExpressionRoot::Raw => true,
-            JsExpressionRoot::Atom => false,
+            JsExpressionRoot::Atom | JsExpressionRoot::Name(_) => false,
             _ => self.operands.iter().any(Self::may_have_effects),
         }
     }
@@ -2723,6 +2744,8 @@ struct IrJsEmitter<'module, 'src> {
     identity_class_names: AHashMap<&'src str, String>,
     foreign_import_names: AHashMap<String, String>,
     top_level_mangler: Mangler,
+    /// The spellings of every binding this emission allocates.
+    bind_table: BindTable,
     local_name_reservations: Vec<String>,
     preferred_local_names: AHashMap<String, String>,
     declared_globals: AHashSet<SymbolId>,
@@ -2924,6 +2947,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 elide_call_chain_parentheses: options.elide_call_chain_parentheses,
             });
         }
+        let bind_table = BindTable::default();
         Self {
             module,
             integer_analysis,
@@ -2933,7 +2957,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             function_names: AHashMap::default(),
             identity_class_names: AHashMap::default(),
             foreign_import_names: AHashMap::default(),
-            top_level_mangler: Mangler::for_role(options.identifier_alphabet, "top-level"),
+            top_level_mangler: Mangler::for_role_in(
+                options.identifier_alphabet,
+                "top-level",
+                bind_table.clone(),
+            ),
+            bind_table,
             local_name_reservations: Vec::new(),
             preferred_local_names: AHashMap::default(),
             declared_globals: AHashSet::default(),
@@ -6731,8 +6760,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if self.options.precise_cross_scope_shadowing
                 && !self.options.reserved_local_name_prefix
             {
-                let mut local_reservation_mangler =
-                    Mangler::for_role(self.options.identifier_alphabet, "local-reservation");
+                let mut local_reservation_mangler = Mangler::for_role_in(
+                    self.options.identifier_alphabet,
+                    "local-reservation",
+                    self.bind_table.clone(),
+                );
                 for _ in 0..self.options.local_name_reserve {
                     self.local_name_reservations
                         .push(local_reservation_mangler.next_name());
@@ -7580,7 +7612,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             IdentifierAlphabet::canonical()
         };
-        let mut mangler = Mangler::for_role(alphabet, "property");
+        let mut mangler = Mangler::for_role_in(alphabet, "property", self.bind_table.clone());
         self.stable_property_names = stable_property_names.clone();
         for name in stable_property_names {
             mangler.reserve(&name);
@@ -7651,7 +7683,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .then_with(|| source_names[&left.0].cmp(source_names[&right.0]))
                     .then_with(|| left.0 .1.cmp(&right.0 .1))
             });
-            let mut mangler = Mangler::for_role(alphabet, "owned-property");
+            let mut mangler =
+                Mangler::for_role_in(alphabet, "owned-property", self.bind_table.clone());
             for reserved in PROTOTYPE_SENSITIVE_PROPERTY_NAMES {
                 mangler.reserve(reserved);
             }
@@ -8573,7 +8606,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         helpers: &[FunctionId],
         reserved: &[&str],
     ) -> Result<(), CodegenError> {
-        let mut inner = Mangler::for_role(self.options.identifier_alphabet, "inner");
+        let mut inner =
+            Mangler::for_role_in(self.options.identifier_alphabet, "inner", self.bind_table.clone());
         for name in reserved {
             inner.reserve(name);
         }
@@ -10030,7 +10064,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let expression = self.render_instruction_op(instruction, context, &mut cache)?;
                 if eager_order_binding {
                     let name = context.value_name(out)?.to_string();
-                    cache.insert(out, JsExpression::atom(name.clone()));
+                    cache.insert(out, context.value_atom(out)?);
                     eager_bindings.push((name, expression));
                 } else if reuses_parameter_binding {
                     let name = context.value_name(out)?;
@@ -10040,11 +10074,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     );
                     cache.insert(
                         out,
-                        JsExpression::comma([assignment, JsExpression::atom(name)]),
+                        JsExpression::comma([assignment, context.value_atom(out)?]),
                     );
                 } else if allow_eager_bindings && inline_pure_call && use_count > 1 {
                     let name = context.value_name(out)?.to_string();
-                    cache.insert(out, JsExpression::atom(name.clone()));
+                    cache.insert(out, context.value_atom(out)?);
                     eager_bindings.push((name, expression));
                 } else if allow_eager_bindings
                     && host_wrapper_op
@@ -10052,7 +10086,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     && !js_expression_is_reusable(&expression)
                 {
                     let name = context.value_name(out)?.to_string();
-                    cache.insert(out, JsExpression::atom(name.clone()));
+                    cache.insert(out, context.value_atom(out)?);
                     eager_bindings.push((name, expression));
                 } else {
                     cache.insert(out, expression);
@@ -14378,7 +14412,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 )
             }
             ControlFlowOp::CaptureLocal(local) | ControlFlowOp::LoadLocal(local) => {
-                JsExpression::atom(context.local_name(*local)?)
+                context.local_atom(*local)?
             }
             ControlFlowOp::Unary { op, value: operand } => JsExpression::unary(
                 match op {
@@ -16653,6 +16687,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .zip(captures)
             {
                 context.value_names.insert(parameter.value, capture.clone());
+                context.value_binds.remove(&parameter.value);
             }
             let mut rendered = render_arrow_parameters(
                 &function,
@@ -16743,7 +16778,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .filter(|parameter| function.mutable_capture_locals.contains(&parameter.local))
             .flat_map(|parameter| capture_cell_writeback_values(&function, parameter.local))
             .collect::<AHashSet<_>>();
-        let mut replacements = AHashMap::<String, String>::default();
+        let mut replacements = AHashMap::<String, (Bind, String)>::default();
         for (value, name) in &context.value_names {
             if !capture_values.contains(value)
                 && !writeback_values.contains(value)
@@ -16751,7 +16786,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             {
                 replacements
                     .entry(name.clone())
-                    .or_insert_with(|| mangler.next_name());
+                    .or_insert_with(|| mangler.request());
             }
         }
         for (local, name) in &context.local_names {
@@ -16760,29 +16795,34 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             {
                 replacements
                     .entry(name.clone())
-                    .or_insert_with(|| mangler.next_name());
+                    .or_insert_with(|| mangler.request());
             }
         }
         for (value, name) in &mut context.value_names {
             if !capture_values.contains(value) && !writeback_values.contains(value) {
-                if let Some(replacement) = replacements.get(name) {
+                if let Some((bind, replacement)) = replacements.get(name) {
                     *name = replacement.clone();
+                    context.value_binds.insert(*value, *bind);
                 }
             }
         }
         for (local, name) in &mut context.local_names {
             if !capture_param_locals.contains(local) {
-                if let Some(replacement) = replacements.get(name) {
+                if let Some((bind, replacement)) = replacements.get(name) {
                     *name = replacement.clone();
+                    context.local_binds.insert(*local, *bind);
                 }
             }
         }
         for (param, capture) in function.params.iter().zip(captures) {
             context.value_names.insert(param.value, capture.clone());
+            context.value_binds.remove(&param.value);
             if function.mutable_capture_locals.contains(&param.local) {
                 context.local_names.insert(param.local, capture.clone());
+                context.local_binds.remove(&param.local);
                 for value in capture_cell_writeback_values(&function, param.local) {
                     context.value_names.insert(value, capture.clone());
+                    context.value_binds.remove(&value);
                 }
             }
         }
@@ -16794,16 +16834,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             {
                 mangler.reserve(name);
             }
-            let name = if self.options.mangle_identifiers {
-                mangler.next_name()
+            let (bind, name) = if self.options.mangle_identifiers {
+                mangler.request()
             } else {
-                mangler.unique_name(function.name.unwrap_or("fn"))
+                mangler.unique_request(function.name.unwrap_or("fn"))
             };
             self.function_names.insert(function.id, name.clone());
             if let Some(local) = self.exclusive_recursive_iife_self_slots.get(&function.id) {
                 context.local_names.insert(*local, name.clone());
+                context.local_binds.insert(*local, bind);
                 for value in capture_cell_writeback_values(&function, *local) {
                     context.value_names.insert(value, name.clone());
+                    context.value_binds.insert(value, bind);
                 }
             }
             Some(name)
@@ -19375,6 +19417,11 @@ struct LocalNames {
     function_id: FunctionId,
     value_names: AHashMap<ValueId, String>,
     local_names: AHashMap<LocalId, String>,
+    /// The binding each named value / local refers to, where one is known.
+    /// A value whose name is substituted text (a closure capture, a promoted
+    /// formal) has a name and no binding: the residue phase 5 drives down.
+    value_binds: AHashMap<ValueId, Bind>,
+    local_binds: AHashMap<LocalId, Bind>,
     parameter_values: AHashSet<ValueId>,
     stored_values: AHashSet<ValueId>,
     untyped_values: AHashSet<ValueId>,
@@ -20214,17 +20261,21 @@ fn bind_rest_index_formals(
     // complete snapshot so the optimization can fail closed to `arguments[i]`.
     let original_value_names = context.value_names.clone();
     let original_local_names = context.local_names.clone();
+    let original_value_binds = context.value_binds.clone();
+    let original_local_binds = context.local_binds.clone();
     let original_parameter_values = context.parameter_values.clone();
     let original_declared_names = context.declared_names.borrow().clone();
     for (dest, slot) in &index_dests {
         if let Some(name) = formals.get(*slot) {
             context.value_names.insert(*dest, name.clone());
+            context.value_binds.remove(dest);
             context.parameter_values.insert(*dest);
         }
     }
     for (slot, local) in &alias_local {
         if let Some(name) = formals.get(*slot) {
             context.local_names.insert(*local, name.clone());
+            context.local_binds.remove(local);
         }
     }
     context
@@ -20247,6 +20298,8 @@ fn bind_rest_index_formals(
     {
         context.value_names = original_value_names;
         context.local_names = original_local_names;
+        context.value_binds = original_value_binds;
+        context.local_binds = original_local_binds;
         context.parameter_values = original_parameter_values;
         *context.declared_names.borrow_mut() = original_declared_names;
         context.rest_argument_value = None;
@@ -21025,10 +21078,14 @@ impl LocalNames {
             .union(&parameter_values)
             .copied()
             .collect::<AHashSet<_>>();
+        let mut value_binds = AHashMap::<ValueId, Bind>::default();
+        let mut local_binds = AHashMap::<LocalId, Bind>::default();
         let mut early_local_names = AHashMap::<LocalId, String>::default();
         if mangle_identifiers {
             for local in captured_storage_locals(function) {
-                early_local_names.insert(local, mangler.next_name());
+                let (bind, name) = mangler.request();
+                local_binds.insert(local, bind);
+                early_local_names.insert(local, name);
             }
         }
         let safe_in_place_updates = safe_two_address_phi_pairs(function, &named_values, false);
@@ -21060,6 +21117,7 @@ impl LocalNames {
             }
             let color_count = colors.values().copied().max().map_or(0, |color| color + 1);
             let mut color_names = vec![String::new(); color_count];
+            let mut color_binds = vec![None::<Bind>; color_count];
             if options.stable_local_names {
                 let mut preferences = vec![AHashMap::<String, usize>::default(); color_count];
                 for (value, color) in &colors {
@@ -21095,11 +21153,14 @@ impl LocalNames {
                     candidates.sort_unstable_by(|left, right| {
                         right.1.cmp(left.1).then_with(|| left.0.cmp(right.0))
                     });
-                    if let Some((identifier, _)) = candidates
+                    if let Some((identifier, bind)) = candidates
                         .into_iter()
-                        .find(|(identifier, _)| mangler.claim_name(identifier))
+                        .find_map(|(identifier, _)| {
+                            mangler.claim_bind(identifier).map(|bind| (identifier, bind))
+                        })
                     {
                         color_names[color] = identifier.clone();
+                        color_binds[color] = Some(bind);
                     }
                 }
             }
@@ -21121,7 +21182,9 @@ impl LocalNames {
                 });
             }
             for color in unnamed_colors {
-                color_names[color] = mangler.next_name();
+                let (bind, name) = mangler.request();
+                color_names[color] = name;
+                color_binds[color] = Some(bind);
             }
             for value in &values {
                 if inlined_values.contains_key(value) {
@@ -21129,6 +21192,9 @@ impl LocalNames {
                 }
                 if let Some(color) = colors.get(value) {
                     value_names.insert(*value, color_names[*color].clone());
+                    if let Some(bind) = color_binds[*color] {
+                        value_binds.insert(*value, bind);
+                    }
                 }
             }
         }
@@ -21161,9 +21227,12 @@ impl LocalNames {
             {
                 continue;
             }
-            value_names.entry(value).or_insert_with(|| {
+            if value_names.contains_key(&value) {
+                continue;
+            }
+            let (bind, name) = {
                 if mangle_identifiers {
-                    mangler.next_name()
+                    mangler.request()
                 } else {
                     let preferred = function
                         .params
@@ -21179,9 +21248,11 @@ impl LocalNames {
                                 }
                             },
                         );
-                    mangler.unique_name(&preferred)
+                    mangler.unique_request(&preferred)
                 }
-            });
+            };
+            value_binds.insert(value, bind);
+            value_names.insert(value, name);
         }
         let mut local_names = function
             .params
@@ -21193,17 +21264,25 @@ impl LocalNames {
                     .map(|name| (parameter.local, name))
             })
             .collect::<AHashMap<_, _>>();
+        for parameter in &function.params {
+            if let Some(bind) = value_binds.get(&parameter.value) {
+                local_binds.insert(parameter.local, *bind);
+            }
+        }
         for (local, name) in early_local_names {
             local_names.entry(local).or_insert(name);
         }
         for local in &function.locals {
-            local_names.entry(local.id).or_insert_with(|| {
-                if mangle_identifiers {
-                    mangler.next_name()
-                } else {
-                    mangler.unique_name(local.name)
-                }
-            });
+            if local_names.contains_key(&local.id) {
+                continue;
+            }
+            let (bind, name) = if mangle_identifiers {
+                mangler.request()
+            } else {
+                mangler.unique_request(local.name)
+            };
+            local_binds.insert(local.id, bind);
+            local_names.insert(local.id, name);
         }
         let declared_names = function
             .params
@@ -21222,6 +21301,8 @@ impl LocalNames {
             function_id: function.id,
             value_names,
             local_names,
+            value_binds,
+            local_binds,
             parameter_values,
             stored_values,
             untyped_values,
@@ -21320,6 +21401,24 @@ impl LocalNames {
                     ),
                 )
             })
+    }
+
+    /// The value as an identifier node: a `Name` when the value's name is a
+    /// binding of this emission, a bare atom when it is substituted text.
+    fn value_atom(&self, value: ValueId) -> Result<JsExpression, CodegenError> {
+        let name = self.value_name(value)?;
+        Ok(match self.value_binds.get(&value) {
+            Some(bind) => JsExpression::name(*bind, name),
+            None => JsExpression::atom(name),
+        })
+    }
+
+    fn local_atom(&self, local: LocalId) -> Result<JsExpression, CodegenError> {
+        let name = self.local_name(local)?;
+        Ok(match self.local_binds.get(&local) {
+            Some(bind) => JsExpression::name(*bind, name),
+            None => JsExpression::atom(name),
+        })
     }
 
     fn binding_names(&self) -> AHashSet<String> {
@@ -24673,7 +24772,7 @@ fn take_value(
     if let Some(expression) = cache.remove(&value) {
         return Ok(expression);
     }
-    Ok(JsExpression::atom(context.value_name(value)?))
+    context.value_atom(value)
 }
 
 fn js_expression_is_reusable(expression: &JsExpression) -> bool {
@@ -24986,7 +25085,10 @@ fn wrap_pure_helper_actual_bindings(
     // Any second binding must remain: even an unused argument is evaluated by
     // an ordinary JavaScript call before the helper body starts.
     if bindings.len() == 1
-        && expression.root == JsExpressionRoot::Atom
+        && matches!(
+            expression.root,
+            JsExpressionRoot::Atom | JsExpressionRoot::Name(_)
+        )
         && expression.code == bindings[0].0
     {
         return bindings.pop().expect("one eager binding").1;
@@ -25003,7 +25105,7 @@ fn take_region_value(
     if state.available_as_name.contains(&value) {
         cache.remove(&value);
         state.consume(value);
-        return Ok(Some(JsExpression::atom(context.value_name(value)?)));
+        return Ok(Some(context.value_atom(value)?));
     }
     let expression = context
         .inlined_values
@@ -25020,7 +25122,7 @@ fn take_region_value(
         {
             return Ok(None);
         }
-        return Ok(Some(JsExpression::atom(context.value_name(value)?)));
+        return Ok(Some(context.value_atom(value)?));
     };
     state.consume(value);
     Ok(Some(expression))
@@ -29055,6 +29157,34 @@ fn js_atom_is_number_literal(value: &str) -> bool {
         && bytes.iter().any(|byte| byte.is_ascii_digit())
 }
 
+/// A lexical binding of one emission: dense, allocated in name-request
+/// order, so the id order is the trace order. Identifiers on the tree name a
+/// `Bind`; the spelling lives in the emission's `BindTable`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct Bind(u32);
+
+/// One emission's spellings, indexed by `Bind`. Shared by every mangler the
+/// emission clones or creates, so ids never collide across pools.
+#[derive(Debug, Clone, Default)]
+struct BindTable(std::rc::Rc<RefCell<Vec<String>>>);
+
+impl BindTable {
+    fn alloc(&self, spelling: &str) -> Bind {
+        let mut table = self.0.borrow_mut();
+        let bind = Bind(u32::try_from(table.len()).expect("fewer than 2^32 bindings"));
+        table.push(spelling.to_string());
+        bind
+    }
+
+    fn spelling(&self, bind: Bind) -> String {
+        self.0.borrow()[bind.0 as usize].clone()
+    }
+
+    fn len(&self) -> usize {
+        self.0.borrow().len()
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Mangler {
     next: usize,
@@ -29062,6 +29192,8 @@ struct Mangler {
     alphabet: IdentifierAlphabet,
     /// Which pool this is, for the name-request trace.
     role: &'static str,
+    /// The emission's binding table: every request allocates a `Bind`.
+    binds: BindTable,
 }
 
 impl Default for Mangler {
@@ -29076,11 +29208,16 @@ impl Mangler {
     }
 
     fn for_role(alphabet: IdentifierAlphabet, role: &'static str) -> Self {
+        Self::for_role_in(alphabet, role, BindTable::default())
+    }
+
+    fn for_role_in(alphabet: IdentifierAlphabet, role: &'static str, binds: BindTable) -> Self {
         Self {
             next: 0,
             reserved: AHashSet::default(),
             alphabet,
             role,
+            binds,
         }
     }
 
@@ -29093,7 +29230,14 @@ impl Mangler {
     }
 
     fn claim_name(&mut self, name: &str) -> bool {
-        !is_js_reserved(name) && self.reserved.insert(name.to_string())
+        self.claim_bind(name).is_some()
+    }
+
+    /// Claim a spelling chosen elsewhere (a preferred or idiom name) as a
+    /// binding of this emission.
+    fn claim_bind(&mut self, name: &str) -> Option<Bind> {
+        (!is_js_reserved(name) && self.reserved.insert(name.to_string()))
+            .then(|| self.binds.alloc(name))
     }
 
     fn rewind(&mut self) {
@@ -29101,18 +29245,28 @@ impl Mangler {
     }
 
     fn next_name(&mut self) -> String {
+        self.request().1
+    }
+
+    /// The next free name of the pool, as a binding.
+    fn request(&mut self) -> (Bind, String) {
         loop {
             let name = encode_identifier(self.next, &self.alphabet);
             self.next += 1;
             if !self.reserved.contains(&name) && !is_js_reserved(&name) {
                 self.reserved.insert(name.clone());
                 trace_name_request(self.role, &name);
-                return name;
+                return (self.binds.alloc(&name), name);
             }
         }
     }
 
     fn unique_name(&mut self, preferred: &str) -> String {
+        self.unique_request(preferred).1
+    }
+
+    /// `preferred`, or `preferred$2`, `preferred$3`, ... -- as a binding.
+    fn unique_request(&mut self, preferred: &str) -> (Bind, String) {
         let base = if preferred.is_empty() {
             "_".to_string()
         } else if is_js_reserved(preferred) {
@@ -29122,14 +29276,14 @@ impl Mangler {
         };
         if self.reserved.insert(base.clone()) {
             trace_name_request(self.role, &base);
-            return base;
+            return (self.binds.alloc(&base), base);
         }
         let mut suffix = 2;
         loop {
             let candidate = format!("{base}${suffix}");
             if self.reserved.insert(candidate.clone()) {
                 trace_name_request(self.role, &candidate);
-                return candidate;
+                return (self.binds.alloc(&candidate), candidate);
             }
             suffix += 1;
         }
@@ -37968,6 +38122,7 @@ consume(field(JS.object("type", 1), "type"));
     fn the_half_ast_retains_children_for_exactly_these_kinds() {
         let complete = [
             JsExpressionRoot::Atom,
+            JsExpressionRoot::Name(Bind(0)),
             JsExpressionRoot::Raw,
             JsExpressionRoot::Unary(JsUnary::Not),
             JsExpressionRoot::Binary(IrBinaryOp::Add),

@@ -30,7 +30,7 @@ Brotli and on compile time.
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
 | 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
 | 4 — deliver the facts | **4a–4d landed (phase complete on the node)** — `IrFacts` (effect summaries, finite values, array-parameter lengths) delivered to every emission beside the integer analysis; `NodeId` required on every instruction with a module-wide allocator, the 18 gaps derive their ids. every rendered node stamped with its `JsOrigin` and the full eight-bit `JsFacts` word (source origin, obligation, local-only, int32, pure, no-throw, owned-slot, non-nullish). Remaining: side tables keyed by origin, when phase 6 consumers arrive | BEHAVIOUR + NEUTRAL (byte-identical) |
-| 5 — naming moves post-layout | **gate instrument landed** — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
+| 5 — naming moves post-layout | **gate instrument + 5.1a landed** — `LILSCRIPT_NAME_TRACE=1` prints every emission's name requests in order, tagged by pool (`top-level`, `local-reservation`, `property`, `owned-property`, `inner`); `migration/tools/name-trace-diff.sh` compares two compilers on 74 cases × 2 lanes. The orderings themselves not started | DECLARED + trace |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |
 | 8 — retire the text layer | not started | — |
@@ -555,4 +555,21 @@ are whole `eprint!`s, so parallel candidates do not interleave). The script redu
 line and sorts, because candidate emissions run in any order. Shape on the probe: 759 requests per
 emission, 381 emissions under the shipped config. Self-gate: the same binary twice, 0 of 12 case-lanes
 differ. Off, it costs one `OnceLock` load per name. Byte-neutral by construction.
+
+**5.1a — binding identity on the tree, for references.** `Bind(u32)` is allocated by the mangler at
+every request (`request`, `unique_request`, `claim_bind`), so id order is trace order, into one
+`BindTable` per emission that every pool — top-level, the per-function clones, local-reservation,
+property, owned-property, inner — shares through an `Rc`. `LocalNames` records `value_binds` and
+`local_binds` beside the names at every site that assigns one (early locals, claimed and unnamed
+colors, values, params → locals, locals, the recursive self name, capture-hiding replacements, which
+are fresh bindings the renamed values move to); a name that is substituted *text* — a closure
+capture, a promoted formal — drops its bind, because it is not a binding. References go through
+`value_atom` / `local_atom`, which build `JsExpressionRoot::Name(bind)` (a new leaf kind; arity 0,
+never a literal, no effects) at the six reference sites: `take_value`, both region paths, the local
+load, the eager-binding cache entries. Declarations, heads and captures do not carry binds yet
+(5.1b). Gate held: 0 byte diffs over 74 × 3, **0 trace diffs over 146 case-lanes**, probe both lanes
++ 17/18, 1,714 tests, pool 146/146; wall 6.0 s vs 5.9 s. Census under `LILSCRIPT_TIMING`:
+`name_bound` 162,061 / `name_unbound` 222,664 identifier-shaped atoms on the probe (shipped config;
+the unbound count includes property names and keywords the identifier test admits, so it is an
+upper bound on the residue, and a ratchet).
 

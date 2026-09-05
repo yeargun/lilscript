@@ -124,6 +124,10 @@ pub static TRAILING_SCAN: Bucket = Bucket::new("trailing_scan");
 /// `LILSCRIPT_TWIN=1`, where the list is also checked against the text.
 pub static STATEMENT_NODE: Bucket = Bucket::new("stmt_node");
 pub static FACTS_DELIVERED: Bucket = Bucket::new("facts_delivered");
+/// Identifier nodes built with a binding (`JsExpression::name`).
+pub static NAME_BOUND: Bucket = Bucket::new("name_bound");
+/// Identifier-shaped atoms built without one: the phase 5 residue.
+pub static NAME_UNBOUND: Bucket = Bucket::new("name_unbound");
 pub static STATEMENT_RAW: Bucket = Bucket::new("stmt_raw");
 /// Peephole folds that rewrote nothing, and the time they spent proving it.
 /// A fold whose enabling syntax is absent from the artifact still pays a full
@@ -212,8 +216,8 @@ const BYTE_BUCKETS: [&Bucket; 17] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 30] = [
-    &STATEMENT_NODE, &FACTS_DELIVERED,
+const EVENT_BUCKETS: [&Bucket; 32] = [
+    &STATEMENT_NODE, &FACTS_DELIVERED, &NAME_BOUND, &NAME_UNBOUND,
     &STATEMENT_RAW,
     &CLEANUP_ENTERED,
     &CLEANUP_UNBUDGETED,
