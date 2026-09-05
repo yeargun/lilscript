@@ -10899,7 +10899,7 @@ mod tests {
             "{output}"
         );
         assert!(output.contains("===void 0"), "{output}");
-        assert!(output.contains("return +"), "{output}");
+        assert!(output.contains("return+"), "{output}");
         assert!(output.contains('+'), "{output}");
         assert!(output.contains('%'), "{output}");
         assert!(output.contains('<'), "{output}");

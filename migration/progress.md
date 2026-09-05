@@ -396,3 +396,35 @@ One real bug caught by `string_code_units`: the tail kept characters where the j
 bytes. Zero byte diffs vs `f6d515a` across 74 cases in three lanes; candidate sets identical
 (3,064 each); probe both lanes; 1710 tests; pool 146/146. **Compile time on the probe: 19.8 s →
 16.7 s wall, emit CPU 104 s → 83 s** — the per-push text copy and the witness were that much.
+
+**Fold evidence for the G1/G2 deletion protocol (2026-09-05, on `29b8ed7`).** Per-fold active
+counts over the probe (four lanes) and the 74 cases (three lanes), plus markedlil on the pool
+(`LILSCRIPT_FOLD_REPORT=all` is forwarded by `workers.mjs build`; zodlil's production config runs
+one emission and **no peephole**, so its artifact is pure emitter output and it contributes no
+fold counts). 81 of 129 reported folds never fire on the corpus. Of the G1/G2 candidates,
+idle everywhere: `fold_or_assignment_parens`, `fold_statement_negated_ors`,
+`fold_empty_comma_operators`, `fold_empty_ternary_then_comma`,
+`drop_pure_regex_expression_statements`, `fold_same_binding_strict_equality`,
+`fold_fresh_empty_array_pushes`, `fold_fresh_empty_object_assign`, `fold_or_empty_object_assign`;
+never even invoked: `collapse_double_async`, `repair_async_functions`, `fold_expression_bodies`,
+`strip_parenthesized_range`. Still active (corpus / markedlil): `fold_redundant_loop_body_braces`
+2,542 / 512, `elide_separating_keyword_spaces` 1,790 / 256, `fold_single_statement_control_braces`
+1,601 / 266, `elide_asi_safe_semicolons` 1,477 / 281, `fold_negated_equalities` 422 / 295,
+`fold_single_return_arrow_bodies` 328 / 170, `fold_negated_conditional_arms` 33 / 32,
+`fold_redundant_and_parens` 0 / 256. On the *final* probe artifact, skipping any of the first
+seven changes nothing — they fire on candidates the search does not pick — and skipping
+`fold_single_statement_control_braces` makes the probe **85 B smaller** (4,048 → 3,963: the
+search then keeps `f++` where it had `f=f+1`), a fold/search interaction for phase 7.
+
+**G1, `elide_separating_keyword_spaces` — the emitter side.** `keyword_separator` decides the
+space after `return`/`throw`/`await` from the next token (nothing before a string, template,
+regex, `[`, `(`, `{`, `!`, `~`, `+`, `-`; a space otherwise, including `.`), the fold's own rule.
+With the peephole off, the raw emission of the probe and all 74 cases has **zero** keyword-space
+residue. The fold's activity fell 1,790 → 149 on the corpus, and every remaining activation is on
+text an earlier fold wrote (the trace pairs are all `return` + `!`/`(`/`[`/quote) — so this fold
+is now a repair of other folds and is deleted with them, not before. Bytes: probe 4,048 → 4,055
+raw (1,508 → 1,509 Brotli), four cases move by ≤3 Brotli, markedlil +25, **zodlil −72** (its
+production config runs no peephole, so every `return (` and `throw "` there was paying for the
+space). The markedlil move is the layout and rename stages scoring text before the peephole —
+noise-level, and the reason phase 7 scores final text only. Five unit tests that asserted the
+old spacing say the new one.

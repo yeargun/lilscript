@@ -14028,7 +14028,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             ),
             ControlFlowOp::Await { task } => {
                 let task = value(*task, cache)?.at_least(JsPrecedence::Unary);
-                JsExpression::raw(format!("await {task}"), JsPrecedence::Unary)
+                JsExpression::raw(
+                    format!("await{}{task}", keyword_separator(&task)),
+                    JsPrecedence::Unary,
+                )
             }
             ControlFlowOp::Binary { op, lhs, rhs } => {
                 // An always-truthy nullable tests as truthiness when the priority
@@ -18718,6 +18721,18 @@ fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
     Some(expressions.join(","))
 }
 
+/// The separator a keyword needs before what follows it: nothing when the
+/// next token cannot merge into the keyword -- a string, template or regex
+/// literal, or punctuation that opens a group or applies a prefix operator --
+/// and a space otherwise (an identifier, a digit, or `.`, which would re-lex
+/// `return .5` as a member access).
+fn keyword_separator(next: &str) -> &'static str {
+    match next.as_bytes().first() {
+        Some(b'"' | b'\'' | b'`' | b'/' | b'[' | b'(' | b'{' | b'!' | b'~' | b'+' | b'-') => "",
+        _ => " ",
+    }
+}
+
 /// A conditional arm, grouped when it is a comma sequence.
 fn conditional_arm_text(expression: &str) -> String {
     if split_top_level_comma(expression).is_some() {
@@ -21868,9 +21883,13 @@ impl JsStatement {
             // that in favour of the shorter spelling.
             Self::Return { value: None } => "return;".to_string(),
             Self::Return { value: Some(value) } => {
-                format!("return {};", strip_outer_parens(value))
+                let value = strip_outer_parens(value);
+                format!("return{}{value};", keyword_separator(&value))
             }
-            Self::Throw { value } => format!("throw {};", strip_outer_parens(value)),
+            Self::Throw { value } => {
+                let value = strip_outer_parens(value);
+                format!("throw{}{value};", keyword_separator(&value))
+            }
             Self::Break => "break;".to_string(),
             Self::Continue => "continue;".to_string(),
             Self::Import { bindings, source } if bindings.is_empty() => {
@@ -29739,7 +29758,7 @@ mod tests {
             output.contains("var "),
             "mutable locals must remain native JS bindings: {output}"
         );
-        assert!(output.contains("throw \"bad\""), "{output}");
+        assert!(output.contains("throw\"bad\""), "{output}");
         assert!(output.contains("catch{}"), "{output}");
         assert!(output.contains("finally{"), "{output}");
     }
@@ -30477,7 +30496,7 @@ mod tests {
             "export bool present(int[]? value){return value!=null;}export bool missing(Map<string,int>? value){return value==null;}",
         );
         assert!(reference.contains("!!"), "{reference}");
-        assert!(reference.contains("return !"), "{reference}");
+        assert!(reference.contains("return!"), "{reference}");
 
         let scalar = compile_module(
             "export bool present(string? value){return value!=null;}export bool missing(int? value){return value==null;}",
@@ -32143,7 +32162,7 @@ install();
         let output = compile_module(
             "extern JsValue read();extern JsValue other();export bool absent(){return !read().truthy();}export void inspect(){if(read().truthy()&&other().truthy()){print(1);}}",
         );
-        assert!(output.contains("return !read()"), "{output}");
+        assert!(output.contains("return!read()"), "{output}");
         assert!(!output.contains("!!!"), "{output}");
         assert!(!output.contains("if(!!"), "{output}");
     }
@@ -37875,8 +37894,8 @@ consume(field(JS.object("type", 1), "type"));
 
         assert!(output.contains("||=new Map"), "{output}");
         assert_eq!(output.matches("new Map").count(), 1, "{output}");
-        assert!(output.contains("{return {all:"), "{output}");
-        assert!(!output.contains(";return {all:"), "{output}");
+        assert!(output.contains("{return{all:"), "{output}");
+        assert!(!output.contains(";return{all:"), "{output}");
 
         let scalar = compile_module(
             "export string make(string? value=null){if(value==null){return make(\"fallback\");}return value;}",
