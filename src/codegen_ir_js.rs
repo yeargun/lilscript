@@ -8360,11 +8360,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(());
         };
         for (value, binding) in aliases {
-            out.push_str("var ");
-            out.push_str(context.value_name(*value)?);
-            out.push('=');
-            out.push_str(binding);
-            out.push(';');
+            out.push_statement(JsStatement::Binding {
+                keyword: Some("var "),
+                name: context.value_name(*value)?.to_string(),
+                value: JsExpression::raw(binding.to_string(), JsPrecedence::Assignment),
+            });
         }
         Ok(())
     }
@@ -11599,10 +11599,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_str(name);
                                 out.push(';');
                             }
-                            let mut combined = JsBlock::new();
-                            push_logical_operand(&mut combined, &condition, IrBinaryOp::And);
+                            let mut combined = String::new();
+                            push_logical_operand_text(&mut combined, &condition, IrBinaryOp::And);
                             combined.push_str("&&");
-                            push_logical_operand(&mut combined, &guard.condition, IrBinaryOp::And);
+                            push_logical_operand_text(&mut combined, &guard.condition, IrBinaryOp::And);
                             if !guard.returned.is_empty() {
                                 if let Some(merge_ret) = peek_merge_return_expression(
                                     function,
@@ -11628,7 +11628,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             });
                             out.push_statement_with(
                                 JsStatement::If {
-                                    condition: combined.clone().into_string(),
+                                    condition: combined.clone(),
                                     then_branch: JsBranch::compact(returned),
                                     else_branch: None,
                                 },
@@ -11775,27 +11775,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     .then(|| compact_sequence_expression(&then_output))
                                     .flatten()
                                 {
-                                    let mut combined = JsBlock::new();
+                                    let mut combined = String::new();
                                     if condition_was_negated {
-                                        push_logical_operand(
+                                        push_logical_operand_text(
                                             &mut combined,
                                             &negated_condition,
                                             IrBinaryOp::Or,
                                         );
                                         combined.push_str("||");
-                                        push_logical_operand(
+                                        push_logical_operand_text(
                                             &mut combined,
                                             &then_expression,
                                             IrBinaryOp::Or,
                                         );
                                     } else {
-                                        push_logical_operand(
+                                        push_logical_operand_text(
                                             &mut combined,
                                             &condition,
                                             IrBinaryOp::And,
                                         );
                                         combined.push_str("&&");
-                                        push_logical_operand(
+                                        push_logical_operand_text(
                                             &mut combined,
                                             &then_expression,
                                             IrBinaryOp::And,
@@ -12219,22 +12219,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let object = take_value(object, context, cache)?.into_minimal();
                         let declare_key = context.claim_declaration(key)?;
                         let key = context.value_name(key)?;
-                        out.push_str("for(");
-                        if declare_key {
-                            out.push_str("var ");
-                        }
-                        out.push_str(key);
-                        out.push_str(" in ");
-                        out.push_str(&object);
-                        out.push(')');
-                        // The body goes into its own block. It used to be emitted
-                        // straight into `out` behind two remembered byte offsets,
-                        // which then drove a `replace_range` and a `remove` --
-                        // absolute positions into a buffer other code was also
-                        // appending to. A separate block makes "the body" a value,
-                        // and the offsets stop existing rather than becoming
-                        // correct.
-                        let mut body_output = out.nested();
+                        let loop_head = JsLoopHead::ForIn {
+                            declare: declare_key,
+                            key: key.to_string(),
+                            object,
+                        };
+                        // The body is a value emitted ahead of its head; it
+                        // inherits the head's keyword counts as if the head
+                        // were already out.
+                        let mut body_output = out.nested_after(&loop_head.render());
 
                         let nested_loop = LoopContext {
                             header,
@@ -12265,16 +12258,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                         }
                         let braceless = compacted_body || is_braceless_statement(&body_output);
-                        out.push_str(
-                            &JsBranch {
-                                block: body_output,
-                                braceless,
-                            }
-                            .render(JsStatementOptions {
+                        out.push_statement_with(
+                            JsStatement::Loop {
+                                head: loop_head,
+                                body: JsBranch {
+                                    block: body_output,
+                                    braceless,
+                                },
+                                do_condition: None,
+                            },
+                            JsStatementOptions {
                                 elide_block_terminal_semicolons: self
                                     .options
                                     .elide_block_terminal_semicolons,
-                            }),
+                            },
                         );
                         cache.clear();
                         current = exit;
@@ -12302,17 +12299,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let iterable = take_value(iterable, context, cache)?.into_minimal();
                         let declare_element = context.claim_declaration(element)?;
                         let element = context.value_name(element)?;
-                        out.push_str("for(");
-                        if declare_element {
-                            out.push_str("var ");
-                        }
-                        out.push_str(element);
-                        out.push_str(" of ");
-                        out.push_str(&iterable);
-                        out.push(')');
-                        // As for `for-in`: the body is a value, not a span of a
-                        // buffer somebody else is still appending to.
-                        let mut body_output = out.nested();
+                        let loop_head = JsLoopHead::ForOf {
+                            declare: declare_element,
+                            element: element.to_string(),
+                            iterable,
+                        };
+                        // As for `for-in`: the body is a value, nested after
+                        // the head it will follow.
+                        let mut body_output = out.nested_after(&loop_head.render());
 
                         let nested_loop = LoopContext {
                             header,
@@ -12343,16 +12337,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             }
                         }
                         let braceless = compacted_body || is_braceless_statement(&body_output);
-                        out.push_str(
-                            &JsBranch {
-                                block: body_output,
-                                braceless,
-                            }
-                            .render(JsStatementOptions {
+                        out.push_statement_with(
+                            JsStatement::Loop {
+                                head: loop_head,
+                                body: JsBranch {
+                                    block: body_output,
+                                    braceless,
+                                },
+                                do_condition: None,
+                            },
+                            JsStatementOptions {
                                 elide_block_terminal_semicolons: self
                                     .options
                                     .elide_block_terminal_semicolons,
-                            }),
+                            },
                         );
                         cache.clear();
                         current = exit;
@@ -13781,8 +13779,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .sum::<usize>()
                         + assignments.len().saturating_sub(1) * 2
                         + 6;
-                    if self.options.scalar_phi_copies || scalar.len() < tuple_size {
-                        out.push_str(&scalar);
+                    let scalar_size = scalar
+                        .iter()
+                        .map(|statement| {
+                            statement
+                                .clone()
+                                .render(JsStatementOptions {
+                                    elide_block_terminal_semicolons: false,
+                                })
+                                .len()
+                        })
+                        .sum::<usize>();
+                    if self.options.scalar_phi_copies || scalar_size < tuple_size {
+                        for statement in scalar {
+                            out.push_statement(statement);
+                        }
                         return Ok(());
                     }
                 }
@@ -16654,7 +16665,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
         let uses = use_counts(&function);
         let mut cache = AHashMap::default();
-        let mut prefix = String::new();
+        let mut prefix = Vec::new();
         for instruction in &function.blocks[0].instructions {
             if !context.instruction_can_defer(instruction) {
                 return Err(CodegenError::new(
@@ -16669,11 +16680,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if uses.get(&out).copied().unwrap_or(0) == 1 {
                 cache.insert(out, expression);
             } else {
-                prefix.push_str("let ");
-                prefix.push_str(context.value_name(out)?);
-                prefix.push('=');
-                prefix.push_str(&expression);
-                prefix.push(';');
+                prefix.push(JsStatement::Binding {
+                    keyword: Some("let "),
+                    name: context.value_name(out)?.to_string(),
+                    value: expression,
+                });
             }
         }
         let Some(Terminator::Return(Some(value))) = function.blocks[0].terminator else {
@@ -16694,20 +16705,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             format!("{parameters}=>")
         });
+        // `{let a=..;return v}` -- the body statements, then the return
+        // with its terminator elided against the closing brace, as the text
+        // always spelled it.
+        let mut push_body = |rendered: &mut JsBlock, prefix: Vec<JsStatement>| {
+            for statement in prefix {
+                rendered.push_statement(statement);
+            }
+            rendered.push_statement(JsStatement::Return {
+                value: Some(JsExpression::raw(returned.as_str(), JsPrecedence::Assignment)),
+            });
+            rendered.drop_trailing_semicolon();
+            rendered.push('}');
+        };
         if ordinary_function {
             self.emit_calling_convention_aliases(&function, &context, &mut rendered)?;
-            rendered.push_str(&prefix);
-            rendered.push_str("return ");
-            rendered.push_str(&returned);
-            rendered.push('}');
+            push_body(&mut rendered, prefix);
         } else if prefix.is_empty() {
             push_concise_arrow_body(&mut rendered, &returned);
         } else {
             rendered.push('{');
-            rendered.push_str(&prefix);
-            rendered.push_str("return ");
-            rendered.push_str(&returned);
-            rendered.push('}');
+            push_body(&mut rendered, prefix);
         }
         Ok(rendered.into_string())
     }
@@ -17245,21 +17263,24 @@ fn push_var_declarators<S: AsRef<str>>(
 fn scalar_parallel_assignments(
     assignments: &[(String, String)],
     temporary: Option<(&str, bool)>,
-) -> Option<String> {
+) -> Option<Vec<JsStatement>> {
+    let assign = |keyword: Option<&'static str>, target: &str, source: &str| JsStatement::Binding {
+        keyword,
+        name: target.to_string(),
+        value: JsExpression::raw(source, JsPrecedence::Assignment),
+    };
     if let Some(ordered) = order_scalar_assignments(assignments) {
-        let mut output = String::new();
-        for (target, source) in ordered {
-            output.push_str(target);
-            output.push('=');
-            output.push_str(source);
-            output.push(';');
-        }
-        return Some(output);
+        return Some(
+            ordered
+                .into_iter()
+                .map(|(target, source)| assign(None, target, source))
+                .collect(),
+        );
     }
 
     let (temporary, declare_temporary) = temporary?;
     let mut remaining = assignments.to_vec();
-    let mut output = String::new();
+    let mut output = Vec::new();
     let mut temporary_declared = false;
     while !remaining.is_empty() {
         if let Some(index) = remaining.iter().position(|(target, _)| {
@@ -17268,10 +17289,7 @@ fn scalar_parallel_assignments(
             })
         }) {
             let (target, source) = remaining.remove(index);
-            output.push_str(&target);
-            output.push('=');
-            output.push_str(&source);
-            output.push(';');
+            output.push(assign(None, &target, &source));
             continue;
         }
 
@@ -17282,16 +17300,13 @@ fn scalar_parallel_assignments(
             return None;
         }
         let saved = remaining[0].0.clone();
-        if temporary_declared || !declare_temporary {
-            output.push_str(temporary);
+        let keyword = if temporary_declared || !declare_temporary {
+            None
         } else {
-            output.push_str("var ");
-            output.push_str(temporary);
             temporary_declared = true;
-        }
-        output.push('=');
-        output.push_str(&saved);
-        output.push(';');
+            Some("var ")
+        };
+        output.push(assign(keyword, temporary, &saved));
         for (_, source) in &mut remaining {
             *source = replace_identifier(source, &saved, temporary);
         }
@@ -17464,6 +17479,12 @@ fn conditional_assignment_expression<'a>(
 }
 
 fn push_logical_operand(out: &mut JsBlock, value: &str, parent: IrBinaryOp) {
+    let mut text = String::new();
+    push_logical_operand_text(&mut text, value, parent);
+    out.push_str(&text);
+}
+
+fn push_logical_operand_text(out: &mut String, value: &str, parent: IrBinaryOp) {
     let needs_parentheses = logical_operand_needs_parentheses(value, parent);
     if needs_parentheses {
         out.push('(');
@@ -21650,6 +21671,18 @@ enum JsLoopHead {
     },
     /// `while(c)`.
     While { condition: String },
+    /// `for(var k in o)` / `for(k in o)`.
+    ForIn {
+        declare: bool,
+        key: String,
+        object: String,
+    },
+    /// `for(var e of i)` / `for(e of i)`.
+    ForOf {
+        declare: bool,
+        element: String,
+        iterable: String,
+    },
 }
 
 impl JsLoopHead {
@@ -21657,6 +21690,22 @@ impl JsLoopHead {
         match self {
             Self::DoWhile { guard } => format!("if({guard})do"),
             Self::While { condition } => format!("while({condition})"),
+            Self::ForIn {
+                declare,
+                key,
+                object,
+            } => format!(
+                "for({}{key} in {object})",
+                if *declare { "var " } else { "" }
+            ),
+            Self::ForOf {
+                declare,
+                element,
+                iterable,
+            } => format!(
+                "for({}{element} of {iterable})",
+                if *declare { "var " } else { "" }
+            ),
             Self::For {
                 initializer,
                 condition,
@@ -28643,6 +28692,21 @@ fn encode_identifier(mut index: usize, alphabet: &IdentifierAlphabet) -> String 
 
 #[cfg(test)]
 mod tests {
+    /// The parallel copies as the text the old builder returned, for the
+    /// assertions below that were written against it.
+    fn rendered_statements(statements: Option<Vec<JsStatement>>) -> Option<String> {
+        statements.map(|statements| {
+            statements
+                .into_iter()
+                .map(|statement| {
+                    statement.render(JsStatementOptions {
+                        elide_block_terminal_semicolons: false,
+                    })
+                })
+                .collect()
+        })
+    }
+
     use bumpalo::Bump;
 
     use super::*;
@@ -36368,7 +36432,7 @@ consume(field(JS.object("type", 1), "type"));
         ];
         assert!(order_scalar_assignments(&swap).is_none());
         assert_eq!(
-            scalar_parallel_assignments(&swap, Some(("c", true))),
+            rendered_statements(scalar_parallel_assignments(&swap, Some(("c", true)))),
             Some("var c=a;a=b;b=c;".to_string())
         );
         assert_eq!(
@@ -36377,23 +36441,23 @@ consume(field(JS.object("type", 1), "type"));
         );
         assert!(!expression_references_name("data.a+'a'", "a"));
         assert_eq!(
-            scalar_parallel_assignments(
+            rendered_statements(scalar_parallel_assignments(
                 &[
                     ("a".to_string(), "b".to_string()),
                     ("b".to_string(), "data.a".to_string()),
                 ],
                 Some(("c", true)),
-            ),
+            )),
             Some("a=b;b=data.a;".to_string())
         );
         assert_eq!(
-            scalar_parallel_assignments(
+            rendered_statements(scalar_parallel_assignments(
                 &[
                     ("a".to_string(), "b".to_string()),
                     ("b".to_string(), "`${a}`".to_string()),
                 ],
                 Some(("c", true)),
-            ),
+            )),
             Some("var c=a;a=b;b=`${c}`;".to_string())
         );
     }
