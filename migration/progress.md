@@ -28,8 +28,8 @@ Brotli and on compile time.
 | 0 — repair the instrument | **7 of 7 items** (0.4 narrowed) | — |
 | 1 — the tree exists, proved against the incumbent | **complete** | BEHAVIOUR + NEUTRAL + witness (byte-identical, as it happens) |
 | 2 — statements, functions, module | **2a, 2b complete; statement tree at 22 kinds** | BEHAVIOUR + NEUTRAL |
-| 3 — the tree becomes authoritative | **the text is deleted** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier, no witness left to run. Probe compile 19.8 s → 16.7 s (emit CPU 104 s → 83 s). Remaining: G1/G2 by the fold-deletion protocol, `repair_fused_keyword_identifiers`, `keyword_space_tests.rs`, the census counters | BEHAVIOUR + NEUTRAL |
-| 4 — deliver the facts | not started | — |
+| 3 — the tree becomes authoritative | **complete on the emitter** — `JsBlock` is a statement list rendered on demand; no `Raw`, no text-appending API, no text classifier; the raw emission has zero residue for the G1 folds measured (keyword spaces, negated comparisons, if/else braces — the last now a knob). G1/G2 deletion moves to phase 6 with the folds that feed them (corrected in 009); `repair_fused_keyword_identifiers` and `keyword_space_tests.rs` police peephole splices, so they go with phase 8 | BEHAVIOUR + NEUTRAL |
+| 4 — deliver the facts | **next** | — |
 | 5 — naming moves post-layout | not started | — |
 | 6 — the fold groups | not started (census taken) | — |
 | 7 — candidate derivation and budgets | not started (**premise measured**) | — |

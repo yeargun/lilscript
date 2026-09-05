@@ -138,6 +138,18 @@ running counters / recorded boundaries.
 > encodes dominate everything else, which is [phase 7](#phase-7--candidate-derivation-and-budgets),
 > not phase 3.
 
+> **Corrected 2026-09-05, by measurement.** "22 folds that become unreachable" assumed the
+> emitter was their only producer. With the emitter on the list (`Raw` gone, the block's text
+> deleted, every classifier structural) the raw emission has zero residue for the keyword-space,
+> negated-comparison and if/else-brace folds — and they still fire: on text that *earlier folds*
+> in the peephole write (`return (`, `!(a==b)`, bodies the comma folds join first), and on the
+> option-off variants the search proposes (`elide_block_terminal_semicolons=false`). Per the
+> deletion protocol a fold with `active > 0` anywhere is not subsumed, so G1/G2 are deleted with
+> the folds that feed them, in phase 6, and the evidence is on the ledger in `progress.md`. One
+> of them, `fold_single_statement_control_braces`, turned out not to be hygiene at all: the
+> brace spelling is codec-dependent (zodlil +47 braceless, markedlil −114), so it is now the
+> `braceless_control_bodies` knob and a scored variant.
+
 **Invariant:** no production path re-reads emitted text to make a decision.
 **Constraint:** no `Raw` / escape-hatch variant survives in the node enum. A construct that cannot be
 modelled is a design finding, not a variant. Keep it behind a `cfg` feature until the phase ends so a
