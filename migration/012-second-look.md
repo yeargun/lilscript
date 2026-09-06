@@ -457,3 +457,11 @@ this started.
   Two things follow: an IR printer (there is none) so optimizer losses can be seen before the
   emitter, and the probe's 22 configurations run on every IR variant the search admits, not
   only on the shipped plan.
+- **live-9's mechanism (7.47).** The region renderer carries an output-less effect as a comma
+  prefix on the *next* value's cache entry. Values that consumers inline by value -- constants,
+  anything in `inlined_values` -- never go through the cache, so an effect parked on one is
+  written and never read. It took a plan with the helper inlined and CSE off (so the arm held a
+  raw `Const` right after the store) to expose it; with a call in the arm the effect lived inside
+  the call and nothing was parked. The rule now: an effect waits for a value the consumers read
+  through the cache. The general lesson is the one from 7.40 in another form: a value the tree
+  serves by text or by value is invisible to whatever hangs state on the tree's entries.

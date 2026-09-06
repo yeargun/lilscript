@@ -6170,6 +6170,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         facts: Arc<crate::optimizer::IrFacts>,
     ) -> Self {
         crate::timing::FACTS_DELIVERED.event(facts.delivered() as u64);
+        // `LILSCRIPT_IR_DUMP=<path>`: the first module emitted, as the
+        // optimizer left it (migration 7.46).
+        if let Some(path) = std::env::var_os("LILSCRIPT_IR_DUMP") {
+            static ONCE: OnceLock<()> = OnceLock::new();
+            ONCE.get_or_init(|| {
+                let _ = std::fs::write(path, format!("{module:#?}"));
+            });
+        }
         // The witness needs the options that produce this emission; nothing
         // else reads this, and it is overwritten by the next emission on this
         // thread, which is exactly the scope a candidate has.
@@ -17355,7 +17363,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let mut dependencies = codegen_op_values(&instruction.op, &context.string_constants);
             let mut expression = self.render_instruction_op(instruction, context, cache)?;
             let mut observable = !context.instruction_can_defer(instruction);
-            if let Some((effect, effect_dependencies)) = pending_effect.take() {
+            // live-9 (migration 7.47): a pending effect rides as a comma prefix
+            // on the next value's cache entry, but a constant -- or any value
+            // in `inlined_values` -- is served by value, never from the cache,
+            // so a prefix attached to it was written and never read: the
+            // store vanished from the arm (`sideEffect(seed)||sideEffect(seed+1)`
+            // lost its second increment). The effect waits for a value the
+            // consumers read through the cache; a block that ends with it
+            // still pending is refused, as before.
+            let carries_effects = !matches!(instruction.op, ControlFlowOp::Const(_))
+                && !context.inlined_values.contains_key(&output);
+            if carries_effects {
+                if let Some((effect, effect_dependencies)) = pending_effect.take() {
                 *observable_operations = observable_operations.saturating_sub(1);
                 dependencies.extend(effect_dependencies);
                 let optional_access_code = expression.optional_access_code.take().map(|access| {
@@ -17368,6 +17387,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 expression = JsExpression::comma([effect, expression]);
                 expression.optional_access_code = optional_access_code;
                 observable = true;
+                }
             }
             cache.insert(output, expression);
             state.define(output, observable, dependencies);
@@ -27121,14 +27141,6 @@ pub(crate) fn emit_optimized_ir_js_frozen(
     integer_analysis: Arc<IntegerValueAnalysis>,
     facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<(String, FrozenModuleTree), CodegenError> {
-    // `LILSCRIPT_IR_DUMP=<path>`: the first module emitted, as the optimizer
-    // left it (migration 7.46: to tell an optimizer loss from the emitter's).
-    if let Some(path) = std::env::var_os("LILSCRIPT_IR_DUMP") {
-        static ONCE: OnceLock<()> = OnceLock::new();
-        ONCE.get_or_init(|| {
-            let _ = std::fs::write(path, format!("{module:#?}"));
-        });
-    }
     let (text, tree) =
         IrJsEmitter::with_facts(module, module_output, *options, integer_analysis, facts)
             .emit_with_tree()?;
