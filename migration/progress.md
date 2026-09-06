@@ -151,6 +151,8 @@ one worker; the current profile is under *Measurement facts*.
 
 | 7.18 | **live-15 fixed**: a raw `throw ..` expression statement becomes a `Throw` statement at the push hook, so no compaction reads it | jquerylil compiles and parses again (search off: 92,829 raw / 31,219 Brotli; the pool's search-on number follows in 7.19). Cases identical in every lane; twin 146/146; tests 1719; pool 292/292 on the typeof build |
 
+| 7.19 | jquerylil on the pool with the live-15 fix, the search on | **82,318 raw / 28,382 Brotli, against the pre-migration baseline `54e1948` at 86,072 / 28,764: −382 (−1.3%)** — the first giant measured on the branch, and the first end-state-style number: same source, same config, the tree's emitter beats the text-era one. markedlil and zodlil identical to 7.18; pool 292/292 |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |
