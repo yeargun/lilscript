@@ -6372,9 +6372,11 @@ fn finalize_javascript_candidates_with_parallelism(
     // that is not valid ECMAScript before late cleanup or terminal naming can
     // grant it selection authority. Late transforms are independently checked
     // by `validate_selected` and fall back to these known-valid bytes.
+    let mut parser_refusal = None::<String>;
     scored.retain(|candidate| match validate_generated_javascript_with_standard_parser(&candidate.code) {
         Ok(()) => true,
         Err(error) => {
+            parser_refusal.get_or_insert_with(|| format!("{error}"));
             // Phase 6 instrument: a folded finalist the standard parser
             // refuses names the error and is dumped.
             if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
@@ -6597,7 +6599,12 @@ fn finalize_javascript_candidates_with_parallelism(
     let selected = terminal_finalists.into_iter().next().ok_or_else(|| {
         crate::codegen_js::CodegenError::new(
             Span::empty(0),
-            "startup limits rejected every JavaScript candidate",
+            match &parser_refusal {
+                // The emitter's text failed the standards parser on every
+                // candidate: name it, it is a wrong program, not a budget.
+                Some(refusal) => format!("every JavaScript candidate was refused: {refusal}"),
+                None => "startup limits rejected every JavaScript candidate".to_string(),
+            },
         )
     })?;
     // The complete normal remap/cleanup pipeline above decides the structural

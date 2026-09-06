@@ -2066,16 +2066,11 @@ impl JsBlock {
         }
         for (index, emitted) in self.statements.iter().enumerate() {
             let mut text = emitted.render();
-            if !emitted.dropped_semicolon
-                && text.ends_with(';')
-                && statement_joins_sequence(&emitted.statement)
-                // A string literal opening the statement may be a directive
-                // prologue entry; sequencing would demote it to an expression.
-                && !text.starts_with(['"', '\''])
+            if text.ends_with(';')
                 && self
                     .statements
                     .get(index + 1)
-                    .is_some_and(|next| statement_joins_sequence(&next.statement))
+                    .is_some_and(|next| emitted_joins_next(emitted, next))
             {
                 text.pop();
                 text.push(',');
@@ -21147,6 +21142,28 @@ fn statement_joins_sequence(statement: &JsStatement) -> bool {
     )
 }
 
+/// Whether a statement may open a sequence: a bare string-literal statement
+/// may not, since as the first statement of a body it is a directive and as
+/// the head of a sequence it would stop being one. The printer and the
+/// braceless rule read this one predicate, so a run prints braceless only
+/// when every `;` in it really becomes a `,` (katexlil: a `for` body whose
+/// second statement began with `"kern"===…` printed braceless with a `;`
+/// inside, and its tail leaked into the `else`).
+fn statement_opens_sequence(statement: &JsStatement) -> bool {
+    match statement {
+        JsStatement::Expression { value } => !matches!(value.root, JsExpressionRoot::Str(_)),
+        JsStatement::Binding { keyword: None, .. } => true,
+        _ => false,
+    }
+}
+
+/// Whether the printer joins `first` to the statement after it.
+fn emitted_joins_next(first: &EmittedStatement, next: &EmittedStatement) -> bool {
+    !first.dropped_semicolon
+        && statement_opens_sequence(&first.statement)
+        && statement_joins_sequence(&next.statement)
+}
+
 /// Whether a statement can stand alone where a braceless body is wanted.
 fn statement_is_braceless(statement: &JsStatement) -> bool {
     match statement {
@@ -21216,12 +21233,14 @@ fn block_is_braceless(block: &JsBlock) -> bool {
     match block.statements.as_slice() {
         [] => false,
         [only] => statement_is_braceless(&only.statement),
-        // A run the printer joins into one sequence is one statement.
+        // A run the printer joins into one sequence is one statement: every
+        // consecutive pair joins, and the last keeps its `;`.
         run => {
             block.comma_join
-                && run.iter().all(|emitted| {
-                    statement_joins_sequence(&emitted.statement) && !emitted.dropped_semicolon
-                })
+                && run
+                    .windows(2)
+                    .all(|pair| emitted_joins_next(&pair[0], &pair[1]))
+                && !run.last().is_some_and(|last| last.dropped_semicolon)
         }
     }
 }
@@ -34078,6 +34097,29 @@ mod tests {
             },
         );
         assert!(braced.contains("){console.log(read())}else{barrier()}"), "{braced}");
+    }
+
+    #[test]
+    fn a_run_prints_braceless_only_when_every_pair_joins() {
+        // katexlil (7.29): the printer and the braceless rule must read one
+        // predicate, or a run prints braceless with a `;` inside it.
+        StatementPolicy {
+            comma_join: true,
+            control_braces: true,
+            ..StatementPolicy::NONE
+        }
+        .install();
+        let joined = block_of(vec![assign(None, "a", "1"), expression("\"k\"===b")]);
+        assert!(block_is_braceless(&joined));
+        assert_eq!(joined.render(), "a=1,\"k\"===b;");
+        let literals = LiteralTable::default();
+        let directive = JsStatement::Expression {
+            value: JsExpression::string_literal(&literals, "use strict", StringQuote::Double),
+        };
+        let kept = block_of(vec![directive, expression("f()")]);
+        assert!(!block_is_braceless(&kept));
+        assert_eq!(kept.render(), "\"use strict\";f();");
+        StatementPolicy::NONE.install();
     }
 
     #[test]
