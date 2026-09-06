@@ -390,3 +390,17 @@ this started.
   plan slots (`TerminalJavaScriptCandidateBudget::grant`); the second finishing, when the gate
   passes, extends the ledger by what the first cost (`extend`), so a win is finished on equal
   terms and a loss costs one emission's worth of probes.
+- **Print against print (7.39).** The unshaped print of the finalist's tree is not its emission
+  byte for byte (markedlil: 9,471 against 9,484 before finishing), so a shaped print judged
+  against the emission measures the print's drift, not the shape. The gate's incumbent is now the
+  unshaped print, one codec probe; a shaped print that beats it is finished and judged against the
+  artifact. With that, markedlil 9,178 → 9,169 and the ten heaviest ports −22 for +2% wall. The
+  drift itself is Phase 7′'s remaining debt: when the print *is* the artifact, there is nothing to
+  drift from.
+- **Concise closures have no tree (7.39).** `render_closure_body` renders `a=>a*7|0` as text and
+  `closure_node` finds no registered rendering, so the value is a `Raw` node: the collapse's
+  census sees its names as text (unsafe), the beta reduction sees no `Closure` callee, and the
+  rename pass cannot look inside. Registering concise closures as `ConciseNode` trees (head
+  pieces with binds, the body as an expression node) is the prerequisite for G4/G5's IIFE folds
+  (`fold_identity_arrow_iife` 104, `fold_zero_argument_return_iife` 31,
+  `fold_single_use_function_expressions` 61 on the cases) and would tighten every census.

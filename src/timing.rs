@@ -212,6 +212,9 @@ pub static SINGLE_USE_COLLAPSED: Bucket = Bucket::new("single_use_collapsed");
 pub static VOID_INITIALIZERS_DROPPED: Bucket = Bucket::new("void_initializers_dropped");
 /// Phase 6, G7: adjacent declarations merged into one list on the tree.
 pub static DECLARATIONS_MERGED: Bucket = Bucket::new("declarations_merged");
+/// Phase 6, G4/G5: concise closures called where they are built, reduced to
+/// their body with the arguments in place of the parameters.
+pub static IIFES_REDUCED: Bucket = Bucket::new("iifes_reduced");
 /// Phase 7d: naming-only plans served by a rename pass over a cached tree
 /// (sum: bindings re-spelled).
 pub static RENAME_REPRINTS: Bucket = Bucket::new("rename_reprints");
@@ -271,7 +274,7 @@ const BYTE_BUCKETS: [&Bucket; 18] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 64] = [
+const EVENT_BUCKETS: [&Bucket; 65] = [
     &RENAME_REPRINTS,
     &EMISSION_PEEPHOLE_WON,
     &EMISSION_PEEPHOLE_LOST,
@@ -282,6 +285,7 @@ const EVENT_BUCKETS: [&Bucket; 64] = [
     &SINGLE_USE_COLLAPSED,
     &VOID_INITIALIZERS_DROPPED,
     &DECLARATIONS_MERGED,
+    &IIFES_REDUCED,
     &PRUNED_DECLARATORS,
     &TERMINAL_KEYWORD_KEPT,
     &TERMINAL_KEYWORD_FLIPPED,

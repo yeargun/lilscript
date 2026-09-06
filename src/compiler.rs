@@ -5323,9 +5323,9 @@ fn terminal_shape_texts(
     module_output: bool,
     config: &ProjectConfig,
     contexts: &JavaScriptEmissionContexts<'_, '_>,
-) -> Vec<(crate::codegen_ir_js::IrJsOptions, String)> {
+) -> (Option<String>, Vec<(crate::codegen_ir_js::IrJsOptions, String)>) {
     if !config.terminal_shape_challengers_enabled() || parent.single_use_collapse {
-        return Vec::new();
+        return (None, Vec::new());
     }
     // 7.37 re-emitted the finalist's plan with the shape on and lost 71 to
     // 101 bytes on markedlil every time, with the shape doing nothing there:
@@ -5333,17 +5333,50 @@ fn terminal_shape_texts(
     // The challenger is that tree, collapsed, printed the way the plan
     // prints it.
     let Some((tree, rename)) = contexts.frozen_tree(context_id, module_output, parent) else {
-        return Vec::new();
+        return (None, Vec::new());
     };
-    let options = crate::codegen_ir_js::IrJsOptions {
-        single_use_collapse: true,
-        ..parent
-    };
-    vec![(options, tree.reprint_collapsed(&parent, rename))]
+    use crate::codegen_ir_js::TreeShapes;
+    // The unshaped print is the gate's incumbent: a print of the tree is
+    // not the emission byte for byte (7.33 knew), so a shaped print is
+    // judged against the unshaped one, print against print.
+    let unshaped = tree.reprint_reshaped(&parent, rename, TreeShapes::default());
+    let shapes = [
+        TreeShapes {
+            collapse: true,
+            ..TreeShapes::default()
+        },
+        TreeShapes {
+            for_init: true,
+            ..TreeShapes::default()
+        },
+        TreeShapes {
+            negated_arms: true,
+            ..TreeShapes::default()
+        },
+        TreeShapes {
+            collapse: true,
+            for_init: true,
+            negated_arms: true,
+        },
+    ];
+    let texts = shapes
+        .into_iter()
+        .map(|shape| {
+            let options = crate::codegen_ir_js::IrJsOptions {
+                single_use_collapse: shape.collapse,
+                hoist_for_initializers: shape.for_init,
+                negated_conditional_arms: shape.negated_arms,
+                ..parent
+            };
+            (options, tree.reprint_reshaped(&parent, rename, shape))
+        })
+        .filter(|(_, text)| *text != unshaped)
+        .collect();
+    (Some(unshaped), texts)
 }
 
 /// How many shape challengers `terminal_shape_texts` offers at most.
-const TERMINAL_SHAPE_CHALLENGERS: usize = 1;
+const TERMINAL_SHAPE_CHALLENGERS: usize = 4;
 
 fn terminal_string_pooling_options(
     parent: crate::codegen_ir_js::IrJsOptions,
@@ -6032,7 +6065,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     {
         // Nothing is printed, let alone emitted, when the ledger cannot
         // score it (a zero terminal budget skips every optional emission).
-        let shape_texts = if codec_budget.remaining() > 0 && terminal_budget.has_plan_slot() {
+        let (unshaped_print, shape_texts) = if codec_budget.remaining() > 0 && terminal_budget.has_plan_slot() {
             terminal_shape_texts(
                 shape_parent_options,
                 selected.plan_identity.context_id,
@@ -6041,7 +6074,14 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
                 contexts,
             )
         } else {
-            Vec::new()
+            (None, Vec::new())
+        };
+        // Print against print: the unshaped print's cost is the gate's
+        // incumbent when the ledger can score it.
+        let unshaped_cost = match (&unshaped_print, shape_texts.is_empty()) {
+            (Some(text), false) => codec_budget
+                .compressed_size(text.as_bytes(), config.javascript.cost_model)?,
+            _ => None,
         };
         let shape_candidates = score_terminal_javascript_challenger_texts(
             shape_texts,
@@ -6056,10 +6096,12 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
             // The gate: a shape must beat the incumbent *before* finishing,
             // where the two are on equal terms; then the one that does is
             // finished on the incumbent's finishing allowance.
-            let incumbent_before_finishing = pre_finishing_costs
-                .iter()
-                .find(|(identity, _)| *identity == selected.plan_identity)
-                .map_or(selected.transfer_cost, |(_, cost)| *cost);
+            let incumbent_before_finishing = unshaped_cost.unwrap_or_else(|| {
+                pre_finishing_costs
+                    .iter()
+                    .find(|(identity, _)| *identity == selected.plan_identity)
+                    .map_or(selected.transfer_cost, |(_, cost)| *cost)
+            });
             // Reported as the gate sees them: both before finishing. A
             // finished challenger overwrites its side below.
             terminal_shape_incumbent_bytes = Some(incumbent_before_finishing);
@@ -6087,8 +6129,10 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
                 true,
                 codec_budget,
             ) {
-                candidates_evaluated =
-                    candidates_evaluated.saturating_add(candidate.candidates_evaluated);
+                // A print of the finalist's tree is terminal work, not a
+                // structural candidate: it does not count against the
+                // search's candidate budget (the inlining probe's two-slot
+                // test holds the count at two).
                 terminal_shape_incumbent_bytes = Some(selected.transfer_cost);
                 terminal_shape_best_bytes = Some(candidate.transfer_cost);
                 terminal_shape_selected = finalized_javascript_candidate_precedes(
@@ -17862,6 +17906,10 @@ mod tests {
         .unwrap();
 
         let mut selected_config = javascript_oracle_config();
+        // The two slots are the structural search's; the terminal shape
+        // challengers (7.38) are prints outside it, and the naming family
+        // they can hand a new winner to would count against the two.
+        selected_config.javascript.terminal_shape_challengers = Some(false);
         selected_config.optimization.inlining = Some(false);
         selected_config.optimization.region_outlining = Some(false);
         selected_config.javascript.cost_model = CompressionCostModel::Brotli;

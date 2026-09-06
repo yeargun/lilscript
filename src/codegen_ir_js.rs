@@ -20670,7 +20670,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn closure_node(&self, rendered: String, precedence: JsPrecedence) -> JsExpression {
         match self.last_closure.borrow_mut().take() {
             Some((id, text)) if text == rendered => JsExpression::closure(id, rendered, precedence),
-            _ => JsExpression::raw(rendered, precedence),
+            other => {
+                if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                    let last = other.map(|(id, text)| format!("closure {} `{}`", id.0, &text[..text.len().min(50)]));
+                    eprintln!("[shape] closure_node raw: `{}` against {last:?}", &rendered[..rendered.len().min(50)]);
+                }
+                JsExpression::raw(rendered, precedence)
+            }
         }
     }
 
@@ -26430,7 +26436,10 @@ impl FrozenModuleTree {
     /// applied on the tree, printed under `options` exactly as the plan's
     /// own text is (its names re-spelled first when the plan re-spells
     /// them), so the incumbent and the challenger differ in the shape alone.
-    pub(crate) fn reprint_collapsed(&self, options: &IrJsOptions, rename: bool) -> String {
+    pub(crate) fn reprint_reshaped(&self, options: &IrJsOptions, rename: bool, shapes: TreeShapes) -> String {
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            eprintln!("[shape] reprint with {shapes:?}, rename {rename}");
+        }
         let mut tree = self.thaw();
         if rename {
             let scopes = ScopeCollector::module(&tree.closures, &tree.block);
@@ -26442,37 +26451,373 @@ impl FrozenModuleTree {
             let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
         }
-        tree.collapse();
+        tree.reshape(shapes);
         tree.reprint(options)
     }
 }
 
+/// Migration 7.39: the tree shapes a terminal challenger may apply to the
+/// finalist's frozen tree -- the ones that lose when they run on every
+/// emission (7.34: the collapse +128 on the fleet; 7.32: the for-init hoist
+/// +76 on markedlil, the negated arms +36 on micromark) and so are offered
+/// as prints, kept only when the codec says so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct TreeShapes {
+    pub(crate) collapse: bool,
+    pub(crate) for_init: bool,
+    pub(crate) negated_arms: bool,
+}
+
 impl ModuleTree {
-    /// The single-use collapse over the module block and every closure body
-    /// the tree holds, with one census over all of them (the binds are
-    /// module-wide ids). Closure bodies are collapsed against a snapshot of
-    /// the map, since the map is borrowed mutably while they are rewritten.
-    fn collapse(&mut self) {
-        // The module walk reaches every closure through its `Closure` node
-        // (nested ones through their parents), so one walk counts each read
-        // once; a second walk over the map would count them twice.
+    /// The shapes over the module block and every closure body the tree
+    /// holds (the bodies are rewritten against a snapshot of the map, since
+    /// the map is borrowed mutably while they are).
+    fn reshape(&mut self, shapes: TreeShapes) {
+        let snapshot = RefCell::new(self.closures.borrow().clone());
         let mut census = BindCensus::default();
         census.block(&self.block, &self.closures);
-        let snapshot = RefCell::new(self.closures.borrow().clone());
-        collapse_block(&mut self.block, &census, &self.closures);
-        drop_void_initializers(&mut self.block, &census);
-        merge_block_declarations(&mut self.block);
         let mut entries = std::mem::take(&mut *self.closures.borrow_mut());
-        for (_, (_, body)) in entries.iter_mut() {
-            if let JsFunctionBody::Block(block) = body {
-                collapse_block(block, &census, &snapshot);
-                drop_void_initializers(block, &census);
-                merge_block_declarations(block);
+        {
+            let mut bodies = entries
+                .iter_mut()
+                .filter_map(|(_, (_, body))| match body {
+                    JsFunctionBody::Block(block) => Some(block),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let mut blocks = vec![&mut self.block];
+            blocks.append(&mut bodies);
+            for block in blocks.iter_mut() {
+                if shapes.collapse {
+                    collapse_block(block, &census, &snapshot);
+                    let reduced = rewrite_block_expressions(block, &mut |node| {
+                        reduce_immediate_call(node, &census, &snapshot)
+                    });
+                    if reduced > 0 {
+                        crate::timing::IIFES_REDUCED.event(reduced as u64);
+                    }
+                    drop_void_initializers(block, &census);
+                    merge_block_declarations(block);
+                }
+                if shapes.negated_arms {
+                    rewrite_block_expressions(block, &mut swap_negated_arms);
+                }
+                if shapes.for_init {
+                    hoist_for_initializers_in_block(block);
+                }
             }
         }
         *self.closures.borrow_mut() = entries;
     }
 }
+
+/// Every expression a block owns, rewritten bottom-up by `rewrite` (which
+/// returns the replacement for a node, or `None` to keep it); nested blocks
+/// and function bodies included. Returns how many nodes were replaced.
+fn rewrite_block_expressions(
+    block: &mut JsBlock,
+    rewrite: &mut dyn FnMut(&JsExpression) -> Option<JsExpression>,
+) -> usize {
+    let mut count = 0usize;
+    for emitted in block.statements.iter_mut() {
+        if let Some(value) = statement_value_mut(&mut emitted.statement) {
+            if let Some((rewritten, n)) = rewrite_expression(value, rewrite) {
+                *value = rewritten;
+                count += n;
+            }
+        }
+        match &mut emitted.statement {
+            JsStatement::If {
+                condition,
+                condition_tree: Some(tree),
+                then_branch,
+                else_branch,
+            } => {
+                *condition = tree.clone().into_minimal();
+                count += rewrite_block_expressions(&mut then_branch.block, rewrite);
+                if let Some(else_branch) = else_branch {
+                    count += rewrite_block_expressions(&mut else_branch.block, rewrite);
+                }
+            }
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                count += rewrite_block_expressions(&mut then_branch.block, rewrite);
+                if let Some(else_branch) = else_branch {
+                    count += rewrite_block_expressions(&mut else_branch.block, rewrite);
+                }
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    if let Some(value) = &mut declarator.value {
+                        if let Some((rewritten, n)) = rewrite_expression(value, rewrite) {
+                            *value = rewritten;
+                            count += n;
+                        }
+                    }
+                    if let Some(function) = &mut declarator.function {
+                        if let JsFunctionBody::Block(body) = &mut function.as_mut().1 {
+                            count += rewrite_block_expressions(body, rewrite);
+                        }
+                    }
+                }
+            }
+            JsStatement::Loop { body, .. } => count += rewrite_block_expressions(&mut body.block, rewrite),
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                count += rewrite_block_expressions(body, rewrite);
+                if let Some(catch) = catch {
+                    count += rewrite_block_expressions(&mut catch.body, rewrite);
+                }
+                if let Some(finally) = finally {
+                    count += rewrite_block_expressions(finally, rewrite);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    count += rewrite_block_expressions(&mut case.body, rewrite);
+                }
+            }
+            JsStatement::Function {
+                body: JsFunctionBody::Block(body),
+                ..
+            } => count += rewrite_block_expressions(body, rewrite),
+            JsStatement::Class { members, .. } => count += rewrite_block_expressions(members, rewrite),
+            _ => {}
+        }
+    }
+    count
+}
+
+/// One expression rewritten bottom-up. `None` when nothing changed.
+fn rewrite_expression(
+    node: &JsExpression,
+    rewrite: &mut dyn FnMut(&JsExpression) -> Option<JsExpression>,
+) -> Option<(JsExpression, usize)> {
+    let mut count = 0usize;
+    let mut current = None;
+    match node.root {
+        JsExpressionRoot::Name(_)
+        | JsExpressionRoot::Atom
+        | JsExpressionRoot::Str(_)
+        | JsExpressionRoot::Bool(_)
+        | JsExpressionRoot::Raw
+        | JsExpressionRoot::Closure(_) => {}
+        _ => {
+            let children = node
+                .operands
+                .iter()
+                .map(|operand| rewrite_expression(operand, rewrite))
+                .collect::<Vec<_>>();
+            if children.iter().any(Option::is_some) {
+                count += children.iter().filter_map(|child| child.as_ref().map(|(_, n)| *n)).sum::<usize>();
+                let child = |index: usize| {
+                    children[index]
+                        .as_ref()
+                        .map_or_else(|| node.operands[index].clone(), |(rewritten, _)| rewritten.clone())
+                };
+                current = Some(node.rebuilt_with(JsRenderOptions::UNUSED, &child));
+            }
+        }
+    }
+    let here = current.as_ref().unwrap_or(node);
+    if let Some(rewritten) = rewrite(here) {
+        return Some((rewritten, count + 1));
+    }
+    current.map(|current| (current, count))
+}
+
+/// `!c?a:b` is `c?b:a` (`fold_negated_conditional_arms`), on a finished tree.
+fn swap_negated_arms(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Conditional || node.operands.len() != 3 {
+        return None;
+    }
+    let condition = &node.operands[0];
+    if condition.root != JsExpressionRoot::Unary(JsUnary::Not) {
+        return None;
+    }
+    let inner = condition.unary_operand()?.clone();
+    let then_value = node.operands[1].clone();
+    let else_value = node.operands[2].clone();
+    Some(node.rebuilt_with(JsRenderOptions::UNUSED, &|index| match index {
+        0 => inner.clone(),
+        1 => else_value.clone(),
+        _ => then_value.clone(),
+    }))
+}
+
+/// Whether an expression holds a closure anywhere below it.
+fn expression_has_closure(node: &JsExpression) -> bool {
+    matches!(node.root, JsExpressionRoot::Closure(_)) || node.operands.iter().any(expression_has_closure)
+}
+
+/// `((a,b)=>a*b|0)(6,7)` is `6*7|0` (`fold_identity_arrow_iife`): a concise
+/// closure called where it is built, its parameters simple names the body
+/// never writes, every argument a literal or a name never written again, no
+/// closure inside the body to capture a parameter -- then the arguments take
+/// the parameters' places and the call is the body.
+fn reduce_immediate_call(
+    node: &JsExpression,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Call {
+        return None;
+    }
+    let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
+    let (callee, args) = node.operands.split_first()?;
+    let JsExpressionRoot::Closure(id) = callee.root else {
+        if trace && callee.code.contains("=>") {
+            eprintln!("[shape] call on a non-closure callee root {:?}: {}", callee.root, &node.code[..node.code.len().min(80)]);
+        }
+        return None;
+    };
+    let Some((head, body)) = closures.borrow().get(&id).cloned() else {
+        if trace {
+            eprintln!("[shape] closure {} not in the map", id.0);
+        }
+        return None;
+    };
+    let JsFunctionBody::ConciseNode(body) = body else {
+        if trace {
+            eprintln!("[shape] closure {} body is not a concise node: {}", id.0, match &body { JsFunctionBody::Concise(text) => format!("text `{text}`"), JsFunctionBody::Block(_) => "block".to_string(), JsFunctionBody::ConciseNode(_) => unreachable!() });
+        }
+        return None;
+    };
+    if expression_has_closure(&body) {
+        if trace {
+            eprintln!("[shape] closure {} body holds a closure", id.0);
+        }
+        return None;
+    }
+    let mut params = Vec::new();
+    for piece in &head.pieces {
+        match piece {
+            JsHeadPiece::Name(bind, _) => params.push(*bind),
+            JsHeadPiece::Text(text)
+                if text
+                    .bytes()
+                    .all(|byte| matches!(byte, b'(' | b')' | b',' | b'=' | b'>' | b' ')) => {}
+            other => {
+                if trace {
+                    eprintln!("[shape] closure {} head piece refused: {other:?}", id.0);
+                }
+                return None;
+            }
+        }
+    }
+    if params.len() != args.len() {
+        if trace {
+            eprintln!("[shape] closure {}: {} params, {} args", id.0, params.len(), args.len());
+        }
+        return None;
+    }
+    let mut body_census = BindCensus::default();
+    body_census.expression(&body, closures);
+    for (param, arg) in params.iter().zip(args) {
+        if body_census.writes.contains_key(param) {
+            return None;
+        }
+        let pure = expression_is_pure_literal(arg)
+            || match arg.root {
+                JsExpressionRoot::Name(source) => {
+                    census.writes.get(&source).copied() == Some(1)
+                        && !census.unsafe_names.contains(&arg.code)
+                }
+                _ => false,
+            };
+        if !pure {
+            if trace {
+                eprintln!("[shape] closure {}: argument `{}` is not pure", id.0, arg.code);
+            }
+            return None;
+        }
+    }
+    let mut result = body;
+    for (param, arg) in params.iter().zip(args) {
+        if let Some(substituted) = substitute_bind(&result, *param, arg) {
+            result = substituted;
+        }
+    }
+    Some(result)
+}
+
+/// `x=1;for(;c;u)..` is `for(x=1;c;u)..` (`fold_prior_assign_into_for_init`),
+/// on a finished block: the push-time hoist, run over each loop in turn.
+fn hoist_for_initializers_in_block(block: &mut JsBlock) {
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let is_for = matches!(
+            &block.statements[index].statement,
+            JsStatement::Loop {
+                head: JsLoopHead::For {
+                    initializer: None,
+                    ..
+                },
+                do_condition: None,
+                ..
+            }
+        );
+        if is_for && index > 0 {
+            let rest = block.statements.split_off(index + 1);
+            let emitted = block.statements.pop().expect("the loop statement");
+            let before = block.statements.len();
+            let hoisted = block.hoist_for_initializer(emitted.statement);
+            let taken = before - block.statements.len();
+            block.statements.push(EmittedStatement {
+                statement: hoisted,
+                options: emitted.options,
+                dropped_semicolon: emitted.dropped_semicolon,
+            });
+            block.statements.extend(rest);
+            index -= taken;
+        }
+        match &mut block.statements[index].statement {
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                hoist_for_initializers_in_block(&mut then_branch.block);
+                if let Some(else_branch) = else_branch {
+                    hoist_for_initializers_in_block(&mut else_branch.block);
+                }
+            }
+            JsStatement::Loop { body, .. } => hoist_for_initializers_in_block(&mut body.block),
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                hoist_for_initializers_in_block(body);
+                if let Some(catch) = catch {
+                    hoist_for_initializers_in_block(&mut catch.body);
+                }
+                if let Some(finally) = finally {
+                    hoist_for_initializers_in_block(finally);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    hoist_for_initializers_in_block(&mut case.body);
+                }
+            }
+            JsStatement::Function {
+                body: JsFunctionBody::Block(body),
+                ..
+            } => hoist_for_initializers_in_block(body),
+            JsStatement::Class { members, .. } => hoist_for_initializers_in_block(members),
+            _ => {}
+        }
+        index += 1;
+    }
+}
+
 
 /// The emission and its frozen tree, for the search's re-prints.
 pub(crate) fn emit_optimized_ir_js_frozen(
