@@ -418,3 +418,15 @@ this started.
   `fold-census.sh` reads roughly double (`fold_expression_self_assignments` 69 → 150). Residue
   is measured with `LILSCRIPT_TERMINAL_SHAPES=0`; the doubled numbers are not new work for the
   tree.
+- **The fold report sees `session.run`, not direct calls (7.42).** Two folds the report called
+  idle everywhere are called by name from the compiler's repair and canonical paths
+  (`fold_redundant_null_undefined_or`, `fold_dead_identifier_copy_declarators`, lines 8822 and
+  10999 of `compiler.rs`), and `fold_empty_comma_operators` is a helper of a class fold. A fold
+  is deletable when it is idle *and* `grep` finds no caller outside its registration; the
+  `delete-batch.py` dry run reports registrations, the build reports the rest.
+- **With closures as trees the everywhere collapse turns (7.43).** 7.34's +128 over 20 ports
+  becomes −286 over nine of the ten heaviest -- the census that counted closure names as unsafe
+  text was refusing most of the wins -- and one port, katexlil, loses 736 with the search on
+  while gaining search-off. That port's terminal ledger is exhausted on every run (`terminal
+  work 256/274`), so which plan finishes first decides the artifact by hundreds of bytes: the
+  7e re-derivation is now the blocker for flipping a measured-good default, not the shape.
