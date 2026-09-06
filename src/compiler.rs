@@ -9302,7 +9302,7 @@ fn late_javascript_cleanup_finalists(
         }
     }
     'cleanup_rounds: for _ in 0..ROUNDS {
-        for pass in LateJavaScriptCleanupPass::ALL {
+        for pass in LateJavaScriptCleanupPass::ladder().iter().copied() {
             // Skipping a rewrite is a first-class branch. In particular, a
             // raw-byte reduction is not assumed to help either dictionary
             // codec, and a codec win in one artifact is not generalized to

@@ -465,3 +465,14 @@ this started.
   the call and nothing was parked. The rule now: an effect waits for a value the consumers read
   through the cache. The general lesson is the one from 7.40 in another form: a value the tree
   serves by text or by value is invisible to whatever hangs state on the tree's entries.
+- **The ladder's passes and the tree's shapes are not the same set (7.50).** Cutting the eleven
+  cleanup passes with a tree twin read +629 on the ten heaviest ports, jquerylil +496; the five
+  control shapes restored brought jquerylil to −9 and one port needed one more:
+  `BooleanConditionalValues`, and in its early slot -- the tree's `boolean_arms` sees the
+  construction-time `true`/`false`, the text fold sees the printed `!0`/`!1` after the
+  compact-literal print, so its work only exists on the finished text. Two facts to carry: a tree
+  shape at construction and a codec-verified rewrite of the finished text are different
+  opportunities even when they spell the same rule, and a pass's position in the ladder is part
+  of its identity (the same pass at the end of the ladder was worth nothing). The measurement
+  loop for the next tranches is now cheap: `LILSCRIPT_CLEANUP_LADDER=Name,..` on the pool, one
+  port, one pass, a minute each.

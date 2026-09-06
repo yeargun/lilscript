@@ -2943,7 +2943,36 @@ pub(crate) enum LateJavaScriptCleanupPass {
 }
 
 impl LateJavaScriptCleanupPass {
-    pub(crate) const ALL: [Self; 18] = [
+    /// Migration 7.50: the ladder without the passes the tree carries. Five
+    /// left -- the negated arms (the shape print), `a?a:b` (`ident_or`, on
+    /// every emission), the two IIFE folds (the print's beta reduction) and
+    /// the unused-var strip (the prune) -- each measured alone on the port
+    /// that lost most when all eleven twins went, and each neutral or a win
+    /// there. `BooleanConditionalValues` stays, and stays in its slot: rehype
+    /// lost 106 without it and lost the same with it moved to the end of the
+    /// ladder -- the tree's `boolean_arms` sees construction-time literals,
+    /// the text fold sees the printed `!0`/`!1`. The five control shapes
+    /// stay too (jquerylil +496 without them: the shapes the tree writes and
+    /// the ladder's codec-verified rewrites of them are not the same set).
+    pub(crate) const ALL: [Self; 13] = [
+        Self::ConditionalReturnTails,
+        Self::GuardReturnExpressionSuffixes,
+        Self::BooleanConditionalValues,
+        Self::UnitCounterUpdates,
+        Self::EarlyExitGuards,
+        Self::ContinueTailGuards,
+        Self::SingleStatementControlBraces,
+        Self::NegatedEqualities,
+        Self::NullNormalizedNullableTests,
+        Self::OrAssignmentParens,
+        Self::ArgumentsLengthCountdownFor,
+        Self::CanonicalLeafSyntax,
+        Self::SameBindingStrictEquality,
+    ];
+
+    /// The ladder as it was before 7.50, for an A/B
+    /// (`LILSCRIPT_CLEANUP_TWINS=1` runs it).
+    pub(crate) const LADDER_WITH_TWINS: [Self; 18] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::NegatedConditionalArms,
@@ -2963,6 +2992,32 @@ impl LateJavaScriptCleanupPass {
         Self::CanonicalLeafSyntax,
         Self::SameBindingStrictEquality,
     ];
+
+    /// The ladder in force: the twins-free list; the old one under
+    /// `LILSCRIPT_CLEANUP_TWINS=1`; or exactly the passes named in
+    /// `LILSCRIPT_CLEANUP_LADDER=Name,Name,..` (the variants' names, for a
+    /// per-pass A/B without a rebuild).
+    pub(crate) fn ladder() -> &'static [Self] {
+        static CHOSEN: std::sync::OnceLock<Vec<LateJavaScriptCleanupPass>> = std::sync::OnceLock::new();
+        if let Ok(names) = std::env::var("LILSCRIPT_CLEANUP_LADDER") {
+            return CHOSEN.get_or_init(|| {
+                names
+                    .split(',')
+                    .filter_map(|name| {
+                        Self::LADDER_WITH_TWINS
+                            .iter()
+                            .copied()
+                            .find(|pass| format!("{pass:?}") == name.trim())
+                    })
+                    .collect()
+            });
+        }
+        if std::env::var_os("LILSCRIPT_CLEANUP_TWINS").is_some() {
+            &Self::LADDER_WITH_TWINS
+        } else {
+            &Self::ALL
+        }
+    }
 
     const fn objective_only(self) -> bool {
         matches!(
@@ -3116,7 +3171,7 @@ fn late_generated_javascript_cleanup_pass_into(
 fn late_generated_javascript_cleanup_into(
     session: &mut RewriteSession,
 ) -> Result<(), JavaScriptParseError> {
-    for pass in LateJavaScriptCleanupPass::ALL {
+    for pass in LateJavaScriptCleanupPass::ladder().iter().copied() {
         late_generated_javascript_cleanup_pass_into(session, pass)?;
     }
     session.run(declare_implicit_assignment_bindings)?;
@@ -3126,7 +3181,7 @@ fn late_generated_javascript_cleanup_into(
 fn canonical_late_generated_javascript_cleanup_into(
     session: &mut RewriteSession,
 ) -> Result<(), JavaScriptParseError> {
-    for pass in LateJavaScriptCleanupPass::ALL {
+    for pass in LateJavaScriptCleanupPass::ladder().iter().copied() {
         if !pass.objective_only() {
             late_generated_javascript_cleanup_pass_into(session, pass)?;
         }
