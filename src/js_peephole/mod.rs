@@ -1868,37 +1868,6 @@ fn validate_for_heads(tokens: &[Token<'_>]) -> Result<(), JavaScriptParseError> 
     Ok(())
 }
 
-fn generated_identifier_is_binding(
-    tokens: &[Token<'_>],
-    matching_close: &[Option<usize>],
-    index: usize,
-) -> bool {
-    if identifier_is_arrow_parameter(tokens, index)
-        || identifier_is_function_parameter(tokens, matching_close, index)
-        || identifier_is_catch_parameter(tokens, matching_close, index)
-    {
-        return true;
-    }
-    let previous = index
-        .checked_sub(1)
-        .map(|prev| tokens[prev].text)
-        .unwrap_or(";");
-    if matches!(
-        previous,
-        "var" | "let" | "const" | "function" | "class" | "catch"
-    ) {
-        return true;
-    }
-    if previous == "*"
-        && index
-            .checked_sub(2)
-            .is_some_and(|prev| tokens[prev].text == "function")
-    {
-        return true;
-    }
-    previous == "," && assign_is_in_declaration(tokens, index)
-}
-
 fn generated_identifier_is_ambient(name: &str) -> bool {
     matches!(
         name,
@@ -2789,7 +2758,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_assignment_guards)?;
     session.run(fold_guarded_assign_into_call_predicate)?;
     session.run(fold_index_postfix_updates)?;
-    session.run(fold_guarded_and_addends)?;
     session.run(fold_unit_counter_updates)?;
     session.run(fold_while_true_unit_increment_bounds)?;
     session.run(fold_int32_coercions)?;
@@ -2811,13 +2779,11 @@ fn optimize_generated_javascript_pass(
     session.run(fold_chained_identifier_assigns)?;
     session.run_if(elide_functions, fold_single_use_function_values)?;
     session.run(fold_prefix_increment_for_bounds)?;
-    session.run(fold_increment_infinite_for_bounds)?;
     session.run(fold_dead_initializer_reassigns)?;
     session.run(fold_void_then_reassign)?;
     session.run(strip_void_initializer_before_write)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_assigned_index_for_conditions)?;
-    session.run(fold_index_scan_for_headers)?;
     session.run(fold_statement_or_assigns)?;
     session.run(fold_statement_negated_ors)?;
     session.run(fold_chained_comma_assigns)?;
@@ -2826,10 +2792,8 @@ fn optimize_generated_javascript_pass(
     session.run(fold_prior_assign_into_for_init)?;
     session.run(fold_arguments_length_countdown_for)?;
     session.run(fold_arguments_length_zero_after_decrement)?;
-    session.run(fold_predicate_reassign_same_expr)?;
     session.run(fold_arguments_length_eq_zero_to_not)?;
     session.run(fold_integer_neq_zero_in_boolean)?;
-    session.run(fold_guarded_uninitialized_assign)?;
     session.run(fold_identity_arrow_iife)?;
     session.run(fold_empty_ternary_then_comma)?;
     session.repeat(fold_single_use_if_assigns, 6)?;
@@ -2856,7 +2820,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_dead_pure_identifier_assigns)?;
     session.run_if(pristine_builtins, fold_self_receiver_calls)?;
     session.repeat(fold_self_assignment_chains, 6)?;
-    session.run(fold_conditional_assigned_false_phi)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_uninitialized_var_into_assign)?;
     session.repeat(fold_expression_branches, 4)?;
@@ -2870,7 +2833,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_copied_member_presence)?;
     session.run(fold_integer_neq_zero_in_boolean)?;
     session.run(fold_assigned_truthy_ternaries)?;
-    session.run(fold_console_log_conditionals)?;
     session.run(fold_arrow_guard_returns)?;
     session.run(fold_conditional_return_tails)?;
     session.run(fold_returned_temporaries)?;
@@ -2930,7 +2892,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_undefined_defaults_into_formals)?;
     session.run(drop_redundant_class_constructor_guards)?;
     session.run(remove_unused_standalone_vars)?;
-    session.run(drop_orphaned_class_identity_guards)?;
     session.repeat(fold_single_use_temporaries, 4)?;
     session.run(fold_returned_temporaries)?;
     session.run(remove_unused_standalone_vars)?;
@@ -2944,11 +2905,28 @@ fn optimize_generated_javascript_pass(
     } else {
         lex(&session.code)?
     };
-    let final_nesting = validate_delimiters(&final_tokens)?;
-    validate_generated_declaration_syntax(&session.code, &final_tokens)?;
-    validate_generated_bare_arrow_parameters(&final_tokens)?;
-    validate_unique_top_level_bindings(&final_tokens)?;
-    validate_class_body_members(&final_tokens)?;
+    let validated = (|| -> Result<usize, JavaScriptParseError> {
+        let final_nesting = validate_delimiters(&final_tokens)?;
+        validate_generated_declaration_syntax(&session.code, &final_tokens)?;
+        validate_generated_bare_arrow_parameters(&final_tokens)?;
+        validate_unique_top_level_bindings(&final_tokens)?;
+        validate_class_body_members(&final_tokens)?;
+        Ok(final_nesting)
+    })();
+    let final_nesting = match validated {
+        Ok(nesting) => nesting,
+        Err(error) => {
+            // Phase 6 instrument: a pass whose folded text fails the final
+            // validation names the error and dumps the text.
+            if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                eprintln!("[peephole-refused] final validation: {error:?}");
+                if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                    let _ = std::fs::write(path, &session.code);
+                }
+            }
+            return Err(error);
+        }
+    };
     let final_parsed = parse_expression_regions(&final_tokens);
     let metrics = syntax_metrics(&session.code, &final_tokens, &final_parsed, final_nesting);
     Ok(PeepholeResult {
@@ -3273,7 +3251,18 @@ impl RewriteSession {
             return Ok(());
         }
         let started = crate::timing::enabled().then(std::time::Instant::now);
-        let (next, count) = fold(&self.code)?;
+        let (next, count) = match fold(&self.code) {
+            Ok(folded) => folded,
+            Err(error) => {
+                if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                    eprintln!("[peephole-refused] fold {name} failed: {error:?}");
+                    if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                        let _ = std::fs::write(path, &self.code);
+                    }
+                }
+                return Err(error);
+            }
+        };
         if let Some(started) = started {
             let elapsed = started.elapsed().as_nanos() as u64;
             let bucket = if count == 0 {
@@ -3437,4 +3426,35 @@ fn verify_fold(fold: &str, before: &str, after: &str) {
         &after[start..error.offset],
         &after[error.offset..end],
     );
+}
+
+fn generated_identifier_is_binding(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    index: usize,
+) -> bool {
+    if identifier_is_arrow_parameter(tokens, index)
+        || identifier_is_function_parameter(tokens, matching_close, index)
+        || identifier_is_catch_parameter(tokens, matching_close, index)
+    {
+        return true;
+    }
+    let previous = index
+        .checked_sub(1)
+        .map(|prev| tokens[prev].text)
+        .unwrap_or(";");
+    if matches!(
+        previous,
+        "var" | "let" | "const" | "function" | "class" | "catch"
+    ) {
+        return true;
+    }
+    if previous == "*"
+        && index
+            .checked_sub(2)
+            .is_some_and(|prev| tokens[prev].text == "function")
+    {
+        return true;
+    }
+    previous == "," && assign_is_in_declaration(tokens, index)
 }

@@ -1249,22 +1249,112 @@ thread_local! {
 struct StatementPolicy {
     unit_updates: bool,
     assignment_guards: bool,
+    /// Phase 6, G1: adjacent expression statements inside a block are one
+    /// comma sequence (`fold_adjacent_expression_statements`).
+    comma_join: bool,
+    /// Phase 6, G4: `x=E;x=x OP B;` is `x=E OP B;` (`fold_self_assignment_chains`).
+    self_assignment_chain: bool,
+    /// Phase 6, G2: a branch whose block is one statement (a joined run
+    /// counts as one) prints braceless; an `else` whose block is one `if`
+    /// prints `else if` (`fold_single_statement_control_braces`).
+    control_braces: bool,
+    /// Phase 6, G5: `if(a)return x;if(b)return y;return z` is
+    /// `return a?x:b?y:z` (`fold_conditional_return_tails`).
+    return_tails: bool,
+    /// Phase 6, G5: `if(c){A;continue}B` at the loop body's level is
+    /// `if(c){A}else{B}` (`fold_continue_tail_guards`).
+    continue_tails: bool,
+    /// Phase 6, G5: `if(c)return;S` at the function's end is `if(!c){S}`,
+    /// `if(c)continue;S` at the loop body's end likewise
+    /// (`fold_early_exit_guards`).
+    early_exits: bool,
+    /// Phase 6, G3: `while(c){B;i++}` is `for(;c;i++)B` when no `continue`
+    /// targets the loop (`fold_while_trailing_increments`,
+    /// `fold_for_trailing_increments`).
+    trailing_increments: bool,
+    /// Phase 6, G4: `c?x=a:x=b` is `x=c?a:b` (`fold_same_lvalue_ternary`).
+    same_target_conditional: bool,
+    /// Phase 6, G3: the assignments and `var` list before a `for` with an
+    /// empty initializer move into it (`fold_prior_assign_into_for_init`).
+    for_init: bool,
+    /// The option the shapes above honour when they choose braces.
+    braceless_control_bodies: bool,
+}
+
+fn env_name_list(variable: &'static str) -> Vec<String> {
+    std::env::var(variable)
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// `LILSCRIPT_SKIP_PORTS=comma_join,unit_updates,…` turns an emitter-side
+/// port off at run time -- the emitter's `LILSCRIPT_SKIP_FOLDS`, so a batch
+/// of ports is bisected on one binary.
+fn port_is_skipped(name: &str) -> bool {
+    static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    NAMES
+        .get_or_init(|| env_name_list("LILSCRIPT_SKIP_PORTS"))
+        .iter()
+        .any(|skipped| skipped == name)
+}
+
+/// `LILSCRIPT_PORTS=for_init,…` turns on a port that ships off: one the
+/// fleet measured as a loss in the emitter's hands while the text fold it
+/// replaces still runs (the owner's rule: a default flips on a measured win).
+fn port_is_enabled(name: &str) -> bool {
+    static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    NAMES
+        .get_or_init(|| env_name_list("LILSCRIPT_PORTS"))
+        .iter()
+        .any(|enabled| enabled == name)
 }
 
 impl StatementPolicy {
     const NONE: Self = Self {
         unit_updates: false,
         assignment_guards: false,
+        comma_join: false,
+        self_assignment_chain: false,
+        control_braces: false,
+        return_tails: false,
+        continue_tails: false,
+        early_exits: false,
+        trailing_increments: false,
+        same_target_conditional: false,
+        for_init: false,
+        braceless_control_bodies: false,
     };
 
-    /// Both shapes are written exactly where the text peephole would have
-    /// written them: on a compile that runs it. A port that ships without
+    /// Every shape is written exactly where the text peephole would have
+    /// written it: on a compile that runs it. A port that ships without
     /// the peephole keeps the spelling its search chose (zodlil read +49
-    /// when the unit update reached its postfix variants unasked).
+    /// when the unit update reached its postfix variants unasked), and the
+    /// none lane stays the emitter's plain text.
     fn of(options: &IrJsOptions) -> Self {
+        let port = |name: &str| options.text_peephole && !port_is_skipped(name);
+        // Off until the fleet says otherwise: markedlil with the search on read
+        // 9,316 without the hoist and 9,392 with it (the text fold still runs).
+        let port_off = |name: &str| options.text_peephole && port_is_enabled(name);
         Self {
-            unit_updates: options.text_peephole,
-            assignment_guards: options.text_peephole,
+            unit_updates: port("unit_updates"),
+            assignment_guards: port("assignment_guards"),
+            comma_join: port("comma_join"),
+            self_assignment_chain: port("self_assignment_chain"),
+            control_braces: port("control_braces"),
+            return_tails: port("return_tails"),
+            continue_tails: port("continue_tails"),
+            early_exits: port("early_exits"),
+            trailing_increments: port("trailing_increments"),
+            same_target_conditional: port("same_target_conditional"),
+            for_init: port_off("for_init"),
+            braceless_control_bodies: options.braceless_control_bodies,
         }
     }
 
@@ -1897,6 +1987,11 @@ struct JsBlock {
     /// are not inside any braces. Only the module block set by `build_module`
     /// is; every nested block is a body.
     top_level: bool,
+    /// Phase 6, G1: whether this block's adjacent expression statements print
+    /// as one sequence. Read from the policy when the block is made, on the
+    /// emitting thread, and carried by the tree: a re-print on another
+    /// thread (the pool's candidate re-prints) must print the same text.
+    comma_join: bool,
 }
 
 /// The longest needle the counters track. A needle completed across a join
@@ -1925,19 +2020,24 @@ fn count_needle(haystack: &[u8], needle: &[u8]) -> usize {
 
 impl JsBlock {
     fn new() -> Self {
-        Self::default()
+        Self {
+            comma_join: StatementPolicy::current().comma_join,
+            ..Self::default()
+        }
     }
 
     /// The block's text: every statement rendered as it was pushed, minus
     /// the terminators the block-close elision dropped.
     fn render(&self) -> String {
-        if !self.top_level {
-            return self.statements.iter().map(EmittedStatement::render).collect();
-        }
         // Phase 6, G1: at module level adjacent expression statements are
         // spelled as one sequence, `a(),b()` -- the separator is a rendering
         // decision (`fold_top_level_adjacent_expression_statements` ran once,
         // last), so the list keeps both statements and only the printer joins.
+        // Inside a block the join is `fold_adjacent_expression_statements`,
+        // written only where that fold ran.
+        if !self.top_level && !self.comma_join {
+            return self.statements.iter().map(EmittedStatement::render).collect();
+        }
         let mut rendered = String::new();
         if statement_trace_enabled() {
             eprintln!(
@@ -2007,6 +2107,7 @@ impl JsBlock {
             ends_with_semicolon: false,
             trailing_bare_return: false,
             top_level: false,
+            comma_join: self.comma_join,
         }
     }
 
@@ -2033,6 +2134,7 @@ impl JsBlock {
             ends_with_semicolon: false,
             trailing_bare_return: false,
             top_level: self.top_level,
+            comma_join: self.comma_join,
         };
         for emitted in self.statements.iter().skip(index) {
             kept.push_statement_with(emitted.statement.clone(), emitted.options);
@@ -2171,6 +2273,19 @@ impl JsBlock {
         // Phase 6, chain head: `a=f();if(a)` is `if(a=f())` here, where the
         // assignment and the condition are still nodes (`fold_assignment_guards`).
         let policy = StatementPolicy::current();
+        // Phase 6, G3: a loop's trailing unit update moves into its head.
+        let statement = if policy.trailing_increments {
+            lift_trailing_increment(statement, policy.braceless_control_bodies)
+        } else {
+            statement
+        };
+        // Phase 6, G3: `a=0;for(;c;u)` is `for(a=0;c;u)`, and `var a=0,b;for(;c;u)`
+        // is `for(var a=0,b;c;u)` (`fold_prior_assign_into_for_init`).
+        let statement = if policy.for_init {
+            self.hoist_for_initializer(statement)
+        } else {
+            statement
+        };
         if policy.assignment_guards {
             if let Some(merged) = self.merge_assignment_guard(&statement) {
                 self.pop_statement();
@@ -2190,6 +2305,13 @@ impl JsBlock {
             }
             other => other,
         };
+        // Phase 6, G4: `x=E;x=x OP B;` is `x=E OP B;` (`fold_self_assignment_chains`).
+        if policy.self_assignment_chain {
+            if let Some(merged) = self.merge_self_assignment_chain(&statement) {
+                self.pop_statement();
+                return self.push_statement_with(merged, options);
+            }
+        }
         // Phase 6, chain head: `x=x+1|0;` is `x++;` (`fold_unit_counter_updates`).
         let statement = if policy.unit_updates {
             unit_counter_update(statement)
@@ -2212,6 +2334,164 @@ impl JsBlock {
         self.trailing_bare_return = bare_return;
         if twin_witness_enabled() {
             crate::timing::STATEMENT_NODE.event(1);
+        }
+    }
+
+    /// `a=0;b=1;for(;c;u)` is `for(a=0,b=1;c;u)`; `var a=0,b;for(;c;u)` is
+    /// `for(var a=0,b;c;u)`. Plain assignments (no comma, assignment or
+    /// conditional at the value's root) and `var` lists only: a `let` in the
+    /// head would bind per iteration.
+    fn hoist_for_initializer(&mut self, statement: JsStatement) -> JsStatement {
+        let JsStatement::Loop {
+            head:
+                JsLoopHead::For {
+                    initializer: None,
+                    condition,
+                    condition_tree,
+                    update,
+                },
+            body,
+            do_condition: None,
+            do_condition_tree: None,
+        } = statement
+        else {
+            return statement;
+        };
+        let mut parts = Vec::<String>::new();
+        let mut taken = 0usize;
+        let mut declared = false;
+        for emitted in self.statements.iter().rev() {
+            if emitted.dropped_semicolon {
+                break;
+            }
+            match &emitted.statement {
+                JsStatement::Binding {
+                    keyword: None,
+                    name,
+                    value,
+                    ..
+                } if !expression_is_structural(value) && !declared => {
+                    parts.push(format!("{name}={}", strip_outer_parens(value.clone())));
+                    taken += 1;
+                }
+                JsStatement::Declarators {
+                    keyword: "var ",
+                    declarators,
+                } if parts.is_empty()
+                    && declarators.iter().all(|declarator| {
+                        declarator.function.is_none()
+                            && declarator
+                                .value
+                                .as_ref()
+                                .is_none_or(|value| !expression_is_structural(value))
+                    }) =>
+                {
+                    parts.push(
+                        declarators
+                            .iter()
+                            .map(|declarator| declarator.clone().render())
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    );
+                    declared = true;
+                    taken += 1;
+                    break;
+                }
+                _ => break,
+            }
+        }
+        if taken == 0 {
+            return JsStatement::Loop {
+                head: JsLoopHead::For {
+                    initializer: None,
+                    condition,
+                    condition_tree,
+                    update,
+                },
+                body,
+                do_condition: None,
+                do_condition_tree: None,
+            };
+        }
+        for _ in 0..taken {
+            self.pop_statement();
+        }
+        parts.reverse();
+        let initializer = if declared {
+            format!("var {}", parts.join(","))
+        } else {
+            parts.join(",")
+        };
+        JsStatement::Loop {
+            head: JsLoopHead::For {
+                initializer: Some(initializer),
+                condition,
+                condition_tree,
+                update,
+            },
+            body,
+            do_condition: None,
+            do_condition_tree: None,
+        }
+    }
+
+    /// `x=E;x=x OP B;` is `x=E OP B;` (`fold_self_assignment_chains`): the
+    /// second assignment reads the first as the leftmost leaf of its right
+    /// side, so the leaf can be the expression itself. The first may be a
+    /// plain assignment, a `var x=E`, or the last declarator of a list.
+    fn merge_self_assignment_chain(&self, incoming: &JsStatement) -> Option<JsStatement> {
+        let JsStatement::Binding {
+            keyword: None,
+            name,
+            bind: Some(bind),
+            value,
+        } = incoming
+        else {
+            return None;
+        };
+        let last = self.statements.last()?;
+        if last.dropped_semicolon {
+            return None;
+        }
+        match &last.statement {
+            JsStatement::Binding {
+                keyword,
+                name: previous_name,
+                bind: Some(previous_bind),
+                value: first,
+            } if previous_bind == bind && previous_name == name => {
+                let merged = merge_self_assignment_value(first, *bind, name, value)?;
+                Some(JsStatement::Binding {
+                    keyword: *keyword,
+                    name: name.clone(),
+                    bind: Some(*bind),
+                    value: merged,
+                })
+            }
+            JsStatement::Declarators {
+                keyword,
+                declarators,
+            } => {
+                let (last_declarator, _) = declarators.split_last()?;
+                if last_declarator.bind != Some(*bind)
+                    || last_declarator.name != *name
+                    || last_declarator.function.is_some()
+                {
+                    return None;
+                }
+                let first = last_declarator.value.as_ref()?;
+                let merged = merge_self_assignment_value(first, *bind, name, value)?;
+                let mut declarators = declarators.clone();
+                declarators
+                    .last_mut()
+                    .expect("the list has a last declarator")
+                    .value = Some(merged);
+                Some(JsStatement::Declarators {
+                    keyword,
+                    declarators,
+                })
+            }
+            _ => None,
         }
     }
 
@@ -2649,6 +2929,585 @@ fn unreferenced_declarator_test(tree: &ScopeTree) -> impl Fn(Bind, &str) -> bool
 /// (`prune_unreferenced_declarators`). A statement that loses its last
 /// declarator goes with it; a block-terminal `;` the printer had dropped
 /// moves to the statement now last.
+/// Whether `node` reads `bind` anywhere; text the tree does not own counts
+/// as a read.
+fn expression_reads_bind(node: &JsExpression, bind: Bind) -> bool {
+    match node.root {
+        JsExpressionRoot::Name(read) => read == bind,
+        JsExpressionRoot::Raw | JsExpressionRoot::Closure(_) => true,
+        _ => node
+            .operands
+            .iter()
+            .any(|operand| expression_reads_bind(operand, bind)),
+    }
+}
+
+fn expression_is_structural(node: &JsExpression) -> bool {
+    matches!(
+        node.root,
+        JsExpressionRoot::Comma | JsExpressionRoot::Assign | JsExpressionRoot::Conditional
+    )
+}
+
+/// `x=E` then `x=x OP B` as `x=E OP B`: the merged right side, when the
+/// second assignment reads `x` only as the leftmost leaf and neither side
+/// carries a comma, assignment or conditional at its root.
+fn merge_self_assignment_value(
+    first: &JsExpression,
+    bind: Bind,
+    name: &str,
+    second: &JsExpression,
+) -> Option<JsExpression> {
+    let JsExpressionRoot::Binary(op) = second.root else {
+        return None;
+    };
+    let [lhs, rhs] = second.operands.as_slice() else {
+        return None;
+    };
+    if lhs.root != JsExpressionRoot::Name(bind)
+        || lhs.code != name
+        || expression_reads_bind(rhs, bind)
+        || expression_is_structural(rhs)
+        || expression_is_structural(first)
+    {
+        return None;
+    }
+    Some(JsExpression::binary_in_order(op, first.clone(), rhs.clone()))
+}
+
+/// The same merge inside a sequence: `(x=E,x=x OP B)` is `(x=E OP B)`.
+fn merge_assignment_chain_operands(operands: Vec<JsExpression>) -> Vec<JsExpression> {
+    let mut merged = Vec::<JsExpression>::with_capacity(operands.len());
+    for node in operands {
+        if let Some(previous) = merged.last() {
+            if previous.root == JsExpressionRoot::Assign && node.root == JsExpressionRoot::Assign {
+                if let ([first_target, first], [second_target, second]) =
+                    (previous.operands.as_slice(), node.operands.as_slice())
+                {
+                    if let JsExpressionRoot::Name(bind) = first_target.root {
+                        if second_target.root == JsExpressionRoot::Name(bind)
+                            && second_target.code == first_target.code
+                        {
+                            if let Some(value) =
+                                merge_self_assignment_value(first, bind, &first_target.code, second)
+                            {
+                                let target = first_target.clone();
+                                merged.pop();
+                                merged.push(JsExpression::assign(target, value));
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        merged.push(node);
+    }
+    merged
+}
+
+/// Phase 6, G3: `while(c){B;i++}` is `for(;c;i++)B` and `for(i;c;){B;i++}`
+/// is `for(i;c;i++)B`, when the update is the body's last statement, the
+/// body has more than that statement, and no `continue` targets the loop
+/// (a `continue` would skip the update in the body and run it in the head).
+fn lift_trailing_increment(statement: JsStatement, braceless: bool) -> JsStatement {
+    let JsStatement::Loop {
+        head,
+        body,
+        do_condition: None,
+        do_condition_tree: None,
+    } = statement
+    else {
+        return statement;
+    };
+    let liftable = matches!(head, JsLoopHead::While { .. } | JsLoopHead::For { update: None, .. });
+    let is_unit_update = |value: &JsExpression| {
+        matches!(value.root, JsExpressionRoot::Update(_))
+            && value
+                .operands
+                .first()
+                .is_some_and(|target| matches!(target.root, JsExpressionRoot::Name(_)))
+    };
+    // The update is the body's last statement, or the last operand of the
+    // sequence that is the body's last statement (`a,b,i++`).
+    let update = if liftable && !body.block.statements.is_empty() {
+        match &body.block.statements.last().expect("a statement").statement {
+            JsStatement::Expression { value }
+                if is_unit_update(value) && body.block.statements.len() >= 2 =>
+            {
+                Some((value.code.clone(), None))
+            }
+            JsStatement::Expression { value }
+                if value.root == JsExpressionRoot::Comma
+                    && value.operands.last().is_some_and(is_unit_update) =>
+            {
+                let update = value.operands.last().expect("an operand").code.clone();
+                let rest = value.operands[..value.operands.len() - 1].to_vec();
+                let rest = if rest.len() == 1 {
+                    rest.into_iter().next().expect("one operand")
+                } else {
+                    JsExpression::comma(rest)
+                };
+                Some((update, Some(rest)))
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let Some((update, remainder)) = update.filter(|_| !block_continues_its_loop(&body.block)) else {
+        return JsStatement::Loop {
+            head,
+            body,
+            do_condition: None,
+            do_condition_tree: None,
+        };
+    };
+    let mut block = body.block;
+    let gone = block.statements.pop().expect("the update was the last statement");
+    if let Some(rest) = remainder {
+        block.statements.push(EmittedStatement {
+            statement: JsStatement::Expression { value: rest },
+            options: gone.options,
+            dropped_semicolon: false,
+        });
+    }
+    settle_block_tail(&mut block, gone.dropped_semicolon);
+    let head = match head {
+        JsLoopHead::While {
+            condition,
+            condition_tree,
+        } => JsLoopHead::For {
+            initializer: None,
+            condition: Some(condition),
+            condition_tree,
+            update: Some(update),
+        },
+        JsLoopHead::For {
+            initializer,
+            condition,
+            condition_tree,
+            update: None,
+        } => JsLoopHead::For {
+            initializer,
+            condition,
+            condition_tree,
+            update: Some(update),
+        },
+        _ => unreachable!("liftable heads are while and update-less for"),
+    };
+    JsStatement::Loop {
+        head,
+        body: JsBranch::body(block, braceless),
+        do_condition: None,
+        do_condition_tree: None,
+    }
+}
+
+/// `x=>{return v}` is `x=>v`: an arrow whose body became a single `return`
+/// (the return tails folded into one) prints concise.
+fn concise_single_return(head: &JsHead, body: JsFunctionBody) -> JsFunctionBody {
+    let is_arrow = matches!(
+        head.pieces.last(),
+        Some(JsHeadPiece::Text(text)) if text.ends_with("=>")
+    );
+    if !is_arrow {
+        return body;
+    }
+    match body {
+        JsFunctionBody::Block(block)
+            if matches!(
+                block.statements.as_slice(),
+                [only] if matches!(only.statement, JsStatement::Return { value: Some(_) })
+            ) =>
+        {
+            let Some(JsStatement::Return { value: Some(value) }) =
+                block.statements.into_iter().next().map(|only| only.statement)
+            else {
+                unreachable!("matched a single return")
+            };
+            JsFunctionBody::ConciseNode(value)
+        }
+        other => other,
+    }
+}
+
+/// Whether a `continue` in `block` targets the loop the block is the body
+/// of: nested loops own theirs, nested functions and classes are elsewhere.
+fn block_continues_its_loop(block: &JsBlock) -> bool {
+    block.statements.iter().any(|emitted| match &emitted.statement {
+        JsStatement::Continue => true,
+        JsStatement::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            block_continues_its_loop(&then_branch.block)
+                || else_branch
+                    .as_ref()
+                    .is_some_and(|branch| block_continues_its_loop(&branch.block))
+        }
+        JsStatement::Try {
+            body,
+            catch,
+            finally,
+        } => {
+            block_continues_its_loop(body)
+                || catch
+                    .as_ref()
+                    .is_some_and(|catch| block_continues_its_loop(&catch.body))
+                || finally
+                    .as_ref()
+                    .is_some_and(block_continues_its_loop)
+        }
+        JsStatement::Switch { cases, .. } => cases
+            .iter()
+            .any(|case| block_continues_its_loop(&case.body)),
+        _ => false,
+    })
+}
+
+/// After the block's last statement was removed: the terminator bookkeeping
+/// the push kept, recomputed for the new last statement. `dropped` is the
+/// removed statement's `dropped_semicolon`, which the new last inherits when
+/// it can (the block-close elision applied to whatever ends the block).
+fn settle_block_tail(block: &mut JsBlock, dropped: bool) {
+    if let Some(last) = block.statements.last_mut() {
+        if dropped && !last.dropped_semicolon && last.render().ends_with(';') {
+            last.dropped_semicolon = true;
+        }
+    }
+    let last = block.statements.last();
+    block.ends_with_semicolon =
+        last.is_some_and(|last| statement_is_terminated(&last.statement, last.dropped_semicolon));
+    block.trailing_bare_return =
+        last.is_some_and(|last| matches!(last.statement, JsStatement::Return { value: None }));
+}
+
+/// A block holding `statements` split off `parent`.
+fn block_of_statements(parent: &JsBlock, statements: Vec<EmittedStatement>) -> JsBlock {
+    let mut block = parent.nested();
+    block.statements = statements;
+    settle_block_tail(&mut block, false);
+    block
+}
+
+/// What follows the end of a block: the loop's next iteration, the
+/// function's implicit `return`, or something else.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShapeContext {
+    Module,
+    FunctionBody,
+    LoopBody,
+    Other,
+}
+
+/// A statement that must not move into a nested block: block-scoped
+/// declarations, and the declarations sloppy mode treats specially.
+fn statement_is_block_scoped(statement: &JsStatement) -> bool {
+    match statement {
+        JsStatement::Declaration { keyword, .. } | JsStatement::DeclarationGroup { keyword, .. } => {
+            *keyword != "var "
+        }
+        JsStatement::Declarators { keyword, .. } => *keyword != "var ",
+        JsStatement::Binding {
+            keyword: Some(keyword),
+            ..
+        } => *keyword != "var ",
+        JsStatement::Function { .. }
+        | JsStatement::Class { .. }
+        | JsStatement::ClassField { .. }
+        | JsStatement::Import { .. }
+        | JsStatement::Export { .. } => true,
+        _ => false,
+    }
+}
+
+/// Phase 6, G2/G5 on one block, children first: the control shapes the text
+/// folds wrote after the emitter had finished.
+fn shape_block(block: &mut JsBlock, policy: StatementPolicy, context: ShapeContext) {
+    let count = block.statements.len();
+    for (index, emitted) in block.statements.iter_mut().enumerate() {
+        // A branch that ends the block ends what the block ended.
+        let tail_context = if index + 1 == count
+            && matches!(context, ShapeContext::FunctionBody | ShapeContext::LoopBody)
+        {
+            context
+        } else {
+            ShapeContext::Other
+        };
+        match &mut emitted.statement {
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    if let Some(function) = &mut declarator.function {
+                        let (head, body) = function.as_mut();
+                        if let JsFunctionBody::Block(block) = body {
+                            shape_block(block, policy, ShapeContext::FunctionBody);
+                        }
+                        if policy.return_tails {
+                            let taken =
+                                std::mem::replace(body, JsFunctionBody::Concise(String::new()));
+                            *body = concise_single_return(head, taken);
+                        }
+                    }
+                }
+            }
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                shape_block(&mut then_branch.block, policy, tail_context);
+                if let Some(else_branch) = else_branch {
+                    shape_block(&mut else_branch.block, policy, tail_context);
+                }
+            }
+            JsStatement::Function { head, body, .. } => {
+                if let JsFunctionBody::Block(block) = body {
+                    shape_block(block, policy, ShapeContext::FunctionBody);
+                }
+                if policy.return_tails {
+                    let taken = std::mem::replace(body, JsFunctionBody::Concise(String::new()));
+                    *body = concise_single_return(head, taken);
+                }
+            }
+            JsStatement::Loop { body, .. } => {
+                shape_block(&mut body.block, policy, ShapeContext::LoopBody);
+            }
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                shape_block(body, policy, ShapeContext::Other);
+                if let Some(catch) = catch {
+                    shape_block(&mut catch.body, policy, ShapeContext::Other);
+                }
+                if let Some(finally) = finally {
+                    shape_block(finally, policy, ShapeContext::Other);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    shape_block(&mut case.body, policy, ShapeContext::Other);
+                }
+            }
+            JsStatement::Class { members, .. } => {
+                shape_block(members, policy, ShapeContext::Other);
+            }
+            _ => {}
+        }
+    }
+    if policy.return_tails {
+        fold_return_tails(block);
+    }
+    if policy.continue_tails && context == ShapeContext::LoopBody {
+        fold_continue_tails(block, policy, context);
+    }
+    if policy.early_exits && matches!(context, ShapeContext::FunctionBody | ShapeContext::LoopBody) {
+        fold_early_exit(block, policy, context);
+    }
+    if policy.control_braces && policy.braceless_control_bodies {
+        for emitted in block.statements.iter_mut() {
+            match &mut emitted.statement {
+                JsStatement::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    then_branch.braceless = block_is_braceless(&then_branch.block)
+                        && (else_branch.is_none() || !block_can_absorb_else(&then_branch.block));
+                    if let Some(else_branch) = else_branch {
+                        else_branch.braceless = block_is_braceless(&else_branch.block)
+                            || block_is_single_if(&else_branch.block);
+                    }
+                }
+                JsStatement::Loop { head, body, .. }
+                    if !matches!(head, JsLoopHead::DoWhile { .. }) =>
+                {
+                    body.braceless = block_is_braceless(&body.block);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+/// `if(a)return x;if(b)return y;return z` is `return a?x:b?y:z`, and a
+/// closing `if(c)return x;else return y` is `return c?x:y`.
+fn fold_return_tails(block: &mut JsBlock) {
+    let returned = |statement: &JsStatement| match statement {
+        JsStatement::Return { value: Some(value) } => Some(value.clone()),
+        _ => None,
+    };
+    let branch_returns = |branch: &JsBranch| match branch.block.statements.as_slice() {
+        [only] => returned(&only.statement),
+        _ => None,
+    };
+    let mut changed = false;
+    if let Some(last) = block.statements.last() {
+        if let JsStatement::If {
+            condition_tree: Some(condition),
+            then_branch,
+            else_branch: Some(else_branch),
+            ..
+        } = &last.statement
+        {
+            if let (Some(then_value), Some(else_value)) =
+                (branch_returns(then_branch), branch_returns(else_branch))
+            {
+                let value = JsExpression::conditional(condition.clone(), then_value, else_value);
+                let options = last.options;
+                block.statements.pop();
+                block.statements.push(EmittedStatement {
+                    statement: JsStatement::Return { value: Some(value) },
+                    options,
+                    dropped_semicolon: false,
+                });
+                changed = true;
+            }
+        }
+    }
+    loop {
+        let count = block.statements.len();
+        if count < 2 {
+            break;
+        }
+        let Some(tail) = returned(&block.statements[count - 1].statement) else {
+            break;
+        };
+        let JsStatement::If {
+            condition_tree: Some(condition),
+            then_branch,
+            else_branch: None,
+            ..
+        } = &block.statements[count - 2].statement
+        else {
+            break;
+        };
+        let Some(then_value) = branch_returns(then_branch) else {
+            break;
+        };
+        let value = JsExpression::conditional(condition.clone(), then_value, tail);
+        let options = block.statements[count - 1].options;
+        block.statements.truncate(count - 2);
+        block.statements.push(EmittedStatement {
+            statement: JsStatement::Return { value: Some(value) },
+            options,
+            dropped_semicolon: false,
+        });
+        changed = true;
+    }
+    if changed {
+        settle_block_tail(block, false);
+    }
+}
+
+/// At the loop body's level: a closing `continue` is the next iteration
+/// anyway, and `if(c){A;continue}B` is `if(c){A}else{B}`.
+fn fold_continue_tails(block: &mut JsBlock, policy: StatementPolicy, context: ShapeContext) {
+    if block
+        .statements
+        .last()
+        .is_some_and(|last| matches!(last.statement, JsStatement::Continue))
+    {
+        let gone = block.statements.pop().expect("a last statement");
+        settle_block_tail(block, gone.dropped_semicolon);
+    }
+    let count = block.statements.len();
+    for index in 0..count.saturating_sub(1) {
+        let candidate = match &block.statements[index].statement {
+            JsStatement::If {
+                then_branch,
+                else_branch: None,
+                ..
+            } => {
+                then_branch.block.statements.len() >= 2
+                    && then_branch
+                        .block
+                        .statements
+                        .last()
+                        .is_some_and(|last| matches!(last.statement, JsStatement::Continue))
+            }
+            _ => false,
+        };
+        if !candidate {
+            continue;
+        }
+        let rest = block.statements.drain(index + 1..).collect::<Vec<_>>();
+        let mut else_block = block_of_statements(block, rest);
+        shape_block(&mut else_block, policy, context);
+        let JsStatement::If {
+            then_branch,
+            else_branch,
+            ..
+        } = &mut block.statements[index].statement
+        else {
+            unreachable!("the candidate is an if");
+        };
+        let mut then_block = std::mem::take(&mut then_branch.block);
+        let gone = then_block.statements.pop().expect("the continue");
+        settle_block_tail(&mut then_block, gone.dropped_semicolon);
+        *then_branch = JsBranch::before_else(then_block, policy.braceless_control_bodies);
+        *else_branch = Some(JsBranch::body(else_block, policy.braceless_control_bodies));
+        settle_block_tail(block, false);
+        break;
+    }
+}
+
+/// At the function's end, `if(c)return;S` is `if(!c){S}`; at the loop
+/// body's end, `if(c)continue;S` likewise. `S` must hold no block-scoped
+/// declaration, since it moves into a block.
+fn fold_early_exit(block: &mut JsBlock, policy: StatementPolicy, context: ShapeContext) {
+    let count = block.statements.len();
+    for index in 0..count.saturating_sub(1) {
+        let candidate = match &block.statements[index].statement {
+            JsStatement::If {
+                condition_tree: Some(_),
+                then_branch,
+                else_branch: None,
+                ..
+            } => match then_branch.block.statements.as_slice() {
+                [only] => match (&only.statement, context) {
+                    (JsStatement::Return { value: None }, ShapeContext::FunctionBody) => true,
+                    (JsStatement::Continue, ShapeContext::LoopBody) => true,
+                    _ => false,
+                },
+                _ => false,
+            },
+            _ => false,
+        };
+        if !candidate
+            || block.statements[index + 1..]
+                .iter()
+                .any(|emitted| statement_is_block_scoped(&emitted.statement))
+        {
+            continue;
+        }
+        let rest = block.statements.drain(index + 1..).collect::<Vec<_>>();
+        let mut then_block = block_of_statements(block, rest);
+        shape_block(&mut then_block, policy, context);
+        let JsStatement::If {
+            condition,
+            condition_tree,
+            then_branch,
+            ..
+        } = &mut block.statements[index].statement
+        else {
+            unreachable!("the candidate is an if");
+        };
+        let negated = condition_tree
+            .take()
+            .expect("the candidate carries a tree")
+            .negated_tree();
+        *condition = negated.clone().into_minimal();
+        *condition_tree = Some(negated);
+        *then_branch = JsBranch::body(then_block, policy.braceless_control_bodies);
+        settle_block_tail(block, false);
+        break;
+    }
+}
+
 fn prune_block_declarators(block: &mut JsBlock, dead: &dyn Fn(Bind, &str) -> bool) -> usize {
     let mut removed = 0usize;
     let mut index = 0usize;
@@ -3057,6 +3916,25 @@ impl JsExpression {
     }
 
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
+        // Phase 6, G4: `c?x=a:x=b` is `x=c?a:b` (`fold_same_lvalue_ternary`).
+        if StatementPolicy::current().same_target_conditional
+            && then_value.root == JsExpressionRoot::Assign
+            && else_value.root == JsExpressionRoot::Assign
+        {
+            if let ([then_target, then_inner], [else_target, else_inner]) =
+                (then_value.operands.as_slice(), else_value.operands.as_slice())
+            {
+                if then_target.code == else_target.code
+                    && then_target.root == else_target.root
+                    && !matches!(then_target.root, JsExpressionRoot::Raw)
+                {
+                    return Self::assign(
+                        then_target.clone(),
+                        Self::conditional(condition, then_inner.clone(), else_inner.clone()),
+                    );
+                }
+            }
+        }
         let operands = vec![condition, then_value, else_value];
         // Derived, not authored: `render` is the only place this text is formed.
         let code = render(JsExpressionRoot::Conditional, &operands, JsRenderOptions::UNUSED)
@@ -3090,6 +3968,18 @@ impl JsExpression {
     }
 
     fn comma(expressions: impl IntoIterator<Item = Self>) -> Self {
+        let operands = expressions.into_iter().collect::<Vec<_>>();
+        let operands = if StatementPolicy::current().self_assignment_chain {
+            merge_assignment_chain_operands(operands)
+        } else {
+            operands
+        };
+        Self::comma_unmerged(operands)
+    }
+
+    /// The sequence exactly as given, no chain merged: what the text path
+    /// spells, for the twin comparison against it.
+    fn comma_unmerged(expressions: impl IntoIterator<Item = Self>) -> Self {
         let operands = expressions.into_iter().collect::<Vec<_>>();
         let code = render(JsExpressionRoot::Comma, &operands, JsRenderOptions::UNUSED)
             .expect("render covers Comma");
@@ -3487,13 +4377,6 @@ impl JsExpression {
             }
         }
         self
-    }
-
-    /// A branch/loop already applies JavaScript's ToBoolean operation. Keep
-    /// explicit negation, but do not spell redundant boolean coercions at the
-    /// point where the value is consumed as a condition.
-    fn into_condition(self) -> String {
-        self.normalized_for_condition().into_minimal()
     }
 
     fn negated(self) -> String {
@@ -4331,9 +5214,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn emit_traced(mut self) -> Result<(String, ModuleTree), CodegenError> {
-        StatementPolicy::of(&self.options).install();
+        let policy = StatementPolicy::of(&self.options);
+        policy.install();
         let mut out = self.build_module()?;
         self.prune_unreferenced_declarators(&mut out);
+        // Phase 6, G2/G5: the control shapes the text folds wrote last, on the
+        // finished tree (branches are built before their tails are known).
+        if policy.control_braces || policy.return_tails || policy.continue_tails || policy.early_exits
+        {
+            shape_block(&mut out, policy, ShapeContext::Module);
+        }
         if twin_witness_enabled() {
             self.witness_identity_respell(&out);
         }
@@ -18610,7 +19500,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     /// An inlined closure as text: the `Function` node rendered with this
     /// emitter's options. Closures are expressions, never terminated.
-    fn render_closure_statement(&self, head: JsHead, body: JsFunctionBody) -> String {
+    fn render_closure_statement(&self, head: JsHead, mut body: JsFunctionBody) -> String {
+        // Phase 6: a closure is rendered when it is built, before the module's
+        // shaping pass, so its body takes the shapes here (the stored tree
+        // carries them into every re-print).
+        let policy = StatementPolicy::current();
+        if let JsFunctionBody::Block(block) = &mut body {
+            if policy.control_braces || policy.return_tails || policy.continue_tails || policy.early_exits
+            {
+                shape_block(block, policy, ShapeContext::FunctionBody);
+            }
+        }
+        if policy.return_tails {
+            body = concise_single_return(&head, body);
+        }
         let id = ClosureId(self.next_closure_id.get());
         self.next_closure_id.set(id.0 + 1);
         self.closure_trees
@@ -19414,46 +20317,6 @@ fn replace_identifier(expression: &str, from: &str, to: &str) -> String {
     output
 }
 
-fn merge_conditional_assignments<'a>(
-    then_output: &'a str,
-    else_output: &'a str,
-) -> Option<(bool, &'a str, &'a str, &'a str, &'a str)> {
-    let (then_declare, then_target, then_value, then_trailing) =
-        parse_single_assignment(then_output)?;
-    let (else_declare, else_target, else_value, else_trailing) =
-        parse_single_assignment(else_output)?;
-    if !then_trailing.is_empty() && !else_trailing.is_empty() && then_trailing != else_trailing {
-        return None;
-    }
-    (then_target == else_target).then_some((
-        then_declare || else_declare,
-        then_target,
-        then_value,
-        else_value,
-        if then_trailing.is_empty() {
-            else_trailing
-        } else {
-            then_trailing
-        },
-    ))
-}
-
-fn conditional_assignment_expression<'a>(
-    then_output: &'a str,
-    else_output: &'a str,
-) -> Option<(&'a str, &'a str, &'a str, &'a str)> {
-    let (then_declare, then_target, then_value, then_trailing) =
-        parse_single_assignment(then_output)?;
-    let (else_declare, else_target, else_value, else_trailing) =
-        parse_single_assignment(else_output)?;
-    (!then_declare
-        && !else_declare
-        && then_trailing.is_empty()
-        && else_trailing.is_empty()
-        && then_target != else_target)
-        .then_some((then_target, then_value, else_target, else_value))
-}
-
 fn push_logical_operand_text(out: &mut String, value: &str, parent: IrBinaryOp) {
     let needs_parentheses = logical_operand_needs_parentheses(value, parent);
     if needs_parentheses {
@@ -19968,32 +20831,6 @@ fn split_top_level_logical(expression: &str, op: IrBinaryOp) -> Option<(&str, &s
     None
 }
 
-fn optional_method_reassign<'a>(
-    condition: &'a str,
-    then_output: &'a str,
-) -> Option<(&'a str, &'a str, &'a str)> {
-    let (declare, target, value, trailing) = parse_single_assignment(then_output)?;
-    if declare || !trailing.is_empty() {
-        return None;
-    }
-    let condition = condition.strip_prefix("!!").unwrap_or(condition);
-    let condition = condition
-        .strip_prefix('(')
-        .and_then(|value| value.strip_suffix(')'))
-        .unwrap_or(condition);
-    if !condition.starts_with(target) {
-        return None;
-    }
-    let member = &condition[target.len()..];
-    if !(member.starts_with('.') || member.starts_with('[')) {
-        return None;
-    }
-    if value != format!("{condition}()") {
-        return None;
-    }
-    Some((target, condition, value))
-}
-
 fn parse_single_assignment(output: &str) -> Option<(bool, &str, &str, &str)> {
     let statement = output.strip_suffix(';')?;
     let (declare, statement) = statement
@@ -20215,17 +21052,25 @@ fn statement_can_absorb_else(statement: &JsStatement) -> bool {
 }
 
 fn block_is_braceless(block: &JsBlock) -> bool {
-    let [only] = block.statements.as_slice() else {
-        return false;
-    };
-    statement_is_braceless(&only.statement)
+    match block.statements.as_slice() {
+        [] => false,
+        [only] => statement_is_braceless(&only.statement),
+        // A run the printer joins into one sequence is one statement.
+        run => {
+            block.comma_join
+                && run.iter().all(|emitted| {
+                    statement_joins_sequence(&emitted.statement) && !emitted.dropped_semicolon
+                })
+        }
+    }
 }
 
-fn block_is_comma_eligible(block: &JsBlock) -> bool {
-    let [only] = block.statements.as_slice() else {
-        return false;
-    };
-    statement_expression_text(&only.statement).is_some()
+/// `else{if(c)..}` is `else if(c)..`: a lone `if` needs no braces after `else`.
+fn block_is_single_if(block: &JsBlock) -> bool {
+    matches!(
+        block.statements.as_slice(),
+        [only] if matches!(only.statement, JsStatement::If { .. })
+    )
 }
 
 fn block_compact_branch_expression(block: &JsBlock) -> Option<String> {
@@ -20258,12 +21103,14 @@ fn block_compact_arm_node(block: &JsBlock, expected: &str) -> Option<JsExpressio
         .iter()
         .map(|emitted| statement_expression_node(&emitted.statement))
         .collect::<Option<Vec<_>>>()?;
-    let node = if nodes.len() == 1 {
-        nodes.into_iter().next()?
-    } else {
-        JsExpression::comma(nodes)
-    };
-    (node.clone().into_minimal() == expected).then_some(node)
+    if nodes.len() == 1 {
+        let node = nodes.into_iter().next()?;
+        return (node.clone().into_minimal() == expected).then_some(node);
+    }
+    // The text path spells the sequence unmerged; the node may merge its
+    // assignment chain (`x=a,x=x+b` as `x=a+b`) once the twin agrees.
+    let unmerged = JsExpression::comma_unmerged(nodes.clone());
+    (unmerged.into_minimal() == expected).then(|| JsExpression::comma(nodes))
 }
 
 fn block_compact_void_expression(block: &JsBlock) -> Option<String> {
@@ -20470,33 +21317,6 @@ fn block_single_assignment(block: &JsBlock) -> Option<(bool, String, String, Vec
     statement_single_assignment(&only.statement)
 }
 
-fn block_merge_conditional_assignments(
-    then_block: &JsBlock,
-    else_block: &JsBlock,
-) -> Option<(bool, String, String, String, Vec<JsDeclarator>)> {
-    let (then_declare, then_target, then_value, then_trailing) = block_single_assignment(then_block)?;
-    let (else_declare, else_target, else_value, else_trailing) = block_single_assignment(else_block)?;
-    if !then_trailing.is_empty()
-        && !else_trailing.is_empty()
-        && then_trailing.iter().map(|d| d.clone().render()).ne(else_trailing.iter().map(|d| d.clone().render()))
-    {
-        return None;
-    }
-    (then_target == else_target).then(|| {
-        (
-            then_declare || else_declare,
-            then_target,
-            then_value,
-            else_value,
-            if then_trailing.is_empty() {
-                else_trailing
-            } else {
-                then_trailing
-            },
-        )
-    })
-}
-
 fn block_conditional_assignment_expression(
     then_block: &JsBlock,
     else_block: &JsBlock,
@@ -20634,107 +21454,6 @@ fn block_parse_assignment_guard_return(block: &JsBlock) -> Option<OwnedAssignmen
         }
         _ => None,
     }
-}
-
-fn is_braceless_statement(output: &str) -> bool {
-    let statement = output.strip_suffix(';').unwrap_or(output);
-    if statement.is_empty()
-        || expression_has_top_level_statement_break(statement)
-        || statement.starts_with('{')
-        || statement.starts_with("var ")
-        || statement.starts_with("let ")
-        || statement.starts_with("const ")
-        || statement.starts_with("function ")
-        || statement.starts_with("class ")
-        || statement.starts_with("if(")
-    {
-        return false;
-    }
-    if let Some(body) = for_or_while_header_body(statement) {
-        let body = body
-            .strip_prefix('{')
-            .and_then(|value| value.strip_suffix('}'))
-            .map(str::trim)
-            .filter(|inner| !inner.is_empty())
-            .unwrap_or(body);
-        return is_braceless_statement(body);
-    }
-    !statement.starts_with("for(") && !statement.starts_with("while(")
-}
-
-fn for_or_while_header_body(statement: &str) -> Option<&str> {
-    let rest = statement
-        .strip_prefix("for(")
-        .or_else(|| statement.strip_prefix("while("))?;
-    let mut depth = 1i32;
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, character) in rest.char_indices() {
-        if let Some(active) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active {
-                quote = None;
-            }
-            continue;
-        }
-        if matches!(character, '\'' | '"' | '`') {
-            quote = Some(character);
-            continue;
-        }
-        match character {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(rest[index + character.len_utf8()..].trim_start());
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-fn starts_with_js_keyword(output: &str, keyword: &str) -> bool {
-    let Some(rest) = output.strip_prefix(keyword) else {
-        return false;
-    };
-    rest.as_bytes()
-        .first()
-        .is_none_or(|byte| !is_js_identifier_byte(*byte))
-}
-
-fn index_of_closing_paren(source: &str) -> Option<usize> {
-    let mut depth = 1usize;
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, byte) in source.bytes().enumerate() {
-        if let Some(active) = quote {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == active {
-                quote = None;
-            }
-            continue;
-        }
-        match byte {
-            b'\'' | b'"' | b'`' => quote = Some(byte),
-            b'(' => depth += 1,
-            b')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(index);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
 }
 
 fn js_identifier_count(source: &str, name: &str) -> usize {
@@ -32963,10 +33682,6 @@ impl Mangler {
         self.reserved.remove(name);
     }
 
-    fn claim_name(&mut self, name: &str) -> bool {
-        self.claim_bind(name).is_some()
-    }
-
     /// Claim a spelling chosen elsewhere (a preferred or idiom name) as a
     /// binding of this emission.
     fn claim_bind(&mut self, name: &str) -> Option<Bind> {
@@ -33202,87 +33917,6 @@ mod tests {
             },
         );
         assert!(braced.contains("){console.log(read())}else{barrier()}"), "{braced}");
-    }
-
-    #[test]
-    fn merged_conditional_assignments_read_the_list() {
-        let merged = block_merge_conditional_assignments(
-            &block_of(vec![assign(None, "a", "(a+1|0)")]),
-            &block_of(vec![assign(None, "a", "(a-1|0)")]),
-        );
-        assert_eq!(
-            merged.as_ref().map(|(d, t, a, b, tail)| (*d, t.as_str(), a.as_str(), b.as_str(), tail.len())),
-            Some((false, "a", "(a+1|0)", "(a-1|0)", 0))
-        );
-        let merged = block_merge_conditional_assignments(
-            &block_of(vec![assign(Some("var "), "a", "1")]),
-            &block_of(vec![assign(None, "a", "0")]),
-        );
-        assert_eq!(
-            merged.as_ref().map(|(d, t, a, b, tail)| (*d, t.as_str(), a.as_str(), b.as_str(), tail.len())),
-            Some((true, "a", "1", "0", 0))
-        );
-        let merged = block_merge_conditional_assignments(
-            &block_of(vec![JsStatement::Declarators {
-                keyword: "var ",
-                declarators: vec![
-                    JsDeclarator {
-                        name: "a".to_string(),
-                        value: Some(JsExpression::atom("1")),
-                        bind: None,
-                        function: None,
-                    },
-                    JsDeclarator {
-                        name: "b".to_string(),
-                        value: None,
-                        bind: None,
-                        function: None,
-                    },
-                    JsDeclarator {
-                        name: "c".to_string(),
-                        value: None,
-                        bind: None,
-                        function: None,
-                    },
-                ],
-            }]),
-            &block_of(vec![assign(None, "a", "0")]),
-        );
-        let (declare, target, then_value, else_value, tail) = merged.expect("merged");
-        assert!(declare);
-        assert_eq!((target.as_str(), then_value.as_str(), else_value.as_str()), ("a", "1", "0"));
-        assert_eq!(
-            tail.iter().map(|d| d.clone().render()).collect::<Vec<_>>(),
-            vec!["b".to_string(), "c".to_string()]
-        );
-        assert!(block_merge_conditional_assignments(
-            &block_of(vec![assign(None, "a", "1")]),
-            &block_of(vec![assign(None, "b", "2")]),
-        )
-        .is_none());
-        // A `let` is not a merge candidate, and neither is a sequence value.
-        assert!(block_merge_conditional_assignments(
-            &block_of(vec![assign(Some("let "), "a", "1")]),
-            &block_of(vec![assign(None, "a", "0")]),
-        )
-        .is_none());
-        assert!(block_single_assignment(&block_of(vec![assign(None, "a", "b,c")])).is_none());
-    }
-
-    #[test]
-    fn conditional_assignment_expression_reads_the_list() {
-        assert_eq!(
-            block_conditional_assignment_expression(
-                &block_of(vec![assign(None, "a", "b")]),
-                &block_of(vec![assign(None, "c", "d")]),
-            ),
-            Some(("a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()))
-        );
-        assert!(block_conditional_assignment_expression(
-            &block_of(vec![assign(Some("var "), "a", "b")]),
-            &block_of(vec![assign(None, "c", "d")]),
-        )
-        .is_none());
     }
 
     #[test]
@@ -36634,33 +37268,6 @@ install();
             JsExpression::atom("c"),
         );
         assert_eq!(nullish.into_minimal(), "(a&&b)??c");
-    }
-
-    #[test]
-    fn canonicalizes_typed_truthiness_before_javascript_emission() {
-        let negated_truthiness = JsExpression::unary(
-            "!",
-            JsExpression::unary("!", JsExpression::unary("!", JsExpression::atom("value"))),
-        );
-        assert_eq!(negated_truthiness.into_minimal(), "!value");
-
-        let condition = JsExpression::binary(
-            IrBinaryOp::And,
-            JsExpression::unary("!", JsExpression::unary("!", JsExpression::atom("left"))),
-            JsExpression::binary(
-                IrBinaryOp::Or,
-                JsExpression::unary("!", JsExpression::unary("!", JsExpression::atom("middle"))),
-                JsExpression::unary("!", JsExpression::atom("right")),
-            ),
-        );
-        assert_eq!(condition.into_condition(), "left&&(middle||!right)");
-
-        let output = compile_module(
-            "extern JsValue read();extern JsValue other();export bool absent(){return !read().truthy();}export void inspect(){if(read().truthy()&&other().truthy()){print(1);}}",
-        );
-        assert!(output.contains("return!read()"), "{output}");
-        assert!(!output.contains("!!!"), "{output}");
-        assert!(!output.contains("if(!!"), "{output}");
     }
 
     #[test]
@@ -41230,38 +41837,6 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
-    fn merges_matching_branch_assignments() {
-        assert_eq!(
-            merge_conditional_assignments("a=(a+1|0);", "a=(a-1|0);"),
-            Some((false, "a", "(a+1|0)", "(a-1|0)", ""))
-        );
-        assert_eq!(
-            merge_conditional_assignments("var a=1;", "a=0;"),
-            Some((true, "a", "1", "0", ""))
-        );
-        assert_eq!(
-            merge_conditional_assignments("var a=1,b,c;", "a=0;"),
-            Some((true, "a", "1", "0", ",b,c"))
-        );
-        assert!(merge_conditional_assignments("a=1;", "b=2;").is_none());
-    }
-
-    #[test]
-    fn renders_distinct_branch_assignments_as_an_expression() {
-        assert_eq!(
-            conditional_assignment_expression("a=b;", "c=d;"),
-            Some(("a", "b", "c", "d"))
-        );
-        assert!(conditional_assignment_expression("var a=b;", "c=d;").is_none());
-
-        let output = compile(
-            "extern int read();int left=0;int right=0;void route(int value){if(value>0){left=value;}else{right=value;}}route(read());print(left+right);",
-        );
-        assert!(output.contains("?"), "{output}");
-        assert!(!output.contains("else"), "{output}");
-    }
-
-    #[test]
     fn renders_shortest_exact_numeric_literals() {
         assert_eq!(shortest_integer(120_000), "12e4");
         assert_eq!(shortest_integer(1_099_511_627_776), "(2**40)");
@@ -42712,16 +43287,6 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
-    fn braceless_accepts_false_apply_short_circuit() {
-        assert!(is_braceless_statement(
-            "!1===t[l].apply(o[0],o[1])&&f.stopOnFalse&&(l=t.length,o=!1);"
-        ));
-        assert!(!expression_has_top_level_statement_break(
-            "!1===t[l].apply(o[0],o[1])&&f.stopOnFalse&&(l=t.length,o=!1)"
-        ));
-    }
-
-    #[test]
     fn emits_simple_loop_bodies_without_braces() {
         let output = compile(
             "extern int read();int count=read();for(int index=0;index<count;index++){print(index);}",
@@ -43431,6 +43996,7 @@ consume(field(JS.object("type", 1), "type"));
         StatementPolicy {
             unit_updates: true,
             assignment_guards: true,
+            ..StatementPolicy::NONE
         }
         .install();
         let bind = Bind(7);

@@ -126,13 +126,6 @@ impl<'src> BindingResolution<'src> {
             .unwrap_or(Resolution::Unresolved)
     }
 
-    /// The innermost scope containing this token, as `(start, end, kind)`.
-    pub(crate) fn scope_at(&self, at: usize) -> Option<(usize, usize, ScopeKind)> {
-        let scope = *self.scope_of_token.get(at)?;
-        let scope = &self.scopes[scope as usize];
-        Some((scope.start, scope.end, scope.kind))
-    }
-
     /// Every function scope as `(index, start, end)`, outermost first.
     pub(crate) fn function_scopes(&self) -> Vec<(usize, usize, usize)> {
         self.scopes

@@ -1,6 +1,6 @@
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, conditional_test_needs_grouping, expression_has_top_level_token,
-    identifier_occurs, non_overlapping_ranges, single_console_log_argument, top_level_stop,
+    identifier_occurs, non_overlapping_ranges, top_level_stop,
     wrap_substituted_expression,
 };
 use crate::js_peephole::scope::{
@@ -10,119 +10,6 @@ use crate::js_peephole::scope::{
 use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
-fn is_console_log_open(tokens: &[Token<'_>], index: usize) -> bool {
-    tokens.get(index).map(|token| token.text) == Some("console")
-        && tokens.get(index + 1).map(|token| token.text) == Some(".")
-        && tokens.get(index + 2).map(|token| token.text) == Some("log")
-        && tokens.get(index + 3).map(|token| token.text) == Some("(")
-}
-
-pub(crate) fn fold_console_log_conditionals(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut index = 0usize;
-    while index + 8 < tokens.len() {
-        if tokens[index].text != "?" || !is_console_log_open(&tokens, index + 1) {
-            index += 1;
-            continue;
-        }
-        let then_open = index + 4;
-        let Some(then_close) = matching_close[then_open] else {
-            index += 1;
-            continue;
-        };
-        if tokens.get(then_close + 1).map(|token| token.text) != Some(":")
-            || !is_console_log_open(&tokens, then_close + 2)
-        {
-            index += 1;
-            continue;
-        }
-        let else_open = then_close + 5;
-        let Some(else_close) = matching_close[else_open] else {
-            index += 1;
-            continue;
-        };
-        let next = tokens.get(else_close + 1).map(|token| token.text);
-        if next.is_some_and(|token| !matches!(token, ";" | "}" | "{")) {
-            index += 1;
-            continue;
-        }
-        let then_arg = source[tokens[then_open].end..tokens[then_close].start].to_string();
-        let else_arg = source[tokens[else_open].end..tokens[else_close].start].to_string();
-        if single_console_log_argument(&format!("console.log({then_arg})")).is_none()
-            || single_console_log_argument(&format!("console.log({else_arg})")).is_none()
-        {
-            index += 1;
-            continue;
-        }
-        let mut cond_start = 0usize;
-        let mut depth = 0i32;
-        let mut statement = true;
-        for token_index in (0..index).rev() {
-            match tokens[token_index].text {
-                ")" | "]" | "}" => depth += 1,
-                "(" | "[" | "{" => {
-                    if depth == 0 {
-                        if tokens[token_index].text != "{" {
-                            statement = false;
-                        }
-                        cond_start = token_index + 1;
-                        break;
-                    }
-                    depth -= 1;
-                }
-                ";" if depth == 0 => {
-                    cond_start = token_index + 1;
-                    break;
-                }
-                "," | ":" | "?" if depth == 0 => {
-                    statement = false;
-                    break;
-                }
-                _ => {}
-            }
-        }
-        if !statement {
-            index += 1;
-            continue;
-        }
-        let condition = source[tokens[cond_start].start..tokens[index].start].trim();
-        if condition.is_empty() {
-            index += 1;
-            continue;
-        }
-        let mut end = tokens[else_close].end;
-        if tokens.get(else_close + 1).map(|token| token.text) == Some(";") {
-            end = tokens[else_close + 1].end;
-        }
-        let replacement = format!("console.log({condition}?{then_arg}:{else_arg});");
-        if replacement.len() < end - tokens[cond_start].start {
-            replacements.push((tokens[cond_start].start, end, replacement));
-        }
-        index = else_close + 1;
-    }
-    if replacements.is_empty() {
-        return Ok((source.to_string(), 0));
-    }
-    replacements.sort_unstable_by_key(|(start, end, _)| (*start, *end));
-    let mut retained = Vec::new();
-    let mut last_end = 0;
-    for replacement in replacements {
-        if replacement.0 >= last_end {
-            last_end = replacement.1;
-            retained.push(replacement);
-        }
-    }
-    let count = retained.len();
-    let mut output = source.to_string();
-    for (start, end, replacement) in retained.into_iter().rev() {
-        output.replace_range(start..end, &replacement);
-    }
-    Ok((output, count))
-}
 
 pub(crate) fn fold_coalesced_or_returns(
     source: &str,

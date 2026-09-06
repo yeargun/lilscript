@@ -6111,12 +6111,28 @@ fn finalize_javascript_candidates_with_parallelism(
                         if !parsed_function_elision
                             && optimized.metrics.functions < original_metrics.functions
                         {
-                            vec![peephole_preserve_or_baseline(
+                            if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                                eprintln!(
+                                    "[peephole-refused] leaf crosses the function boundary: {} functions after, {} before",
+                                    optimized.metrics.functions, original_metrics.functions
+                                );
+                                if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                                    let _ = std::fs::write(path, &optimized.code);
+                                }
+                            }
+                            let preserved = peephole_preserve_or_baseline(
                                 declaration,
                                 original_metrics,
                                 true,
                                 pristine_builtins,
-                            )]
+                            );
+                            if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                                eprintln!(
+                                    "[peephole-refused] preserving pass: {} rewrites, {} functions",
+                                    preserved.2, preserved.1.functions
+                                );
+                            }
+                            vec![preserved]
                         } else if analyze_generated_javascript(&optimized.code).is_ok() {
                             vec![
                                 (declaration, original_metrics, 0, true),
@@ -6144,7 +6160,19 @@ fn finalize_javascript_candidates_with_parallelism(
                 vec![(declaration, metrics, 0, true)]
             };
             for (code, metrics, peephole_rewrites, is_declaration_spelling) in variants {
-                if admission.validate(&code).is_err() {
+                // Phase 6 instrument: `LILSCRIPT_PEEPHOLE_TRACE=1` names why a
+                // folded leaf is refused; `LILSCRIPT_PEEPHOLE_DUMP=<path>` keeps it.
+                let refused = |reason: &str| {
+                    if peephole_rewrites > 0 && std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some()
+                    {
+                        eprintln!("[peephole-refused] folded leaf: {reason}");
+                        if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                            let _ = std::fs::write(path, &code);
+                        }
+                    }
+                };
+                if let Err(refusal) = admission.validate(&code) {
+                    refused(&format!("admission: {refusal:?}"));
                     continue;
                 }
                 if config
@@ -6159,6 +6187,9 @@ fn finalize_javascript_candidates_with_parallelism(
                             &config.javascript.startup,
                         ))
                 {
+                    refused(&format!(
+                        "startup guard: after {metrics:?}\n    before {baseline_metrics:?}"
+                    ));
                     continue;
                 }
                 if leaves.iter().any(|candidate| candidate.code == code) {
@@ -6331,8 +6362,22 @@ fn finalize_javascript_candidates_with_parallelism(
     // that is not valid ECMAScript before late cleanup or terminal naming can
     // grant it selection authority. Late transforms are independently checked
     // by `validate_selected` and fall back to these known-valid bytes.
-    scored.retain(|candidate| {
-        validate_generated_javascript_with_standard_parser(&candidate.code).is_ok()
+    scored.retain(|candidate| match validate_generated_javascript_with_standard_parser(&candidate.code) {
+        Ok(()) => true,
+        Err(error) => {
+            // Phase 6 instrument: a folded finalist the standard parser
+            // refuses names the error and is dumped.
+            if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                eprintln!(
+                    "[peephole-refused] standard parser ({} rewrites): {error:?}",
+                    candidate.peephole_rewrites
+                );
+                if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                    let _ = std::fs::write(path, &candidate.code);
+                }
+            }
+            false
+        }
     });
     let candidates_evaluated = scored.len();
     // A representation that is slightly worse before syntax recovery can win
@@ -8067,6 +8112,24 @@ fn peephole_preserve_or_baseline(
                         is_declaration_spelling,
                     );
                 }
+                // Phase 6 instrument: the preserving pass still lost a
+                // function; name the counts and dump the text.
+                if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                    eprintln!(
+                        "[peephole-refused] preserving pass crosses the function boundary: {} functions after, {} before ({} rewrites)",
+                        metrics.functions, baseline_metrics.functions, preserved.rewrites
+                    );
+                    if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                        let _ = std::fs::write(path, &preserved.code);
+                    }
+                }
+            } else if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                eprintln!("[peephole-refused] preserving pass: unparseable result");
+            }
+        }
+        Err(error) => {
+            if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                eprintln!("[peephole-refused] preserving pass: {error:?}");
             }
         }
         _ => {}
@@ -8130,22 +8193,41 @@ fn apply_selected_canonical_peephole(
     selected.terminal_work_units = selected
         .terminal_work_units
         .saturating_add(CANONICAL_PEEPHOLE_WORK_UNITS);
-    let Ok(optimized) = optimize_generated_javascript_assuming(
+    // `LILSCRIPT_PEEPHOLE_TRACE=1` names the reason a canonical rewrite is
+    // refused here; `LILSCRIPT_PEEPHOLE_DUMP=<path>` writes the refused text.
+    let refused = |reason: &str, code: &str| {
+        if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+            eprintln!("[peephole-refused] search-off canonical: {reason}");
+        }
+        if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+            let _ = std::fs::write(path, code);
+        }
+    };
+    let optimized = match optimize_generated_javascript_assuming(
         &selected.code,
         config.javascript.assume_pristine_builtins,
-    ) else {
-        return Ok(selected);
+    ) {
+        Ok(optimized) => optimized,
+        Err(error) => {
+            refused(&format!("parse: {error:?}"), &selected.code);
+            return Ok(selected);
+        }
     };
     let code = repair_late_javascript_candidate(optimized.code);
     if code == selected.code {
         return Ok(selected);
     }
-    let Ok(metrics) = analyze_generated_javascript(&code) else {
-        return Ok(selected);
+    let metrics = match analyze_generated_javascript(&code) {
+        Ok(metrics) => metrics,
+        Err(error) => {
+            refused(&format!("analyze: {error:?}"), &code);
+            return Ok(selected);
+        }
     };
     if !config.single_use_function_expression_candidates_enabled()
         && metrics.functions < selected.metrics.functions
     {
+        refused("function boundary", &code);
         return Ok(selected);
     }
     if config
@@ -8160,9 +8242,11 @@ fn apply_selected_canonical_peephole(
                 &config.javascript.startup,
             ))
     {
+        refused("startup guard", &code);
         return Ok(selected);
     }
-    if selected.admission.validate_selected(&code).is_err() {
+    if let Err(refusal) = selected.admission.validate_selected(&code) {
+        refused(&format!("admission: {refusal:?}"), &code);
         return Ok(selected);
     }
     let cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
@@ -8187,6 +8271,16 @@ fn apply_selected_canonical_peephole(
         config,
         selected.baseline_transfer,
     ) {
+        refused(
+            &format!(
+                "codec: {} vs {} (startup {} vs {})",
+                challenger.transfer_cost,
+                selected.transfer_cost,
+                challenger.startup_score,
+                selected.startup_score
+            ),
+            &challenger.code,
+        );
         return Ok(selected);
     }
     Ok(challenger)
@@ -8201,6 +8295,14 @@ fn apply_search_off_declaration_peephole(
         || selected.peephole_rewrites > 0
         || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
     {
+        if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+            eprintln!(
+                "[peephole-refused] search-off declaration peephole skipped: search {} obligations {} rewrites {}",
+                config.javascript.candidate_search_enabled(),
+                selected.has_explicit_lowering_obligations,
+                selected.peephole_rewrites
+            );
+        }
         return Ok(selected);
     }
     let (code, metrics, rewrites, _) = configured_declaration_peephole(
@@ -8209,7 +8311,11 @@ fn apply_search_off_declaration_peephole(
         config.single_use_function_expression_candidates_enabled(),
         config.javascript.assume_pristine_builtins,
     );
+    let trace = std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some();
     if rewrites == 0 || code == selected.code {
+        if trace {
+            eprintln!("[peephole-refused] search-off declaration peephole: no rewrite survived");
+        }
         return Ok(selected);
     }
     if config
@@ -8224,9 +8330,15 @@ fn apply_search_off_declaration_peephole(
                 &config.javascript.startup,
             ))
     {
+        if trace {
+            eprintln!("[peephole-refused] search-off declaration peephole: startup guard");
+        }
         return Ok(selected);
     }
-    if selected.admission.validate(&code).is_err() {
+    if let Err(refusal) = selected.admission.validate(&code) {
+        if trace {
+            eprintln!("[peephole-refused] search-off declaration peephole: admission {refusal:?}");
+        }
         return Ok(selected);
     }
     let transfer_cost = admitted_generated_javascript_size(&code, config.javascript.cost_model)
@@ -8250,6 +8362,21 @@ fn apply_search_off_declaration_peephole(
     ) {
         Ok(challenger)
     } else {
+        if trace {
+            eprintln!(
+                "[peephole-refused] search-off declaration peephole lost: folded {} bytes cost {} startup {} vs selected {} bytes cost {} startup {} (baseline {})",
+                challenger.code.len(),
+                challenger.transfer_cost,
+                challenger.startup_score,
+                selected.code.len(),
+                selected.transfer_cost,
+                selected.startup_score,
+                selected.baseline_transfer
+            );
+            if let Some(path) = std::env::var_os("LILSCRIPT_PEEPHOLE_DUMP") {
+                let _ = std::fs::write(path, &challenger.code);
+            }
+        }
         Ok(selected)
     }
 }
@@ -20276,6 +20403,7 @@ mod tests {
             .unwrap_or_else(|| panic!("global read must be stored: {output}"));
         let store = output
             .find("state=2;")
+            .or_else(|| output.find("state=2,"))
             .unwrap_or_else(|| panic!("global write must remain: {output}"));
         let print = output
             .find("console.log(")

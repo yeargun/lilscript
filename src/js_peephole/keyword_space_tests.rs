@@ -281,27 +281,6 @@ fn preserves_conditional_array_push() {
     assert_eq!(run_node(&folded.code).trim(), "[\"b\"]");
 }
 
-#[test]
-fn folds_guarded_boolean_and_into_an_addend() {
-    let source = "function eq(f){var i=this.length,g=f<0;!g||(g=this.length);f+=g;return f}";
-    let (direct, count) = super::fold_guarded_and_addends(source).unwrap();
-    assert!(
-        count > 0 && direct.contains("f+=f<0&&this.length"),
-        "{count} {direct}"
-    );
-    let optimized = optimize_generated_javascript(source).unwrap();
-    assert!(
-        optimized.code.contains("f+=f<0&&this.length") || optimized.code.contains("f+=f<0&&i"),
-        "{}",
-        optimized.code
-    );
-    assert!(!optimized.code.contains(",g="), "{}", optimized.code);
-
-    let original = "function eq(f){var g=f<0;!g||(g=this.length);f+=g;return f}console.log([eq.call({length:4},-1),eq.call({length:4},2)].join(\",\"))";
-    let folded = optimize_generated_javascript(original).unwrap();
-    assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
-    assert_eq!(run_node(&folded.code).trim(), "3,2");
-}
 
 #[test]
 fn folds_statement_unit_updates_to_postfix() {
@@ -2983,66 +2962,6 @@ fn folds_proven_integer_neq_zero_in_boolean() {
 }
 
 #[test]
-fn folds_predicate_reassign_and_if_prefix_return() {
-    let pred = optimize_generated_javascript(
-        "function pipe(e,i){var k=c(e[i[4]]);k&&(k=e[i[4]]),use(k);return k}",
-    )
-    .unwrap();
-    assert!(pred.code.contains("c(e[i[4]])&&e[i[4]]"), "{}", pred.code);
-    assert!(!pred.code.contains("&&e[i[4]],use("), "{}", pred.code);
-
-    let guard = optimize_generated_javascript(
-        "function when(r,i,t){if(e<=1){var d=s.reject;y(r,s.done(a(r)).resolve,d,0==e),r=i[t];if(\"pending\"==n.state()||c(r&&r.then))return n.then()}return n}",
-    )
-    .unwrap();
-    assert!(
-        guard.code.contains("if(e<=1)") && guard.code.contains("return n.then()"),
-        "{}",
-        guard.code
-    );
-    assert!(guard.code.contains("if(\"pending\""), "{}", guard.code);
-    assert!(guard.code.contains("var d=s.reject"), "{}", guard.code);
-
-    let after_for = optimize_generated_javascript(
-        "function when(){if(e<=1&&(y(),c))return n.then();for(;i--;)y();return n}",
-    )
-    .unwrap();
-    assert!(after_for.code.contains("for("), "{}", after_for.code);
-    assert!(!after_for.code.contains("then()for"), "{}", after_for.code);
-
-    let apply = optimize_generated_javascript(
-        "function pipe(x){var i;x&&(i=x.apply(this,arguments));return i&&i.promise}",
-    )
-    .unwrap();
-    assert!(
-        apply.code.contains("i=x&&x.apply(") || apply.code.contains("var i=x&&x.apply("),
-        "{}",
-        apply.code
-    );
-
-    let comma_arg = optimize_generated_javascript(
-        "function pipe(x,i,o,u){return i?o.p():(s=x?[i]:arguments,o[u](this,s))}",
-    )
-    .unwrap();
-    assert!(
-        comma_arg.code.contains("s=x?[i]:arguments") && comma_arg.code.contains("o[u](this,s)"),
-        "{}",
-        comma_arg.code
-    );
-
-    let comma_order = concat!(
-        "var order='',s;function rhs(){order+='rhs;';return 1}",
-        "var o={get call(){order+='callee;';return function(){order+='call;'}}};",
-        "(s=rhs(),o.call(s));console.log(order)"
-    );
-    let comma_order_optimized = optimize_generated_javascript(comma_order).unwrap();
-    assert_eq!(
-        run_node(&comma_order_optimized.code).trim(),
-        "rhs;callee;call;"
-    );
-}
-
-#[test]
 fn chained_comma_assigns_do_not_steal_a_var_declarator() {
     let (code, count) = super::fold_chained_comma_assigns(
         "function f(){var _=this,$=arguments,d=()=>{},p=d;return [p,d]}",
@@ -3253,105 +3172,6 @@ fn unwraps_expression_bodies_of_nested_for_loops() {
         once_unwrapped.code.contains(")for("),
         "{}",
         once_unwrapped.code
-    );
-}
-
-#[test]
-fn folds_fire_tail_into_comma_statements() {
-    let optimized = optimize_generated_javascript(
-        "function f(b,a,e){for(;e;)e--;i.memory||(e=!1);d=!1;!b||(a=e?[]:\"\");return a}",
-    )
-    .unwrap();
-    assert!(
-        optimized
-            .code
-            .contains("i.memory||(e=!1),d=!1,b&&(a=e?[]:\"\")")
-            || optimized.code.contains(",d=!1,b&&("),
-        "{}",
-        optimized.code
-    );
-    assert!(
-        optimized.code.contains("b&&(") && !optimized.code.contains("!b||("),
-        "{}",
-        optimized.code
-    );
-
-    let lock = optimize_generated_javascript("function lock(e,d,a){!e&&!d&&(e=\"\",a=e);return a}")
-        .unwrap();
-    assert!(lock.code.contains("a=e=\"\""), "{}", lock.code);
-
-    let fire_tail = optimize_generated_javascript(
-        "function d(){for(r=r||o.once,c=n=!0;e.length;i=-1)for(a=e.shift();++i<t.length;)!1===t[i].apply(a[0],a[1])&&o.stopOnFalse&&(i=t.length,a=!1);o.memory||(a=!1);n=!1;r&&(t=a?[]:\"\")}",
-    )
-    .unwrap();
-    assert!(
-        fire_tail.code.contains("o.memory||(a=!1),n=!1,r&&("),
-        "{}",
-        fire_tail.code
-    );
-
-    let removed = optimize_generated_javascript(
-        "function rem(t,i,n){for(var p=0;(p=l(n,t,p))>=0;){t.splice(p,1);p<=i&&--i}return t}",
-    )
-    .unwrap();
-    assert!(
-        removed.code.contains("for(var p;(p=l(n,t,p))>-1;)")
-            && (removed.code.contains("t.splice(p,1),p<=i&&i--")
-                || removed.code.contains("splice(p,1),p<=i&&i--")),
-        "{}",
-        removed.code
-    );
-
-    let nested_call = optimize_generated_javascript(
-        "function rem(t,i,n){return f(arguments,(e,n)=>{for(var p=0;(p=l(n,t,p))>=0;){t.splice(p,1);p<=i&&--i}}),this}",
-    )
-    .unwrap();
-    assert!(
-        nested_call.code.contains("t.splice(p,1),p<=i&&i--")
-            || nested_call.code.contains("splice(p,1),p<=i&&i--"),
-        "{}",
-        nested_call.code
-    );
-
-    let already_gt = optimize_generated_javascript(
-        "function rem(t,i,n){for(var p=0;(p=l(n,t,p))>-1;)t.splice(p,1),p<=i&&i--;return t}",
-    )
-    .unwrap();
-    assert!(
-        already_gt.code.contains("for(var p;(p=l(n,t,p))>-1;)"),
-        "{}",
-        already_gt.code
-    );
-
-    let method_unused = optimize_generated_javascript(
-        "function make(){var f=-1;return{lock(){var f;return this},read(){return f}}}",
-    )
-    .unwrap();
-    assert!(
-        !method_unused.code.contains("lock(){var f;")
-            && !method_unused.code.contains("lock(){var f}"),
-        "{}",
-        method_unused.code
-    );
-}
-
-#[test]
-fn folds_increment_infinite_for_into_prefix_condition() {
-    let optimized = optimize_generated_javascript(
-        "function f(a,i){i++;for(;;i++){var t=i;if(i>=a.length){break}t=a[i];t()}}",
-    )
-    .unwrap();
-    assert!(
-        optimized.code.contains("for(;++i<a.length;)"),
-        "{}",
-        optimized.code
-    );
-    assert!(!optimized.code.contains("i++;for"), "{}", optimized.code);
-    assert!(!optimized.code.contains("if(i>="), "{}", optimized.code);
-    assert!(
-        optimized.code.contains("a[i]()") || optimized.code.contains("a[i];"),
-        "{}",
-        optimized.code
     );
 }
 

@@ -227,6 +227,14 @@ final text": the seeds and the dedup key on the plan (context, options, tree), t
 text that ships. That is 7e's re-derivation, and until it lands the knob stays off and the
 chain-head rule is verified with the search off and with `LILSCRIPT_EMISSION_PEEPHOLE=1`.
 
+### Batching (owner, 2026-09-06)
+
+From here the work goes in batches: several ports, conversions or deletions per build, one
+verification batch per batch (markedlil search-off identity, the three lanes with behaviour, the
+tests, the pool), one ledger row per batch naming the pinned binary. Reading stays per item;
+building and verifying do not. A batch that diverges is bisected inside itself with
+`LILSCRIPT_ONLY_FOLDS` and the identity checks, not rebuilt per item.
+
 ### 8 — retire the text layer
 
 Unchanged exit criteria ([009](009-phases.md)), reached group by group.
@@ -284,3 +292,26 @@ The migration is complete when:
 
 Point 4 is the one that matters; it is also the one that was true of no compiler on `main` when
 this started.
+
+## Found while batching (2026-09-06)
+
+- **The text chain is adopted whole or not at all.** At the terminal the canonical pass is one
+  chain run scored once against the emission (`apply_search_off_declaration_peephole`,
+  `finalized_javascript_candidate_precedes`). On markedlil the chain's result was 10,022 Brotli
+  against a 10,014 emission, so the emission shipped; skipping any one of five folds gave
+  9,956–10,008. `fold_while_trailing_increments` alone was a 49-byte loss on the unjoined text
+  too. The folds were never monotone under the codec; only the chain's *sum* was measured. Each
+  port moves that sum, so a port can flip the whole chain off and read as a regression that is
+  really the chain's. The instrument: `LILSCRIPT_PEEPHOLE_TRACE=1` now names the refusal at every
+  terminal site (`[peephole-refused] …`), `LILSCRIPT_PEEPHOLE_DUMP=<path>` keeps the refused text.
+- **A printing decision read from a thread-local at print time is a wrong program.** The join
+  was gated on `StatementPolicy::current()` inside `JsBlock::render`; the pool's candidate
+  re-prints run on rayon threads that never installed the policy, so a braceless two-statement
+  body printed `for(…)a;b` — two case-lanes wrong, caught by the pool check, bisected with
+  `LILSCRIPT_SKIP_PORTS`. Every shape is now a property of the tree (`JsBlock::comma_join`, the
+  branch's `braceless`), decided on the emitting thread; the policy is read only at construction.
+- **Closures are rendered when built**, before the module's shaping pass; they take the shapes
+  in `render_closure_statement`, so the stored tree and the text agree.
+- **Emitter ports carry a kill-switch**: `LILSCRIPT_SKIP_PORTS=comma_join,for_init,…` turns one
+  off at run time, the emitter's `LILSCRIPT_SKIP_FOLDS`. A batch of ports is bisected on one
+  binary, on the pool, in minutes.
