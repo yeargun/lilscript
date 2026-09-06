@@ -261,16 +261,6 @@ pub(crate) fn fold_identity_arrow_iife(
     fold_return_only_iife(source, false)
 }
 
-/// Offer an unnamed, zero-argument classic return-only IIFE as an independent
-/// late candidate. Keeping this out of the canonical pass lets each configured
-/// whole-artifact objective decide whether removing the function boundary is a
-/// compression win.
-pub(crate) fn fold_zero_argument_return_iife(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    fold_return_only_iife(source, true)
-}
-
 /// Move a private top-level function declaration to its only direct call.
 ///
 /// The declaration and every non-property occurrence of its name prove that

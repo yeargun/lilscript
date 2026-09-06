@@ -2749,7 +2749,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_assignment_guards)?;
     session.run(fold_guarded_assign_into_call_predicate)?;
     session.run(fold_index_postfix_updates)?;
-    session.run(fold_unit_counter_updates)?;
     session.run(fold_while_true_unit_increment_bounds)?;
     session.run(fold_int32_coercions)?;
     session.repeat(fold_identifier_copies, 8)?;
@@ -2820,7 +2819,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_conditional_return_tails)?;
     session.run(fold_returned_temporaries)?;
     session.run(fold_trailing_return_this)?;
-    session.run(fold_single_return_arrow_bodies)?;
     session.run(fold_adjacent_expression_statements)?;
     session.repeat(fold_redundant_loop_body_braces, 4)?;
     session.run(fold_arguments_length_countdown_for)?;
@@ -2840,7 +2838,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_if_prefixed_returns)?;
     session.run(fold_nested_unguarded_ifs)?;
     session.run(fold_conditional_return_tails)?;
-    session.run(fold_unit_counter_updates)?;
     session.run(fold_while_true_unit_increment_bounds)?;
     session.run(fold_int32_coercions)?;
     session.run(fold_top_level_adjacent_expression_statements)?;
@@ -2928,10 +2925,8 @@ pub(crate) enum LateJavaScriptCleanupPass {
     SingleStatementControlBraces,
     NegatedEqualities,
     NullNormalizedNullableTests,
-    IdentTernaryToOr,
     OrAssignmentParens,
     IdentityArrowIife,
-    ZeroArgumentReturnIife,
     SingleUseFunctionExpressions,
     UnusedStandaloneVars,
     ArgumentsLengthCountdownFor,
@@ -2969,7 +2964,7 @@ impl LateJavaScriptCleanupPass {
 
     /// The ladder as it was before 7.50, for an A/B
     /// (`LILSCRIPT_CLEANUP_TWINS=1` runs it).
-    pub(crate) const LADDER_WITH_TWINS: [Self; 17] = [
+    pub(crate) const LADDER_WITH_TWINS: [Self; 15] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::BooleanConditionalValues,
@@ -2979,10 +2974,8 @@ impl LateJavaScriptCleanupPass {
         Self::SingleStatementControlBraces,
         Self::NegatedEqualities,
         Self::NullNormalizedNullableTests,
-        Self::IdentTernaryToOr,
         Self::OrAssignmentParens,
         Self::IdentityArrowIife,
-        Self::ZeroArgumentReturnIife,
         Self::UnusedStandaloneVars,
         Self::ArgumentsLengthCountdownFor,
         Self::CanonicalLeafSyntax,
@@ -3024,7 +3017,6 @@ impl LateJavaScriptCleanupPass {
                 | Self::BooleanConditionalValues
                 | Self::UnitCounterUpdates
                 | Self::CommonConditionalArms
-                | Self::ZeroArgumentReturnIife
                 | Self::SingleUseFunctionExpressions
                 | Self::SameBindingStrictEquality
         )
@@ -3117,9 +3109,9 @@ fn late_generated_javascript_cleanup_pass_into(
             session.run(fold_boolean_conditional_values)?
         }
         LateJavaScriptCleanupPass::UnitCounterUpdates => {
-            // Migration 7.52: `fold_expression_self_assignments` left this arm
-            // (the tree's `self_assignment_chain`; skipping it read 0).
-            session.run(fold_unit_counter_updates)?;
+            // Migration 7.52–7.53: `fold_expression_self_assignments` and
+            // `fold_unit_counter_updates` left this arm (the tree's
+            // `self_assignment_chain` and `unit_updates`; each read 0 alone).
             session.run(fold_while_true_unit_increment_bounds)?
         }
         LateJavaScriptCleanupPass::CommonConditionalArms => {
@@ -3134,12 +3126,8 @@ fn late_generated_javascript_cleanup_pass_into(
         LateJavaScriptCleanupPass::NullNormalizedNullableTests => {
             session.run(fold_null_normalized_nullable_tests)?
         }
-        LateJavaScriptCleanupPass::IdentTernaryToOr => session.run(fold_ident_ternary_to_or)?,
         LateJavaScriptCleanupPass::OrAssignmentParens => session.run(fold_or_assignment_parens)?,
         LateJavaScriptCleanupPass::IdentityArrowIife => session.run(fold_identity_arrow_iife)?,
-        LateJavaScriptCleanupPass::ZeroArgumentReturnIife => {
-            session.run(fold_zero_argument_return_iife)?
-        }
         LateJavaScriptCleanupPass::SingleUseFunctionExpressions => {
             session.run(fold_single_use_function_expressions)?
         }

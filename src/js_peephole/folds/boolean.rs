@@ -2504,50 +2504,6 @@ fn match_nullish_ident_check<'tok>(
     None
 }
 
-pub(crate) fn fold_ident_ternary_to_or(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor + 4 < tokens.len() {
-        if tokens[cursor].kind != TokenKind::Identifier
-            || tokens.get(cursor + 1).map(|token| token.text) != Some("?")
-            || tokens.get(cursor + 2).map(|token| token.text) != Some(tokens[cursor].text)
-            || tokens.get(cursor + 3).map(|token| token.text) != Some(":")
-            || ternary_logical_condition_start(&tokens, cursor + 1) != cursor
-        {
-            cursor += 1;
-            continue;
-        }
-        let name = tokens[cursor].text;
-        let else_from = cursor + 4;
-        if !simple_or_arm(&tokens, else_from) {
-            cursor += 1;
-            continue;
-        }
-        let else_end = else_from + simple_or_arm_width(&tokens, else_from);
-        // `||` binds tighter than `?:`, so a conditional anywhere at the top
-        // level of the else arm would capture the whole disjunction:
-        // `x?x:a[2]?p:q` is `x?x:(a[2]?p:q)`, but `x||a[2]?p:q` tests
-        // `x||a[2]`. The arm's first token is not enough to see this -- the
-        // conditional can follow a member, call or operator -- so scan the
-        // arm out to the expression's end. `??` cannot sit unparenthesised
-        // beside `||` at all, and `=>` would swallow the arm as a parameter.
-        if else_arm_reaches_conditional(&tokens, else_end) {
-            cursor += 1;
-            continue;
-        }
-        let else_expr = &source[tokens[else_from].start..tokens[else_end - 1].end];
-        replacements.push((
-            tokens[cursor].start,
-            tokens[else_end - 1].end,
-            format!("{name}||{else_expr}"),
-        ));
-        cursor = else_end;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
 
 fn simple_or_arm(tokens: &[Token<'_>], from: usize) -> bool {
     matches!(

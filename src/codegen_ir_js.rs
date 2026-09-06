@@ -26489,6 +26489,16 @@ impl FrozenModuleTree {
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
         }
         tree.reshape(shapes);
+        if shapes.converge {
+            let scopes = ScopeCollector::module(&tree.closures, &tree.block);
+            let renamer = Renamer {
+                tree: scopes,
+                table: &tree.table,
+                alphabet: &options.identifier_alphabet,
+            };
+            let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Frequency);
+            crate::timing::RENAME_REPRINTS.event(renamed as u64);
+        }
         tree.reprint(options)
     }
 }
@@ -26503,6 +26513,10 @@ pub(crate) struct TreeShapes {
     pub(crate) collapse: bool,
     pub(crate) for_init: bool,
     pub(crate) negated_arms: bool,
+    /// Migration 7.54 (7′): the tree's renamer over every scope, most
+    /// referenced first -- the text convergence's job (`converge_local_names`)
+    /// done on the spelling table, so it is a print.
+    pub(crate) converge: bool,
 }
 
 impl ModuleTree {

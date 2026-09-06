@@ -5376,13 +5376,27 @@ fn terminal_shape_texts(
             ..TreeShapes::default()
         },
         TreeShapes {
+            converge: true,
+            ..TreeShapes::default()
+        },
+        TreeShapes {
+            collapse: true,
+            converge: true,
+            ..TreeShapes::default()
+        },
+        TreeShapes {
             collapse: true,
             for_init: true,
             negated_arms: true,
+            converge: true,
         },
     ];
     let texts = shapes
         .into_iter()
+        // The renamer runs only where the plan mangles identifiers -- the same
+        // guard the search's rename re-prints have (a readable build keeps
+        // its names, exports included).
+        .filter(|shape| !shape.converge || parent.mangle_identifiers)
         .map(|shape| {
             let options = crate::codegen_ir_js::IrJsOptions {
                 single_use_collapse: shape.collapse,
@@ -5398,7 +5412,7 @@ fn terminal_shape_texts(
 }
 
 /// How many shape challengers `terminal_shape_texts` offers at most.
-const TERMINAL_SHAPE_CHALLENGERS: usize = 4;
+const TERMINAL_SHAPE_CHALLENGERS: usize = 6;
 
 fn terminal_string_pooling_options(
     parent: crate::codegen_ir_js::IrJsOptions,

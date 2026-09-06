@@ -489,3 +489,28 @@ this started.
   keep what the port still pays for, delete the rest, confirm on the ten heaviest. A minute per
   rule on the pool, no rebuild, and the answer is never a group's sum. Three tranches today by
   this method: five ladder passes, three chain passes, and the emission chain's folds next.
+
+### 7′, concretely (added 2026-09-06 after 7.53)
+
+Three text stages still stand between the selected tree and the artifact, and everything the
+remaining folds earn is earned on their output:
+
+1. **The late cleanup ladder** (13 codec-verified passes) and **the structural chain** (6 passes,
+   one variant dimension): text in, text out, each proposal one codec probe.
+2. **`converge_local_names`** (`js_peephole/rename.rs`): per-scope renaming on the finished text,
+   from a binding resolution it rebuilds by parsing; `rename_won_sum` 423 on markedlil, 1,149 on
+   katexlil.
+3. **`apply_selected_canonical_peephole`**: the emission chain (75 folds) once more on the winner.
+
+The shape of the work: the finalist keeps its frozen tree (`frozen_tree`, 7.38); each ladder and
+chain pass becomes a `TreeShapes` entry (the six with twins already are; the other thirteen are
+new shapes: guard-return suffixes, negated equalities, null-normalised nullable tests,
+or-assignment parens, arguments-length countdown, canonical leaf syntax, same-binding strict
+equality, expression return branches, common conditional arms, sequence-assignment first use,
+single-use function expressions); the ladder becomes a *print* ladder -- a beam of trees, one
+reshape and one reprint per proposal, the same codec gate; the rename convergence runs on the
+tree's spelling table (`Renamer` already knows binds and scopes, the text pass rebuilds them by
+parsing); and the artifact is `reprint(best tree)`. Then the emission chain runs on nothing it
+can improve, and its 75 folds go in bulk. First measurement to take: which residue folds fire
+search-off on a heavy port at all (jquerylil with `LILSCRIPT_FOLD_REPORT=all`, shapes off) --
+those that do not are the finishing's own creations.

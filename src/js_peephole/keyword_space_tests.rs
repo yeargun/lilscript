@@ -282,20 +282,6 @@ fn preserves_conditional_array_push() {
 }
 
 
-#[test]
-fn folds_statement_unit_updates_to_postfix() {
-    let optimized =
-        optimize_generated_javascript("function each(a,n){for(var i=0;i<n;i+=1)a[i]+=1;return a}")
-            .unwrap();
-    assert!(optimized.code.contains("i++"), "{}", optimized.code);
-    assert!(!optimized.code.contains("i+=1"), "{}", optimized.code);
-    assert!(optimized.code.contains("a[i]+=1"), "{}", optimized.code);
-
-    let original = "function each(a,n){for(var i=0;i<n;i+=1)a[i]+=1;return a}console.log(each([1,2],2).join(\",\"))";
-    let folded = optimize_generated_javascript(original).unwrap();
-    assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
-    assert_eq!(run_node(&folded.code).trim(), "2,3");
-}
 
 #[test]
 fn folds_coalesced_or_into_a_returned_disjunction() {
@@ -528,12 +514,6 @@ fn keeps_multi_statement_index_walk_bodies_inside_the_loop() {
     assert_eq!(run_node(&folded_run).trim(), "1,2");
 }
 
-#[test]
-fn folds_self_minus_one_into_decrement() {
-    let optimized = optimize_generated_javascript("function f(i){i=i-1;return i}").unwrap();
-    assert!(optimized.code.contains("i--"), "{}", optimized.code);
-    assert!(!optimized.code.contains("i=i-1"), "{}", optimized.code);
-}
 
 #[test]
 fn copies_identifier_aliases_into_their_only_reads() {
@@ -1812,30 +1792,6 @@ fn beta_reduced_arrow_iife_keeps_low_precedence_body_grouped() {
     assert!(!reduced.code.contains("!tag(c)&&c===c"), "{}", reduced.code);
 }
 
-#[test]
-fn reduces_zero_argument_return_only_function_iifes() {
-    let reduced = late_generated_javascript_cleanup_pass(
-        "var api=(function(){return{run:work,stop:halt}})();use(api)",
-        LateJavaScriptCleanupPass::ZeroArgumentReturnIife,
-    )
-    .unwrap();
-    assert!(reduced.contains("{run:work,stop:halt}"), "{reduced}");
-    assert!(!reduced.contains("function(){return"), "{reduced}");
-
-    for source in [
-        "var value=(function(){return this.value})()",
-        "var value=(function(){return arguments.length})()",
-        "var value=(function(){return new.target})()",
-        "var value=(function(){return()=>1})()",
-    ] {
-        let kept = late_generated_javascript_cleanup_pass(
-            source,
-            LateJavaScriptCleanupPass::ZeroArgumentReturnIife,
-        )
-        .unwrap();
-        assert!(kept.contains("function"), "{source} -> {kept}");
-    }
-}
 
 #[test]
 fn does_not_fold_ident_ternary_into_an_unparenthesized_or_assignment() {
