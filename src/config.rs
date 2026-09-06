@@ -2143,6 +2143,14 @@ impl JavaScriptConfig {
             return 0;
         }
         let artifact_limit = Self::gradual_artifact_work_limit(level_limit, raw_size);
+        // Migration 7e: `LILSCRIPT_TERMINAL_PROBES=<n>` pins the ledger for an
+        // A/B, ahead of the configured value and the artifact scaling.
+        if let Some(pinned) = std::env::var("LILSCRIPT_TERMINAL_PROBES")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            return pinned;
+        }
         self.terminal_codec_probe_limit.unwrap_or(artifact_limit)
     }
 }

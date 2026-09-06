@@ -430,3 +430,11 @@ this started.
   while gaining search-off. That port's terminal ledger is exhausted on every run (`terminal
   work 256/274`), so which plan finishes first decides the artifact by hundreds of bytes: the
   7e re-derivation is now the blocker for flipping a measured-good default, not the shape.
+- **The ledger decides katexlil (7.44).** Pinned at 384 probes the collapsed path is −68; at
+  the scaled 256 it is +736; the uncollapsed path does not move. The artifact scaling
+  (`gradual_artifact_work_limit`: full to 16 KB, a quarter at 64 KB, a twelfth at 256 KB) was
+  measured for compile time, and on the largest port it leaves the finishing -- worth about 2 KB
+  there -- fewer probes than a plan needs to be judged. 7e's shape: size the ledger by the
+  finishing's marginal bytes per probe on the artifact (the counters exist: `rename_won_sum`,
+  `cleanup_shaped_pushed_sum`), stop when a family's last N probes bought nothing, and let the
+  everywhere collapse ship on that.
