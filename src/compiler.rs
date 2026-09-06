@@ -9426,23 +9426,38 @@ fn late_javascript_cleanup_finalists(
                     Some(LateJavaScriptCleanupPass::ExpressionReturnBranches),
                     Some(LateJavaScriptCleanupPass::ConditionalReturnTails),
                     Some(LateJavaScriptCleanupPass::CommonConditionalArms),
-                    Some(LateJavaScriptCleanupPass::NegatedConditionalArms),
-                    Some(LateJavaScriptCleanupPass::BooleanConditionalValues),
-                    Some(LateJavaScriptCleanupPass::UnitCounterUpdates),
+                    // Migration 7.51: the negated arms (the shape print), the
+                    // boolean arms (`boolean_arms` on every emission) and the
+                    // unit updates (`unit_updates`) left this chain, each
+                    // measured alone on the three heavy ports: −18, 0 and −49.
+                    // The return tails stay (+17 without them).
                     Some(LateJavaScriptCleanupPass::SequenceAssignmentFirstUse),
                     Some(LateJavaScriptCleanupPass::SequenceAssignmentFirstUse),
                     Some(LateJavaScriptCleanupPass::CommonConditionalArms),
                 ];
+                // Migration 7.51: `LILSCRIPT_CANONICAL_CHAIN=Name,..` keeps
+                // only the named passes in this chain, for a per-pass A/B
+                // without a rebuild (the ladder has `LILSCRIPT_CLEANUP_LADDER`).
+                let chain_filter = std::env::var("LILSCRIPT_CANONICAL_CHAIN").ok();
                 for pass in passes.into_iter().flatten() {
+                    if let Some(filter) = &chain_filter {
+                        let name = format!("{pass:?}");
+                        if !filter.split(',').any(|allowed| allowed.trim() == name) {
+                            continue;
+                        }
+                    }
                     let Ok(next) = late_generated_javascript_cleanup_pass(&code, pass) else {
                         continue;
                     };
                     code = next;
                 }
                 code = repair_late_javascript_candidate(code);
+                // The standards parser too (7.38's rule for every late rewrite
+                // that can be adopted).
                 if code == candidate.code
                     || analyze_generated_javascript(&code).is_err()
                     || admission.validate(&code).is_err()
+                    || validate_generated_javascript_with_standard_parser(&code).is_err()
                     || beam.iter().any(|proposal| proposal.code == code)
                 {
                     continue;

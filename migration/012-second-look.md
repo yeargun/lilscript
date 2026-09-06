@@ -476,3 +476,10 @@ this started.
   of its identity (the same pass at the end of the ladder was worth nothing). The measurement
   loop for the next tranches is now cheap: `LILSCRIPT_CLEANUP_LADDER=Name,..` on the pool, one
   port, one pass, a minute each.
+- **Every late rewrite that can be adopted gets the standards parser (7.51).** The structural
+  challenger chain (the fixed pass list the late cleanup applies to each beam entry, up to four
+  variants) admitted its result through `validate_inner` only, the same gap 7.38 closed for the
+  shaped families and the shape prints; it has the parser now, byte-identical on the three
+  heavy ports. `LILSCRIPT_CANONICAL_CHAIN=Name,..` keeps only the named passes in that chain
+  for a per-pass A/B without a rebuild; with `LILSCRIPT_CLEANUP_LADDER` and `LILSCRIPT_SKIP_FOLDS`
+  every text stage is now measurable one rule at a time from the environment.
