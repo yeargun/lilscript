@@ -2228,7 +2228,8 @@ fn optimize_and_select_javascript_inner<'src>(
             .collect(),
     )
     .with_emission_peephole(EmissionPeephole::from_config(config))
-    .with_reprint_spellings(reprint_spellings_enabled(config));
+    .with_reprint_spellings(reprint_spellings_enabled(config))
+    .with_reprint_names(reprint_names_enabled(config));
     for candidate in candidate_arena.candidates() {
         let registered = contexts
             .register_plan(candidate.identity().context_id, candidate.options())
@@ -3114,7 +3115,7 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     /// Phase 7 (`LILSCRIPT_REPRINT_QUOTES=1`): the frozen tree of the first
     /// emission per (context, options with the printer fields erased), so a
     /// later plan that differs only in those fields is a re-print of it.
-    reprint_trees: Mutex<AHashMap<(usize, String), Arc<crate::codegen_ir_js::FrozenModuleTree>>>,
+    reprint_trees: Mutex<AHashMap<(usize, String), (Arc<crate::codegen_ir_js::FrozenModuleTree>, String)>>,
     /// Phase 7a: the peephole every emission passes through before it is
     /// scored; `None` when the text peephole is not configured.
     emission_peephole: Option<EmissionPeephole>,
@@ -3122,6 +3123,9 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     /// printer's fields (`string_quote`, `elide_call_chain_parentheses`)
     /// is a re-print of that emission's frozen tree, not an emission.
     reprint_spellings: bool,
+    /// Phase 7d: a plan that differs from an emitted one in the naming
+    /// policies is a rename pass over that tree (`rename_reprint`).
+    reprint_names: bool,
 }
 
 impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
@@ -3142,7 +3146,13 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             reprint_trees: Mutex::new(AHashMap::default()),
             emission_peephole: None,
             reprint_spellings: false,
+            reprint_names: false,
         }
+    }
+
+    fn with_reprint_names(mut self, reprint_names: bool) -> Self {
+        self.reprint_names = reprint_names;
+        self
     }
 
     fn with_emission_peephole(mut self, peephole: Option<EmissionPeephole>) -> Self {
@@ -3206,18 +3216,41 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
     /// fields erased (the quote, the call-chain parentheses, the boolean
     /// spelling: the print twin reads each identical on the cases). `IrJsOptions` holds a borrowed set and is not `Hash`;
     /// its debug form is a faithful key and is built once per emission.
-    fn reprint_key(context_id: usize, options: &crate::codegen_ir_js::IrJsOptions) -> (usize, String) {
-        (
-            context_id,
-            format!(
-                "{:?}",
-                crate::codegen_ir_js::IrJsOptions {
-                    string_quote: crate::codegen_ir_js::StringQuote::Double,
-                    elide_call_chain_parentheses: false,
-                    compact_boolean_literals: false,
-                    ..*options
-                }
-            ),
+    fn reprint_key(&self, context_id: usize, options: &crate::codegen_ir_js::IrJsOptions) -> (usize, String) {
+        let mut erased = crate::codegen_ir_js::IrJsOptions {
+            string_quote: crate::codegen_ir_js::StringQuote::Double,
+            elide_call_chain_parentheses: false,
+            compact_boolean_literals: false,
+            ..*options
+        };
+        if self.reprint_names {
+            erased = Self::erase_naming(erased);
+        }
+        (context_id, format!("{erased:?}"))
+    }
+
+    /// The naming policies a rename pass can carry (phase 7d): the alphabet,
+    /// the reservation count and the prefix -- the ones that decide only
+    /// which spellings a binding may take. The rest stay in the key:
+    /// coalescing is structural, the frequency order also orders the
+    /// hoisted declarators, the shadowing flavours decide whether a value
+    /// is bound or inlined (17_struct), and the source-hint preference
+    /// (`stable_local_names`) waits for the hints to be on the tree.
+    fn erase_naming(options: crate::codegen_ir_js::IrJsOptions) -> crate::codegen_ir_js::IrJsOptions {
+        crate::codegen_ir_js::IrJsOptions {
+            identifier_alphabet: crate::codegen_ir_js::IrJsOptions::default().identifier_alphabet,
+            local_name_reserve: 0,
+            reserved_local_name_prefix: false,
+            ..options
+        }
+    }
+
+    fn naming_key(options: &crate::codegen_ir_js::IrJsOptions) -> String {
+        format!(
+            "{:?}/{}/{}",
+            options.identifier_alphabet,
+            options.local_name_reserve,
+            options.reserved_local_name_prefix
         )
     }
 
@@ -3233,7 +3266,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
     ) -> Result<(String, Arc<crate::codegen_ir_js::FrozenModuleTree>), crate::codegen_js::CodegenError>
     {
         let key = (self.reprint_spellings || reprint_quotes_enabled())
-            .then(|| Self::reprint_key(context_id, &options));
+            .then(|| self.reprint_key(context_id, &options));
         if let Some(key) = &key {
             let cached = self
                 .reprint_trees
@@ -3241,9 +3274,19 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
                 .expect("reprint tree cache lock")
                 .get(key)
                 .cloned();
-            if let Some(tree) = cached {
-                let code = self.scored_text(context_id, reprint_javascript_candidate(&tree, &options));
-                return Ok((code, tree));
+            if let Some((tree, base_naming)) = cached {
+                // A re-print is a plan materialised: the count stays the
+                // same whichever plan reached the cache first.
+                self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
+                // Without identifier mangling every naming policy prints
+                // the source names: a plain re-print. The rename pass is
+                // only for mangled bindings.
+                let code = if base_naming == Self::naming_key(&options) || !options.mangle_identifiers {
+                    reprint_javascript_candidate(&tree, &options)
+                } else {
+                    rename_reprint_javascript_candidate(&tree, &options)
+                };
+                return Ok((self.scored_text(context_id, code), tree));
             }
         }
         self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
@@ -3254,7 +3297,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
                 .lock()
                 .expect("reprint tree cache lock")
                 .entry(key)
-                .or_insert_with(|| Arc::clone(&tree));
+                .or_insert_with(|| (Arc::clone(&tree), Self::naming_key(&options)));
         }
         Ok((self.scored_text(context_id, code), tree))
     }
@@ -10312,6 +10355,17 @@ fn reprint_spellings_enabled(config: &ProjectConfig) -> bool {
     }
 }
 
+/// Phase 7d: whether naming-only plans are a rename pass over a cached
+/// tree. The toml field wins, then `LILSCRIPT_REPRINT_NAMES=0|1`; off by
+/// default until the fleet measures it.
+fn reprint_names_enabled(config: &ProjectConfig) -> bool {
+    match std::env::var("LILSCRIPT_REPRINT_NAMES").as_deref() {
+        Ok("0") | Ok("false") | Ok("off") => false,
+        Ok("1") | Ok("true") | Ok("on") => true,
+        _ => config.javascript.reprint_names.unwrap_or(false),
+    }
+}
+
 fn reprint_quotes_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| std::env::var_os("LILSCRIPT_REPRINT_QUOTES").is_some())
@@ -10319,6 +10373,22 @@ fn reprint_quotes_enabled() -> bool {
 
 /// A re-print of a kept tree under other printer options, finished exactly as
 /// an emission is.
+/// Phase 7d: a naming-only plan as a rename pass over its base's tree.
+fn rename_reprint_javascript_candidate(
+    tree: &crate::codegen_ir_js::FrozenModuleTree,
+    options: &crate::codegen_ir_js::IrJsOptions,
+) -> String {
+    let started = std::time::Instant::now();
+    if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+        eprintln!("[rename-reprint-options] {options:?}");
+    }
+    let code = finish_emitted_javascript(tree.rename_reprint(options), options);
+    if crate::timing::enabled() {
+        crate::timing::REPRINT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    code
+}
+
 fn reprint_javascript_candidate(
     tree: &crate::codegen_ir_js::FrozenModuleTree,
     options: &crate::codegen_ir_js::IrJsOptions,
@@ -14314,6 +14384,7 @@ mod tests {
             root_configured_context_id: 0,
             emission_peephole: None,
             reprint_spellings: false,
+            reprint_names: false,
             contexts: vec![
                 JavaScriptEmissionContext::new(0, &ir, None, None, false),
                 JavaScriptEmissionContext::new(1, &ir, None, None, false),

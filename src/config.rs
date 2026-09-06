@@ -1334,6 +1334,12 @@ pub struct JavaScriptConfig {
     /// reads both fields identical on the cases); `false` re-emits.
     /// `LILSCRIPT_REPRINT_SPELLINGS=0|1` overrides it.
     pub reprint_spellings: Option<bool>,
+    /// Phase 7d of the migration: a candidate that differs from an emitted
+    /// one in the naming policies (alphabet, frequency order, reservation,
+    /// shadowing flavours, prefix) is a rename pass over that emission's
+    /// tree instead of a second emission. Off by default until the fleet
+    /// measures it; `LILSCRIPT_REPRINT_NAMES=0|1` overrides it.
+    pub reprint_names: Option<bool>,
     /// Spell `x != null` on a nullable whose present values are always truthy
     /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests
     /// an object for truthiness in about 3.8 ns against 2.6 for `x!==null`
@@ -1465,6 +1471,7 @@ impl Default for JavaScriptConfig {
             function_scope: None,
             emission_peephole: None,
             reprint_spellings: None,
+            reprint_names: None,
             truthy_nullable_checks: None,
             idiom_directed_naming: false,
             iife_private_callee_clusters: true,

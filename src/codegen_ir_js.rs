@@ -24281,13 +24281,36 @@ impl ModuleTree {
 }
 
 impl FrozenModuleTree {
-    pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
-        let tree = ModuleTree {
+    fn thaw(&self) -> ModuleTree {
+        ModuleTree {
             block: self.block.clone(),
             closures: RefCell::new(self.closures.clone()),
             table: BindTable(std::rc::Rc::new(RefCell::new(self.spellings.clone()))),
             literals: LiteralTable::from_contents(&self.literals),
+        }
+    }
+
+    pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
+        self.thaw().reprint(options)
+    }
+
+    /// Phase 7d: the naming policies as a renamer pass. Every binding is
+    /// re-spelled from the tree's own scopes under the plan's alphabet, in
+    /// the emission's order; then the tree prints under the plan's printer
+    /// options. A plan that differs from its base only in naming fields is
+    /// this pass, not an emission.
+    pub(crate) fn rename_reprint(&self, options: &IrJsOptions) -> String {
+        let tree = self.thaw();
+        let scopes = ScopeCollector::module(&tree.closures, &tree.block);
+        let renamer = Renamer {
+            tree: scopes,
+            table: &tree.table,
+            alphabet: &options.identifier_alphabet,
         };
+        // The base already carries the plan's frequency order (it stays in
+        // the cache key), so the pass keeps the base's assignment order.
+        let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
+        crate::timing::RENAME_REPRINTS.event(renamed as u64);
         tree.reprint(options)
     }
 }
@@ -25028,6 +25051,16 @@ struct Renamer<'a> {
     alphabet: &'a IdentifierAlphabet,
 }
 
+/// The order a scope's renameable bindings take their names in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RenameOrder {
+    /// Most referenced first: the shortest names go to the hottest bindings.
+    Frequency,
+    /// The emission's own order (the bind table's), so a re-name under
+    /// another alphabet or policy keeps the emitter's assignment shape.
+    Emission,
+}
+
 impl Renamer<'_> {
     /// Rename every scope, top down, and report (scopes, scopes fully
     /// renameable, bindings, bindings renamed).
@@ -25035,6 +25068,15 @@ impl Renamer<'_> {
         &self,
         preferences: &AHashMap<Bind, String>,
         keep_the_rest: bool,
+    ) -> (usize, usize, usize, usize) {
+        self.rename(preferences, keep_the_rest, RenameOrder::Frequency)
+    }
+
+    fn rename(
+        &self,
+        preferences: &AHashMap<Bind, String>,
+        keep_the_rest: bool,
+        order: RenameOrder,
     ) -> (usize, usize, usize, usize) {
         let mut kept_spellings = Vec::new();
         let mut counts = AHashMap::<Bind, usize>::default();
@@ -25111,14 +25153,17 @@ impl Renamer<'_> {
             if kept.is_empty() {
                 scopes_full += 1;
             }
-            renameable.sort_by(|left, right| {
-                counts
-                    .get(right)
-                    .copied()
-                    .unwrap_or(0)
-                    .cmp(&counts.get(left).copied().unwrap_or(0))
-                    .then_with(|| left.cmp(right))
-            });
+            match order {
+                RenameOrder::Frequency => renameable.sort_by(|left, right| {
+                    counts
+                        .get(right)
+                        .copied()
+                        .unwrap_or(0)
+                        .cmp(&counts.get(left).copied().unwrap_or(0))
+                        .then_with(|| left.cmp(right))
+                }),
+                RenameOrder::Emission => renameable.sort(),
+            }
             // A preferred spelling (an idiom's) is honoured when the scope
             // can take it; the rest draw from the pool in frequency order.
             let mut next = 0;
