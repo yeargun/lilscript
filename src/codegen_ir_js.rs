@@ -1279,6 +1279,9 @@ struct StatementPolicy {
     for_init: bool,
     /// Phase 6, G6: `(a+b|0)+c|0` is `a+b+c|0` (`fold_int32_coercions`).
     int32_chains: bool,
+    /// Phase 6, G7: an unread declaration with a literal value is dropped
+    /// (`remove_unused_standalone_vars`).
+    dead_literals: bool,
     /// The option the shapes above honour when they choose braces.
     braceless_control_bodies: bool,
 }
@@ -1332,6 +1335,7 @@ impl StatementPolicy {
         same_target_conditional: false,
         for_init: false,
         int32_chains: false,
+        dead_literals: false,
         braceless_control_bodies: false,
     };
 
@@ -1358,6 +1362,7 @@ impl StatementPolicy {
             same_target_conditional: port("same_target_conditional"),
             for_init: port_off("for_init"),
             int32_chains: port("int32_chains"),
+            dead_literals: port("dead_literals"),
             // The text fold dropped braces whatever the option said, so the
             // port does too where it runs; the option decides where it does not.
             braceless_control_bodies: options.braceless_control_bodies || port("control_braces"),
@@ -2992,6 +2997,21 @@ fn expression_reads_bind(node: &JsExpression, bind: Bind) -> bool {
     }
 }
 
+/// A literal with no effect: a number, string, boolean, `null`, or an array
+/// of such.
+fn expression_is_pure_literal(node: &JsExpression) -> bool {
+    match node.root {
+        JsExpressionRoot::Str(_) | JsExpressionRoot::Bool(_) => true,
+        JsExpressionRoot::Atom => {
+            node.code == "null"
+                || node.code == "undefined"
+                || node.code.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.')
+        }
+        JsExpressionRoot::Array => node.operands.iter().all(expression_is_pure_literal),
+        _ => false,
+    }
+}
+
 fn expression_is_structural(node: &JsExpression) -> bool {
     matches!(
         node.root,
@@ -3039,7 +3059,17 @@ fn merge_self_assignment_value(
 /// The same merge inside a sequence: `(x=E,x=x OP B)` is `(x=E OP B)`.
 fn merge_assignment_chain_operands(operands: Vec<JsExpression>) -> Vec<JsExpression> {
     let mut merged = Vec::<JsExpression>::with_capacity(operands.len());
+    let unit_updates = StatementPolicy::current().unit_updates;
     for node in operands {
+        // `b=b+1` inside a sequence is `b++` (`fold_unit_counter_updates`).
+        let node = if unit_updates && node.root == JsExpressionRoot::Assign {
+            match unit_counter_update(JsStatement::Expression { value: node }) {
+                JsStatement::Expression { value } => value,
+                other => unreachable!("an expression statement stays one: {other:?}"),
+            }
+        } else {
+            node
+        };
         if let Some(previous) = merged.last() {
             if previous.root == JsExpressionRoot::Assign && node.root == JsExpressionRoot::Assign {
                 if let ([first_target, first], [second_target, second]) =
@@ -3585,10 +3615,29 @@ fn prune_block_declarators(block: &mut JsBlock, dead: &dyn Fn(Bind, &str) -> boo
                     remove_statement = true;
                 }
             }
+            // Phase 6: a declaration whose value is a literal has no effect,
+            // so it goes with its name (`remove_unused_standalone_vars`).
+            JsStatement::Binding {
+                keyword: Some(_),
+                name,
+                bind: Some(bind),
+                value,
+            } if StatementPolicy::current().dead_literals
+                && expression_is_pure_literal(value)
+                && dead(*bind, name) =>
+            {
+                remove_statement = true;
+            }
             JsStatement::Declarators { declarators, .. } => {
                 let before = declarators.len();
+                let literals = StatementPolicy::current().dead_literals;
                 declarators.retain(|declarator| {
-                    !(declarator.value.is_none()
+                    !((declarator.value.is_none()
+                        || (literals
+                            && declarator
+                                .value
+                                .as_ref()
+                                .is_some_and(expression_is_pure_literal)))
                         && declarator.function.is_none()
                         && declarator
                             .bind
@@ -5346,15 +5395,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let dead = unreferenced_declarator_test(&tree);
         let mut removed = prune_block_declarators(out, &dead);
         let closures = self.closure_trees.borrow().keys().copied().collect::<Vec<_>>();
+        let mut closures_changed = 0usize;
         for closure in closures {
             let entry = self.closure_trees.borrow_mut().remove(&closure);
             let Some((head, mut body)) = entry else {
                 continue;
             };
             if let JsFunctionBody::Block(block) = &mut body {
-                removed += prune_block_declarators(block, &dead);
+                closures_changed += prune_block_declarators(block, &dead);
             }
             self.closure_trees.borrow_mut().insert(closure, (head, body));
+        }
+        if closures_changed > 0 {
+            // A closure's text was rendered when it was built; the identity
+            // re-spell prints the module again from the trees, so the pruned
+            // closure reaches the text and not only the re-prints.
+            self.respell().block(out);
+            removed += closures_changed;
         }
         if statement_trace_enabled() {
             eprintln!("[prune] unreferenced declarators dropped: {removed}");

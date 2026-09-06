@@ -199,6 +199,13 @@ pub static TERMINAL_KEYWORD_FLIPPED: Bucket = Bucket::new("terminal_keyword_flip
 /// saved) and emissions where the folds lost and the emission stayed.
 pub static EMISSION_PEEPHOLE_WON: Bucket = Bucket::new("emission_peephole_won");
 pub static EMISSION_PEEPHOLE_LOST: Bucket = Bucket::new("emission_peephole_lost");
+/// Phase 7g: where the text peephole ran (events) -- the entropy sources
+/// and the admitted leaves during exploration, the selected artifact and
+/// the late-cleanup finalists at the terminal.
+pub static PEEPHOLE_ENTROPY: Bucket = Bucket::new("peephole_entropy");
+pub static PEEPHOLE_LEAF: Bucket = Bucket::new("peephole_leaf");
+pub static PEEPHOLE_TERMINAL: Bucket = Bucket::new("peephole_terminal");
+pub static PEEPHOLE_CLEANUP: Bucket = Bucket::new("peephole_cleanup");
 /// Phase 7d: naming-only plans served by a rename pass over a cached tree
 /// (sum: bindings re-spelled).
 pub static RENAME_REPRINTS: Bucket = Bucket::new("rename_reprints");
@@ -258,10 +265,14 @@ const BYTE_BUCKETS: [&Bucket; 18] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 57] = [
+const EVENT_BUCKETS: [&Bucket; 61] = [
     &RENAME_REPRINTS,
     &EMISSION_PEEPHOLE_WON,
     &EMISSION_PEEPHOLE_LOST,
+    &PEEPHOLE_ENTROPY,
+    &PEEPHOLE_LEAF,
+    &PEEPHOLE_TERMINAL,
+    &PEEPHOLE_CLEANUP,
     &PRUNED_DECLARATORS,
     &TERMINAL_KEYWORD_KEPT,
     &TERMINAL_KEYWORD_FLIPPED,

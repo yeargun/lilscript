@@ -4177,8 +4177,11 @@ fn select_javascript_candidate_global(
         // identifiers in a few best final structural candidates, then re-emit
         // through the normal name allocator so binding and reservation proofs
         // remain authoritative. The original candidates are never removed.
+        // Phase 7g: with `peephole_scope = "terminal"` the entropy sources are
+        // scored as emitted; the chain runs once, on what ships.
         let probe_with_peephole =
-            config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole);
+            config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
+                && config.exploratory_peephole_enabled();
         let entropy_source_indices = objective_stratified_candidate_indices(
             &mut candidates,
             entropy_source_limit(candidate_beam_width, entropy_width),
@@ -4201,6 +4204,7 @@ fn select_javascript_candidate_global(
                 if !probe_with_peephole {
                     return Some(code);
                 }
+                crate::timing::PEEPHOLE_ENTROPY.event(1);
                 optimize_generated_javascript_assuming(
                     &code,
                     config.javascript.assume_pristine_builtins,
@@ -6025,9 +6029,13 @@ fn finalize_javascript_candidates_with_parallelism(
             }
         }
     }
-    let peephole_plan_limit = peephole_plan_candidates
-        .len()
-        .min(codec_budget.remaining().div_euclid(2));
+    let peephole_plan_limit = if config.exploratory_peephole_enabled() {
+        peephole_plan_candidates
+            .len()
+            .min(codec_budget.remaining().div_euclid(2))
+    } else {
+        0
+    };
     let admitted_peephole_plans = codec_budget.reserve(peephole_plan_limit);
     let peephole_plan_identities = peephole_plan_candidates
         .into_iter()
@@ -6079,6 +6087,7 @@ fn finalize_javascript_candidates_with_parallelism(
             let configured_declaration =
                 plan_identity == configured_plan_identity && declaration_index == 0;
             let variants = if prepare_peephole {
+                crate::timing::PEEPHOLE_LEAF.event(1);
                 match optimize_generated_javascript_assuming(&declaration, pristine_builtins) {
                     Err(_) if configured_declaration => {
                         vec![peephole_preserve_or_baseline(
@@ -8193,6 +8202,7 @@ fn apply_selected_canonical_peephole(
     selected.terminal_work_units = selected
         .terminal_work_units
         .saturating_add(CANONICAL_PEEPHOLE_WORK_UNITS);
+    crate::timing::PEEPHOLE_TERMINAL.event(1);
     // `LILSCRIPT_PEEPHOLE_TRACE=1` names the reason a canonical rewrite is
     // refused here; `LILSCRIPT_PEEPHOLE_DUMP=<path>` writes the refused text.
     let refused = |reason: &str, code: &str| {
@@ -8305,6 +8315,7 @@ fn apply_search_off_declaration_peephole(
         }
         return Ok(selected);
     }
+    crate::timing::PEEPHOLE_TERMINAL.event(1);
     let (code, metrics, rewrites, _) = configured_declaration_peephole(
         selected.code.clone(),
         selected.baseline_metrics,
@@ -8552,6 +8563,7 @@ fn late_javascript_cleanup_finalists(
     // large general rewrite only after plan selection.
     let mut canonical_peephole = None;
     if codec_budget.reserve_work_unit() {
+        crate::timing::PEEPHOLE_CLEANUP.event(1);
         let optimized = optimize_generated_javascript_assuming(
             &original.code,
             config.javascript.assume_pristine_builtins,
@@ -8822,6 +8834,7 @@ fn late_javascript_cleanup_finalists(
                 else {
                     continue;
                 };
+                crate::timing::PEEPHOLE_CLEANUP.event(1);
                 let Ok(optimized) = optimize_generated_javascript_assuming(
                     &remapped,
                     config.javascript.assume_pristine_builtins,

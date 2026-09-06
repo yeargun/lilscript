@@ -612,6 +612,15 @@ impl ProjectConfig {
         self.js_phi_affinity_variants_enabled()
     }
 
+    /// Whether the text peephole runs during exploration (entropy sources,
+    /// admitted leaves) as well as at the terminal.
+    pub fn exploratory_peephole_enabled(&self) -> bool {
+        let scope = std::env::var("LILSCRIPT_PEEPHOLE_SCOPE")
+            .ok()
+            .or_else(|| self.javascript.peephole_scope.clone());
+        !matches!(scope.as_deref(), Some("terminal"))
+    }
+
     pub fn javascript_optimization_configured(&self, feature: JavaScriptOptimization) -> bool {
         self.javascript.optimization_enabled(feature, None)
     }
@@ -1326,6 +1335,14 @@ pub struct JavaScriptConfig {
     /// switch overrides it, so the pool can carry the A/B without editing
     /// every port's toml.
     pub emission_peephole: Option<bool>,
+    /// Phase 7g of the migration: where the text peephole runs with the
+    /// search on. `"all"` (the default) folds the entropy sources and the
+    /// admitted leaves during exploration and the finalists at the terminal;
+    /// `"terminal"` folds only at the terminal, since the emitter now writes
+    /// most of the chain's shapes itself (7.25–7.26) and the exploratory runs
+    /// were two thirds of jquerylil's CPU. `LILSCRIPT_PEEPHOLE_SCOPE=all|terminal`
+    /// overrides it for a fleet A/B.
+    pub peephole_scope: Option<String>,
     /// Phase 7b of the migration: a candidate that differs from an emitted
     /// one only in the printer's fields (`string_quote`,
     /// `elide_call_chain_parentheses`, `compact_boolean_literals`) is a
@@ -1470,6 +1487,7 @@ impl Default for JavaScriptConfig {
             local_name_coalescing: true,
             function_scope: None,
             emission_peephole: None,
+            peephole_scope: None,
             reprint_spellings: None,
             reprint_names: None,
             truthy_nullable_checks: None,
