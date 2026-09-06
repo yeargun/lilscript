@@ -329,4 +329,6 @@ this started.
   37,698 / 37,190) and why single-port deltas under ~50 bytes proved nothing all day. `git bisect
   run` between the two, on "posthoglil compiles byte-identically three times", names the commit;
   the suspects are the shared re-print cache (7.20) and any constructor-time policy read on a
-  thread that never installed it.
+  thread that never installed it. **Named (7.33): 7.20, the cache.** Fixed by re-printing every
+  plan under a key from the canonical spelling's tree, emitted on demand; the pool's repeat runs
+  and the fleet numbers are stable again from 7.33 on.

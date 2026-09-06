@@ -3258,6 +3258,26 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
     /// erased options were emitted before is a re-print of that tree, and
     /// every emission through here enters the cache -- the spelling
     /// families and the later stages share one (phase 7b).
+    /// The options a re-print key stands for: the plan with the printer's
+    /// axes at their canonical spelling (and, under `reprint_names`, the
+    /// naming policies at theirs).
+    fn canonical_options(
+        &self,
+        options: &crate::codegen_ir_js::IrJsOptions,
+    ) -> crate::codegen_ir_js::IrJsOptions {
+        let erased = crate::codegen_ir_js::IrJsOptions {
+            string_quote: crate::codegen_ir_js::StringQuote::Double,
+            elide_call_chain_parentheses: false,
+            compact_boolean_literals: false,
+            ..*options
+        };
+        if self.reprint_names {
+            Self::erase_naming(erased)
+        } else {
+            erased
+        }
+    }
+
     fn emit_frozen(
         &self,
         context_id: usize,
@@ -3267,38 +3287,52 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
     {
         let key = (self.reprint_spellings || reprint_quotes_enabled())
             .then(|| self.reprint_key(context_id, &options));
-        if let Some(key) = &key {
-            let cached = self
-                .reprint_trees
-                .lock()
-                .expect("reprint tree cache lock")
-                .get(key)
-                .cloned();
-            if let Some((tree, base_naming)) = cached {
-                // A re-print is a plan materialised: the count stays the
-                // same whichever plan reached the cache first.
+        let Some(key) = key else {
+            self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
+            let (code, tree) = self.get(context_id).emit_frozen(module_output, options)?;
+            return Ok((self.scored_text(context_id, code), Arc::new(tree)));
+        };
+        // Migration 7.33: every plan under one key prints from the *canonical*
+        // spelling's tree. Before, the first sibling to arrive supplied the
+        // tree, so a plan's text depended on thread order (posthoglil varied
+        // per run and per thread count since 7.20; `54e1948` did not). When
+        // the canonical plan has not been emitted yet, it is emitted now --
+        // it is a plan the search seeds anyway -- and the derived plan
+        // re-prints it.
+        let canonical = self.canonical_options(&options);
+        let cached = self
+            .reprint_trees
+            .lock()
+            .expect("reprint tree cache lock")
+            .get(&key)
+            .cloned();
+        let (tree, base_naming) = match cached {
+            Some(entry) => entry,
+            None => {
                 self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
-                // Without identifier mangling every naming policy prints
-                // the source names: a plain re-print. The rename pass is
-                // only for mangled bindings.
-                let code = if base_naming == Self::naming_key(&options) || !options.mangle_identifiers {
-                    reprint_javascript_candidate(&tree, &options)
-                } else {
-                    rename_reprint_javascript_candidate(&tree, &options)
-                };
-                return Ok((self.scored_text(context_id, code), tree));
+                let (code, tree) = self.get(context_id).emit_frozen(module_output, canonical)?;
+                let tree = Arc::new(tree);
+                let entry = self
+                    .reprint_trees
+                    .lock()
+                    .expect("reprint tree cache lock")
+                    .entry(key)
+                    .or_insert_with(|| (Arc::clone(&tree), Self::naming_key(&canonical)))
+                    .clone();
+                if format!("{options:?}") == format!("{canonical:?}") && Arc::ptr_eq(&entry.0, &tree) {
+                    // The canonical plan itself, and this thread's emission is
+                    // the one in the cache: its text ships as emitted.
+                    return Ok((self.scored_text(context_id, code), tree));
+                }
+                entry
             }
-        }
+        };
         self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
-        let (code, tree) = self.get(context_id).emit_frozen(module_output, options)?;
-        let tree = Arc::new(tree);
-        if let Some(key) = key {
-            self.reprint_trees
-                .lock()
-                .expect("reprint tree cache lock")
-                .entry(key)
-                .or_insert_with(|| (Arc::clone(&tree), Self::naming_key(&options)));
-        }
+        let code = if base_naming == Self::naming_key(&options) || !options.mangle_identifiers {
+            reprint_javascript_candidate(&tree, &options)
+        } else {
+            rename_reprint_javascript_candidate(&tree, &options)
+        };
         Ok((self.scored_text(context_id, code), tree))
     }
 
