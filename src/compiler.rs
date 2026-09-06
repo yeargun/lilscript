@@ -6033,6 +6033,7 @@ fn finalize_javascript_candidates_with_parallelism(
         peephole_plan_candidates
             .len()
             .min(codec_budget.remaining().div_euclid(2))
+            .min(config.peephole_plan_cap().unwrap_or(usize::MAX))
     } else {
         0
     };

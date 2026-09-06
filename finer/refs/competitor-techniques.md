@@ -652,3 +652,17 @@ and `NO_THROW` are the bits, delivered for source-origin nodes). The text
 folds that do this today — `fold_identifier_copies`, `fold_single_use_temporaries`,
 `fold_returned_temporaries`, `fold_single_use_literal_bindings`,
 `fold_chained_*_assigns` — re-derive all three from tokens per call.
+
+## K. How often the peephole runs (read 2026-09-06, for the `peephole_scope` knob, migration 7.27)
+
+Section I's rule, read once more for the search: in every tool the peephole runs **once per
+program**, inside the transform loop, and no candidate is ever re-folded to be compared. Terser's
+`best_of` (`lib/compress/index.js`) compares two ASTs by `print_to_string().length` *during*
+`compress` and picks one — a cheap predictor, not a second compress. Closure's
+`PeepholeOptimizationsPass` sits in `getOptimizations()`'s loop and runs to a fixpoint on the one
+program; the `CodePrinter` is last and decides nothing by size. Oxc and esbuild run their
+`minimize_statements` / `js_parser` simplifications once, then print. Our search ran the text chain
+on every entropy source and every admitted leaf (jquerylil: 630 runs, two thirds of the CPU with the
+search on); with the emitter writing the chain's shapes itself (7.25–7.26) the exploratory runs
+decide little. `javascript.peephole_scope = "terminal"` is the competitors' shape: fold what ships,
+once. Measured on the pool before the default moves.

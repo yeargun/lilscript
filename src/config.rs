@@ -621,6 +621,14 @@ impl ProjectConfig {
         !matches!(scope.as_deref(), Some("terminal"))
     }
 
+    /// The cap on plans admitted to parsed preparation, if any.
+    pub fn peephole_plan_cap(&self) -> Option<usize> {
+        std::env::var("LILSCRIPT_PEEPHOLE_PLANS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .or(self.javascript.peephole_plans)
+    }
+
     pub fn javascript_optimization_configured(&self, feature: JavaScriptOptimization) -> bool {
         self.javascript.optimization_enabled(feature, None)
     }
@@ -1343,6 +1351,10 @@ pub struct JavaScriptConfig {
     /// were two thirds of jquerylil's CPU. `LILSCRIPT_PEEPHOLE_SCOPE=all|terminal`
     /// overrides it for a fleet A/B.
     pub peephole_scope: Option<String>,
+    /// Phase 7g: how many plans are admitted to parsed preparation (their
+    /// leaves folded and scored) with the search on; unset means every plan
+    /// the codec budget allows. `LILSCRIPT_PEEPHOLE_PLANS=<n>` overrides it.
+    pub peephole_plans: Option<usize>,
     /// Phase 7b of the migration: a candidate that differs from an emitted
     /// one only in the printer's fields (`string_quote`,
     /// `elide_call_chain_parentheses`, `compact_boolean_literals`) is a
@@ -1488,6 +1500,7 @@ impl Default for JavaScriptConfig {
             function_scope: None,
             emission_peephole: None,
             peephole_scope: None,
+            peephole_plans: None,
             reprint_spellings: None,
             reprint_names: None,
             truthy_nullable_checks: None,

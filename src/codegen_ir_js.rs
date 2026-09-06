@@ -3527,7 +3527,10 @@ fn fold_continue_tails(block: &mut JsBlock, policy: StatementPolicy, context: Sh
         }
         let rest = block.statements.drain(index + 1..).collect::<Vec<_>>();
         let mut else_block = block_of_statements(block, rest);
-        shape_block(&mut else_block, policy, context);
+        // One level, as the text fold: its guard had to sit directly in the
+        // loop body, so the tail it made was never rewritten again (katexlil's
+        // guard chains nested past the startup limit when it was).
+        shape_block(&mut else_block, policy, ShapeContext::Other);
         let JsStatement::If {
             then_branch,
             else_branch,
@@ -3577,7 +3580,8 @@ fn fold_early_exit(block: &mut JsBlock, policy: StatementPolicy, context: ShapeC
         }
         let rest = block.statements.drain(index + 1..).collect::<Vec<_>>();
         let mut then_block = block_of_statements(block, rest);
-        shape_block(&mut then_block, policy, context);
+        // One level, as the text fold (see `fold_continue_tails`).
+        shape_block(&mut then_block, policy, ShapeContext::Other);
         let JsStatement::If {
             condition,
             condition_tree,
