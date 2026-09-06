@@ -1281,6 +1281,11 @@ impl StatementPolicy {
 /// with its source line, and after a post-layout rename print which sites'
 /// text mentioned the bindings the renamer had to keep -- the ranking that
 /// says which raw site to turn into a node next.
+fn atom_sites_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_ATOM_SITES").as_deref() == Ok("1"))
+}
+
 fn raw_sites_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| std::env::var("LILSCRIPT_RAW_SITES").as_deref() == Ok("1"))
@@ -2649,8 +2654,16 @@ impl PartialEq for JsExpression {
 }
 
 impl JsExpression {
+    /// `LILSCRIPT_ATOM_SITES=1`: report the source line of every atom that
+    /// spells a bracketed literal, the way `LILSCRIPT_RAW_SITES` ranks raw
+    /// nodes -- the queue for the literals the printer does not own yet.
+    #[track_caller]
     fn atom(code: impl Into<String>) -> Self {
-        let code = code.into();
+        let code: String = code.into();
+        if atom_sites_enabled() && matches!(code.as_bytes().first(), Some(b'[' | b'{')) {
+            let site = std::panic::Location::caller();
+            eprintln!("[atom-site] {}:{} {}", site.file(), site.line(), &code[..code.len().min(60)]);
+        }
         if crate::timing::enabled()
             && is_js_property_identifier(&code)
             && !is_js_reserved(&code)
@@ -15649,9 +15662,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 class,
                 constructor: None,
                 args,
-            } if boundary && args.is_empty() => self
-                .render_inlined_class_value(class, instruction.out, true, context, cache)
-                .map(JsExpression::atom),
+            } if boundary && args.is_empty() => {
+                self.render_inlined_class_value(class, instruction.out, true, context, cache)
+            }
             ControlFlowOp::IndexGet { object, index }
                 if instruction.ty.as_ref() == Some(&Type::String) =>
             {
@@ -15964,31 +15977,39 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .chain(&self.module.classes)
                     .find(|layout| layout.name == *name)
                     .filter(|_| self.class_uses_named_fields(name));
-                let mut rendered = String::from(if named.is_some() { "{" } else { "[" });
+                // The positional literal is an `Array` node over its value
+                // nodes; the named one stays text until the tree has an
+                // object-literal node.
+                let Some(layout) = named else {
+                    let mut elements = Vec::with_capacity(values.len());
+                    for item in values {
+                        elements.push(value(*item, cache)?);
+                    }
+                    return Ok(JsExpression::array(elements));
+                };
+                let mut rendered = String::from("{");
                 for (index, item) in values.iter().enumerate() {
                     if index != 0 {
                         rendered.push(',');
                     }
-                    if let Some(layout) = named {
-                        if let Some(field) = layout.fields.get(index) {
-                            self.push_named_literal_key_text(
-                                &mut rendered,
-                                self.owned_property_name(name, field.index, field.name),
-                            );
-                        }
+                    if let Some(field) = layout.fields.get(index) {
+                        self.push_named_literal_key_text(
+                            &mut rendered,
+                            self.owned_property_name(name, field.index, field.name),
+                        );
                     }
                     rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                 }
-                rendered.push(if named.is_some() { '}' } else { ']' });
+                rendered.push('}');
                 JsExpression::atom(rendered)
             }
             ControlFlowOp::NewClass {
                 class,
                 constructor: None,
                 args,
-            } if args.is_empty() => JsExpression::atom(
-                self.render_inlined_class_value(class, out, false, context, cache)?,
-            ),
+            } if args.is_empty() => {
+                self.render_inlined_class_value(class, out, false, context, cache)?
+            }
             ControlFlowOp::Closure { function, captures } => {
                 let capture_values = captures.as_slice();
                 let captures = captures
@@ -18476,15 +18497,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         boundary: bool,
         context: &LocalNames,
         cache: &mut ExpressionCache,
-    ) -> Result<String, CodegenError> {
+    ) -> Result<JsExpression, CodegenError> {
         let Some(out) = out else {
-            return self.default_class_value(class, boundary);
+            return self.default_class_value(class, boundary).map(JsExpression::atom);
         };
         let Some(overrides) = self
             .inlined_constructor_field_initializers
             .get(&(context.function_id, out))
         else {
-            return self.default_class_value(class, boundary);
+            return self.default_class_value(class, boundary).map(JsExpression::atom);
         };
         let layout = self
             .module
@@ -18499,17 +18520,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })?;
         let named = (boundary && self.options.public_aggregate_fields)
             || self.class_uses_named_fields(class);
-        let mut rendered = String::from(if named { "{" } else { "[" });
+        // The positional literal is an `Array` node over its field nodes, so
+        // the literals inside follow the printer (the quote, the boolean
+        // spelling); the named literal stays text until the tree has an
+        // object-literal node.
+        if !named {
+            let mut elements = Vec::with_capacity(layout.fields.len());
+            for field in &layout.fields {
+                if let Some((_, value)) = overrides.iter().find(|(index, _)| *index == field.index) {
+                    elements.push(take_value(*value, context, cache)?);
+                } else {
+                    elements.push(self.default_value_node(&field.ty));
+                }
+            }
+            return Ok(JsExpression::array(elements));
+        }
+        let mut rendered = String::from("{");
         for (position, field) in layout.fields.iter().enumerate() {
             if position != 0 {
                 rendered.push(',');
             }
-            if named {
-                self.push_named_literal_key_text(
-                    &mut rendered,
-                    self.owned_property_name(class, field.index, field.name),
-                );
-            }
+            self.push_named_literal_key_text(
+                &mut rendered,
+                self.owned_property_name(class, field.index, field.name),
+            );
             if let Some((_, value)) = overrides.iter().find(|(index, _)| *index == field.index) {
                 rendered.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
             } else {
@@ -18519,8 +18553,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
         }
-        rendered.push(if named { '}' } else { ']' });
-        Ok(rendered)
+        rendered.push('}');
+        Ok(JsExpression::atom(rendered))
+    }
+
+    /// A field's default as a node: booleans and strings as the literal
+    /// nodes the printer spells, everything else as the text it always was.
+    fn default_value_node(&self, ty: &Type<'_>) -> JsExpression {
+        match default_value(ty, self.options.compact_boolean_literals) {
+            "true" | "!0" => JsExpression::boolean(true, self.options.compact_boolean_literals),
+            "false" | "!1" => JsExpression::boolean(false, self.options.compact_boolean_literals),
+            "\"\"" => JsExpression::string_literal(&self.literal_table, "", self.options.string_quote),
+            other => JsExpression::atom(other),
+        }
     }
 
     fn push_named_literal_key_text(&self, out: &mut String, property: &str) {
