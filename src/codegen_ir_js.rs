@@ -1694,7 +1694,9 @@ impl JsUnary {
             "-" => Self::Neg,
             "+" => Self::Plus,
             "void" => Self::Void,
-            "typeof" => Self::TypeOf,
+            // The spelling carries its separating space; a rebuild hands it
+            // back through here.
+            "typeof" | "typeof " => Self::TypeOf,
             other => unreachable!("unary operator {other:?} is not a token the tree spells"),
         }
     }
@@ -2174,6 +2176,19 @@ impl JsBlock {
                 return self.push_statement_with(merged, options);
             }
         }
+        // live-15: a throwing host alias expands to `throw ..` text as an
+        // expression, and every compaction (`c&&throw ..`) then reads it as
+        // one. It is a statement, and it is pushed as one.
+        let statement = match statement {
+            JsStatement::Expression { value }
+                if value.root == JsExpressionRoot::Raw && value.code.starts_with("throw ") =>
+            {
+                JsStatement::Throw {
+                    value: JsExpression::raw(value.code["throw ".len()..].to_string(), JsPrecedence::Comma),
+                }
+            }
+            other => other,
+        };
         // Phase 6, chain head: `x=x+1|0;` is `x++;` (`fold_unit_counter_updates`).
         let statement = if policy.unit_updates {
             unit_counter_update(statement)
@@ -3354,7 +3369,9 @@ impl JsExpression {
                             }
                         })
             }
-            JsExpressionRoot::Nullish if matches!(parent, IrBinaryOp::And | IrBinaryOp::Or) => {
+            JsExpressionRoot::Nullish | JsExpressionRoot::NullNormalized
+                if matches!(parent, IrBinaryOp::And | IrBinaryOp::Or) =>
+            {
                 false
             }
             // Raw text under `&&` / `||` is read the way the merge zone read
@@ -7635,7 +7652,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn coalesce_absent_to_null(&self, expr: JsExpression) -> JsExpression {
         if self.options.allows(JsSyntaxFeature::NullishCoalescing) {
-            JsExpression::raw(format!("{expr}??null"), JsPrecedence::Conditional)
+            // The `NullNormalized` node: `x??null`, grouped under `&&`/`||`
+            // like any `??` (the raw text carried a conditional precedence
+            // to force the same grouping).
+            JsExpression::null_normalized(expr)
         } else if is_js_property_identifier(&expr.code) {
             JsExpression::raw(
                 format!("{expr}==null?null:{expr}"),
@@ -9928,18 +9948,37 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             let result = self.emit_function_body(&root, String::new(), true, false, &mut rendered);
             self.loop_captured_closures = restored_loop_captures;
             result?;
+            // The root's body is one `Function` statement: kept as a closure
+            // tree behind a `Closure` node, so the renamer and the re-print
+            // reach into it (phase 6: the last raw site on markedlil).
+            let value = match rendered.statements.as_slice() {
+                [only] if matches!(only.statement, JsStatement::Function { .. }) => {
+                    let JsStatement::Function { head, body, .. } =
+                        rendered.pop_statement().expect("one statement").statement
+                    else {
+                        unreachable!("matched a Function statement")
+                    };
+                    let text = self.render_closure_statement(head, body);
+                    self.closure_node(text, JsPrecedence::Primary)
+                }
+                _ => JsExpression::raw(rendered.into_string(), JsPrecedence::Primary),
+            };
             body.push_statement(JsStatement::Binding {
                 keyword: None,
                 name,
-                value: JsExpression::raw(rendered.into_string(), JsPrecedence::Primary),
+                value,
                 bind: None,
             });
         }
+        // `(function(){..})()`: the wrapper is a closure tree too; the callee
+        // takes the lowest precedence so the call spells the parentheses a
+        // function expression needs in statement position.
+        let mut head = JsHead::default();
+        head.push_text("function()");
+        let wrapper = self.render_closure_statement(head, JsFunctionBody::Block(body));
+        let callee = self.closure_node(wrapper, JsPrecedence::Comma);
         out.push_statement(JsStatement::Expression {
-            value: JsExpression::raw(
-                format!("(function(){{{}}})()", body.into_braced_body()),
-                JsPrecedence::Call,
-            ),
+            value: JsExpression::call(callee, []),
         });
         Ok(())
     }
@@ -15722,6 +15761,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     (ConstValue::Bool(value), None) => {
                         JsExpression::boolean(*value, self.options.compact_boolean_literals)
                     }
+                    // An interned literal: the quote is the printer's.
+                    (ConstValue::String(value), None) => JsExpression::string_literal(
+                        &self.literal_table,
+                        value,
+                        self.options.string_quote,
+                    ),
                     (_, alias) => JsExpression::atom(alias.cloned().unwrap_or(rendered)),
                 }
             }
@@ -15788,14 +15833,38 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 target,
             } => {
                 let operand = value(*input, cache)?;
-                JsExpression::raw(
-                    render_js_type_check(
-                        &operand.at_least(JsPrecedence::Unary),
-                        target,
-                        self.options.string_quote,
-                    )?,
-                    JsPrecedence::Equality,
-                )
+                let type_name = match target {
+                    Type::Int | Type::Float => Some("number"),
+                    Type::String => Some("string"),
+                    Type::Bool => Some("boolean"),
+                    Type::Function(_) | Type::GenericFunction(_) => Some("function"),
+                    _ => None,
+                };
+                match (type_name, target) {
+                    // `"number"==typeof x`: the literal is interned, the
+                    // `typeof` a unary node, the comparison in this order.
+                    (Some(type_name), _) => JsExpression::binary_in_order(
+                        IrBinaryOp::Eq,
+                        JsExpression::string_literal(
+                            &self.literal_table,
+                            type_name,
+                            self.options.string_quote,
+                        ),
+                        JsExpression::unary("typeof", operand),
+                    ),
+                    (None, Type::Array(_)) => JsExpression::call(
+                        JsExpression::atom("Array.isArray"),
+                        [operand],
+                    ),
+                    (None, _) => JsExpression::raw(
+                        render_js_type_check(
+                            &operand.at_least(JsPrecedence::Unary),
+                            target,
+                            self.options.string_quote,
+                        )?,
+                        JsPrecedence::Equality,
+                    ),
+                }
             }
             ControlFlowOp::Array(values) => {
                 let elements = values
