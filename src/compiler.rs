@@ -2106,7 +2106,13 @@ fn optimize_and_select_javascript_inner<'src>(
             id: probe.context_id,
             ir: probe.ir,
             optimizer_options: probe.optimizer_options,
-            reports: probe.reports,
+            reports: {
+                if std::env::var_os("LILSCRIPT_EMISSION_DUMP").is_some() {
+                    eprintln!("[ir-context] id={} reports={:?}", probe.context_id, probe.reports.iter().map(|report| format!("{report:?}")).collect::<Vec<_>>().join(" | "));
+                    eprintln!("[ir-options] id={} {:?}", probe.context_id, probe.optimizer_options);
+                }
+                probe.reports
+            },
             configured_seed: probe
                 .configured
                 .expect("admitted probes have a configured scored emission"),
@@ -2170,6 +2176,9 @@ fn optimize_and_select_javascript_inner<'src>(
             };
             let mut reports = context.reports.clone();
             reports.push(projection);
+            if std::env::var_os("LILSCRIPT_EMISSION_DUMP").is_some() {
+                eprintln!("[ir-context] id={context_id} (projection of {}) reports={:?}", context.id, reports.iter().map(|report| format!("{report:?}")).collect::<Vec<_>>().join(" | "));
+            }
             projection_candidates.push((
                 candidate,
                 JavaScriptIrSearchContext {
@@ -3308,11 +3317,22 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
     {
         // One attempt per request, whichever path serves it: the count is a
         // property of the search, not of which thread reached a key first.
-        self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
+        let attempt = self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
+        // `LILSCRIPT_EMISSION_DUMP=<dir>`: every emission's text and options,
+        // numbered by attempt, for finding which plan emits a given shape.
+        let dump = |code: &str| {
+            if let Some(dir) = std::env::var_os("LILSCRIPT_EMISSION_DUMP") {
+                let dir = std::path::PathBuf::from(dir);
+                let _ = std::fs::create_dir_all(&dir);
+                let _ = std::fs::write(dir.join(format!("{context_id}-{attempt}.js")), code);
+                let _ = std::fs::write(dir.join(format!("{context_id}-{attempt}.txt")), format!("{options:?}"));
+            }
+        };
         let key = (self.reprint_spellings || reprint_quotes_enabled())
             .then(|| self.reprint_key(context_id, &options));
         let Some(key) = key else {
             let (code, tree) = self.get(context_id).emit_frozen(module_output, options)?;
+            dump(&code);
             return Ok((self.scored_text(context_id, code), Arc::new(tree)));
         };
         // Migration 7.33: every plan under one key prints from the *canonical*
@@ -3340,6 +3360,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
                 drop(guard);
                 if format!("{options:?}") == format!("{canonical:?}") {
                     // The canonical plan itself: its text ships as emitted.
+                    dump(&code);
                     return Ok((self.scored_text(context_id, code), tree));
                 }
                 (tree, Self::naming_key(&canonical))
@@ -3350,6 +3371,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         } else {
             rename_reprint_javascript_candidate(&tree, &options)
         };
+        dump(&code);
         Ok((self.scored_text(context_id, code), tree))
     }
 

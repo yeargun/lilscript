@@ -447,3 +447,13 @@ this started.
   collapse merely makes that plan the smallest. The fix is in the region rendering; until then
   the collapse stays off on the search's plans (it ships as the terminal print), and the fleet
   win it measured (−660 over 20 ports with the ledger at its base) is the prize for fixing it.
+- **live-9 without the search (7.46).** `LILSCRIPT_EMISSION_DUMP` names the plan: every wrong
+  emission belongs to one IR context, the variant with CSE off, specialisation off and the
+  aggressive inline limits, and that variant compiles wrong search-off with the collapse off --
+  `migration/tools/live9.toml`. So the everywhere collapse was a detector twice over: it made a
+  latent miscompile the winner, and the dump made the winner nameable. The lesson for the
+  search: a plan that miscompiles is not a plan that loses on bytes; the standards parser
+  admission catches syntax, nothing catches semantics, and the probe harness is the only net.
+  Two things follow: an IR printer (there is none) so optimizer losses can be seen before the
+  emitter, and the probe's 22 configurations run on every IR variant the search admits, not
+  only on the shipped plan.

@@ -27121,6 +27121,14 @@ pub(crate) fn emit_optimized_ir_js_frozen(
     integer_analysis: Arc<IntegerValueAnalysis>,
     facts: Arc<crate::optimizer::IrFacts>,
 ) -> Result<(String, FrozenModuleTree), CodegenError> {
+    // `LILSCRIPT_IR_DUMP=<path>`: the first module emitted, as the optimizer
+    // left it (migration 7.46: to tell an optimizer loss from the emitter's).
+    if let Some(path) = std::env::var_os("LILSCRIPT_IR_DUMP") {
+        static ONCE: OnceLock<()> = OnceLock::new();
+        ONCE.get_or_init(|| {
+            let _ = std::fs::write(path, format!("{module:#?}"));
+        });
+    }
     let (text, tree) =
         IrJsEmitter::with_facts(module, module_output, *options, integer_analysis, facts)
             .emit_with_tree()?;
