@@ -419,6 +419,10 @@ impl ProjectConfig {
                 .unwrap_or(false),
             text_peephole: self
                 .javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole),
+            // Off on the search's plans; the terminal shape challengers turn them on.
+            single_use_collapse: false,
+            hoist_for_initializers: false,
+            negated_conditional_arms: false,
             phi_edge_value_forwarding: self
                 .javascript
                 .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
@@ -610,6 +614,16 @@ impl ProjectConfig {
     /// callers can distinguish it from choosing an affinity mode.
     pub fn js_local_name_coalescing_variants_enabled(&self) -> bool {
         self.js_phi_affinity_variants_enabled()
+    }
+
+    /// Whether the terminal stage offers the tree's off-by-default shapes as
+    /// codec-verified challengers of the finalist (migration 7.36).
+    pub fn terminal_shape_challengers_enabled(&self) -> bool {
+        match std::env::var("LILSCRIPT_TERMINAL_SHAPES").ok().as_deref() {
+            Some("0") | Some("off") => false,
+            Some(_) => true,
+            None => self.javascript.terminal_shape_challengers.unwrap_or(true),
+        }
     }
 
     /// Whether the text peephole runs during exploration (entropy sources,
@@ -1359,6 +1373,11 @@ pub struct JavaScriptConfig {
     /// leaves folded and scored) with the search on; unset means every plan
     /// the codec budget allows. `LILSCRIPT_PEEPHOLE_PLANS=<n>` overrides it.
     pub peephole_plans: Option<usize>,
+    /// Migration 7.36: whether the terminal stage re-emits the finalist with
+    /// the tree's off-by-default shapes (the single-use collapse) and keeps
+    /// the result when the codec says it is smaller. One emission per shape,
+    /// admitted only on a win. `LILSCRIPT_TERMINAL_SHAPES=0|1` overrides it.
+    pub terminal_shape_challengers: Option<bool>,
     /// Phase 7b of the migration: a candidate that differs from an emitted
     /// one only in the printer's fields (`string_quote`,
     /// `elide_call_chain_parentheses`, `compact_boolean_literals`) is a
@@ -1505,6 +1524,7 @@ impl Default for JavaScriptConfig {
             emission_peephole: None,
             peephole_scope: None,
             peephole_plans: None,
+            terminal_shape_challengers: None,
             reprint_spellings: None,
             reprint_names: None,
             truthy_nullable_checks: None,

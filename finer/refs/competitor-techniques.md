@@ -666,3 +666,22 @@ on every entropy source and every admitted leaf (jquerylil: 630 runs, two thirds
 search on); with the emitter writing the chain's shapes itself (7.25–7.26) the exploratory runs
 decide little. `javascript.peephole_scope = "terminal"` is the competitors' shape: fold what ships,
 once. Measured on the pool before the default moves.
+
+**Terminal shape challengers (migration 7.36).** None of the five scores a rewrite by the bytes
+it ships: Terser's `Compressor.compress` re-runs its passes while the AST keeps shrinking
+(`passes`, node count as the measure) and `collapse_vars`/`reduce_vars` apply wherever their
+admission holds; Closure's `CollapseVariableDeclarations`/`InlineVariables` and Oxc's
+`substitute_single_use_symbol` likewise decide by shape, never by a codec. esbuild and SWC have
+no rewrite that is conditional on output size at all. LilScript's terminal ledger already
+scored naming and string-pooling challengers by the configured codec on the finalist; the
+tree's off-for-cause shapes (the single-use collapse first) now enter through the same slot,
+one re-emission each, kept only when smaller. The fleet A/B that motivated it (7.34: the
+collapse on every emission, +128 net, six wins, six losses) is the measurement none of the
+five could have made, because none of them has a search whose plan choice a rewrite can move.
+
+**Addendum (7.38).** The challenger that is comparable to the finalist is a *print of the
+finalist's own tree* with the shape applied on the tree, not a re-emission of its plan: a fresh
+emission lacks the finishing (the rename family, the late cleanup) the artifact already carries,
+and lost 71–101 bytes on markedlil with the shape doing nothing. Terser has no equivalent because
+it has no finishing to lose: its passes are the whole pipeline. The re-print is the shape of
+Phase 7′ -- shapes as prints of one tree, scored by the codec, the finishing paid once.

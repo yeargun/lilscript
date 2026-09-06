@@ -131,6 +131,18 @@ pub struct IrJsOptions {
     /// where the fold would have written it, so a port that ships without
     /// the peephole keeps its own text.
     pub text_peephole: bool,
+    /// Phase 6, G4/G5 (migration 7.36): the single-use collapse on this
+    /// emission's tree. Off on the search's plans -- run on every emission it
+    /// moved the plan choice (+128 on the fleet) -- and on for the terminal
+    /// shape challenger, which the codec admits only when it wins.
+    pub single_use_collapse: bool,
+    /// Migration 7.37: the for-init hoist (`fold_prior_assign_into_for_init`)
+    /// and the negated-arm swap (`fold_negated_conditional_arms`) as tree
+    /// shapes on this emission -- off on the search's plans (+76 on markedlil,
+    /// +36 on micromark when they ran everywhere), on for a terminal shape
+    /// challenger each.
+    pub hoist_for_initializers: bool,
+    pub negated_conditional_arms: bool,
     /// Emit a private function whose only use is one `Closure` site as a
     /// function expression there. A thin capture wrapper around a shared
     /// declaration is the same per-call allocation, so reusable and loop
@@ -344,6 +356,9 @@ impl Default for IrJsOptions {
             inline_single_use_functions: false,
             rematerialize_member_reads: false,
             text_peephole: false,
+            single_use_collapse: false,
+            hoist_for_initializers: false,
+            negated_conditional_arms: false,
             inline_exclusive_closures: true,
             iife_private_callee_clusters: false,
             nested_once_run_helpers: false,
@@ -1290,6 +1305,17 @@ struct StatementPolicy {
     negated_arms: bool,
     boolean_arms: bool,
     ident_or: bool,
+    /// Phase 6, G4/G5: a name bound once and read once, in the very next
+    /// statement, is replaced by its value there and its binding dropped
+    /// (`fold_single_use_temporaries`, `fold_single_use_literal_bindings`,
+    /// `fold_identifier_copies`, `fold_single_use_if_assigns`).
+    single_use_collapse: bool,
+    /// Phase 6, G7: `var x=void 0` prints as `var x` where the store is dead
+    /// (`fold_void_initializers_off_fresh_vars`), `let x=void 0` always.
+    void_initializers: bool,
+    /// Phase 6, G7: declarations the collapse leaves adjacent merge into one
+    /// list, as the emitter merges them at push (`merge_adjacent_declarations`).
+    declaration_merge: bool,
     /// Phase 6, G5: return tails fold over a text condition too, grouped when
     /// the text could bind looser than a conditional's test.
     raw_return_tails: bool,
@@ -1352,6 +1378,9 @@ impl StatementPolicy {
         boolean_arms: false,
         ident_or: false,
         raw_return_tails: false,
+        single_use_collapse: false,
+        void_initializers: false,
+        declaration_merge: false,
         braceless_control_bodies: false,
     };
 
@@ -1376,17 +1405,24 @@ impl StatementPolicy {
             early_exits: port("early_exits"),
             trailing_increments: port("trailing_increments"),
             same_target_conditional: port("same_target_conditional"),
-            for_init: port_off("for_init"),
+            for_init: options.hoist_for_initializers || port_off("for_init"),
             int32_chains: port("int32_chains"),
             dead_literals: port("dead_literals"),
             conditional_shapes: port("conditional_shapes"),
             // Off: `!c?a:b` as `c?b:a` read −32 on katexlil and −7 on markedlil
             // but +36 on micromark with the search off; the text fold still
             // makes the swap where it pays, at the terminal.
-            negated_arms: port_off("negated_arms"),
+            negated_arms: options.negated_conditional_arms || port_off("negated_arms"),
             boolean_arms: port("boolean_arms"),
             ident_or: port("ident_or"),
             raw_return_tails: port("raw_return_tails"),
+            // Off until it wins on the fleet: b25 on/off over 20 ports read
+            // +128 net (six wins, -204; six losses, +332; eight ties) -- a
+            // pre-scoring tree rewrite moves the search's plan choice, where
+            // the terminal text folds it replaces are codec-verified.
+            single_use_collapse: options.single_use_collapse || port_off("single_use_collapse"),
+            void_initializers: port("void_initializers"),
+            declaration_merge: port("declaration_merge"),
             // The text fold dropped braces whatever the option said, so the
             // port does too where it runs; the option decides where it does not.
             braceless_control_bodies: options.braceless_control_bodies || port("control_braces"),
@@ -2577,74 +2613,12 @@ impl JsBlock {
     /// statement kinds that spell a plain declaration take part; a
     /// destructuring pattern or a `for` head never reaches here.
     fn merge_adjacent_declaration(&self, incoming: &JsStatement) -> Option<JsStatement> {
-        fn parts(statement: &JsStatement) -> Option<(&'static str, Vec<JsDeclarator>)> {
-            match statement {
-                // `let f=(a)=>{..};` -- an arrow binding is a `let` declaration
-                // whose value is a function; its head starts `let f=`.
-                JsStatement::Function {
-                    head,
-                    body,
-                    terminated: true,
-                } => {
-                    let [JsHeadPiece::Text(keyword), JsHeadPiece::FunctionName(bind, name), JsHeadPiece::Text(after), rest @ ..] =
-                        head.pieces.as_slice()
-                    else {
-                        return None;
-                    };
-                    if keyword != "let " || !after.starts_with('=') {
-                        return None;
-                    }
-                    let mut value_head = JsHead::default();
-                    value_head.push_text(&after[1..]);
-                    for piece in rest {
-                        value_head.pieces.push(piece.clone());
-                    }
-                    Some((
-                        "let ",
-                        vec![JsDeclarator {
-                            name: name.clone(),
-                            bind: Some(*bind),
-                            value: None,
-                            function: Some(Box::new((value_head, body.clone()))),
-                        }],
-                    ))
-                }
-                JsStatement::Declaration { keyword, name, bind } => Some((
-                    keyword,
-                    vec![JsDeclarator {
-                        name: name.clone(),
-                        bind: *bind,
-                        value: None,
-                        function: None,
-                    }],
-                )),
-                JsStatement::Binding {
-                    keyword: Some(keyword),
-                    name,
-                    bind,
-                    value,
-                } => Some((
-                    keyword,
-                    vec![JsDeclarator {
-                        name: name.clone(),
-                        bind: *bind,
-                        value: Some(value.clone()),
-                        function: None,
-                    }],
-                )),
-                JsStatement::Declarators {
-                    keyword,
-                    declarators,
-                } => Some((keyword, declarators.clone())),
-                _ => None,
-            }
-        }
-        let (keyword, mut declarators) = parts(incoming)?;
+        let (keyword, mut declarators) = declaration_parts(incoming)?;
         let previous = self.statements.last()?;
         if previous.dropped_semicolon {
             return None;
         }
-        let (previous_keyword, previous_declarators) = parts(&previous.statement)?;
+        let (previous_keyword, previous_declarators) = declaration_parts(&previous.statement)?;
         if previous_keyword != keyword {
             return None;
         }
@@ -3024,6 +2998,7 @@ fn expression_is_pure_literal(node: &JsExpression) -> bool {
         JsExpressionRoot::Atom => {
             node.code == "null"
                 || node.code == "undefined"
+                || node.code == "void 0"
                 || node.code.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.')
         }
         JsExpressionRoot::Array => node.operands.iter().all(expression_is_pure_literal),
@@ -3239,6 +3214,855 @@ fn concise_single_return(head: &JsHead, body: JsFunctionBody) -> JsFunctionBody 
             JsFunctionBody::ConciseNode(value)
         }
         other => other,
+    }
+}
+
+/// Reads and writes per bind over a body and the closures inside it; names
+/// spelled in text the tree does not own are unsafe to touch.
+#[derive(Default)]
+struct BindCensus {
+    reads: AHashMap<Bind, usize>,
+    writes: AHashMap<Bind, usize>,
+    unsafe_names: AHashSet<String>,
+    /// The function scope every write of a bind sits in, `None` once two
+    /// scopes have written it (a closure stores into an outer local).
+    write_scope: AHashMap<Bind, Option<usize>>,
+    /// Binds whose first write, in program order, is a `var x=void 0`
+    /// outside any loop of its function: the store is dead there.
+    void_first: AHashSet<Bind>,
+    scope: usize,
+    next_scope: usize,
+    loop_depth: usize,
+}
+
+impl BindCensus {
+    fn write(&mut self, bind: Bind) {
+        *self.writes.entry(bind).or_insert(0) += 1;
+        let scope = self.scope;
+        self.write_scope
+            .entry(bind)
+            .and_modify(|seen| {
+                if *seen != Some(scope) {
+                    *seen = None;
+                }
+            })
+            .or_insert(Some(scope));
+    }
+
+    fn void_declaration(&mut self, bind: Bind, value: &JsExpression) {
+        if expression_is_void(value) && self.loop_depth == 0 && !self.writes.contains_key(&bind) {
+            self.void_first.insert(bind);
+        }
+    }
+
+    fn function(
+        &mut self,
+        head: &JsHead,
+        body: &JsFunctionBody,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        let saved = (self.scope, self.loop_depth);
+        self.next_scope += 1;
+        self.scope = self.next_scope;
+        self.loop_depth = 0;
+        self.head(head);
+        self.function_body(body, closures);
+        (self.scope, self.loop_depth) = saved;
+    }
+
+    fn text(&mut self, text: &str) {
+        let bytes = text.as_bytes();
+        let mut index = 0usize;
+        while index < bytes.len() {
+            if is_js_identifier_start(bytes[index]) {
+                let start = index;
+                while index < bytes.len() && is_js_identifier_byte(bytes[index]) {
+                    index += 1;
+                }
+                self.unsafe_names.insert(text[start..index].to_string());
+            } else {
+                index += 1;
+            }
+        }
+    }
+
+    fn expression(
+        &mut self,
+        node: &JsExpression,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        match node.root {
+            JsExpressionRoot::Name(bind) => *self.reads.entry(bind).or_insert(0) += 1,
+            JsExpressionRoot::Raw | JsExpressionRoot::Atom => self.text(&node.code),
+            JsExpressionRoot::Closure(id) => {
+                let entry = closures.borrow().get(&id).cloned();
+                match entry {
+                    Some((head, body)) => self.function(&head, &body, closures),
+                    None => self.text(&node.code),
+                }
+            }
+            JsExpressionRoot::Assign | JsExpressionRoot::Update(_) => {
+                if let Some(target) = node.operands.first() {
+                    match target.root {
+                        JsExpressionRoot::Name(bind) => {
+                            self.write(bind);
+                        }
+                        _ => self.expression(target, closures),
+                    }
+                }
+                for operand in node.operands.iter().skip(1) {
+                    self.expression(operand, closures);
+                }
+            }
+            _ => {
+                for operand in &node.operands {
+                    self.expression(operand, closures);
+                }
+            }
+        }
+    }
+
+    fn head(&mut self, head: &JsHead) {
+        for piece in &head.pieces {
+            match piece {
+                JsHeadPiece::Text(text) | JsHeadPiece::Unbound(text) => self.text(text),
+                JsHeadPiece::Name(bind, _) | JsHeadPiece::FunctionName(bind, _) => {
+                    self.write(*bind);
+                }
+            }
+        }
+    }
+
+    fn function_body(
+        &mut self,
+        body: &JsFunctionBody,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        match body {
+            JsFunctionBody::Block(block) => self.block(block, closures),
+            JsFunctionBody::ConciseNode(node) => self.expression(node, closures),
+            JsFunctionBody::Concise(text) => self.text(text),
+        }
+    }
+
+    fn block(
+        &mut self,
+        block: &JsBlock,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        for emitted in &block.statements {
+            self.statement(&emitted.statement, closures);
+        }
+    }
+
+    fn statement(
+        &mut self,
+        statement: &JsStatement,
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    ) {
+        match statement {
+            JsStatement::Declaration { name, bind, .. } => match bind {
+                Some(bind) => self.write(*bind),
+                None => self.text(name),
+            },
+            JsStatement::DeclarationGroup { names, .. } => {
+                for name in names {
+                    self.text(name);
+                }
+            }
+            JsStatement::Binding {
+                keyword,
+                name,
+                bind,
+                value,
+            } => {
+                if let (Some(_), Some(bind)) = (keyword, bind) {
+                    self.void_declaration(*bind, value);
+                }
+                match bind {
+                    Some(bind) => self.write(*bind),
+                    None => self.text(name),
+                }
+                self.expression(value, closures);
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    if let (Some(bind), Some(value), None) =
+                        (declarator.bind, &declarator.value, &declarator.function)
+                    {
+                        self.void_declaration(bind, value);
+                    }
+                    match declarator.bind {
+                        Some(bind) => self.write(bind),
+                        None => self.text(&declarator.name),
+                    }
+                    if let Some(value) = &declarator.value {
+                        self.expression(value, closures);
+                    }
+                    if let Some(function) = &declarator.function {
+                        self.function(&function.0, &function.1, closures);
+                    }
+                }
+            }
+            JsStatement::Expression { value } | JsStatement::Throw { value } => {
+                self.expression(value, closures);
+            }
+            JsStatement::Return { value } => {
+                if let Some(value) = value {
+                    self.expression(value, closures);
+                }
+            }
+            JsStatement::If {
+                condition,
+                condition_tree,
+                then_branch,
+                else_branch,
+            } => {
+                match condition_tree {
+                    Some(tree) => self.expression(tree, closures),
+                    None => self.text(condition),
+                }
+                self.block(&then_branch.block, closures);
+                if let Some(else_branch) = else_branch {
+                    self.block(&else_branch.block, closures);
+                }
+            }
+            JsStatement::Function { head, body, .. } => self.function(head, body, closures),
+            JsStatement::Loop {
+                head,
+                body,
+                do_condition,
+                do_condition_tree,
+            } => {
+                match head {
+                    JsLoopHead::DoWhile { guard, guard_tree } => match guard_tree {
+                        Some(tree) => self.expression(tree, closures),
+                        None => self.text(guard),
+                    },
+                    JsLoopHead::For {
+                        initializer,
+                        condition,
+                        condition_tree,
+                        update,
+                    } => {
+                        if let Some(initializer) = initializer {
+                            self.text(initializer);
+                        }
+                        match (condition_tree, condition) {
+                            (Some(tree), _) => self.expression(tree, closures),
+                            (None, Some(text)) => self.text(text),
+                            (None, None) => {}
+                        }
+                        if let Some(update) = update {
+                            self.text(update);
+                        }
+                    }
+                    JsLoopHead::While {
+                        condition,
+                        condition_tree,
+                    } => match condition_tree {
+                        Some(tree) => self.expression(tree, closures),
+                        None => self.text(condition),
+                    },
+                    JsLoopHead::ForIn {
+                        key, bind, object, ..
+                    } => {
+                        match bind {
+                            Some(bind) => self.write(*bind),
+                            None => self.text(key),
+                        }
+                        self.text(object);
+                    }
+                    JsLoopHead::ForOf {
+                        element,
+                        bind,
+                        iterable,
+                        ..
+                    } => {
+                        match bind {
+                            Some(bind) => self.write(*bind),
+                            None => self.text(element),
+                        }
+                        self.text(iterable);
+                    }
+                }
+                self.loop_depth += 1;
+                self.block(&body.block, closures);
+                self.loop_depth -= 1;
+                match (do_condition_tree, do_condition) {
+                    (Some(tree), _) => self.expression(tree, closures),
+                    (None, Some(text)) => self.text(text),
+                    (None, None) => {}
+                }
+            }
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                self.block(body, closures);
+                if let Some(catch) = catch {
+                    if let Some(binding) = &catch.binding {
+                        self.text(binding);
+                    }
+                    self.block(&catch.body, closures);
+                }
+                if let Some(finally) = finally {
+                    self.block(finally, closures);
+                }
+            }
+            JsStatement::Switch {
+                discriminant,
+                cases,
+            } => {
+                self.text(discriminant);
+                for case in cases {
+                    self.text(&case.label);
+                    self.block(&case.body, closures);
+                }
+            }
+            JsStatement::Class { members, .. } => self.block(members, closures),
+            JsStatement::ClassField { .. }
+            | JsStatement::Import { .. }
+            | JsStatement::Export { .. } => {
+                // Text the tree does not own: every identifier in it is unsafe.
+                self.text(&statement.clone().render(JsStatementOptions::UNUSED));
+            }
+            JsStatement::Break | JsStatement::Continue | JsStatement::Empty => {}
+        }
+    }
+}
+
+
+/// The leaf an expression evaluates first, when the tree shows it.
+fn first_evaluated_leaf_of(node: &JsExpression) -> Option<&JsExpression> {
+    fn leaf(node: &JsExpression) -> Option<&JsExpression> {
+        match node.root {
+            JsExpressionRoot::Name(_)
+            | JsExpressionRoot::Atom
+            | JsExpressionRoot::Str(_)
+            | JsExpressionRoot::Bool(_) => Some(node),
+            JsExpressionRoot::Raw | JsExpressionRoot::Closure(_) => None,
+            JsExpressionRoot::Assign => {
+                // `x=v` evaluates `v` first; `o.p=v` evaluates `o` first.
+                let [target, value] = node.operands.as_slice() else {
+                    return None;
+                };
+                match target.root {
+                    JsExpressionRoot::Name(_) => leaf(value),
+                    _ => leaf(target),
+                }
+            }
+            _ => node.operands.first().and_then(leaf),
+        }
+    }
+    leaf(node)
+}
+
+fn expression_is_void(node: &JsExpression) -> bool {
+    matches!(node.root, JsExpressionRoot::Atom) && node.code == "void 0"
+}
+
+/// Whether `bind`, defined as `value`, may be read as `value` inside `next`
+/// instead: a literal always; a name never written again (its one write is
+/// its definition, so nothing `next` evaluates can change it); otherwise
+/// only when the read is the first thing `next` evaluates.
+fn collapse_is_safe(bind: Bind, value: &JsExpression, next: &JsExpression, census: &BindCensus) -> bool {
+    if expression_is_pure_literal(value) {
+        return true;
+    }
+    if let JsExpressionRoot::Name(source) = value.root {
+        if census.writes.get(&source).copied() == Some(1) && !census.unsafe_names.contains(&value.code) {
+            return true;
+        }
+    }
+    first_evaluated_leaf_of(next).is_some_and(|leaf| leaf.root == JsExpressionRoot::Name(bind))
+}
+
+/// A declarator the collapse may fold into its one read.
+fn declarator_is_collapsible(declarator: &JsDeclarator, census: &BindCensus) -> Option<(Bind, JsExpression)> {
+    let bind = declarator.bind?;
+    let value = declarator.value.as_ref()?;
+    (declarator.function.is_none()
+        && census.reads.get(&bind).copied() == Some(1)
+        && census.writes.get(&bind).copied() == Some(1)
+        && !census.unsafe_names.contains(&declarator.name)
+        && !expression_is_structural(value)
+        && !matches!(value.root, JsExpressionRoot::Raw | JsExpressionRoot::Closure(_)))
+    .then(|| (bind, value.clone()))
+}
+
+/// `var a=f(),b=a.x` -> `var b=f().x`: a declarator read once, in the value
+/// of the declarator after it.
+fn collapse_declarator_list(
+    declarators: &mut Vec<JsDeclarator>,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) -> usize {
+    let mut collapsed = 0usize;
+    let mut index = 0usize;
+    while index + 1 < declarators.len() {
+        let Some((bind, value)) = declarator_is_collapsible(&declarators[index], census) else {
+            index += 1;
+            continue;
+        };
+        let next = &declarators[index + 1];
+        let (Some(next_value), None) = (&next.value, &next.function) else {
+            index += 1;
+            continue;
+        };
+        let mut reads_here = BindCensus::default();
+        reads_here.expression(next_value, closures);
+        if reads_here.reads.get(&bind).copied() != Some(1) || !collapse_is_safe(bind, &value, next_value, census) {
+            index += 1;
+            continue;
+        }
+        let Some(substituted) = substitute_bind(next_value, bind, &value) else {
+            index += 1;
+            continue;
+        };
+        declarators[index + 1].value = Some(substituted);
+        declarators.remove(index);
+        collapsed += 1;
+    }
+    collapsed
+}
+
+/// Phase 6, G7: `var x=void 0` prints as `var x` when the store is dead --
+/// `x` is `undefined` from the start of its function, so the initializer
+/// changes nothing unless the binding was written earlier (its first write
+/// is this declaration), a closure writes it (then a call could run first),
+/// or the statement repeats (a loop body resets it each pass). `let x=void 0`
+/// is `let x` outright. Terser reaches the text through `reduce_vars`+`unused`
+/// (a dead store); Oxc drops the initializer in `join_vars`.
+fn drop_void_initializers(block: &mut JsBlock, census: &BindCensus) -> usize {
+    let droppable = |keyword: &str, bind: Option<Bind>, name: &str| -> bool {
+        match keyword {
+            "let " => true,
+            "var " => bind.is_some_and(|bind| {
+                census.void_first.contains(&bind)
+                    && census.write_scope.get(&bind).copied().flatten().is_some()
+                    && !census.unsafe_names.contains(name)
+            }),
+            _ => false,
+        }
+    };
+    let mut dropped = 0usize;
+    for emitted in block.statements.iter_mut() {
+        let replacement = match &mut emitted.statement {
+            JsStatement::Binding {
+                keyword: Some(keyword),
+                name,
+                bind,
+                value,
+            } if expression_is_void(value) && droppable(keyword, *bind, name) => Some(JsStatement::Declaration {
+                keyword: *keyword,
+                name: name.clone(),
+                bind: *bind,
+            }),
+            JsStatement::Declarators { keyword, declarators } => {
+                for declarator in declarators.iter_mut() {
+                    if declarator.function.is_none()
+                        && declarator.value.as_ref().is_some_and(expression_is_void)
+                        && droppable(keyword, declarator.bind, &declarator.name)
+                    {
+                        declarator.value = None;
+                        dropped += 1;
+                    }
+                }
+                None
+            }
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                dropped += drop_void_initializers(&mut then_branch.block, census);
+                if let Some(else_branch) = else_branch {
+                    dropped += drop_void_initializers(&mut else_branch.block, census);
+                }
+                None
+            }
+            JsStatement::Loop { body, .. } => {
+                dropped += drop_void_initializers(&mut body.block, census);
+                None
+            }
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                dropped += drop_void_initializers(body, census);
+                if let Some(catch) = catch {
+                    dropped += drop_void_initializers(&mut catch.body, census);
+                }
+                if let Some(finally) = finally {
+                    dropped += drop_void_initializers(finally, census);
+                }
+                None
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    dropped += drop_void_initializers(&mut case.body, census);
+                }
+                None
+            }
+            JsStatement::Function {
+                body: JsFunctionBody::Block(body),
+                ..
+            } => {
+                dropped += drop_void_initializers(body, census);
+                None
+            }
+            JsStatement::Class { members, .. } => {
+                dropped += drop_void_initializers(members, census);
+                None
+            }
+            _ => None,
+        };
+        if let Some(replacement) = replacement {
+            emitted.statement = replacement;
+            dropped += 1;
+        }
+    }
+    dropped
+}
+
+/// The declarator list a statement is, when it is one: a bare declaration,
+/// a binding with a keyword, an arrow `let`, or a list already.
+fn declaration_parts(statement: &JsStatement) -> Option<(&'static str, Vec<JsDeclarator>)> {
+    match statement {
+        // `let f=(a)=>{..};` -- an arrow binding is a `let` declaration
+        // whose value is a function; its head starts `let f=`.
+        JsStatement::Function {
+            head,
+            body,
+            terminated: true,
+        } => {
+            let [JsHeadPiece::Text(keyword), JsHeadPiece::FunctionName(bind, name), JsHeadPiece::Text(after), rest @ ..] =
+                head.pieces.as_slice()
+            else {
+                return None;
+            };
+            if keyword != "let " || !after.starts_with('=') {
+                return None;
+            }
+            let mut value_head = JsHead::default();
+            value_head.push_text(&after[1..]);
+            for piece in rest {
+                value_head.pieces.push(piece.clone());
+            }
+            Some((
+                "let ",
+                vec![JsDeclarator {
+                    name: name.clone(),
+                    bind: Some(*bind),
+                    value: None,
+                    function: Some(Box::new((value_head, body.clone()))),
+                }],
+            ))
+        }
+        JsStatement::Declaration { keyword, name, bind } => Some((
+            keyword,
+            vec![JsDeclarator {
+                name: name.clone(),
+                bind: *bind,
+                value: None,
+                function: None,
+            }],
+        )),
+        JsStatement::Binding {
+            keyword: Some(keyword),
+            name,
+            bind,
+            value,
+        } => Some((
+            keyword,
+            vec![JsDeclarator {
+                name: name.clone(),
+                bind: *bind,
+                value: Some(value.clone()),
+                function: None,
+            }],
+        )),
+        JsStatement::Declarators {
+            keyword,
+            declarators,
+        } => Some((keyword, declarators.clone())),
+        _ => None,
+    }
+}
+
+/// Phase 6, G7: adjacent declarations under one keyword are one list -- the
+/// push-time merge, run again over a finished block, because the collapse
+/// and the prune remove the statements that kept them apart
+/// (`merge_adjacent_declarations`).
+fn merge_block_declarations(block: &mut JsBlock) -> usize {
+    let mut merged = 0usize;
+    let mut index = 1usize;
+    while index < block.statements.len() {
+        let joined = {
+            let previous = &block.statements[index - 1];
+            let current = &block.statements[index];
+            if previous.dropped_semicolon {
+                None
+            } else {
+                match (
+                    declaration_parts(&previous.statement),
+                    declaration_parts(&current.statement),
+                ) {
+                    (Some((keyword, mut left)), Some((other, mut right))) if keyword == other => {
+                        left.append(&mut right);
+                        Some(JsStatement::Declarators {
+                            keyword,
+                            declarators: left,
+                        })
+                    }
+                    _ => None,
+                }
+            }
+        };
+        match joined {
+            Some(statement) => {
+                let current = block.statements.remove(index);
+                let previous = &mut block.statements[index - 1];
+                previous.statement = statement;
+                previous.options = current.options;
+                previous.dropped_semicolon = current.dropped_semicolon;
+                merged += 1;
+            }
+            None => index += 1,
+        }
+    }
+    for emitted in block.statements.iter_mut() {
+        match &mut emitted.statement {
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                merged += merge_block_declarations(&mut then_branch.block);
+                if let Some(else_branch) = else_branch {
+                    merged += merge_block_declarations(&mut else_branch.block);
+                }
+            }
+            JsStatement::Loop { body, .. } => merged += merge_block_declarations(&mut body.block),
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                merged += merge_block_declarations(body);
+                if let Some(catch) = catch {
+                    merged += merge_block_declarations(&mut catch.body);
+                }
+                if let Some(finally) = finally {
+                    merged += merge_block_declarations(finally);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    merged += merge_block_declarations(&mut case.body);
+                }
+            }
+            JsStatement::Function {
+                body: JsFunctionBody::Block(body),
+                ..
+            } => merged += merge_block_declarations(body),
+            JsStatement::Class { members, .. } => merged += merge_block_declarations(members),
+            _ => {}
+        }
+    }
+    merged
+}
+
+/// `node` with every read of `bind` replaced by `replacement`, rebuilt from
+/// the leaves up; `None` when nothing read it.
+fn substitute_bind(node: &JsExpression, bind: Bind, replacement: &JsExpression) -> Option<JsExpression> {
+    match node.root {
+        JsExpressionRoot::Name(read) if read == bind => Some(replacement.clone()),
+        JsExpressionRoot::Name(_)
+        | JsExpressionRoot::Atom
+        | JsExpressionRoot::Str(_)
+        | JsExpressionRoot::Bool(_)
+        | JsExpressionRoot::Raw
+        | JsExpressionRoot::Closure(_) => None,
+        _ => {
+            let children = node
+                .operands
+                .iter()
+                .map(|operand| substitute_bind(operand, bind, replacement))
+                .collect::<Vec<_>>();
+            if children.iter().all(Option::is_none) {
+                return None;
+            }
+            let child = |index: usize| {
+                children[index]
+                    .clone()
+                    .unwrap_or_else(|| node.operands[index].clone())
+            };
+            Some(node.rebuilt_with(JsRenderOptions::UNUSED, &child))
+        }
+    }
+}
+
+
+fn statement_value_mut(statement: &mut JsStatement) -> Option<&mut JsExpression> {
+    match statement {
+        JsStatement::Binding { value, .. }
+        | JsStatement::Expression { value }
+        | JsStatement::Throw { value }
+        | JsStatement::Return { value: Some(value) } => Some(value),
+        JsStatement::If {
+            condition_tree: Some(condition),
+            ..
+        } => Some(condition),
+        _ => None,
+    }
+}
+
+/// The collapse over one block, then its children.
+fn collapse_block(
+    block: &mut JsBlock,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) {
+    let mut index = 0usize;
+    while index + 1 < block.statements.len() {
+        if let JsStatement::Declarators { declarators, .. } = &mut block.statements[index].statement {
+            let collapsed = collapse_declarator_list(declarators, census, closures);
+            if collapsed > 0 {
+                crate::timing::SINGLE_USE_COLLAPSED.event(collapsed as u64);
+            }
+        }
+        // A binding, or the last declarator of a list, whose one read is in
+        // the statement after it.
+        let candidate = match &block.statements[index].statement {
+            _ if block.statements[index].dropped_semicolon => None,
+            JsStatement::Binding {
+                name,
+                bind: Some(bind),
+                value,
+                ..
+            } if census.reads.get(bind).copied() == Some(1)
+                && census.writes.get(bind).copied() == Some(1)
+                && !census.unsafe_names.contains(name)
+                && !expression_is_structural(value)
+                && !matches!(value.root, JsExpressionRoot::Raw | JsExpressionRoot::Closure(_)) =>
+            {
+                Some((*bind, value.clone(), false))
+            }
+            JsStatement::Declarators { declarators, .. } => declarators
+                .last()
+                .and_then(|declarator| declarator_is_collapsible(declarator, census))
+                .map(|(bind, value)| (bind, value, true)),
+            _ => None,
+        };
+        let Some((bind, value, in_list)) = candidate else {
+            index += 1;
+            continue;
+        };
+        let next = &block.statements[index + 1].statement;
+        // The one read must be in the next statement's own expression, not
+        // in a nested block of it.
+        let mut reads_here = BindCensus::default();
+        if let Some(expression) = statement_value(next) {
+            reads_here.expression(expression, closures);
+        }
+        if reads_here.reads.get(&bind).copied() != Some(1) {
+            index += 1;
+            continue;
+        }
+        let safe = statement_value(next).is_some_and(|expression| collapse_is_safe(bind, &value, expression, census));
+        if !safe {
+            index += 1;
+            continue;
+        }
+        let Some(expression) = statement_value_mut(&mut block.statements[index + 1].statement) else {
+            index += 1;
+            continue;
+        };
+        let Some(substituted) = substitute_bind(expression, bind, &value) else {
+            index += 1;
+            continue;
+        };
+        *expression = substituted;
+        if let JsStatement::If {
+            condition,
+            condition_tree: Some(tree),
+            ..
+        } = &mut block.statements[index + 1].statement
+        {
+            *condition = tree.clone().into_minimal();
+        }
+        crate::timing::SINGLE_USE_COLLAPSED.event(1);
+        if in_list {
+            let JsStatement::Declarators { declarators, .. } = &mut block.statements[index].statement else {
+                unreachable!("the candidate was a declarator list")
+            };
+            declarators.pop();
+            if !declarators.is_empty() {
+                index += 1;
+                continue;
+            }
+        }
+        let gone = block.statements.remove(index);
+        if index == block.statements.len() {
+            settle_block_tail(block, gone.dropped_semicolon);
+        }
+    }
+    for emitted in block.statements.iter_mut() {
+        match &mut emitted.statement {
+            JsStatement::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                collapse_block(&mut then_branch.block, census, closures);
+                if let Some(else_branch) = else_branch {
+                    collapse_block(&mut else_branch.block, census, closures);
+                }
+            }
+            JsStatement::Loop { body, .. } => collapse_block(&mut body.block, census, closures),
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                collapse_block(body, census, closures);
+                if let Some(catch) = catch {
+                    collapse_block(&mut catch.body, census, closures);
+                }
+                if let Some(finally) = finally {
+                    collapse_block(finally, census, closures);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    collapse_block(&mut case.body, census, closures);
+                }
+            }
+            JsStatement::Function {
+                body: JsFunctionBody::Block(body),
+                ..
+            } => collapse_block(body, census, closures),
+            JsStatement::Class { members, .. } => collapse_block(members, census, closures),
+            _ => {}
+        }
+    }
+}
+
+fn statement_value(statement: &JsStatement) -> Option<&JsExpression> {
+    match statement {
+        JsStatement::Binding { value, .. }
+        | JsStatement::Expression { value }
+        | JsStatement::Throw { value }
+        | JsStatement::Return { value: Some(value) } => Some(value),
+        JsStatement::If {
+            condition_tree: Some(condition),
+            ..
+        } => Some(condition),
+        _ => None,
     }
 }
 
@@ -5467,6 +6291,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     /// changes nothing. A `Name` atom, declared name or head piece whose text
     /// disagrees with its binding's spelling would be renamed by an identity
     /// pass, and that is the defect this catches.
+    /// Phase 6, G4/G5: the single-use collapse. A binding read exactly once,
+    /// written exactly once (its definition), spelled in no text the tree
+    /// does not own, and read in the statement right after it, is replaced
+    /// by its value at the read and dropped -- when the value is a literal,
+    /// or a name the next statement never writes, or when the read is the
+    /// first thing the next statement evaluates (then the value's effects
+    /// happen exactly where they did). Terser's `collapse_vars` and Oxc's
+    /// `substitute_single_use_symbol` (refs §J), the conservative core.
+    fn collapse_single_uses(&self, block: &mut JsBlock) {
+        let policy = StatementPolicy::current();
+        let mut census = BindCensus::default();
+        census.block(block, &self.closure_trees);
+        if policy.single_use_collapse {
+            collapse_block(block, &census, &self.closure_trees);
+        }
+        if policy.void_initializers {
+            let dropped = drop_void_initializers(block, &census);
+            if dropped > 0 {
+                crate::timing::VOID_INITIALIZERS_DROPPED.event(dropped as u64);
+            }
+        }
+        if policy.declaration_merge {
+            let merged = merge_block_declarations(block);
+            if merged > 0 {
+                crate::timing::DECLARATIONS_MERGED.event(merged as u64);
+            }
+        }
+    }
+
     fn witness_identity_respell(&self, out: &JsBlock) {
         witness_condition_trees(out, &self.closure_trees);
         let mut identity = out.clone();
@@ -5485,6 +6338,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         policy.install();
         let mut out = self.build_module()?;
         self.prune_unreferenced_declarators(&mut out);
+        if policy.single_use_collapse || policy.void_initializers || policy.declaration_merge {
+            self.collapse_single_uses(&mut out);
+        }
         // Phase 6, G2/G5: the control shapes the text folds wrote last, on the
         // finished tree (branches are built before their tails are known).
         if policy.control_braces || policy.return_tails || policy.continue_tails || policy.early_exits
@@ -19781,6 +20637,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // carries them into every re-print).
         let policy = StatementPolicy::current();
         if let JsFunctionBody::Block(block) = &mut body {
+            if policy.single_use_collapse || policy.void_initializers || policy.declaration_merge {
+                self.collapse_single_uses(block);
+            }
             if policy.control_braces || policy.return_tails || policy.continue_tails || policy.early_exits
             {
                 shape_block(block, policy, ShapeContext::FunctionBody);
@@ -25564,6 +26423,54 @@ impl FrozenModuleTree {
         let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
         crate::timing::RENAME_REPRINTS.event(renamed as u64);
         tree.reprint(options)
+    }
+
+    /// Migration 7.38: the terminal shape challenger -- this tree with the
+    /// single-use collapse (and the dead-store drop and declaration merge)
+    /// applied on the tree, printed under `options` exactly as the plan's
+    /// own text is (its names re-spelled first when the plan re-spells
+    /// them), so the incumbent and the challenger differ in the shape alone.
+    pub(crate) fn reprint_collapsed(&self, options: &IrJsOptions, rename: bool) -> String {
+        let mut tree = self.thaw();
+        if rename {
+            let scopes = ScopeCollector::module(&tree.closures, &tree.block);
+            let renamer = Renamer {
+                tree: scopes,
+                table: &tree.table,
+                alphabet: &options.identifier_alphabet,
+            };
+            let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
+            crate::timing::RENAME_REPRINTS.event(renamed as u64);
+        }
+        tree.collapse();
+        tree.reprint(options)
+    }
+}
+
+impl ModuleTree {
+    /// The single-use collapse over the module block and every closure body
+    /// the tree holds, with one census over all of them (the binds are
+    /// module-wide ids). Closure bodies are collapsed against a snapshot of
+    /// the map, since the map is borrowed mutably while they are rewritten.
+    fn collapse(&mut self) {
+        // The module walk reaches every closure through its `Closure` node
+        // (nested ones through their parents), so one walk counts each read
+        // once; a second walk over the map would count them twice.
+        let mut census = BindCensus::default();
+        census.block(&self.block, &self.closures);
+        let snapshot = RefCell::new(self.closures.borrow().clone());
+        collapse_block(&mut self.block, &census, &self.closures);
+        drop_void_initializers(&mut self.block, &census);
+        merge_block_declarations(&mut self.block);
+        let mut entries = std::mem::take(&mut *self.closures.borrow_mut());
+        for (_, (_, body)) in entries.iter_mut() {
+            if let JsFunctionBody::Block(block) = body {
+                collapse_block(block, &census, &snapshot);
+                drop_void_initializers(block, &census);
+                merge_block_declarations(block);
+            }
+        }
+        *self.closures.borrow_mut() = entries;
     }
 }
 

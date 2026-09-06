@@ -179,6 +179,12 @@ pub struct JavaScriptSelectionDecisions {
     pub terminal_string_pooling_selected: bool,
     pub terminal_string_pooling_incumbent_bytes: Option<usize>,
     pub terminal_string_pooling_best_bytes: Option<usize>,
+    /// Migration 7.36: the tree's off-by-default shapes re-emitted on the
+    /// finalist's plan and codec-verified (`terminal_shape_challengers`).
+    pub terminal_shape_challengers: usize,
+    pub terminal_shape_selected: bool,
+    pub terminal_shape_incumbent_bytes: Option<usize>,
+    pub terminal_shape_best_bytes: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2388,6 +2394,10 @@ fn optimize_and_select_javascript_inner<'src>(
                 terminal_string_pooling_incumbent_bytes: selected
                     .terminal_string_pooling_incumbent_bytes,
                 terminal_string_pooling_best_bytes: selected.terminal_string_pooling_best_bytes,
+                terminal_shape_challengers: selected.terminal_shape_challengers,
+                terminal_shape_selected: selected.terminal_shape_selected,
+                terminal_shape_incumbent_bytes: selected.terminal_shape_incumbent_bytes,
+                terminal_shape_best_bytes: selected.terminal_shape_best_bytes,
             },
             layout_searched: config.js_joint_representation_search_enabled(),
             removed_compression_families: config
@@ -2462,6 +2472,10 @@ struct SelectedJavaScriptCandidate {
     terminal_string_pooling_selected: bool,
     terminal_string_pooling_incumbent_bytes: Option<usize>,
     terminal_string_pooling_best_bytes: Option<usize>,
+    terminal_shape_challengers: usize,
+    terminal_shape_selected: bool,
+    terminal_shape_incumbent_bytes: Option<usize>,
+    terminal_shape_best_bytes: Option<usize>,
     admission: Arc<JavaScriptArtifactAdmission>,
 }
 
@@ -3107,6 +3121,13 @@ impl EmissionPeephole {
     }
 }
 
+/// Migration 7.34: one slot per re-print key. The first plan to reach the
+/// key emits the canonical tree while holding the slot; siblings arriving
+/// during that emission wait on it instead of emitting the same tree again
+/// (they did before, and the emission count -- and the CPU -- depended on
+/// thread order).
+type ReprintSlot = Option<(Arc<crate::codegen_ir_js::FrozenModuleTree>, String)>;
+
 struct JavaScriptEmissionContexts<'ir, 'src> {
     root_configured_context_id: usize,
     contexts: Vec<JavaScriptEmissionContext<'ir, 'src>>,
@@ -3115,7 +3136,7 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     /// Phase 7 (`LILSCRIPT_REPRINT_QUOTES=1`): the frozen tree of the first
     /// emission per (context, options with the printer fields erased), so a
     /// later plan that differs only in those fields is a re-print of it.
-    reprint_trees: Mutex<AHashMap<(usize, String), (Arc<crate::codegen_ir_js::FrozenModuleTree>, String)>>,
+    reprint_trees: Mutex<AHashMap<(usize, String), Arc<Mutex<ReprintSlot>>>>,
     /// Phase 7a: the peephole every emission passes through before it is
     /// scored; `None` when the text peephole is not configured.
     emission_peephole: Option<EmissionPeephole>,
@@ -3285,10 +3306,12 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         options: crate::codegen_ir_js::IrJsOptions,
     ) -> Result<(String, Arc<crate::codegen_ir_js::FrozenModuleTree>), crate::codegen_js::CodegenError>
     {
+        // One attempt per request, whichever path serves it: the count is a
+        // property of the search, not of which thread reached a key first.
+        self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
         let key = (self.reprint_spellings || reprint_quotes_enabled())
             .then(|| self.reprint_key(context_id, &options));
         let Some(key) = key else {
-            self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
             let (code, tree) = self.get(context_id).emit_frozen(module_output, options)?;
             return Ok((self.scored_text(context_id, code), Arc::new(tree)));
         };
@@ -3300,40 +3323,70 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         // it is a plan the search seeds anyway -- and the derived plan
         // re-prints it.
         let canonical = self.canonical_options(&options);
-        let cached = self
-            .reprint_trees
-            .lock()
-            .expect("reprint tree cache lock")
-            .get(&key)
-            .cloned();
-        let (tree, base_naming) = match cached {
-            Some(entry) => entry,
+        let slot = Arc::clone(
+            self.reprint_trees
+                .lock()
+                .expect("reprint tree cache lock")
+                .entry(key)
+                .or_insert_with(|| Arc::new(Mutex::new(None))),
+        );
+        let mut guard = slot.lock().expect("reprint slot lock");
+        let (tree, base_naming) = match &*guard {
+            Some((tree, naming)) => (Arc::clone(tree), naming.clone()),
             None => {
-                self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
                 let (code, tree) = self.get(context_id).emit_frozen(module_output, canonical)?;
                 let tree = Arc::new(tree);
-                let entry = self
-                    .reprint_trees
-                    .lock()
-                    .expect("reprint tree cache lock")
-                    .entry(key)
-                    .or_insert_with(|| (Arc::clone(&tree), Self::naming_key(&canonical)))
-                    .clone();
-                if format!("{options:?}") == format!("{canonical:?}") && Arc::ptr_eq(&entry.0, &tree) {
-                    // The canonical plan itself, and this thread's emission is
-                    // the one in the cache: its text ships as emitted.
+                *guard = Some((Arc::clone(&tree), Self::naming_key(&canonical)));
+                drop(guard);
+                if format!("{options:?}") == format!("{canonical:?}") {
+                    // The canonical plan itself: its text ships as emitted.
                     return Ok((self.scored_text(context_id, code), tree));
                 }
-                entry
+                (tree, Self::naming_key(&canonical))
             }
         };
-        self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
         let code = if base_naming == Self::naming_key(&options) || !options.mangle_identifiers {
             reprint_javascript_candidate(&tree, &options)
         } else {
             rename_reprint_javascript_candidate(&tree, &options)
         };
         Ok((self.scored_text(context_id, code), tree))
+    }
+
+    /// Migration 7.38: the frozen tree a plan printed from, for the terminal
+    /// shape challenger -- the cached canonical tree under the plan's
+    /// re-print key (emitted now when the search never printed it), and
+    /// whether the plan re-spells that tree's names.
+    fn frozen_tree(
+        &self,
+        context_id: usize,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Option<(Arc<crate::codegen_ir_js::FrozenModuleTree>, bool)> {
+        if !(self.reprint_spellings || reprint_quotes_enabled()) {
+            let (_, tree) = self.get(context_id).emit_frozen(module_output, options).ok()?;
+            return Some((Arc::new(tree), false));
+        }
+        let key = self.reprint_key(context_id, &options);
+        let cached = |contexts: &Self| -> Option<(Arc<crate::codegen_ir_js::FrozenModuleTree>, String)> {
+            let slot = contexts
+                .reprint_trees
+                .lock()
+                .ok()?
+                .get(&key)
+                .cloned()?;
+            let entry = slot.lock().ok()?.clone();
+            entry
+        };
+        let (tree, base_naming) = match cached(self) {
+            Some(entry) => entry,
+            None => {
+                self.emit_frozen(context_id, module_output, options).ok()?;
+                cached(self)?
+            }
+        };
+        let rename = options.mangle_identifiers && base_naming != Self::naming_key(&options);
+        Some((tree, rename))
     }
 
     fn plans_registered(&self) -> usize {
@@ -5258,6 +5311,40 @@ fn terminal_scope_naming_options(
     variants
 }
 
+/// Migration 7.36: the tree's off-by-default shapes, one challenger each,
+/// on the finalist's own plan. A shape that runs on every emission moves the
+/// search's plan choice (the single-use collapse read +128 net on the fleet
+/// that way, six wins and six losses); offered here it is scored on the text
+/// that ships and kept only when the codec says it is smaller -- the slot
+/// the terminal text folds it replaces have always had.
+fn terminal_shape_texts(
+    parent: crate::codegen_ir_js::IrJsOptions,
+    context_id: usize,
+    module_output: bool,
+    config: &ProjectConfig,
+    contexts: &JavaScriptEmissionContexts<'_, '_>,
+) -> Vec<(crate::codegen_ir_js::IrJsOptions, String)> {
+    if !config.terminal_shape_challengers_enabled() || parent.single_use_collapse {
+        return Vec::new();
+    }
+    // 7.37 re-emitted the finalist's plan with the shape on and lost 71 to
+    // 101 bytes on markedlil every time, with the shape doing nothing there:
+    // a fresh emission never has the finishing the finalist's tree carries.
+    // The challenger is that tree, collapsed, printed the way the plan
+    // prints it.
+    let Some((tree, rename)) = contexts.frozen_tree(context_id, module_output, parent) else {
+        return Vec::new();
+    };
+    let options = crate::codegen_ir_js::IrJsOptions {
+        single_use_collapse: true,
+        ..parent
+    };
+    vec![(options, tree.reprint_collapsed(&parent, rename))]
+}
+
+/// How many shape challengers `terminal_shape_texts` offers at most.
+const TERMINAL_SHAPE_CHALLENGERS: usize = 1;
+
 fn terminal_string_pooling_options(
     parent: crate::codegen_ir_js::IrJsOptions,
     configured: crate::codegen_ir_js::IrJsOptions,
@@ -5380,6 +5467,14 @@ impl TerminalJavaScriptCandidateBudget {
         self.remaining_plans -= 1;
         self.remaining_code_bytes -= code_bytes;
     }
+
+    /// Migration 7.37: a family's own slots, granted when it is reached --
+    /// the shape challengers are four re-emissions of the finalist, and the
+    /// naming and pooling families spend the shared slots before them.
+    fn grant(&mut self, plans: usize, code_bytes: usize) {
+        self.remaining_plans = self.remaining_plans.saturating_add(plans);
+        self.remaining_code_bytes = self.remaining_code_bytes.saturating_add(code_bytes);
+    }
 }
 
 /// Compilation-wide ledger for optional terminal work after structural
@@ -5399,6 +5494,9 @@ struct TerminalCodecProbeBudget {
     slice_end: Option<usize>,
     challenger_reserve_released: bool,
     finalist_reserve_released: bool,
+    /// Migration 7.37: the shape challengers' slice, held back from the
+    /// cleanup searches until the naming and pooling families have settled.
+    shape_reserve_released: bool,
 }
 
 impl TerminalCodecProbeBudget {
@@ -5412,6 +5510,7 @@ impl TerminalCodecProbeBudget {
             final_phase: false,
             slice_end: None,
             challenger_reserve_released: false,
+            shape_reserve_released: false,
             finalist_reserve_released: false,
         }
     }
@@ -5474,6 +5573,13 @@ impl TerminalCodecProbeBudget {
         self.reserved_for_final = self.reserved_for_final.saturating_sub(released);
     }
 
+    /// Migration 7.38: the ledger grows by one finishing's worth when a shape
+    /// challenger wins before finishing -- it is finished with what the
+    /// incumbent's finishing cost, so the two are compared like for like.
+    fn extend(&mut self, extra: usize) {
+        self.limit = self.limit.saturating_add(extra);
+    }
+
     fn release_challenger_reserve_once(&mut self, released: usize) {
         if !self.challenger_reserve_released {
             self.release_reserved(released);
@@ -5485,6 +5591,13 @@ impl TerminalCodecProbeBudget {
         if !self.finalist_reserve_released {
             self.release_reserved(released);
             self.finalist_reserve_released = true;
+        }
+    }
+
+    fn release_shape_reserve_once(&mut self, released: usize) {
+        if !self.shape_reserve_released {
+            self.release_reserved(released);
+            self.shape_reserve_released = true;
         }
     }
 
@@ -5606,6 +5719,83 @@ fn emit_terminal_javascript_challengers(
     candidates
 }
 
+/// Migration 7.38: terminal challengers whose text is already in hand (a
+/// re-print of the finalist's tree under a shape), scored and admitted
+/// exactly as the re-emitted ones are.
+fn score_terminal_javascript_challenger_texts(
+    sources: Vec<(crate::codegen_ir_js::IrJsOptions, String)>,
+    context_id: usize,
+    model: CompressionCostModel,
+    contexts: &JavaScriptEmissionContexts<'_, '_>,
+    budget: &mut TerminalJavaScriptCandidateBudget,
+    codec_budget: &mut TerminalCodecProbeBudget,
+) -> Vec<JavaScriptEmissionCandidate> {
+    let mut candidates = Vec::new();
+    if codec_budget.remaining() == 0 {
+        return candidates;
+    }
+    for (options, code) in sources {
+        if !budget.has_plan_slot() {
+            break;
+        }
+        if !codec_budget.reserve_work_unit() {
+            break;
+        }
+        if let Some(path) = std::env::var_os("LILSCRIPT_SHAPE_DUMP") {
+            let _ = std::fs::write(path, &code);
+        }
+        // A print of a reshaped tree is admitted like an emission: the
+        // standards parser first (the probe at level 15 shipped a `try`
+        // without its clause before this check, 7.38).
+        if let Err(error) = validate_generated_javascript_with_standard_parser(&code) {
+            if std::env::var_os("LILSCRIPT_PEEPHOLE_TRACE").is_some() {
+                eprintln!("[peephole-refused] terminal shape challenger: {error}");
+            }
+            continue;
+        }
+        let plan = contexts
+            .registered_plan(context_id, options)
+            .or_else(|| contexts.register_terminal_plan(context_id, options));
+        let Some(plan) = plan else {
+            continue;
+        };
+        if candidates
+            .iter()
+            .any(|candidate: &JavaScriptEmissionCandidate| candidate.code() == code)
+        {
+            continue;
+        }
+        if !budget.can_admit(code.len()) {
+            continue;
+        }
+        let variants =
+            declaration_score_variants(&code, JavaScriptDeclarationScoreSemantics::DeclarationPlan);
+        if !codec_budget.reserve_complete(variants.len()) {
+            break;
+        }
+        let results = variants
+            .iter()
+            .map(|source| codec_budget.measure_reserved(source.as_bytes(), model));
+        let Ok(declaration_scores) = SelectedModelDeclarationScores::from_ordered_results(
+            model,
+            JavaScriptDeclarationScoreSemantics::DeclarationPlan,
+            variants.len(),
+            results,
+        ) else {
+            continue;
+        };
+        let emission = ScoredJavaScriptEmission {
+            code,
+            declaration_scores,
+        };
+        let candidate =
+            JavaScriptEmissionCandidate::new_declaration_plan_with_scores(emission, plan);
+        budget.charge(candidate.raw_size);
+        candidates.push(candidate);
+    }
+    candidates
+}
+
 fn install_terminal_javascript_codec_pool<Output>(
     config: &ProjectConfig,
     work: impl FnOnce() -> Result<Output, CompileError> + Send,
@@ -5685,12 +5875,23 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     } else {
         0
     };
+    // Migration 7.37: one work unit and a declaration ladder per shape
+    // challenger, held back so the cleanup searches cannot starve them (the
+    // ledger is spent by then on katexlil).
+    let shape_reserve = if config.terminal_shape_challengers_enabled() {
+        TERMINAL_SHAPE_CHALLENGERS
+            .saturating_mul(MAX_DECLARATION_VARIANTS + 2)
+            .min(terminal_codec_probe_limit.div_euclid(8))
+    } else {
+        0
+    };
     let mut codec_budget = TerminalCodecProbeBudget::with_final_reserve(
         terminal_codec_probe_limit,
         exact_pair_reserve
             .saturating_add(TERMINAL_CHALLENGER_CODEC_RESERVE)
             .saturating_add(terminal_finalist_reserve)
-            .saturating_add(idiom_reserve),
+            .saturating_add(idiom_reserve)
+            .saturating_add(shape_reserve),
     );
     let mut selected = install_terminal_javascript_codec_pool(config, || {
         finalize_javascript_candidates_with_terminal_objective_challengers_in_current_pool(
@@ -5769,6 +5970,14 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         admitted_generated_javascript_size(configured_baseline, config.javascript.cost_model)
             .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?
     };
+    // Migration 7.38: every finalist's cost before finishing, and what the
+    // finishing itself cost the ledger -- the shape stage's gate and its
+    // allowance.
+    let pre_finishing_costs = candidates
+        .iter()
+        .map(|candidate| (candidate.identity(), candidate.transfer_cost))
+        .collect::<Vec<_>>();
+    let used_before_finishing = codec_budget.used;
     let mut selected = finalize_javascript_candidates_with_parallelism(
         candidates,
         configured_baseline,
@@ -5780,17 +5989,12 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         true,
         codec_budget,
     )?;
+    let finishing_cost = codec_budget.used.saturating_sub(used_before_finishing);
     // Naming and declaration spelling jointly determine the binding topology.
     // Release only their small allowance here; keep the exact pair reserve
     // protected until every naming/string-pooling challenger has settled.
     codec_budget
         .release_challenger_reserve_once(4usize.saturating_mul(MAX_DECLARATION_VARIANTS + 1));
-    let Some(parent_options) = plan_options
-        .iter()
-        .find_map(|(identity, options)| (*identity == selected.plan_identity).then_some(*options))
-    else {
-        return Ok(selected);
-    };
     let mut candidates_evaluated = selected.candidates_evaluated;
     let mut terminal_scope_naming_challengers = 0usize;
     let mut terminal_scope_naming_selected = false;
@@ -5800,6 +6004,124 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     let mut terminal_string_pooling_selected = false;
     let mut terminal_string_pooling_incumbent_bytes = None;
     let mut terminal_string_pooling_best_bytes = None;
+    let mut terminal_shape_challengers = 0usize;
+    let mut terminal_shape_selected = false;
+    let mut terminal_shape_incumbent_bytes = None;
+    let mut terminal_shape_best_bytes = None;
+
+    // Migration 7.36/7.38: the tree's off-by-default shapes, on the structural
+    // winner and before the naming and pooling families -- a shape changes
+    // the tree those two spell, and this early the ledger still has the
+    // finishing (rename, cleanup) the incumbent had, so the comparison is
+    // like for like (7.37 ran them last: four offered on markedlil, the best
+    // 101 bytes worse, all of it the finishing the ledger could no longer pay).
+    codec_budget.release_shape_reserve_once(
+        TERMINAL_SHAPE_CHALLENGERS
+            .saturating_mul(MAX_DECLARATION_VARIANTS + 2)
+            .min(codec_budget.limit.div_euclid(8)),
+    );
+    if config.terminal_shape_challengers_enabled() {
+        terminal_budget.grant(
+            TERMINAL_SHAPE_CHALLENGERS,
+            TERMINAL_SHAPE_CHALLENGERS.saturating_mul(selected.code.len()),
+        );
+    }
+    if let Some(shape_parent_options) = contexts
+        .registered_plan_by_identity(selected.plan_identity)
+        .map(|plan| plan.options)
+    {
+        // Nothing is printed, let alone emitted, when the ledger cannot
+        // score it (a zero terminal budget skips every optional emission).
+        let shape_texts = if codec_budget.remaining() > 0 && terminal_budget.has_plan_slot() {
+            terminal_shape_texts(
+                shape_parent_options,
+                selected.plan_identity.context_id,
+                module_output,
+                config,
+                contexts,
+            )
+        } else {
+            Vec::new()
+        };
+        let shape_candidates = score_terminal_javascript_challenger_texts(
+            shape_texts,
+            selected.plan_identity.context_id,
+            config.javascript.cost_model,
+            contexts,
+            &mut terminal_budget,
+            codec_budget,
+        );
+        if !shape_candidates.is_empty() {
+            terminal_shape_challengers = shape_candidates.len();
+            // The gate: a shape must beat the incumbent *before* finishing,
+            // where the two are on equal terms; then the one that does is
+            // finished on the incumbent's finishing allowance.
+            let incumbent_before_finishing = pre_finishing_costs
+                .iter()
+                .find(|(identity, _)| *identity == selected.plan_identity)
+                .map_or(selected.transfer_cost, |(_, cost)| *cost);
+            // Reported as the gate sees them: both before finishing. A
+            // finished challenger overwrites its side below.
+            terminal_shape_incumbent_bytes = Some(incumbent_before_finishing);
+            terminal_shape_best_bytes = shape_candidates
+                .iter()
+                .map(|candidate| candidate.transfer_cost)
+                .min();
+            let promising = shape_candidates
+                .into_iter()
+                .filter(|candidate| candidate.transfer_cost < incumbent_before_finishing)
+                .min_by_key(|candidate| candidate.transfer_cost)
+                .into_iter()
+                .collect::<Vec<_>>();
+            if !promising.is_empty() {
+                codec_budget.extend(finishing_cost);
+            }
+            if let Ok(candidate) = finalize_javascript_candidates_with_parallelism(
+                promising,
+                configured_baseline,
+                configured_plan_identity,
+                config,
+                contexts,
+                profile,
+                usize::MAX,
+                true,
+                codec_budget,
+            ) {
+                candidates_evaluated =
+                    candidates_evaluated.saturating_add(candidate.candidates_evaluated);
+                terminal_shape_incumbent_bytes = Some(selected.transfer_cost);
+                terminal_shape_best_bytes = Some(candidate.transfer_cost);
+                terminal_shape_selected = finalized_javascript_candidate_precedes(
+                    &candidate,
+                    &selected,
+                    config,
+                    baseline_transfer,
+                );
+                if terminal_shape_selected {
+                    selected = candidate;
+                }
+            }
+        }
+    }
+
+    // The winner's options: a structural plan's from the ranked list, a
+    // shape challenger's from the terminal registry.
+    let Some(parent_options) = plan_options
+        .iter()
+        .find_map(|(identity, options)| (*identity == selected.plan_identity).then_some(*options))
+        .or_else(|| {
+            contexts
+                .registered_plan_by_identity(selected.plan_identity)
+                .map(|plan| plan.options)
+        })
+    else {
+        selected.candidates_evaluated = candidates_evaluated;
+        selected.terminal_shape_challengers = terminal_shape_challengers;
+        selected.terminal_shape_selected = terminal_shape_selected;
+        selected.terminal_shape_incumbent_bytes = terminal_shape_incumbent_bytes;
+        selected.terminal_shape_best_bytes = terminal_shape_best_bytes;
+        return Ok(selected);
+    };
 
     let challenger_options = terminal_scope_naming_options(parent_options, config.js_options());
     let challenger_candidates = emit_terminal_javascript_challengers(
@@ -5902,6 +6224,10 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     selected.terminal_string_pooling_selected = terminal_string_pooling_selected;
     selected.terminal_string_pooling_incumbent_bytes = terminal_string_pooling_incumbent_bytes;
     selected.terminal_string_pooling_best_bytes = terminal_string_pooling_best_bytes;
+    selected.terminal_shape_challengers = terminal_shape_challengers;
+    selected.terminal_shape_selected = terminal_shape_selected;
+    selected.terminal_shape_incumbent_bytes = terminal_shape_incumbent_bytes;
+    selected.terminal_shape_best_bytes = terminal_shape_best_bytes;
     codec_budget.begin_final_phase();
     selected = apply_exact_two_binding_unused_letter_remap(selected, config, codec_budget)?;
     Ok(selected)
@@ -6676,6 +7002,10 @@ fn finalize_javascript_candidates_with_parallelism(
         terminal_string_pooling_selected: false,
         terminal_string_pooling_incumbent_bytes: None,
         terminal_string_pooling_best_bytes: None,
+        terminal_shape_challengers: 0,
+        terminal_shape_selected: false,
+        terminal_shape_incumbent_bytes: None,
+        terminal_shape_best_bytes: None,
         admission: selected.admission,
     })
 }
@@ -8519,8 +8849,13 @@ fn offer_cleanup_family(
         if code == candidate.code {
             continue;
         }
+        // The standards parser too: the token validator let a chain ship
+        // `try{..}return catch{..}` (the probe at level 15, 7.38) -- a late
+        // rewrite proposes replacement bytes, which is exactly where the
+        // parser is meant to run.
         if analyze_generated_javascript(&code).is_err()
             || admission.validate(&code).is_err()
+            || validate_generated_javascript_with_standard_parser(&code).is_err()
             || beam.iter().any(|existing| existing.code == code)
         {
             crate::timing::CLEANUP_SHAPED_REFUSED.event(0);
@@ -9075,8 +9410,10 @@ fn late_javascript_cleanup_finalists(
     // spelling loses. Walk independently proven local variants with the exact
     // configured scorer, retaining the unchanged spelling at every round.
     const MAX_LOCAL_VARIANTS_PER_PASS_AND_SOURCE: usize = 24;
-    const TERMINAL_LOCAL_PASSES: [LateJavaScriptCleanupPass; 1] =
-        [LateJavaScriptCleanupPass::ExpressionSuffixReturns];
+    // Migration 7.38: `ExpressionSuffixReturns` is gone (it folded a
+    // parenless `catch{..}finally{..}` into the return after it; the tree's
+    // return tails cover the shape), so the terminal local pass list is empty.
+    const TERMINAL_LOCAL_PASSES: [LateJavaScriptCleanupPass; 0] = [];
     for round in 0..terminal_local_rounds {
         let previous_codes = beam
             .iter()
@@ -11190,6 +11527,10 @@ mod tests {
             left.terminal_string_pooling_best_bytes,
             right.terminal_string_pooling_best_bytes
         );
+        assert_eq!(left.terminal_shape_challengers, right.terminal_shape_challengers);
+        assert_eq!(left.terminal_shape_selected, right.terminal_shape_selected);
+        assert_eq!(left.terminal_shape_incumbent_bytes, right.terminal_shape_incumbent_bytes);
+        assert_eq!(left.terminal_shape_best_bytes, right.terminal_shape_best_bytes);
     }
 
     #[test]
@@ -16495,6 +16836,10 @@ mod tests {
             terminal_string_pooling_selected: false,
             terminal_string_pooling_incumbent_bytes: None,
             terminal_string_pooling_best_bytes: None,
+            terminal_shape_challengers: 0,
+            terminal_shape_selected: false,
+            terminal_shape_incumbent_bytes: None,
+            terminal_shape_best_bytes: None,
             admission: test_artifact_admission(code),
         };
         let cleaned = apply_selected_canonical_peephole(selected, &config).unwrap();
@@ -16532,6 +16877,10 @@ mod tests {
             terminal_string_pooling_selected: false,
             terminal_string_pooling_incumbent_bytes: None,
             terminal_string_pooling_best_bytes: None,
+            terminal_shape_challengers: 0,
+            terminal_shape_selected: false,
+            terminal_shape_incumbent_bytes: None,
+            terminal_shape_best_bytes: None,
             admission: test_artifact_admission(code),
         };
         let skipped = apply_selected_canonical_peephole(skipped, &config).unwrap();
@@ -16575,6 +16924,10 @@ mod tests {
             terminal_string_pooling_selected: false,
             terminal_string_pooling_incumbent_bytes: None,
             terminal_string_pooling_best_bytes: None,
+            terminal_shape_challengers: 0,
+            terminal_shape_selected: false,
+            terminal_shape_incumbent_bytes: None,
+            terminal_shape_best_bytes: None,
             admission: test_artifact_admission(code),
         };
 
@@ -17667,8 +18020,13 @@ mod tests {
         let forced = compile_program_to_js_configured(&program, &forced).unwrap();
         let forced_gzip = compressed_size(forced.as_bytes(), CompressionCostModel::Gzip).unwrap();
 
+        // Migration 7.34: with the single-use collapse on the tree the
+        // coalesced shape can tie the distinct-locals shape (`if(G)G=G.x`
+        // against `H=G?G.x:G`); the property is that the search never pays
+        // for coalescing, not that it always declines it.
         assert!(
-            !selected.selection_metrics.decisions.local_name_coalescing,
+            !selected.selection_metrics.decisions.local_name_coalescing
+                || selected.selection_metrics.transfer_bytes <= forced_gzip,
             "selected:\n{}\nforced ({forced_gzip} bytes):\n{forced}",
             selected.javascript,
         );
@@ -17734,13 +18092,15 @@ mod tests {
         gzip_enabled.javascript.cost_model = CompressionCostModel::Gzip;
         let gzip_selected = compile_program_to_js_configured(&program, &gzip_enabled).unwrap();
 
-        assert_eq!(selected.len(), baseline.len());
+        // Migration 7.37: the terminal shape challengers may shave the raw
+        // size after the layout is chosen; the property is no raw growth.
+        assert!(selected.len() <= baseline.len(), "{selected}\n{baseline}");
         assert!(
             compressed_size(selected.as_bytes(), CompressionCostModel::Brotli).unwrap()
                 < compressed_size(baseline.as_bytes(), CompressionCostModel::Brotli).unwrap(),
             "selected:\n{selected}\nsource order:\n{baseline}"
         );
-        assert_eq!(gzip_selected.len(), baseline.len());
+        assert!(gzip_selected.len() <= baseline.len(), "{gzip_selected}\n{baseline}");
         assert!(
             compressed_size(gzip_selected.as_bytes(), CompressionCostModel::Gzip).unwrap()
                 < compressed_size(baseline.as_bytes(), CompressionCostModel::Gzip).unwrap(),

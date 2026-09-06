@@ -2393,69 +2393,8 @@ fn guarded_return_suffix_folding_rejects_declarations_and_nested_statements() {
     }
 }
 
-#[test]
-fn folds_expression_suffixes_into_terminal_returns() {
-    let source = "function touch(){}function f(x){var y=x;touch(y);y+=2;return y}function g(){'use strict';touch();return this}";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
-    )
-    .unwrap();
 
-    assert!(optimized.contains("return touch(y),y+=2,y"), "{optimized}");
-    assert!(
-        optimized.contains("'use strict';return touch(),this"),
-        "{optimized}"
-    );
-    assert_eq!(
-        run_node(&format!("{source};console.log(f(1))")),
-        run_node(&format!("{optimized};console.log(f(1))"))
-    );
 
-    let declaration = "function f(){var x={a:1};x.a=2;return x}console.log(f().a)";
-    let declaration_optimized = late_generated_javascript_cleanup_pass(
-        declaration,
-        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
-    )
-    .unwrap();
-    assert!(
-        declaration_optimized.contains("var x={a:1};return x.a=2,x"),
-        "{declaration_optimized}"
-    );
-    assert_eq!(run_node(declaration), run_node(&declaration_optimized));
-}
-
-#[test]
-fn exposes_return_sequences_as_independent_objective_candidates() {
-    let source = "function f(){a();return 1}function g(){b();return 2}";
-    let variants = late_generated_javascript_cleanup_local_variants(
-        source,
-        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
-    )
-    .unwrap();
-
-    assert_eq!(variants.len(), 2, "{variants:?}");
-    assert!(variants
-        .iter()
-        .any(|code| { code.contains("return a(),1") && code.contains("b();return 2") }));
-    assert!(variants
-        .iter()
-        .any(|code| { code.contains("a();return 1") && code.contains("return b(),2") }));
-}
-
-#[test]
-fn terminal_return_sequences_do_not_enter_for_heads() {
-    let source = "function use(){}function f(a){var i=0;for(;i<a.length;i++){use(a[i])}use(i);return i}console.log(f([1,2]))";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::ExpressionSuffixReturns,
-    )
-    .unwrap();
-
-    assert!(optimized.contains("for(;i<a.length;i++)"), "{optimized}");
-    assert!(optimized.contains("return use(i),i"), "{optimized}");
-    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
-}
 
 #[test]
 fn folds_boolean_conditional_values_without_leaking_operand_values() {

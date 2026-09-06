@@ -438,6 +438,19 @@ fn print_explanation(
             );
             eprintln!("{:<34} {}", "peephole rewrites", metrics.peephole_rewrites);
             eprintln!(
+                "{:<34} {} offered, {}{}",
+                "terminal shape challengers",
+                metrics.decisions.terminal_shape_challengers,
+                if metrics.decisions.terminal_shape_selected { "selected" } else { "kept the incumbent" },
+                match (
+                    metrics.decisions.terminal_shape_incumbent_bytes,
+                    metrics.decisions.terminal_shape_best_bytes,
+                ) {
+                    (Some(incumbent), Some(best)) => format!(" ({incumbent} against {best})"),
+                    _ => String::new(),
+                }
+            );
+            eprintln!(
                 "{:<34} {}",
                 "layout searched",
                 if metrics.layout_searched { "yes" } else { "no" }

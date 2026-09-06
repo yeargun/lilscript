@@ -332,3 +332,61 @@ this started.
   thread that never installed it. **Named (7.33): 7.20, the cache.** Fixed by re-printing every
   plan under a key from the canonical spelling's tree, emitted on demand; the pool's repeat runs
   and the fleet numbers are stable again from 7.33 on.
+- **live-9, reproduced (7.33).** Level 15, search on, the probe: `f=j(o)||j(o+1)` where `j` counts
+  its calls (`h++;return 0==(o&1)`) ships as `b=0==(a&1)||0==(a+1&1)` — the first call's increment
+  is hoisted before the statement, the second call's is dropped, so the count is short by one
+  (line 32: 21 for 31). With the search off the level-15 build is correct; with the search on the
+  wrong text is a late-cleanup candidate that wins only when all four of
+  `fold_single_use_function_expressions`, `fold_zero_argument_return_iife`,
+  `fold_expression_self_assignments` and `fold_top_level_adjacent_expression_statements` run
+  (`LILSCRIPT_SKIP_FOLDS` of any one gives 31). The late cleanup is text the tree is retiring; the
+  fix is either the pass that inlines a body with a statement before its `return` into a
+  short-circuit operand, or the deletion of that pass. `$SP/level15.toml` and `runner.js`
+  (`globalThis.read` counting) reproduce it in one second on `probelil/src/probe.lil`.
+- **A tree rewrite before scoring is a lottery ticket; the same rewrite at the terminal is a
+  slot (7.34–7.36).** The single-use collapse, run on every emission, read +128 net on the fleet
+  with six wins and six losses, the ten-port numbers byte-identical between two runs: not
+  noise, plan choice. A rewrite that shrinks most emissions by a little changes which plan the
+  search ranks first, and the plan it moves to prints its *other* shapes worse (remarklil's new
+  winner lost the exclusive-closure inlining, the `void 0` drop and the regex spelling in one
+  go). The text folds it replaces never had this problem because they run on the finalist and
+  are codec-verified there. So the tree's off-for-cause shapes -- the collapse, the for-init
+  hoist (+76), the negated arms (+36 on micromark) -- ship as **terminal shape challengers**
+  (`terminal_shape_options`, 7.36): one re-emission of the finalist's plan per shape, admitted
+  by `finalized_javascript_candidate_precedes` like the naming and string-pooling families.
+  Cost: one emission and a declaration ladder each, from the terminal ledger. This is the
+  general rule for the rest of phase 6: a shape that is a pure win on the cases goes on every
+  emission; a shape that wins on some ports and loses on others goes to the terminal slot.
+- **The re-print cache raced on its accounting (7.34).** Two siblings under one key arriving
+  during the canonical emission both emitted it; the text was identical (7.33) but the count
+  was thread-order, and `compiler_resource_counts_preserve_exact_selected_javascript` failed
+  4/4 on b24 (49 against 48) after passing on b23 -- the collapse changed the timing, not the
+  logic. One `Mutex<Option<tree>>` slot per key now: the first arrival emits while holding it,
+  the rest wait and re-print. One attempt is counted per request whichever path serves it.
+- **`void 0` was not a literal to the prune (7.35).** `expression_is_pure_literal` knew `null`,
+  `undefined` and numbers; the emitter spells undefined as `void 0`. katexlil carried a
+  5,924-byte statement of dead phi copies (`var ZW=void 0,_W=void 0,…`) into the terminal
+  chain, where `fold_void_initializers_off_fresh_vars` and `remove_unused_standalone_vars`
+  stripped it one token at a time. With the search on the bytes were already gone; with it off
+  the port read −482 Brotli, −6,659 raw.
+- **A terminal challenger must be a print of the finalist's tree, not a re-emission of its plan
+  (7.37–7.38).** Re-emitting the finalist's plan with a shape flag and finishing it again lost
+  71 to 101 bytes on markedlil every time -- with the shape doing nothing there (the collapse
+  everywhere gives the identical 9,178). The finalist's text is not `emit(plan)`: it is the
+  search's tree plus the rename family's spellings plus the late cleanup, and a fresh emission
+  has none of that even when the ledger is extended to pay for a second finishing (7.38's first
+  try: the ledger grew by the finishing's cost, the challenger still finished 71 worse). The
+  challenger that compares like for like is the finalist's *frozen tree* (`frozen_tree`, the
+  re-print cache under the plan's key) with the shape applied on the tree (`ModuleTree::collapse`
+  over the module block and every closure body) and printed the way the plan prints it
+  (`reprint_collapsed`, the rename pass first when the plan re-spells), then scored and finished
+  through the same gate as the naming and pooling families. On markedlil that is one challenger
+  offered and selected, 9,189 → 9,180. This is Phase 7′ arriving from the other side: shapes
+  as prints of one tree, one codec probe each, and the finishing paid once.
+- **The terminal ledgers were spent before the shape stage (7.37).** Two of them: the codec
+  probes (exhausted on every port, `terminal_codec_probe_limit_reached`) and the plan slots
+  (`candidate_limit` minus the finalists, then the naming and pooling families). The shape
+  family now holds its own codec slice (`release_shape_reserve_once`) and is granted its own
+  plan slots (`TerminalJavaScriptCandidateBudget::grant`); the second finishing, when the gate
+  passes, extends the ledger by what the first cost (`extend`), so a win is finished on equal
+  terms and a loss costs one emission's worth of probes.

@@ -2937,7 +2937,6 @@ pub(crate) enum LateJavaScriptCleanupPass {
     ConditionalReturnTails,
     GuardReturnExpressionSuffixes,
     ExpressionReturnBranches,
-    ExpressionSuffixReturns,
     SequenceAssignmentFirstUse,
     StatementAssignmentFirstUse,
     NegatedConditionalArms,
@@ -2989,7 +2988,6 @@ impl LateJavaScriptCleanupPass {
             self,
             Self::GuardReturnExpressionSuffixes
                 | Self::ExpressionReturnBranches
-                | Self::ExpressionSuffixReturns
                 | Self::SequenceAssignmentFirstUse
                 | Self::StatementAssignmentFirstUse
                 | Self::NegatedConditionalArms
@@ -3055,9 +3053,6 @@ pub(crate) fn late_generated_javascript_cleanup_local_variants(
     pass: LateJavaScriptCleanupPass,
 ) -> Result<Vec<String>, JavaScriptParseError> {
     let mut variants = match pass {
-        LateJavaScriptCleanupPass::ExpressionSuffixReturns => {
-            expression_suffix_return_variants(source)?
-        }
         LateJavaScriptCleanupPass::BooleanConditionalValues => {
             boolean_conditional_value_variants(source)?
         }
@@ -3084,9 +3079,6 @@ fn late_generated_javascript_cleanup_pass_into(
         }
         LateJavaScriptCleanupPass::ExpressionReturnBranches => {
             session.run(fold_expression_return_branches)?
-        }
-        LateJavaScriptCleanupPass::ExpressionSuffixReturns => {
-            session.run(fold_expression_suffix_returns)?
         }
         LateJavaScriptCleanupPass::SequenceAssignmentFirstUse => {
             session.run(fold_sequence_assignments_into_first_use)?
