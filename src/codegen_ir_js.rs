@@ -20619,14 +20619,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             JsFunctionBody::ConciseNode(returned_node)
         };
-        Ok(JsStatement::Function {
-            head,
-            body,
-            terminated: false,
-        }
-        .render(JsStatementOptions {
-            elide_block_terminal_semicolons: true,
-        }))
+        // Migration 7.40: through `render_closure_statement`, so the closure
+        // has a tree (its census, the rename pass and the beta reduction of a
+        // call on it all read it) -- rendered directly, `a=>a*7|0` reached
+        // `closure_node` as text and every concise closure was opaque.
+        Ok(self.render_closure_statement(head, body))
     }
 
     /// An inlined closure as text: the `Function` node rendered with this
@@ -26487,8 +26484,14 @@ impl ModuleTree {
                 .collect::<Vec<_>>();
             let mut blocks = vec![&mut self.block];
             blocks.append(&mut bodies);
-            for block in blocks.iter_mut() {
+            for (position, block) in blocks.iter_mut().enumerate() {
                 if shapes.collapse {
+                    if position == 0 {
+                        let moved = inline_single_use_functions(block, &census, &snapshot);
+                        if moved > 0 {
+                            crate::timing::FUNCTIONS_MOVED.event(moved as u64);
+                        }
+                    }
                     collapse_block(block, &census, &snapshot);
                     let reduced = rewrite_block_expressions(block, &mut |node| {
                         reduce_immediate_call(node, &census, &snapshot)
@@ -26683,11 +26686,34 @@ fn reduce_immediate_call(
         }
         return None;
     };
-    let JsFunctionBody::ConciseNode(body) = body else {
-        if trace {
-            eprintln!("[shape] closure {} body is not a concise node: {}", id.0, match &body { JsFunctionBody::Concise(text) => format!("text `{text}`"), JsFunctionBody::Block(_) => "block".to_string(), JsFunctionBody::ConciseNode(_) => unreachable!() });
+    let body = match body {
+        JsFunctionBody::ConciseNode(body) => body,
+        // `(function(){return v})()` is `v` (`fold_zero_argument_return_iife`):
+        // a classic body of one return, no parameters, and a value that reads
+        // neither `this` nor `arguments` (which the function boundary binds).
+        JsFunctionBody::Block(block)
+            if args.is_empty()
+                && block.statements.len() == 1
+                && matches!(&block.statements[0].statement, JsStatement::Return { value: Some(_) })
+                && !head.pieces.iter().any(|piece| matches!(piece, JsHeadPiece::Name(..) | JsHeadPiece::FunctionName(..))) =>
+        {
+            let JsStatement::Return { value: Some(value) } = &block.statements[0].statement else {
+                unreachable!()
+            };
+            if text_mentions_identifier(&value.code, "this") || text_mentions_identifier(&value.code, "arguments") {
+                if trace {
+                    eprintln!("[shape] closure {} returns `this`/`arguments`", id.0);
+                }
+                return None;
+            }
+            value.clone()
         }
-        return None;
+        other => {
+            if trace {
+                eprintln!("[shape] closure {} body is not reducible: {}", id.0, match &other { JsFunctionBody::Concise(text) => format!("text `{text}`"), JsFunctionBody::Block(_) => "block".to_string(), JsFunctionBody::ConciseNode(_) => unreachable!() });
+            }
+            return None;
+        }
     };
     if expression_has_closure(&body) {
         if trace {
@@ -26699,6 +26725,7 @@ fn reduce_immediate_call(
     for piece in &head.pieces {
         match piece {
             JsHeadPiece::Name(bind, _) => params.push(*bind),
+            JsHeadPiece::Text(text) if text == "function" => {}
             JsHeadPiece::Text(text)
                 if text
                     .bytes()
@@ -26745,6 +26772,253 @@ fn reduce_immediate_call(
         }
     }
     Some(result)
+}
+
+/// Whether `text` spells `name` as a whole identifier anywhere.
+fn text_mentions_identifier(text: &str, name: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut from = 0usize;
+    while let Some(at) = text[from..].find(name) {
+        let start = from + at;
+        let end = start + name.len();
+        let before = start.checked_sub(1).map(|index| bytes[index]);
+        let after = bytes.get(end).copied();
+        if !before.is_some_and(is_js_identifier_byte) && !after.is_some_and(is_js_identifier_byte) {
+            return true;
+        }
+        from = end;
+    }
+    false
+}
+
+/// `function f(a){..}` declared in a block and called exactly once, from
+/// that same block (never from inside a nested function or closure, where a
+/// local could capture a name the body reads), moves to its call as a
+/// function expression (`fold_single_use_function_expressions`): the name
+/// had no other observer, so its identity was never observable. Bodies that
+/// hold a closure, or read `arguments`/`super`, stay.
+fn inline_single_use_functions(
+    block: &mut JsBlock,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) -> usize {
+    let mut moved = 0usize;
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let candidate = match &block.statements[index].statement {
+            JsStatement::Function {
+                head,
+                body: JsFunctionBody::Block(body),
+                terminated: false,
+            } => {
+                let mut name = None;
+                let mut plain = true;
+                for piece in &head.pieces {
+                    match piece {
+                        JsHeadPiece::FunctionName(bind, spelled) => name = Some((*bind, spelled.clone())),
+                        JsHeadPiece::Text(text) if text.trim_end() == "function" => {}
+                        JsHeadPiece::Text(text)
+                            if text
+                                .bytes()
+                                .all(|byte| matches!(byte, b'(' | b')' | b',' | b' ')) => {}
+                        JsHeadPiece::Name(..) => {}
+                        _ => plain = false,
+                    }
+                }
+                let rendered = body.render();
+                if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                    eprintln!(
+                        "[shape] function {:?}: plain {plain} {:?}, reads {:?}, writes {:?}, unsafe {}, closure {}",
+                        name.as_ref().map(|(_, spelled)| spelled.clone()),
+                        head.pieces,
+                        name.as_ref().and_then(|(bind, _)| census.reads.get(bind)),
+                        name.as_ref().and_then(|(bind, _)| census.writes.get(bind)),
+                        name.as_ref().is_some_and(|(_, spelled)| census.unsafe_names.contains(spelled)),
+                        block_has_closure(body),
+                    );
+                }
+                match name {
+                    Some((bind, spelled))
+                        if plain
+                            && census.reads.get(&bind).copied() == Some(1)
+                            && census.writes.get(&bind).copied() == Some(1)
+                            && !census.unsafe_names.contains(&spelled)
+                            && !text_mentions_identifier(&rendered, "arguments")
+                            && !text_mentions_identifier(&rendered, "super")
+                            && !block_has_closure(body) =>
+                    {
+                        Some((bind, head.clone(), body.clone()))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        let Some((bind, head, body)) = candidate else {
+            index += 1;
+            continue;
+        };
+        // The expression: the same head without its name, the same body,
+        // registered as a closure so the print and the renamer see a tree.
+        let mut expression_head = JsHead::default();
+        for piece in &head.pieces {
+            match piece {
+                JsHeadPiece::FunctionName(..) => {}
+                JsHeadPiece::Text(text) if text.trim_end() == "function" => {
+                    expression_head.pieces.push(JsHeadPiece::Text("function".to_string()));
+                }
+                JsHeadPiece::Text(text) if text.trim().is_empty() => {}
+                other => expression_head.pieces.push(other.clone()),
+            }
+        }
+        let id = ClosureId(
+            closures
+                .borrow()
+                .keys()
+                .map(|key| key.0 + 1)
+                .max()
+                .unwrap_or(0),
+        );
+        let code = JsStatement::Function {
+            head: expression_head.clone(),
+            body: JsFunctionBody::Block(body.clone()),
+            terminated: false,
+        }
+        .render(JsStatementOptions {
+            elide_block_terminal_semicolons: true,
+        });
+        let callee = JsExpression::closure(id, code, JsPrecedence::Comma);
+        // The one call, in this block's own statements (not below a function).
+        let mut replaced = 0usize;
+        let mut replace = |node: &JsExpression| -> Option<JsExpression> {
+            if node.root != JsExpressionRoot::Call {
+                return None;
+            }
+            let first = node.operands.first()?;
+            if first.root != JsExpressionRoot::Name(bind) {
+                return None;
+            }
+            replaced += 1;
+            let callee = callee.clone();
+            Some(node.rebuilt_with(JsRenderOptions::UNUSED, &|operand| {
+                if operand == 0 {
+                    callee.clone()
+                } else {
+                    node.operands[operand].clone()
+                }
+            }))
+        };
+        rewrite_block_expressions_shallow(block, &mut replace);
+        if replaced == 1 {
+            closures.borrow_mut().insert(id, (expression_head, JsFunctionBody::Block(body)));
+            let gone = block.statements.remove(index);
+            if index == block.statements.len() {
+                settle_block_tail(block, gone.dropped_semicolon);
+            }
+            moved += 1;
+        } else {
+            index += 1;
+        }
+    }
+    moved
+}
+
+/// Whether a block holds a closure or a function anywhere below it.
+fn block_has_closure(block: &JsBlock) -> bool {
+    block.statements.iter().any(|emitted| match &emitted.statement {
+        JsStatement::Function { .. } | JsStatement::Class { .. } => true,
+        JsStatement::Declarators { declarators, .. } => declarators.iter().any(|declarator| {
+            declarator.function.is_some()
+                || declarator.value.as_ref().is_some_and(expression_has_closure)
+        }),
+        JsStatement::If {
+            condition_tree,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            condition_tree.as_ref().is_some_and(expression_has_closure)
+                || block_has_closure(&then_branch.block)
+                || else_branch.as_ref().is_some_and(|branch| block_has_closure(&branch.block))
+        }
+        JsStatement::Loop { body, .. } => block_has_closure(&body.block),
+        JsStatement::Try {
+            body,
+            catch,
+            finally,
+        } => {
+            block_has_closure(body)
+                || catch.as_ref().is_some_and(|catch| block_has_closure(&catch.body))
+                || finally.as_ref().is_some_and(block_has_closure)
+        }
+        JsStatement::Switch { cases, .. } => cases.iter().any(|case| block_has_closure(&case.body)),
+        other => statement_value(other).is_some_and(expression_has_closure),
+    })
+}
+
+/// `rewrite_block_expressions` over this block's own statements and their
+/// control blocks only -- never below a function or a class, whose scopes
+/// are their own.
+fn rewrite_block_expressions_shallow(
+    block: &mut JsBlock,
+    rewrite: &mut dyn FnMut(&JsExpression) -> Option<JsExpression>,
+) -> usize {
+    let mut count = 0usize;
+    for emitted in block.statements.iter_mut() {
+        if let Some(value) = statement_value_mut(&mut emitted.statement) {
+            if let Some((rewritten, n)) = rewrite_expression(value, rewrite) {
+                *value = rewritten;
+                count += n;
+            }
+        }
+        match &mut emitted.statement {
+            JsStatement::If {
+                condition,
+                condition_tree,
+                then_branch,
+                else_branch,
+            } => {
+                if let Some(tree) = condition_tree {
+                    *condition = tree.clone().into_minimal();
+                }
+                count += rewrite_block_expressions_shallow(&mut then_branch.block, rewrite);
+                if let Some(else_branch) = else_branch {
+                    count += rewrite_block_expressions_shallow(&mut else_branch.block, rewrite);
+                }
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    if let Some(value) = &mut declarator.value {
+                        if let Some((rewritten, n)) = rewrite_expression(value, rewrite) {
+                            *value = rewritten;
+                            count += n;
+                        }
+                    }
+                }
+            }
+            JsStatement::Loop { body, .. } => count += rewrite_block_expressions_shallow(&mut body.block, rewrite),
+            JsStatement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                count += rewrite_block_expressions_shallow(body, rewrite);
+                if let Some(catch) = catch {
+                    count += rewrite_block_expressions_shallow(&mut catch.body, rewrite);
+                }
+                if let Some(finally) = finally {
+                    count += rewrite_block_expressions_shallow(finally, rewrite);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases {
+                    count += rewrite_block_expressions_shallow(&mut case.body, rewrite);
+                }
+            }
+            _ => {}
+        }
+    }
+    count
 }
 
 /// `x=1;for(;c;u)..` is `for(x=1;c;u)..` (`fold_prior_assign_into_for_init`),

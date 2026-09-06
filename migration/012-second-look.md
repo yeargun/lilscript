@@ -404,3 +404,17 @@ this started.
   pieces with binds, the body as an expression node) is the prerequisite for G4/G5's IIFE folds
   (`fold_identity_arrow_iife` 104, `fold_zero_argument_return_iife` 31,
   `fold_single_use_function_expressions` 61 on the cases) and would tighten every census.
+- **The closure trees were one `render` away (7.40).** The deferred expression-closure path
+  rendered its `Function` node to text directly; every concise closure was a `Raw` node to the
+  tree. Routing it through `render_closure_statement` registers the tree, and the difference
+  shows at once: the beta reduction fires on the four cases that had an immediate call, and the
+  probe's level-15 configuration agrees again (live-9 no longer reproduces, since the closure
+  the late cleanup mis-inlined is now a tree the print handles). The lesson for the remaining
+  text-rendering sites (`grep 'JsStatement::Function {' | grep render`): a node rendered to text
+  is a node the tree cannot see, and the census, the renamer and every shape are only as good
+  as the tree's coverage.
+- **The census now counts the finishing twice (7.40).** With the shape stage's second finishing,
+  every text fold that fires on a case fires again on the finished challenger, so
+  `fold-census.sh` reads roughly double (`fold_expression_self_assignments` 69 → 150). Residue
+  is measured with `LILSCRIPT_TERMINAL_SHAPES=0`; the doubled numbers are not new work for the
+  tree.
