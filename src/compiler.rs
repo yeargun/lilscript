@@ -9404,7 +9404,11 @@ fn late_javascript_cleanup_finalists(
     // one structural challenger while preserving every incumbent beam entry.
     let structural_sources = beam.clone();
     'structural: for candidate in structural_sources {
-        for include_statement_assignments in [false, true] {
+        // Migration 7.52: the statement-assignment variants are gone (the
+        // tree's collapse carries `fold_statement_assignments_into_first_use`;
+        // skipping it read 0 on the three heavy ports), so the chain has half
+        // the proposals it had.
+        for include_statement_assignments in [false] {
             let single_use_function_variants: &[bool] =
                 if config.single_use_function_expression_candidates_enabled() {
                     &[false, true]
@@ -9419,10 +9423,6 @@ fn late_javascript_cleanup_finalists(
                 let passes = [
                     include_single_use_functions
                         .then_some(LateJavaScriptCleanupPass::SingleUseFunctionExpressions),
-                    include_statement_assignments
-                        .then_some(LateJavaScriptCleanupPass::StatementAssignmentFirstUse),
-                    include_statement_assignments
-                        .then_some(LateJavaScriptCleanupPass::StatementAssignmentFirstUse),
                     Some(LateJavaScriptCleanupPass::ExpressionReturnBranches),
                     Some(LateJavaScriptCleanupPass::ConditionalReturnTails),
                     Some(LateJavaScriptCleanupPass::CommonConditionalArms),

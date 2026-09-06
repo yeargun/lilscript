@@ -726,55 +726,7 @@ pub(crate) fn fold_void_then_reassign(
 }
 
 
-pub(crate) fn merge_adjacent_declarations(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let mut output = source.to_string();
-    let mut merged = 0;
-    loop {
-        let tokens = lex(&output)?;
-        let mut candidate = None;
-        for declaration in 0..tokens.len() {
-            let kind = tokens[declaration].text;
-            if !matches!(kind, "let" | "var" | "const")
-                || declaration
-                    .checked_sub(1)
-                    .is_some_and(|previous| !matches!(tokens[previous].text, ";" | "{" | "}"))
-            {
-                continue;
-            }
-            let mut delimiters = Vec::<&str>::new();
-            for index in declaration + 1..tokens.len().saturating_sub(1) {
-                match tokens[index].text {
-                    "(" | "[" | "{" => delimiters.push(tokens[index].text),
-                    ")" | "]" | "}" => {
-                        delimiters.pop();
-                    }
-                    ";" if delimiters.is_empty() => {
-                        if tokens[index + 1].text == kind
-                            && tokens
-                                .get(index + 2)
-                                .is_some_and(|token| token.kind == TokenKind::Identifier)
-                        {
-                            candidate = Some((tokens[index].start, tokens[index + 2].start));
-                        }
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-            if candidate.is_some() {
-                break;
-            }
-        }
-        let Some((start, end)) = candidate else {
-            break;
-        };
-        output.replace_range(start..end, ",");
-        merged += 1;
-    }
-    Ok((output, merged))
-}
+
 
 pub(crate) fn remove_unused_standalone_vars(
     source: &str,

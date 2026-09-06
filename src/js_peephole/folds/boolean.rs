@@ -1757,80 +1757,7 @@ fn leading_negation_covers_condition(tokens: &[Token<'_>], start: usize, end: us
     true
 }
 
-pub(crate) fn fold_negated_conditional_arms(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let mut output = source.to_string();
-    let mut folded = 0usize;
-    loop {
-        let tokens = lex(&output)?;
-        let mut replacement = None;
-        for question in (0..tokens.len()).rev() {
-            if tokens[question].text != "?"
-                || matches!(
-                    tokens.get(question + 1).map(|token| token.text),
-                    Some(".") | Some("[")
-                )
-            {
-                continue;
-            }
-            let condition_start = ternary_condition_start(&tokens, question);
-            let condition_is_complete_negation = tokens
-                .get(condition_start)
-                .is_some_and(|token| token.text == "!")
-                && condition_start + 1 < question
-                && condition_start
-                    .checked_sub(1)
-                    .is_none_or(|previous| !matches!(tokens[previous].text, "&&" | "||" | "??"))
-                && leading_negation_covers_condition(&tokens, condition_start, question);
-            let (condition_start, condition) = if condition_is_complete_negation {
-                (
-                    condition_start,
-                    output[tokens[condition_start + 1].start..tokens[question].start].to_string(),
-                )
-            } else {
-                let full_start = ternary_logical_condition_start(&tokens, question);
-                let Some(condition) =
-                    inverted_disjunction_condition(&output, &tokens, full_start, question)
-                else {
-                    continue;
-                };
-                (full_start, condition)
-            };
-            let Some(colon) = ternary_colon(&tokens, question) else {
-                continue;
-            };
-            let end = ternary_end(&tokens, colon + 1);
-            if question + 1 >= colon || colon + 1 >= end {
-                continue;
-            }
-            let then_value = &output[tokens[question + 1].start..tokens[colon].start];
-            let else_value = &output[tokens[colon + 1].start..tokens[end - 1].end];
-            let separator = if tokens[condition_start].start > 0
-                && output.as_bytes()[tokens[condition_start].start - 1].is_ascii_alphanumeric()
-                && condition
-                    .as_bytes()
-                    .first()
-                    .is_some_and(|byte| byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$'))
-            {
-                " "
-            } else {
-                ""
-            };
-            replacement = Some((
-                tokens[condition_start].start,
-                tokens[end - 1].end,
-                format!("{separator}{condition}?{else_value}:{then_value}"),
-            ));
-            break;
-        }
-        let Some((start, end, rewritten)) = replacement else {
-            return Ok((output, folded));
-        };
-        output.replace_range(start..end, &rewritten);
-        folded += 1;
-    }
-}
+
 
 fn boolean_conditional_value_rewrites(
     source: &str,
@@ -3179,27 +3106,6 @@ mod tests {
             assert_eq!(out, expected);
         }
     }
-    #[test]
-    fn a_negated_literal_does_not_negate_the_comparison_it_leads() {
-        // `!1 !== x` is `(!1) !== x`. Dropping the `!` and swapping the arms
-        // rewrites it to `1 !== x`, which selects the opposite branch for every
-        // value of `x` other than `1`.
-        let source = "function f(a){return !1!==a.fences?!1:g(a)}";
-        use super::fold_negated_conditional_arms;
-        let (folded, count) = fold_negated_conditional_arms(source).unwrap();
-        assert_eq!(count, 0);
-        assert_eq!(folded, source);
-    }
-
-    #[test]
-    fn a_negation_over_the_whole_condition_still_swaps_its_arms() {
-        let source = "function f(a){return !a.fences?g(a):!1}";
-        use super::fold_negated_conditional_arms;
-        let (folded, count) = fold_negated_conditional_arms(source).unwrap();
-        assert_eq!(count, 1);
-        assert_eq!(folded, "function f(a){return a.fences?!1:g(a)}");
-    }
-
     #[test]
     fn assignment_guard_does_not_test_a_comma_sequence() {
         let source = "function f(){f=d<t,c=parse();if(f)h.push(c);else if(c!=null)i.push(c)}";

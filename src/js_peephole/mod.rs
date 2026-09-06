@@ -2746,7 +2746,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_arguments_length_formal_copies)?;
     session.run_flag(reuse_dead_var_binding)?;
     session.run(remove_unused_standalone_vars)?;
-    session.run(merge_adjacent_declarations)?;
     session.run(fold_assignment_guards)?;
     session.run(fold_guarded_assign_into_call_predicate)?;
     session.run(fold_index_postfix_updates)?;
@@ -2921,8 +2920,6 @@ pub(crate) enum LateJavaScriptCleanupPass {
     GuardReturnExpressionSuffixes,
     ExpressionReturnBranches,
     SequenceAssignmentFirstUse,
-    StatementAssignmentFirstUse,
-    NegatedConditionalArms,
     BooleanConditionalValues,
     UnitCounterUpdates,
     CommonConditionalArms,
@@ -2972,10 +2969,9 @@ impl LateJavaScriptCleanupPass {
 
     /// The ladder as it was before 7.50, for an A/B
     /// (`LILSCRIPT_CLEANUP_TWINS=1` runs it).
-    pub(crate) const LADDER_WITH_TWINS: [Self; 18] = [
+    pub(crate) const LADDER_WITH_TWINS: [Self; 17] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
-        Self::NegatedConditionalArms,
         Self::BooleanConditionalValues,
         Self::UnitCounterUpdates,
         Self::EarlyExitGuards,
@@ -3025,8 +3021,6 @@ impl LateJavaScriptCleanupPass {
             Self::GuardReturnExpressionSuffixes
                 | Self::ExpressionReturnBranches
                 | Self::SequenceAssignmentFirstUse
-                | Self::StatementAssignmentFirstUse
-                | Self::NegatedConditionalArms
                 | Self::BooleanConditionalValues
                 | Self::UnitCounterUpdates
                 | Self::CommonConditionalArms
@@ -3119,19 +3113,14 @@ fn late_generated_javascript_cleanup_pass_into(
         LateJavaScriptCleanupPass::SequenceAssignmentFirstUse => {
             session.run(fold_sequence_assignments_into_first_use)?
         }
-        LateJavaScriptCleanupPass::StatementAssignmentFirstUse => {
-            session.run(fold_statement_assignments_into_first_use)?
-        }
-        LateJavaScriptCleanupPass::NegatedConditionalArms => {
-            session.run(fold_negated_conditional_arms)?
-        }
         LateJavaScriptCleanupPass::BooleanConditionalValues => {
             session.run(fold_boolean_conditional_values)?
         }
         LateJavaScriptCleanupPass::UnitCounterUpdates => {
+            // Migration 7.52: `fold_expression_self_assignments` left this arm
+            // (the tree's `self_assignment_chain`; skipping it read 0).
             session.run(fold_unit_counter_updates)?;
-            session.run(fold_while_true_unit_increment_bounds)?;
-            session.run(fold_expression_self_assignments)?
+            session.run(fold_while_true_unit_increment_bounds)?
         }
         LateJavaScriptCleanupPass::CommonConditionalArms => {
             session.run(fold_common_conditional_arms)?

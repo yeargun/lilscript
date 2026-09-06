@@ -483,3 +483,9 @@ this started.
   heavy ports. `LILSCRIPT_CANONICAL_CHAIN=Name,..` keeps only the named passes in that chain
   for a per-pass A/B without a rebuild; with `LILSCRIPT_CLEANUP_LADDER` and `LILSCRIPT_SKIP_FOLDS`
   every text stage is now measurable one rule at a time from the environment.
+- **One rule at a time, one port at a time (7.50–7.51).** The tranche method that works: pick
+  the port that lost most when a group went, run it with each rule removed alone from the
+  environment (`LILSCRIPT_CLEANUP_LADDER`, `LILSCRIPT_CANONICAL_CHAIN`, `LILSCRIPT_SKIP_FOLDS`),
+  keep what the port still pays for, delete the rest, confirm on the ten heaviest. A minute per
+  rule on the pool, no rebuild, and the answer is never a group's sum. Three tranches today by
+  this method: five ladder passes, three chain passes, and the emission chain's folds next.

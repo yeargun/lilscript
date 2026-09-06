@@ -13,12 +13,7 @@ use super::{
     validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
 };
 use super::folds::{
-    fold_dead_pure_identifier_assigns,
-    fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
-    absorb_property_writes_into_literals, fold_assigned_truthy_ternaries, fold_fresh_empty_object_assign, fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and,
-    fold_sequence_assignments_into_first_use, fold_single_use_if_assigns,
-    fold_single_use_literal_bindings, fold_single_use_temporaries, fold_statement_assignments_into_first_use,
-    fold_typeof_identifier_caches,
+    fold_dead_pure_identifier_assigns, fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes, absorb_property_writes_into_literals, fold_assigned_truthy_ternaries, fold_fresh_empty_object_assign, fold_identifier_copies, fold_identity_arrow_iife, fold_if_expression_to_and, fold_sequence_assignments_into_first_use, fold_single_use_if_assigns, fold_single_use_literal_bindings, fold_single_use_temporaries, fold_typeof_identifier_caches,
 };
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
@@ -271,7 +266,8 @@ fn reorders_only_uninitialized_var_declarators_before_initializers() {
 
     assert_eq!(
         optimized.code,
-        "function run(){var empty,later,stable,log=[],first=(log.push('first'),1),second=(log.push('second'),2),tail=3;return[empty,first,later,second,stable,tail,log.join(',')]}console.log(JSON.stringify(run()))"
+        // Migration 7.52: the text merge is gone (the tree merges at push).
+        "function run(){var empty,later,log=[],first=(log.push('first'),1),second=(log.push('second'),2);var stable,tail=3;return[empty,first,later,second,stable,tail,log.join(',')]}console.log(JSON.stringify(run()))"
     );
     assert_eq!(run_javascript(&optimized.code), run_javascript(source));
 }
@@ -555,15 +551,16 @@ fn keeps_var_bindings_when_lifetimes_or_nested_names_overlap() {
     for (source, expected) in [
         (
             "function f(x){var a=first(x);var b=second(x);use(a,b)}",
-            "function f(x){var a=first(x),b=second(x);use(a,b)}",
+            // Migration 7.52: the text merge is gone (the tree merges at push).
+            "function f(x){var a=first(x);var b=second(x);use(a,b)}",
         ),
         (
             "function f(x){use(b);var a=first(x);var b=second(x);use(b)}",
-            "function f(x){use(b);var a=first(x),b=second(x);use(b)}",
+            "function f(x){use(b);var a=first(x);var b=second(x);use(b)}",
         ),
         (
             "function f(x){var a=first(x);var b=second(x);use(function(b){return b})}",
-            "function f(x){var a=first(x),b=second(x);use(function(b){return b})}",
+            "function f(x){var a=first(x);var b=second(x);use(function(b){return b})}",
         ),
     ] {
         let optimized = optimize_generated_javascript(source).unwrap();
@@ -615,17 +612,6 @@ fn keeps_bindings_whose_initializer_could_be_observed_or_read() {
     assert_eq!(optimize_generated_javascript(read).unwrap().code, read);
 }
 
-#[test]
-fn merges_only_adjacent_same_kind_declarations() {
-    let optimized = optimize_generated_javascript(
-        "let a;let b=1;var c=2;var d=3;const e=4;const f=5;use(a,b,c,d,e,f)",
-    )
-    .unwrap();
-    assert_eq!(
-        optimized.code,
-        "let a,b=1;var c=2,d=3;const e=4,f=5;use(a,b,c,d,e,f)"
-    );
-}
 
 #[test]
 fn folds_guarded_returns_and_their_tails_into_one_conditional_return() {

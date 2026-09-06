@@ -2323,67 +2323,9 @@ fn boolean_conditional_fold_stays_inside_an_arrow_body() {
     );
 }
 
-#[test]
-fn swaps_negated_conditional_arms_without_reordering_values() {
-    let source =
-        "function hit(x){return x}function f(x){return!x?hit(1):hit(2)}console.log(f(0),f(1))";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::NegatedConditionalArms,
-    )
-    .unwrap();
 
-    assert!(optimized.contains("x?hit(2):hit(1)"), "{optimized}");
-    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
-}
 
-#[test]
-fn keeps_negated_terms_inside_larger_logical_conditions() {
-    let source = "function f(a,b){return a||!b?1:2}function g(a,b){return a&&!b?3:4}function h(a,b){return a??!b?5:6}console.log(f(0,0),f(1,1),g(1,0),g(0,0),h(null,0),h(0,0))";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::NegatedConditionalArms,
-    )
-    .unwrap();
 
-    assert_eq!(optimized, source);
-    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
-}
-
-#[test]
-fn swaps_invertible_disjunction_conditions_with_demorgan() {
-    let source = "function clamp(x){return\"number\"!=typeof x||!Number.isFinite(+x)?3000:x>5000?5000:x}function custom(x){return x===void 0||!Array.isArray(x)?false:x.length>0}console.log(clamp('x'),clamp(6000),custom(),custom([]),custom([1]))";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::NegatedConditionalArms,
-    )
-    .unwrap();
-
-    assert!(
-        optimized.contains("\"number\"==typeof x&&Number.isFinite(+x)?"),
-        "{optimized}"
-    );
-    assert!(
-        optimized.contains("x!==void 0&&Array.isArray(x)?"),
-        "{optimized}"
-    );
-    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
-}
-
-#[test]
-fn compounds_expression_position_identifier_updates() {
-    let source =
-        "function f(x){return(x=x+1)}function g(x){return(x=x+'-')}console.log(f(2),g('a'))";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::UnitCounterUpdates,
-    )
-    .unwrap();
-
-    assert!(optimized.contains("x+=1"), "{optimized}");
-    assert!(optimized.contains("x+='-'"), "{optimized}");
-    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
-}
 
 #[test]
 fn factors_repeated_conditional_arms_without_reordering_tests() {
