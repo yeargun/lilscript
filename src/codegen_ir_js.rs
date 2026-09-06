@@ -1416,10 +1416,14 @@ impl StatementPolicy {
             boolean_arms: port("boolean_arms"),
             ident_or: port("ident_or"),
             raw_return_tails: port("raw_return_tails"),
-            // Off until it wins on the fleet: b25 on/off over 20 ports read
-            // +128 net (six wins, -204; six losses, +332; eight ties) -- a
-            // pre-scoring tree rewrite moves the search's plan choice, where
-            // the terminal text folds it replaces are codec-verified.
+            // Off on the search's plans, on for the terminal print (7.38).
+            // With closures as trees (7.40) and the ledger at its base (7.45)
+            // it is a measured win on every heavy port (7.44) -- but on every
+            // emission it makes the plan win in which the emitter inlines a
+            // pure helper into a short-circuit's right operand and drops the
+            // prefix statement (live-9's root cause, found 7.45), so it stays
+            // off until that rendering is fixed. `LILSCRIPT_PORTS=single_use_collapse`
+            // turns it on.
             single_use_collapse: options.single_use_collapse || port_off("single_use_collapse"),
             void_initializers: port("void_initializers"),
             declaration_merge: port("declaration_merge"),
@@ -3986,6 +3990,15 @@ fn collapse_block(
             index += 1;
             continue;
         };
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            eprintln!(
+                "[collapse] bind {} = `{}` into `{}` -> `{}`",
+                bind.0,
+                &value.code[..value.code.len().min(60)],
+                &expression.code[..expression.code.len().min(100)],
+                &substituted.code[..substituted.code.len().min(100)]
+            );
+        }
         *expression = substituted;
         if let JsStatement::If {
             condition,
@@ -6304,7 +6317,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut census = BindCensus::default();
         census.block(block, &self.closure_trees);
         if policy.single_use_collapse {
+            let before = std::env::var_os("LILSCRIPT_SHAPE_TRACE").map(|_| block.clone().into_string());
             collapse_block(block, &census, &self.closure_trees);
+            if let Some(before) = before {
+                let after = block.clone().into_string();
+                if before != after && before.contains("&1)") {
+                    eprintln!("[collapse-block] before: {}\n[collapse-block] after:  {}", before, after);
+                }
+            }
         }
         if policy.void_initializers {
             let dropped = drop_void_initializers(block, &census);

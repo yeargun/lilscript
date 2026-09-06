@@ -2142,7 +2142,18 @@ impl JavaScriptConfig {
         if level_limit == 0 {
             return 0;
         }
-        let artifact_limit = Self::gradual_artifact_work_limit(level_limit, raw_size);
+        // Migration 7.45 (7e, first cut): at level 13 and above the ledger is
+        // the level's base, not the artifact-scaled fraction. The scaling
+        // (a twelfth at 256 KB) was measured for compile time, and on the
+        // largest port it left the finishing -- worth about 2 KB there --
+        // fewer probes than a plan needs to be judged: katexlil swung by 800
+        // bytes with the ledger and the ten heaviest ports read −381 at the
+        // base (7.44). Below 13 the scaling stays.
+        let artifact_limit = if self.optimization_level >= 13 {
+            level_limit
+        } else {
+            Self::gradual_artifact_work_limit(level_limit, raw_size)
+        };
         // Migration 7e: `LILSCRIPT_TERMINAL_PROBES=<n>` pins the ledger for an
         // A/B, ahead of the configured value and the artifact scaling.
         if let Some(pinned) = std::env::var("LILSCRIPT_TERMINAL_PROBES")
@@ -3237,17 +3248,18 @@ local_name_coalescing = false
                 .effective_terminal_codec_probe_limit_for_artifact(16 * 1024),
             384
         );
+        // Migration 7.45: no artifact scaling at level 13 and above.
         assert_eq!(
             level_fifteen
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(32 * 1024),
-            288
+            384
         );
         assert_eq!(
             level_fifteen
                 .javascript
                 .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            84
+            384
         );
         let level_fifteen_always: ProjectConfig =
             toml::from_str("[javascript]\noptimization_level=15\ncandidate_search='always'\n")
@@ -3477,26 +3489,28 @@ optimization_level = 0
                 "candidate proposal limit at {raw_size} bytes"
             );
         }
-        let expected_probe_limits = [
-            (16 * 1024 - 1, 384),
-            (16 * 1024, 384),
-            (16 * 1024 + 1, 384),
-            (64 * 1024 - 1, 97),
-            (64 * 1024, 96),
-            (64 * 1024 + 1, 96),
-            (66_672, 96),
-            (256 * 1024 - 1, 33),
-            (256 * 1024, 32),
-            (256 * 1024 + 1, 32),
-            (usize::MAX, 32),
-        ];
-        for (raw_size, expected) in expected_probe_limits {
+        // Migration 7.45: at level 13 and above the terminal ledger is the
+        // level's base at every size; the scaling curve applies below 13.
+        for (raw_size, _) in expected_proposal_limits {
             assert_eq!(
                 config
                     .javascript
                     .effective_terminal_codec_probe_limit_for_artifact(raw_size),
-                expected,
-                "terminal codec probe limit at {raw_size} bytes"
+                384,
+                "terminal codec probe limit at {raw_size} bytes, level 15"
+            );
+        }
+        let scaled: ProjectConfig =
+            toml::from_str("[javascript]\noptimization_level=12\n").unwrap();
+        let base = scaled.javascript.terminal_codec_probe_level_limit();
+        assert_eq!(base, 128);
+        for (raw_size, _) in expected_proposal_limits {
+            assert_eq!(
+                scaled
+                    .javascript
+                    .effective_terminal_codec_probe_limit_for_artifact(raw_size),
+                JavaScriptConfig::gradual_artifact_work_limit(base, raw_size),
+                "terminal codec probe limit at {raw_size} bytes, level 12"
             );
         }
 

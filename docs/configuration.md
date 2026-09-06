@@ -197,9 +197,15 @@ later rejected by syntax, size, or codec ranking therefore still consume a
 slot. Already-scored IR context seeds are outside this optional budget, and a
 separate terminal tail remains available for factored naming/declaration
 challengers. Omitted defaults additionally honor `candidate_limit` and scale to
-one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB. An explicit
+one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB -- below level
+13. At level 13 and above the terminal ledger is the level's base (384) whatever
+the artifact's size: the scaling was measured for compile time, and on the
+largest port it left the finishing (worth about 2 KB there) fewer probes than a
+plan needs to be judged -- the artifact swung by 800 bytes with the ledger, and
+the ten heaviest ports read −381 bytes at the base for +7% wall. An explicit
 value can exceed the survivor count and bypass artifact scaling, but it cannot
 raise the optimization-level or `candidate_search` tier.
+`LILSCRIPT_TERMINAL_PROBES=<n>` pins the ledger for an A/B, ahead of both.
 `terminal_codec_probe_limit` is the shared terminal-search work ceiling after
 structural plans have been emitted. Parsed-peephole, cleanup, and binding-remap
 families share the same counter. The current post-selection canonical peephole

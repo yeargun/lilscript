@@ -438,3 +438,12 @@ this started.
   finishing's marginal bytes per probe on the artifact (the counters exist: `rename_won_sum`,
   `cleanup_shaped_pushed_sum`), stop when a family's last N probes bought nothing, and let the
   everywhere collapse ship on that.
+- **live-9 is the emitter's, and the collapse is its detector (7.45).** With the collapse on
+  every emission the probe at level 15 ships `f=0==(b&1)||0==(b+1&1)` for
+  `f=X(b)||(W=W+1|0,X(b+1|0))`; the block dumped before the collapse runs already holds the
+  wrong text, every text fold skipped leaves it wrong, and the collapse skipped makes it right.
+  So the miscompile is emission-time -- the plan where the pure helper is inlined into the
+  short-circuit's right operand renders the phi region without its prefix statement -- and the
+  collapse merely makes that plan the smallest. The fix is in the region rendering; until then
+  the collapse stays off on the search's plans (it ships as the terminal print), and the fleet
+  win it measured (−660 over 20 ports with the ledger at its base) is the prize for fixing it.
