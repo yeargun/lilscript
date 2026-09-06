@@ -540,39 +540,6 @@ fn false_equality_condition(
     Some(format!("!1!=={left}"))
 }
 
-pub(crate) fn fold_nullish_index_walks(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    for for_at in 0..tokens.len() {
-        if tokens[for_at].text != "for"
-            || tokens.get(for_at + 1).map(|token| token.text) != Some("(")
-        {
-            continue;
-        }
-        let Some(header_close) = matching_close.get(for_at + 1).copied().flatten() else {
-            continue;
-        };
-        let header = &source[tokens[for_at + 1].end..tokens[header_close].start];
-        if header != ";!0;" && header != ";;" {
-            continue;
-        }
-        let body_open = header_close + 1;
-        if tokens.get(body_open).map(|token| token.text) != Some("{") {
-            continue;
-        }
-        let Some(body_close) = matching_close.get(body_open).copied().flatten() else {
-            continue;
-        };
-        if let Some(folded) = fold_index_walk_from_tokens(source, &tokens, body_open, body_close) {
-            replacements.push((tokens[for_at].start, tokens[body_close].end, folded));
-        }
-    }
-    let (output, count) = apply_token_rewrites(source, replacements);
-    Ok((output, count))
-}
 
 fn fold_index_walk_from_tokens(
     source: &str,
@@ -1756,39 +1723,6 @@ fn statement_expression_context(
     true
 }
 
-pub(crate) fn fold_void_prefix_updates(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor + 1 < tokens.len() {
-        if tokens[cursor].text == "--"
-            && tokens[cursor + 1].kind == TokenKind::Identifier
-            && matches!(
-                tokens.get(cursor + 2).map(|token| token.text),
-                Some(";") | Some(",") | Some("}") | None
-            )
-            && matches!(
-                cursor
-                    .checked_sub(1)
-                    .map(|index| tokens[index].text)
-                    .unwrap_or(";"),
-                "&&" | "||" | "," | ";" | "{"
-            )
-        {
-            replacements.push((
-                tokens[cursor].start,
-                tokens[cursor + 1].end,
-                format!("{}--", tokens[cursor + 1].text),
-            ));
-            cursor += 2;
-            continue;
-        }
-        cursor += 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
 
 pub(crate) fn fold_redundant_loop_body_braces(
     source: &str,

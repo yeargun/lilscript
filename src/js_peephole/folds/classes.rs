@@ -2607,13 +2607,7 @@ fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), Java
     Ok(apply_token_rewrites(source, replacements))
 }
 
-pub(crate) fn strip_stale_set_prototype_of(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let (source, redundant) = strip_redundant_set_prototype_of(source)?;
-    let (source, dangling) = strip_dangling_set_prototype_of(&source)?;
-    Ok((source, redundant + dangling))
-}
+
 
 
 
@@ -5633,93 +5627,12 @@ pub(crate) fn fold_indexed_arguments_to_formals(
 #[cfg(test)]
 mod tests {
     use super::{
-        fold_constructor_prototype_tables_to_classes, fold_fresh_empty_object_assign,
-        fold_indexed_arguments_to_formals, fold_undefined_defaults_into_formals,
-        repair_async_functions, strip_stale_set_prototype_of,
+        fold_constructor_prototype_tables_to_classes, fold_fresh_empty_object_assign, fold_indexed_arguments_to_formals, repair_async_functions,
     };
 
     /// A parameter list is its own TDZ scope, so a body assignment that reads a
     /// *later* formal cannot move into the defaults: every call omitting the
     /// parameter would throw `ReferenceError`. Backward reads stay foldable.
-    #[test]
-    fn parameter_defaults_never_read_a_later_formal() {
-        for source in [
-            r#"function v(e,t,r){t===void 0&&(t=r);return t.indexOf(e)>=0}"#,
-            r#"class C{m(a,b,c){b===void 0&&(b=c);return b}}"#,
-            r#"function v(e,t,r){t===void 0&&(t=t);return t}"#,
-        ] {
-            let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-            assert_eq!(
-                count, 0,
-                "moved a forward formal read into a default: {out}"
-            );
-            assert_eq!(out, source);
-        }
-
-        for (source, expected) in [
-            (
-                r#"function v(e,t,r){r===void 0&&(r=t);return r.indexOf(e)>=0}"#,
-                r#"function v(e,t,r=t){return r.indexOf(e)>=0}"#,
-            ),
-            (
-                r#"function v(e,t,r){t===void 0&&(t=e);return t.indexOf(r)>=0}"#,
-                r#"function v(e,t=e,r){return t.indexOf(r)>=0}"#,
-            ),
-            (
-                r#"function v(e,t,r){t===void 0&&(t=e.r);return t}"#,
-                r#"function v(e,t=e.r,r){return t}"#,
-            ),
-        ] {
-            let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-            assert_eq!(count, 1, "{out}");
-            assert_eq!(out, expected);
-        }
-    }
-
-    #[test]
-    fn nullable_fallbacks_do_not_become_undefined_only_parameter_defaults() {
-        let source = r#"function target(a,b){if(a){b=first(b);return b!=null?b:a}return a}"#;
-        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-        assert_eq!(count, 0, "{out}");
-        assert_eq!(out, source);
-    }
-
-    #[test]
-    fn fallback_scanning_stops_at_the_nested_block_boundary() {
-        let source = r#"function target(a,b){if(a){return b!==void 0?b:a}return a}"#;
-        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-        assert!(count > 0, "{out}");
-        assert_eq!(out, r#"function target(a,b=a){if(a){return b}return a}"#);
-    }
-
-    #[test]
-    fn late_return_fallback_does_not_change_earlier_undefined_control_flow() {
-        let source = "function access(a,b,d,c){if(d===void 0||d&&typeof d=='string'&&c===void 0)return get(a,b,d);set(a,b,d,c);return c!==void 0?c:d}";
-        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-        assert_eq!(count, 0, "{out}");
-        assert_eq!(out, source);
-    }
-
-    #[test]
-    fn void_or_guard_on_a_member_is_not_a_numeric_parameter_default() {
-        let source = "function end(a){Ea!=(a.da|0)&&p(30);a.ja===void 0||(i.suppressReactionErrors=!0);i.suppressReactionErrors=!1}";
-        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-        assert_eq!(count, 0, "{out}");
-        assert_eq!(out, source);
-        assert!(!out.contains("a=0"), "{out}");
-        assert!(!out.contains("a.ji.suppressReactionErrors"), "{out}");
-        assert!(out.contains("i.suppressReactionErrors=!0"), "{out}");
-    }
-
-    #[test]
-    fn defined_or_body_does_not_become_a_zero_default() {
-        let source = "function end(a){a===void 0||(Ea!=(a.da|0)&&p(30));return a}";
-        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-        assert_eq!(count, 0, "{out}");
-        assert_eq!(out, source);
-        assert!(!out.contains("a=0"), "{out}");
-    }
-
     #[test]
     fn member_undefined_guard_keeps_assignment_on_the_other_object() {
         use crate::js_peephole::optimize_generated_javascript;
@@ -6080,21 +5993,6 @@ mod tests {
         assert_eq!(
             String::from_utf8(output.stdout).expect("node stdout is UTF-8"),
             "n7",
-            "{}",
-            optimized.code
-        );
-    }
-
-    #[test]
-    fn does_not_strip_set_prototype_of_from_a_bare_fused_class() {
-        let source = "class C{constructor(v,n){this.name_=n;this.value_=v}get(){return this.value_}}class P{constructor(n){this.name_=n}onBO(){return this.name_}}Object.setPrototypeOf(C.prototype,P.prototype);var x=new C(7,\"n\");x.onBO()+x.get()";
-        let (out, count) = strip_stale_set_prototype_of(source).unwrap();
-        assert_eq!(count, 0, "{out}");
-        assert!(out.contains("setPrototypeOf"), "{out}");
-        let optimized = crate::js_peephole::optimize_generated_javascript(source)
-            .expect("bare class plus setPrototypeOf must remain valid");
-        assert!(
-            optimized.code.contains("setPrototypeOf") || optimized.code.contains("extends"),
             "{}",
             optimized.code
         );

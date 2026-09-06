@@ -25,11 +25,7 @@ use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 
 mod folds;
 pub(crate) use folds::{
-    fold_constant_json_parse, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots,
-    fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns,
-    fold_nested_unguarded_ifs, fold_null_normalized_nullable_tests,
-    fold_pristine_static_method_calls, fold_redundant_null_undefined_or,
-    inline_single_use_functions,
+    fold_constant_json_parse, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots, fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns, fold_nested_unguarded_ifs, fold_null_normalized_nullable_tests, fold_pristine_static_method_calls, fold_redundant_null_undefined_or, inline_single_use_functions,
 };
 mod binding;
 mod liveness;
@@ -2747,9 +2743,7 @@ fn optimize_generated_javascript_pass(
         fold_constructor_prototype_tables_to_classes,
     )?;
     session.run(fold_indexed_arguments_to_formals)?;
-    session.run(fold_undefined_defaults_into_formals)?;
     session.run(fold_arguments_length_formal_copies)?;
-    session.run(fold_arguments_slice_to_rest)?;
     session.run_flag(reuse_dead_var_binding)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(merge_adjacent_declarations)?;
@@ -2770,7 +2764,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_constant_string_concatenations)?;
     session.run(fold_known_string_coercions)?;
     session.run(fold_for_false_breaks)?;
-    session.run(fold_nullish_index_walks)?;
     session.repeat(fold_while_trailing_increments, 4)?;
     session.run(fold_for_trailing_increments)?;
     session.run(strip_unused_for_init_vars)?;
@@ -2800,7 +2793,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_copied_member_presence)?;
     session.run(fold_try_if_return_alternatives)?;
     session.run(fold_if_prefix_guard_return)?;
-    session.run(fold_omissible_trailing_false_args)?;
     session.run(fold_boolean_context_double_not)?;
     session.run(fold_redundant_and_parens)?;
     session.run(flip_false_equalities)?;
@@ -2811,9 +2803,7 @@ fn optimize_generated_javascript_pass(
         fold_constructor_prototype_tables_to_classes,
     )?;
     session.run(fold_indexed_arguments_to_formals)?;
-    session.run(fold_undefined_defaults_into_formals)?;
     session.run(fold_arguments_length_formal_copies)?;
-    session.run(fold_arguments_slice_to_rest)?;
     session.run(fold_dead_pure_identifier_assigns)?;
     session.repeat(fold_self_assignment_chains, 6)?;
     session.run(remove_unused_standalone_vars)?;
@@ -2837,9 +2827,7 @@ fn optimize_generated_javascript_pass(
     session.run(fold_arguments_length_countdown_for)?;
     session.run(fold_adjacent_expression_statements)?;
     session.run(fold_arguments_length_zero_after_decrement)?;
-    session.run(fold_void_prefix_updates)?;
     session.run(fold_negated_equalities)?;
-    session.run(fold_redundant_null_undefined_or)?;
     session.run(fold_null_normalized_nullable_tests)?;
     session.run(reorder_uninitialized_var_declarators)?;
     session.run_if(elide_functions, fold_single_use_function_values)?;
@@ -2862,27 +2850,22 @@ fn optimize_generated_javascript_pass(
     session.repeat(fold_forwarding_call_wrappers, 4)?;
     session.run(fold_int32_coercions)?;
     session.run(split_fused_keyword_identifiers)?;
-    session.run(strip_stale_set_prototype_of)?;
     session.run_if(
         elide_functions,
         fold_constructor_prototype_tables_to_classes,
     )?;
-    session.run(strip_stale_set_prototype_of)?;
     session.run(fold_dead_pure_identifier_assigns)?;
     session.run(fold_unread_prototype_aliases)?;
-    session.run(fold_dead_identifier_copy_declarators)?;
     session.run(remove_unused_standalone_vars)?;
     session.run_if(pristine_builtins, fold_fresh_empty_object_assign)?;
     if pristine_builtins {
         session.run(fold_array_literal_borrow_pushes)?;
         session.repeat(fold_fresh_empty_array_pushes, 4)?;
     }
-    session.run(fold_undefined_defaults_into_formals)?;
     session.run(remove_unused_standalone_vars)?;
     session.repeat(fold_single_use_temporaries, 4)?;
     session.run(fold_returned_temporaries)?;
     session.run(remove_unused_standalone_vars)?;
-    session.run(fold_empty_comma_operators)?;
     session.run(elide_asi_safe_semicolons)?;
 
     let final_tokens = if session.rewrites == 0 {
@@ -2947,7 +2930,6 @@ pub(crate) enum LateJavaScriptCleanupPass {
     ContinueTailGuards,
     SingleStatementControlBraces,
     NegatedEqualities,
-    RedundantNullUndefinedOr,
     NullNormalizedNullableTests,
     IdentTernaryToOr,
     OrAssignmentParens,
@@ -2961,7 +2943,7 @@ pub(crate) enum LateJavaScriptCleanupPass {
 }
 
 impl LateJavaScriptCleanupPass {
-    pub(crate) const ALL: [Self; 19] = [
+    pub(crate) const ALL: [Self; 18] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::NegatedConditionalArms,
@@ -2971,7 +2953,6 @@ impl LateJavaScriptCleanupPass {
         Self::ContinueTailGuards,
         Self::SingleStatementControlBraces,
         Self::NegatedEqualities,
-        Self::RedundantNullUndefinedOr,
         Self::NullNormalizedNullableTests,
         Self::IdentTernaryToOr,
         Self::OrAssignmentParens,
@@ -3106,9 +3087,6 @@ fn late_generated_javascript_cleanup_pass_into(
             session.run(fold_single_statement_control_braces)?
         }
         LateJavaScriptCleanupPass::NegatedEqualities => session.run(fold_negated_equalities)?,
-        LateJavaScriptCleanupPass::RedundantNullUndefinedOr => {
-            session.run(fold_redundant_null_undefined_or)?
-        }
         LateJavaScriptCleanupPass::NullNormalizedNullableTests => {
             session.run(fold_null_normalized_nullable_tests)?
         }

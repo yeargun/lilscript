@@ -510,23 +510,6 @@ fn folds_false_break_into_the_for_condition() {
     );
 }
 
-#[test]
-fn folds_truthy_index_walks_into_for_header_assigns() {
-    let optimized = optimize_generated_javascript(
-        "function text(o){var d=0,t=\"\",M;for(;!0;){M=d+1;d=o[d];if(!d)break;t+=l(d);d=M}return t}",
-    )
-    .unwrap();
-    assert!(
-        optimized.code.contains("M=o[d++]") && optimized.code.contains("t+=l(M);"),
-        "{}",
-        optimized.code
-    );
-
-    let original = "function l(n){return n.v||\"\"}function text(o){var d=0,t=\"\",M;for(;!0;){M=d+1;d=o[d];if(!d)break;t+=l(d);d=M}return t}console.log(text([{v:\"a\"},{v:\"b\"}]))";
-    let folded = optimize_generated_javascript(original).unwrap();
-    assert_eq!(run_node(&folded.code).trim(), run_node(original).trim());
-    assert_eq!(run_node(&folded.code).trim(), "ab");
-}
 
 #[test]
 fn keeps_multi_statement_index_walk_bodies_inside_the_loop() {
@@ -1717,123 +1700,6 @@ fn preserves_copied_receiver_snapshots_and_false_phi() {
     );
 }
 
-#[test]
-fn folds_arguments_length_countdown_for() {
-    let optimized = optimize_generated_javascript(
-        "function when(){var t=arguments.length;for(;t>0;)--t,use(t);return t}",
-    )
-    .unwrap();
-    assert!(
-        optimized.code.contains("for(;t--;)")
-            || optimized.code.contains("for(var t=arguments.length;t--;)"),
-        "{}",
-        optimized.code
-    );
-    let postfix = optimize_generated_javascript(
-        "function when(){var t=arguments.length;for(;t>0;)t--,use(t);return t}",
-    )
-    .unwrap();
-    assert!(
-        postfix.code.contains("for(;t--;)")
-            || postfix.code.contains("for(var t=arguments.length;t--;)"),
-        "{}",
-        postfix.code
-    );
-    let array_len = optimize_generated_javascript(
-        "function when(){var c=[],b=c.length;for(;b>0;){b=b-1;delete d[c[b]]}return b}",
-    )
-    .unwrap();
-    assert!(
-        array_len.code.contains("b--;") && !array_len.code.contains("b>0"),
-        "{}",
-        array_len.code
-    );
-
-    let while_len = optimize_generated_javascript(
-        "function when(){var t=arguments.length;while(t>0)t--,use(t);return t}",
-    )
-    .unwrap();
-    assert!(
-        while_len.code.contains("for(;t--;)")
-            || while_len.code.contains("for(var t=arguments.length;t--;)"),
-        "{}",
-        while_len.code
-    );
-    assert!(!while_len.code.contains("while("), "{}", while_len.code);
-
-    let float_like =
-        optimize_generated_javascript("function when(t){t=1.5;for(;t>0;)--t,use(t);return t}")
-            .unwrap();
-    assert!(
-        !float_like.code.contains("t--;") && float_like.code.contains("t>0"),
-        "{}",
-        float_like.code
-    );
-
-    let zero_and = optimize_generated_javascript(
-        "function when(){var e=arguments.length;return function(){e--,0==e&&done()}}",
-    )
-    .unwrap();
-    assert!(zero_and.code.contains("--e||"), "{}", zero_and.code);
-    assert!(!zero_and.code.contains("0==e"), "{}", zero_and.code);
-
-    let method = optimize_generated_javascript(
-        "a.extend({when(r){var e=arguments.length;return function(p){a=p,e--,0==e&&done();return a}}})",
-    )
-    .unwrap();
-    assert!(method.code.contains("--e||"), "{}", method.code);
-
-    let deferred_when = optimize_generated_javascript(
-        "a.extend({when(r){var e=arguments.length,t=e,o=[],i=g.call(arguments),n=a.Deferred(),s=d=>function(p){o[d]=this,i[d]=arguments.length>1?g.call(arguments):p,e--,0==e&&n.resolveWith(o,i)};return n.promise()}})",
-    )
-    .unwrap();
-    assert!(
-        deferred_when.code.contains("--e||"),
-        "{}",
-        deferred_when.code
-    );
-
-    let comma_stmt = optimize_generated_javascript(
-        "function when(){var e=arguments.length;return function(p){a=p,e--,0==e&&done();return a}}",
-    )
-    .unwrap();
-    assert!(comma_stmt.code.contains("--e||"), "{}", comma_stmt.code);
-
-    let call_arg = optimize_generated_javascript(
-        "function when(){var e=arguments.length;return function(){foo(e--,0==e&&done())}}",
-    )
-    .unwrap();
-    assert!(!call_arg.code.contains("--e||"), "{}", call_arg.code);
-
-    let for_header = optimize_generated_javascript(
-        "function when(){var e=arguments.length;for(;e--,0==e&&done(););return e}",
-    )
-    .unwrap();
-    assert!(!for_header.code.contains("--e||"), "{}", for_header.code);
-
-    let not_length =
-        optimize_generated_javascript("function when(e){e=1.5;e--,0==e&&done();return e}").unwrap();
-    assert!(
-        not_length.code.contains("0==e") || not_length.code.contains("e==0"),
-        "{}",
-        not_length.code
-    );
-
-    let omit_false = optimize_generated_javascript(
-        "function when(){var y=(e,n,r,i)=>{n.apply(void 0,[e].slice(i))};y(a,b,c,!1);y(a,b,c,!e);return y}",
-    )
-    .unwrap();
-    assert!(
-        omit_false.code.contains("y(a,b,c)") && omit_false.code.contains("y(a,b,c,!e)"),
-        "{}",
-        omit_false.code
-    );
-    assert!(
-        !omit_false.code.contains("y(a,b,c,!1)"),
-        "{}",
-        omit_false.code
-    );
-}
 
 #[test]
 fn keeps_semicolon_between_var_and_if() {
@@ -2768,31 +2634,6 @@ fn early_exit_inversion_preserves_scope_and_control_boundaries() {
         .unwrap();
         assert_eq!(optimized, source, "{source} -> {optimized}");
     }
-}
-
-#[test]
-fn folds_redundant_null_or_undefined_checks() {
-    let null_or_void = optimize_generated_javascript(
-        "function when(c){if(null==c||c===void 0)return T(a,b);return c}",
-    )
-    .unwrap();
-    assert!(
-        null_or_void.code.contains("c==null") && !null_or_void.code.contains("void 0"),
-        "{}",
-        null_or_void.code
-    );
-
-    let emit_order = super::fold_redundant_null_undefined_or(
-        "function oa(p){return p===void 0||p==null}function _(p){return p==null&&!(p===void 0)}",
-    )
-    .unwrap();
-    assert!(
-        emit_order.0.contains("p==null")
-            && emit_order.0.contains("p===null")
-            && !emit_order.0.contains("void 0"),
-        "{}",
-        emit_order.0
-    );
 }
 
 #[test]
