@@ -719,16 +719,7 @@ pub(crate) fn fold_continue_tail_guards(
     fold_continue_tail_guards_with_orientation(source, false)
 }
 
-/// The same loop-tail proof as [`fold_continue_tail_guards`], with the
-/// continuation suffix in the first arm: `if(!C){S}else{E}`. It is often
-/// raw-larger when `C` needs grouping, but scanner ladders and transfer-codec
-/// dictionaries can strongly prefer this orientation, so it remains an
-/// independent whole-artifact proposal.
-pub(crate) fn fold_inverted_continue_tail_guards(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    fold_continue_tail_guards_with_orientation(source, true)
-}
+
 
 fn fold_continue_tail_guards_with_orientation(
     source: &str,

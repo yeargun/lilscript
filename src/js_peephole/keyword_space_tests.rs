@@ -1454,16 +1454,6 @@ fn folds_guarded_assign_into_a_call_predicate() {
 }
 
 #[test]
-fn folds_braced_if_else_expression_sequences() {
-    let optimized = optimize_generated_javascript(
-        "function run(n,p){if(0!=n){p()}else{hook?p.error=hook():ready||(p.error=stack()),setTimeout(p)}}",
-    )
-    .unwrap();
-    assert!(optimized.code.contains("?"), "{}", optimized.code);
-    assert!(!optimized.code.contains("if(0!=n)"), "{}", optimized.code);
-}
-
-#[test]
 fn preserves_single_use_index_chain_snapshots() {
     let optimized = optimize_generated_javascript(
         "function then(i,e,A,F){var o=i[0][3];o.add(e(0,A,F,A.notifyWith));i[1][3].add(e(0,A,F,null))}",
@@ -1914,19 +1904,6 @@ fn parenthesizes_or_conditions_when_folding_if_to_and() {
 }
 
 #[test]
-fn drops_empty_ternary_then_comma() {
-    let repaired = optimize_generated_javascript(
-        r#"function when(e,t,n,r,c){if(e<=1&&(M(r,t.done(s(e)).resolve,t.reject,!e),r=i[n],"pending"==t.state()?,!0:(!r||(r=r.then),r=c(r))))return t.then();return t}"#,
-    )
-    .unwrap();
-    assert!(
-        !repaired.code.contains("?,") && repaired.code.contains("?"),
-        "{}",
-        repaired.code
-    );
-}
-
-#[test]
 fn keeps_snapshot_arrow_iifes_that_close_over_a_nested_function() {
     let kept = optimize_generated_javascript(
         "function f(d){var Y=((e)=>()=>{try{e()}catch(c){}})(d);d=other;Y();return Y}",
@@ -1992,24 +1969,6 @@ fn reduces_zero_argument_return_only_function_iifes() {
         .unwrap();
         assert!(kept.contains("function"), "{source} -> {kept}");
     }
-}
-
-#[test]
-fn folds_ident_ternary_to_or_and_length_not_gt_zero() {
-    let queue = optimize_generated_javascript(
-        "function y(a){var b=a;return b?b:[]}function z(){var c=[];var d=c.length;c.shift();return !(d>0)&&c}",
-    )
-    .unwrap();
-    assert!(
-        queue.code.contains("||[]") && !queue.code.contains("?"),
-        "{}",
-        queue.code
-    );
-    assert!(
-        queue.code.contains("!d") && !queue.code.contains("d>0"),
-        "{}",
-        queue.code
-    );
 }
 
 #[test]
@@ -2735,21 +2694,6 @@ fn folds_side_effecting_continue_guards_into_loop_tail_else_chains() {
 }
 
 #[test]
-fn inverts_side_effecting_continue_guards_as_an_independent_spelling() {
-    let source = "function scan(){var out=[];for(var i=0;i<5;i++){if(i<2){out.push('low'+i);continue}if(i==3){out.push('three');continue}out.push('tail'+i)}return out.join(',')}console.log(scan())";
-    let optimized = late_generated_javascript_cleanup_pass(
-        source,
-        LateJavaScriptCleanupPass::InvertedContinueTailGuards,
-    )
-    .unwrap();
-
-    assert_eq!(run_node(source), run_node(&optimized), "{optimized}");
-    assert!(!optimized.contains("continue"), "{optimized}");
-    assert_eq!(optimized.matches("else{").count(), 2, "{optimized}");
-    assert!(optimized.contains("i!=3"), "{optimized}");
-}
-
-#[test]
 fn side_effecting_continue_folding_preserves_scope_and_loop_boundaries() {
     for source in [
         "function f(a){for(;;){if(a){use(a);continue;}let value=1;use(value)}}",
@@ -3469,21 +3413,6 @@ fn drops_double_not_in_the_middle_of_a_boolean_chain() {
     );
     assert!(grouped.code.contains("n&&n.warn"), "{}", grouped.code);
     assert!(!grouped.code.contains("!!"), "{}", grouped.code);
-}
-
-#[test]
-fn folds_same_lvalue_ternary_assigns() {
-    let optimized = optimize_generated_javascript(
-        "function when(d,p){arguments.length>1?i[d]=g.call(arguments):i[d]=p;return i}",
-    )
-    .unwrap();
-    assert!(
-        optimized
-            .code
-            .contains("i[d]=arguments.length>1?g.call(arguments):p"),
-        "{}",
-        optimized.code
-    );
 }
 
 #[test]

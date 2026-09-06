@@ -1,3 +1,17 @@
+use super::{
+    analyze_generated_javascript, function_leading_declaration_variant,
+    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
+    generated_javascript_export_witnesses, generated_javascript_static_imports,
+    generated_javascript_static_property_names, late_generated_javascript_cleanup_pass,
+    optimize_generated_javascript, optimize_generated_javascript_assuming,
+    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
+    fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
+    fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
+    fold_for_trailing_increments, fold_constant_string_concatenations,
+    fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
+    fold_prefix_increment_for_bounds,
+    validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
+};
 use super::folds::{
     fold_dead_pure_identifier_assigns,
     fold_array_literal_borrow_pushes, fold_common_conditional_arms, fold_ident_ternary_to_or, fold_early_exit_guards, fold_fresh_empty_array_pushes,
@@ -8,20 +22,6 @@ use super::folds::{
 };
 use super::parse::{non_overlapping_parsed_node_count, parse_expression_regions};
 use super::token::{lex, punctuation_width};
-use super::{
-    analyze_generated_javascript, function_leading_declaration_variant,
-    generated_javascript_bit_or_zero_count, generated_javascript_export_names,
-    generated_javascript_export_witnesses, generated_javascript_static_imports,
-    generated_javascript_static_property_names, late_generated_javascript_cleanup_pass,
-    optimize_generated_javascript, optimize_generated_javascript_assuming,
-    optimize_generated_javascript_preserving_functions, reorder_uninitialized_var_declarators,
-    fold_void_initializers_off_fresh_vars, join_adjacent_declarations, shape_declarations, spell_regexp_literals,
-    fold_statement_negated_ors, fold_self_assignment_chains, fold_while_trailing_increments,
-    fold_for_trailing_increments, fold_self_receiver_calls, fold_constant_string_concatenations,
-    fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
-    fold_prefix_increment_for_bounds,
-    validate_generated_javascript_syntax_floor, LateJavaScriptCleanupPass, PeepholeResult,
-};
 
 const LEGACY_PUNCTUATION: [&str; 31] = [
     ">>>=", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "++", "--", "**",
@@ -611,45 +611,6 @@ fn keeps_bindings_whose_initializer_could_be_observed_or_read() {
     // A literal-initialized binding that is actually read also stays.
     let read = "function f(){var x=2;return x+1}";
     assert_eq!(optimize_generated_javascript(read).unwrap().code, read);
-}
-
-#[test]
-fn rotates_only_proven_initial_true_flag_loops() {
-    let optimized = optimize_generated_javascript(
-        "function f(a){var b,c;b=!0;while(b){c=work(a);b=c<12;}return c}",
-    )
-    .unwrap();
-    assert_eq!(
-        optimized.code,
-        "function f(a){var c;do{c=work(a)}while(c<12);return c}"
-    );
-
-    let omitted_terminal_semicolon = optimize_generated_javascript(
-        "function f(a){var b,c;b=!0;while(b){c=work(a);b=c<12}return c}",
-    )
-    .unwrap();
-    assert_eq!(omitted_terminal_semicolon.code, optimized.code);
-
-    assert_eq!(
-        optimize_generated_javascript(
-            "function f(){var a=true;while(a){if(read())continue;a=read()}}"
-        )
-        .unwrap()
-        .code,
-        "function f(){var a=true;while(a)if(!(read()))a=read()}"
-    );
-    assert_eq!(
-        optimize_generated_javascript("function f(){var a=true;while(a){use(a);a=read()}}")
-            .unwrap()
-            .code,
-        "function f(){var a=true;while(a)use(a),a=read()}"
-    );
-    assert_eq!(
-        optimize_generated_javascript("function f(){var a=false;while(a){work();a=read()}}")
-            .unwrap()
-            .code,
-        "function f(){var a=false;while(a)work(),a=read()}"
-    );
 }
 
 #[test]

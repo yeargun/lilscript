@@ -315,3 +315,18 @@ this started.
 - **Emitter ports carry a kill-switch**: `LILSCRIPT_SKIP_PORTS=comma_join,for_init,…` turns one
   off at run time, the emitter's `LILSCRIPT_SKIP_FOLDS`. A batch of ports is bisected on one
   binary, on the pool, in minutes.
+- **The work-unit ledger charged idle attempts.** Deleting three late-cleanup passes that never
+  rewrote anything moved katexlil +1,004 and posthog +69 (7.30): every (pass, candidate) attempt
+  reserved a unit before the pass ran, so idle passes were spending units the later naming families
+  then lacked. With the fourteen deleted folds merely *skipped* (`LILSCRIPT_SKIP_FOLDS`, ledger
+  intact) katexlil read the same 64,878 as before. The ledger now charges a unit when a pass yields
+  a proposal the codec scores (7.31); a fold's deletion is then byte-neutral by construction, which
+  Phase 5.5 needs.
+- **The search is not deterministic under parallelism, since 7′.** posthoglil at `54e1948` compiles
+  to the same 5,559 bytes at 1, 4 and 4 threads; at `2bf678f` (7.24) it reads 5,600 / 5,626 / 5,600
+  and every later binary varies by tens of bytes per run and per thread count. remarklil and
+  markedlil happen to be stable. This is why pool numbers for the same binary differed (remarklil
+  37,698 / 37,190) and why single-port deltas under ~50 bytes proved nothing all day. `git bisect
+  run` between the two, on "posthoglil compiles byte-identically three times", names the commit;
+  the suspects are the shared re-print cache (7.20) and any constructor-time policy read on a
+  thread that never installed it.

@@ -7,7 +7,7 @@ use crate::js_peephole::rewrite::{
 use crate::js_peephole::scope::{
     collect_same_scope_name_uses, enclosing_block_end, enclosing_block_start,
     enclosing_function_range, enclosing_function_span, name_is_arguments_length_copy,
-    name_is_nonnegative_length_copy, name_use_is_mutated, nested_function_end,
+    name_use_is_mutated, nested_function_end,
     outermost_function_body_start, parse_function_expression,
 };
 use crate::js_peephole::token::{lex, matching_closers, matching_openers, Token, TokenKind};
@@ -2258,58 +2258,7 @@ fn token_starts_primary(token: &Token<'_>) -> bool {
     )
 }
 
-pub(crate) fn fold_same_lvalue_ternary(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor < tokens.len() {
-        if tokens[cursor].text != "?"
-            || matches!(
-                tokens.get(cursor + 1).map(|token| token.text),
-                Some(".") | Some("[")
-            )
-        {
-            cursor += 1;
-            continue;
-        }
-        let Some(colon) = ternary_colon(&tokens, cursor) else {
-            cursor += 1;
-            continue;
-        };
-        let else_end = ternary_end(&tokens, colon + 1);
-        let Some((then_l_from, then_eq)) = assign_arm(&tokens, cursor + 1, colon) else {
-            cursor += 1;
-            continue;
-        };
-        let Some((else_l_from, else_eq)) = assign_arm(&tokens, colon + 1, else_end) else {
-            cursor += 1;
-            continue;
-        };
-        let then_lvalue = &source[tokens[then_l_from].start..tokens[then_eq].start];
-        let else_lvalue = &source[tokens[else_l_from].start..tokens[else_eq].start];
-        if then_lvalue != else_lvalue {
-            cursor += 1;
-            continue;
-        }
-        let cond_start = ternary_logical_condition_start(&tokens, cursor);
-        if cond_start >= cursor {
-            cursor += 1;
-            continue;
-        }
-        let cond = &source[tokens[cond_start].start..tokens[cursor].start];
-        let then_rhs = &source[tokens[then_eq + 1].start..tokens[colon].start];
-        let else_rhs = &source[tokens[else_eq + 1].start..tokens[else_end].start];
-        replacements.push((
-            tokens[cond_start].start,
-            tokens[else_end].start,
-            format!("{then_lvalue}={cond}?{then_rhs}:{else_rhs}"),
-        ));
-        cursor = else_end;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 fn rhs_is_pure_value(
     tokens: &[Token<'_>],
@@ -2810,40 +2759,7 @@ fn simple_or_arm_width(tokens: &[Token<'_>], from: usize) -> usize {
     }
 }
 
-pub(crate) fn fold_not_gt_zero_length(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut cursor = 0usize;
-    while cursor + 5 < tokens.len() {
-        if tokens[cursor].text != "!"
-            || tokens.get(cursor + 1).map(|token| token.text) != Some("(")
-            || tokens
-                .get(cursor + 2)
-                .is_none_or(|token| token.kind != TokenKind::Identifier)
-            || tokens.get(cursor + 3).map(|token| token.text) != Some(">")
-            || tokens.get(cursor + 4).map(|token| token.text) != Some("0")
-            || tokens.get(cursor + 5).map(|token| token.text) != Some(")")
-        {
-            cursor += 1;
-            continue;
-        }
-        let name = tokens[cursor + 2].text;
-        if !name_is_nonnegative_length_copy(&tokens, &matching_close, cursor, name) {
-            cursor += 1;
-            continue;
-        }
-        replacements.push((
-            tokens[cursor].start,
-            tokens[cursor + 5].end,
-            format!("!{name}"),
-        ));
-        cursor += 6;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 /// Fold a copied optional object plus a boolean member into one assignment.
 ///

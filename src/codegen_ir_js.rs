@@ -1282,6 +1282,17 @@ struct StatementPolicy {
     /// Phase 6, G7: an unread declaration with a literal value is dropped
     /// (`remove_unused_standalone_vars`).
     dead_literals: bool,
+    /// Phase 6, G4: `!c?a:b` is `c?b:a`, `c?!0:!1` is `!!c`, `c?!1:!0` is
+    /// `!c`, `a?a:b` is `a||b` (`fold_negated_conditional_arms`,
+    /// `fold_boolean_conditional_values`, `fold_ident_ternary_to_or`).
+    conditional_shapes: bool,
+    /// The three shapes above, each its own switch for the bisect.
+    negated_arms: bool,
+    boolean_arms: bool,
+    ident_or: bool,
+    /// Phase 6, G5: return tails fold over a text condition too, grouped when
+    /// the text could bind looser than a conditional's test.
+    raw_return_tails: bool,
     /// The option the shapes above honour when they choose braces.
     braceless_control_bodies: bool,
 }
@@ -1336,6 +1347,11 @@ impl StatementPolicy {
         for_init: false,
         int32_chains: false,
         dead_literals: false,
+        conditional_shapes: false,
+        negated_arms: false,
+        boolean_arms: false,
+        ident_or: false,
+        raw_return_tails: false,
         braceless_control_bodies: false,
     };
 
@@ -1363,6 +1379,14 @@ impl StatementPolicy {
             for_init: port_off("for_init"),
             int32_chains: port("int32_chains"),
             dead_literals: port("dead_literals"),
+            conditional_shapes: port("conditional_shapes"),
+            // Off: `!c?a:b` as `c?b:a` read −32 on katexlil and −7 on markedlil
+            // but +36 on micromark with the search off; the text fold still
+            // makes the swap where it pays, at the terminal.
+            negated_arms: port_off("negated_arms"),
+            boolean_arms: port("boolean_arms"),
+            ident_or: port("ident_or"),
+            raw_return_tails: port("raw_return_tails"),
             // The text fold dropped braces whatever the option said, so the
             // port does too where it runs; the option decides where it does not.
             braceless_control_bodies: options.braceless_control_bodies || port("control_braces"),
@@ -3419,6 +3443,56 @@ fn shape_block(block: &mut JsBlock, policy: StatementPolicy, context: ShapeConte
     }
 }
 
+/// A condition the tree does not own, as a node: grouped when the text
+/// carries a top-level `?`, `,` or assignment, since a conditional's test
+/// binds tighter than those; otherwise it stands as it is.
+fn raw_condition_node(text: &str) -> JsExpression {
+    let bytes = text.as_bytes();
+    let mut depth = 0i32;
+    let mut quote = None::<u8>;
+    let mut loose = false;
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if let Some(open) = quote {
+            if byte == b'\\' {
+                index += 2;
+                continue;
+            }
+            if byte == open {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match byte {
+            b'"' | b'\'' | b'`' => quote = Some(byte),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'?' | b',' if depth == 0 => loose = true,
+            b'=' if depth == 0 => {
+                let previous = index.checked_sub(1).map(|i| bytes[i]);
+                let next = bytes.get(index + 1).copied();
+                let comparison = matches!(previous, Some(b'=' | b'!' | b'<' | b'>'))
+                    || matches!(next, Some(b'=' | b'>'));
+                if !comparison {
+                    loose = true;
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    JsExpression::raw(
+        text,
+        if loose {
+            JsPrecedence::Assignment
+        } else {
+            JsPrecedence::LogicalOr
+        },
+    )
+}
+
 /// `if(a)return x;if(b)return y;return z` is `return a?x:b?y:z`, and a
 /// closing `if(c)return x;else return y` is `return c?x:y`.
 fn fold_return_tails(block: &mut JsBlock) {
@@ -3430,19 +3504,32 @@ fn fold_return_tails(block: &mut JsBlock) {
         [only] => returned(&only.statement),
         _ => None,
     };
+    let raw_tails = StatementPolicy::current().raw_return_tails;
+    // The condition as a node: the tree's own, or the text as a raw node
+    // when the policy allows (grouped when it could bind looser than a
+    // conditional's test).
+    let condition_node = |condition: &String, tree: &Option<JsExpression>| -> Option<JsExpression> {
+        match tree {
+            Some(tree) => Some(tree.clone()),
+            None if raw_tails => Some(raw_condition_node(condition)),
+            None => None,
+        }
+    };
     let mut changed = false;
     if let Some(last) = block.statements.last() {
         if let JsStatement::If {
-            condition_tree: Some(condition),
+            condition,
+            condition_tree,
             then_branch,
             else_branch: Some(else_branch),
-            ..
         } = &last.statement
         {
-            if let (Some(then_value), Some(else_value)) =
-                (branch_returns(then_branch), branch_returns(else_branch))
-            {
-                let value = JsExpression::conditional(condition.clone(), then_value, else_value);
+            if let (Some(condition), Some(then_value), Some(else_value)) = (
+                condition_node(condition, condition_tree),
+                branch_returns(then_branch),
+                branch_returns(else_branch),
+            ) {
+                let value = JsExpression::conditional(condition, then_value, else_value);
                 let options = last.options;
                 block.statements.pop();
                 block.statements.push(EmittedStatement {
@@ -3463,18 +3550,20 @@ fn fold_return_tails(block: &mut JsBlock) {
             break;
         };
         let JsStatement::If {
-            condition_tree: Some(condition),
+            condition,
+            condition_tree,
             then_branch,
             else_branch: None,
-            ..
         } = &block.statements[count - 2].statement
         else {
             break;
         };
-        let Some(then_value) = branch_returns(then_branch) else {
+        let (Some(condition), Some(then_value)) =
+            (condition_node(condition, condition_tree), branch_returns(then_branch))
+        else {
             break;
         };
-        let value = JsExpression::conditional(condition.clone(), then_value, tail);
+        let value = JsExpression::conditional(condition, then_value, tail);
         let options = block.statements[count - 1].options;
         block.statements.truncate(count - 2);
         block.statements.push(EmittedStatement {
@@ -3522,9 +3611,11 @@ fn fold_continue_tails(block: &mut JsBlock, policy: StatementPolicy, context: Sh
         }
         let rest = block.statements.drain(index + 1..).collect::<Vec<_>>();
         let mut else_block = block_of_statements(block, rest);
-        // One level, as the text fold: its guard had to sit directly in the
-        // loop body, so the tail it made was never rewritten again (katexlil's
-        // guard chains nested past the startup limit when it was).
+        // One level, as the text fold (its guard had to sit directly in the
+        // loop body). Recursing into the tail it makes read −182 on remark-gfm
+        // and +1,004 on katexlil with the search on (7.30): the nesting moves
+        // the startup guard, and the fleet total decides. A search axis for
+        // the depth is the honest form, if the bytes ever justify it.
         shape_block(&mut else_block, policy, ShapeContext::Other);
         let JsStatement::If {
             then_branch,
@@ -3575,7 +3666,7 @@ fn fold_early_exit(block: &mut JsBlock, policy: StatementPolicy, context: ShapeC
         }
         let rest = block.statements.drain(index + 1..).collect::<Vec<_>>();
         let mut then_block = block_of_statements(block, rest);
-        // One level, as the text fold (see `fold_continue_tails`).
+        // One level (see `fold_continue_tails`).
         shape_block(&mut then_block, policy, ShapeContext::Other);
         let JsStatement::If {
             condition,
@@ -4025,8 +4116,44 @@ impl JsExpression {
     }
 
     fn conditional(condition: Self, then_value: Self, else_value: Self) -> Self {
+        let policy = StatementPolicy::current();
+        if policy.conditional_shapes {
+            // `!c?a:b` is `c?b:a`.
+            if policy.negated_arms && condition.root == JsExpressionRoot::Unary(JsUnary::Not) {
+                if let Some(inner) = condition.unary_operand() {
+                    return Self::conditional(inner.clone(), else_value, then_value);
+                }
+            }
+            let then_true = is_true_literal(&then_value.code);
+            let then_false = is_false_literal(&then_value.code);
+            let else_true = is_true_literal(&else_value.code);
+            let else_false = is_false_literal(&else_value.code);
+            // `c?!0:!1` is `!!c`; `c?!1:!0` is `!c`.
+            if policy.boolean_arms && then_true && else_false {
+                return Self::unary("!", Self::unary("!", condition));
+            }
+            if policy.boolean_arms && then_false && else_true {
+                return Self::unary("!", condition);
+            }
+            // `a?a:b` is `a||b` when the test is the name read again.
+            let same_name = match (condition.root, then_value.root) {
+                (JsExpressionRoot::Name(read), JsExpressionRoot::Name(again)) => {
+                    read == again && condition.code == then_value.code
+                }
+                (JsExpressionRoot::Atom, JsExpressionRoot::Atom) => {
+                    condition.code == then_value.code
+                        && !condition.code.is_empty()
+                        && is_js_identifier_start(condition.code.as_bytes()[0])
+                        && condition.code.bytes().all(is_js_identifier_byte)
+                }
+                _ => false,
+            };
+            if policy.ident_or && same_name {
+                return Self::binary(IrBinaryOp::Or, condition, else_value);
+            }
+        }
         // Phase 6, G4: `c?x=a:x=b` is `x=c?a:b` (`fold_same_lvalue_ternary`).
-        if StatementPolicy::current().same_target_conditional
+        if policy.same_target_conditional
             && then_value.root == JsExpressionRoot::Assign
             && else_value.root == JsExpressionRoot::Assign
         {

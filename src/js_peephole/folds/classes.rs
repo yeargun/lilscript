@@ -1593,38 +1593,7 @@ fn factory_this_guard_replacements(
     replacements
 }
 
-pub(crate) fn rewrite_class_ctor_identity_to_new_target(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let matching_open = matching_openers(&matching_close);
-    let mut replacements = Vec::new();
-    for site in class_sites(&tokens, &matching_close) {
-        let Some((ctor_open, ctor_close)) =
-            class_constructor_span(&tokens, &matching_close, site.body_open, site.body_close)
-        else {
-            continue;
-        };
-        if ctor_open > 0 && tokens[ctor_open - 1].text == ")" {
-            if let Some(param_open) = matching_open.get(ctor_open - 1).copied().flatten() {
-                if tokens[param_open + 1..ctor_open - 1]
-                    .iter()
-                    .any(|token| token.kind == TokenKind::Identifier && token.text == site.name)
-                {
-                    continue;
-                }
-            }
-        }
-        replacements.extend(factory_this_guard_replacements(
-            &tokens,
-            ctor_open + 1,
-            ctor_close,
-            site.name,
-        ));
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 fn push_class_member_name(out: &mut String, name: &str, computed: bool) {
     if computed {
@@ -2646,47 +2615,7 @@ pub(crate) fn strip_stale_set_prototype_of(
     Ok((source, redundant + dangling))
 }
 
-pub(crate) fn terminate_bare_prototype_before_statement(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let mut replacements = Vec::new();
-    let mut index = 0usize;
-    while index < tokens.len() {
-        if index + 1 < tokens.len()
-            && tokens[index].text == "prototype"
-            && (tokens[index + 1].kind == TokenKind::Identifier
-                || matches!(
-                    tokens[index + 1].text,
-                    "var" | "let" | "const" | "function" | "class" | "export" | "import"
-                ))
-        {
-            replacements.push((tokens[index].end, tokens[index].end, ";".to_string()));
-        }
-        if tokens[index].kind == TokenKind::Identifier
-            && tokens[index].text.starts_with("prototype")
-            && tokens[index].text.len() > "prototype".len()
-            && index
-                .checked_sub(1)
-                .is_some_and(|previous| tokens[previous].text == ".")
-        {
-            let rest = &tokens[index].text["prototype".len()..];
-            if rest
-                .bytes()
-                .next()
-                .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_' || byte == b'$')
-            {
-                replacements.push((
-                    tokens[index].start,
-                    tokens[index].end,
-                    format!("prototype;{rest}"),
-                ));
-            }
-        }
-        index += 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 pub(crate) fn fold_constructor_prototype_tables_to_classes(
     source: &str,
@@ -5705,8 +5634,8 @@ pub(crate) fn fold_indexed_arguments_to_formals(
 mod tests {
     use super::{
         fold_constructor_prototype_tables_to_classes, fold_fresh_empty_object_assign,
-        fold_indexed_arguments_to_formals, fold_named_class_identity, fold_or_empty_object_assign,
-        fold_undefined_defaults_into_formals, repair_async_functions, strip_stale_set_prototype_of,
+        fold_indexed_arguments_to_formals, fold_undefined_defaults_into_formals,
+        repair_async_functions, strip_stale_set_prototype_of,
     };
 
     /// A parameter list is its own TDZ scope, so a body assignment that reads a
@@ -6183,16 +6112,6 @@ mod tests {
     }
 
     #[test]
-    fn does_not_emit_dotted_class_method_from_proto_alias() {
-        let source = "var p=(0,function(s,d){this.i=s;this.t=d+\"\";this.l=1;return this});t=p.prototype,t.H=function(t,r){x(this.l)},t.has=function(t,r,n){n=!!n;try{c();var Z=this.C(t);if(!Z)return Z}finally{f()}return!0}";
-        let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
-        assert!(count >= 1, "{out}");
-        assert!(out.contains("has(t,r,n){"), "{out}");
-        assert!(!out.contains("t.has("), "{out}");
-        assert!(!out.contains("[t.has]"), "{out}");
-    }
-
-    #[test]
     fn skips_empty_return_this_without_members() {
         let source = "var st=(0,function(){return this});var de=(0,function(){})";
         let (out, count) = fold_constructor_prototype_tables_to_classes(source).unwrap();
@@ -6309,25 +6228,6 @@ mod tests {
             "{}",
             optimized.code
         );
-    }
-
-    #[test]
-    fn promotes_indexed_arguments_to_formals() {
-        let source = "function f(){var e=arguments[0];var r=arguments[1];return e+r}";
-        let (out, count) = fold_indexed_arguments_to_formals(source).unwrap();
-        assert!(count >= 1, "{out}");
-        assert!(out.contains("function f(a,b){"), "{out}");
-        assert!(out.contains("var e=a"), "{out}");
-        assert!(!out.contains("arguments"), "{out}");
-    }
-
-    #[test]
-    fn promoted_arguments_do_not_shadow_existing_body_bindings() {
-        let source = "function f(){var b=arguments[0];var c=arguments[1];var a=this;return[a,b,c]}";
-        let (out, count) = fold_undefined_defaults_into_formals(source).unwrap();
-        assert!(count > 0, "{out}");
-        assert!(out.starts_with("function f(d,e){var b=d;var c=e;"), "{out}");
-        assert!(!out.contains("function f(a,b){var b=a"), "{out}");
     }
 
     #[test]
@@ -6691,45 +6591,6 @@ mod tests {
         assert!(count >= 1, "{out}");
         assert!(!out.contains("},c.stack"), "{out}");
         assert!(out.contains("c={type:1,value:2};c.stack=s"), "{out}");
-    }
-
-    #[test]
-    fn restores_if_missing_object_defaults_instead_of_assign_overwrite() {
-        let source = r#"function f(m){var l=void 0;m&&(l=m.mechanism);l=l||{},Object.assign(l,{handled:!0,type:"generic"});return l}"#;
-        let (out, count) = fold_or_empty_object_assign(source).unwrap();
-        assert!(count >= 1, "{out}");
-        assert!(out.contains("l=l||{handled:!0,type:\"generic\"}"), "{out}");
-        assert!(!out.contains("Object.assign(l,"), "{out}");
-        let full = crate::js_peephole::optimize_generated_javascript(source).unwrap();
-        let runtime = std::process::Command::new("node")
-            .args([
-                "-e",
-                &format!(
-                    "{} console.log(JSON.stringify(f({{mechanism:{{type:\"onerror\",handled:false}}}})))",
-                    full.code
-                ),
-            ])
-            .output()
-            .expect("node");
-        assert!(
-            runtime.status.success(),
-            "{}",
-            String::from_utf8_lossy(&runtime.stderr)
-        );
-        assert_eq!(
-            String::from_utf8_lossy(&runtime.stdout).trim(),
-            "{\"type\":\"onerror\",\"handled\":false}"
-        );
-    }
-
-    #[test]
-    fn names_class_from_identity_helper_and_drops_the_call() {
-        let source = r#"e=class{constructor(){this.x=1}match(t){return t}};return l(e,"DOMExceptionCoercer")"#;
-        let (out, count) = fold_named_class_identity(source).unwrap();
-        assert!(count >= 1, "{out}");
-        assert!(out.contains("e=class DOMExceptionCoercer{"), "{out}");
-        assert!(!out.contains("l(e,"), "{out}");
-        assert!(out.contains("return e"), "{out}");
     }
 
     #[test]
@@ -7272,33 +7133,7 @@ mod tests {
     }
 }
 
-/// `(function(){var v;v=<expr>;return v})()` is an identity wrapper around
-/// `<expr>`: the inlined body of a factory whose only statement built one
-/// value. Unwrapping it removes the wrapper bytes and, more importantly, lifts
-/// the class expression into a scope the class-shape folds can still see --
-/// `fold_undefined_defaults_into_formals` and the identity folds all scan for
-/// class bodies and stop at a `function` head.
-///
-/// The rewrite is refused when `<expr>` mentions the binding at all, so a
-/// self-referential factory keeps its scope.
-pub(crate) fn fold_value_binding_iife(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut index = 0usize;
-    while index + 12 < tokens.len() {
-        let Some(fold) = value_binding_iife_at(source, &tokens, &matching_close, index) else {
-            index += 1;
-            continue;
-        };
-        let (end_token, replacement) = fold;
-        replacements.push((tokens[index].start, tokens[end_token].end, replacement));
-        index = end_token + 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 fn value_binding_iife_at(
     source: &str,
@@ -7395,80 +7230,7 @@ fn value_binding_iife_at(
     ))
 }
 
-/// A named ES class already throws `TypeError` when it is called without
-/// `new`, so a `guard(this,new.target,name)` call at the head of its
-/// constructor is unreachable. The guard survives lowering because the source
-/// spelled the constructor identity itself; once the table has been fused into
-/// a real class the language provides it.
-///
-/// Only the exact "class constructor cannot be invoked without new" shape is
-/// recognized: a three-parameter arrow whose whole body is
-/// `if(a==null||!b.prototype.isPrototypeOf(a))throw new TypeError(…)`. Any
-/// other callee keeps its call.
-pub(crate) fn drop_redundant_class_constructor_guards(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let guards = constructor_identity_guard_names(&tokens, &matching_close);
-    if guards.is_empty() {
-        return Ok((source.to_string(), 0));
-    }
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    for site in class_sites(&tokens, &matching_close) {
-        if site.has_extends {
-            continue;
-        }
-        let Some((ctor_open, ctor_close)) =
-            class_constructor_span(&tokens, &matching_close, site.body_open, site.body_close)
-        else {
-            continue;
-        };
-        let mut index = ctor_open + 1;
-        while index + 6 < ctor_close {
-            if tokens[index].kind == TokenKind::Identifier
-                && guards.contains(&tokens[index].text)
-                && tokens[index + 1].text == "("
-                && tokens[index + 2].text == "this"
-                && tokens[index + 3].text == ","
-                && tokens[index + 4].text == "new"
-                && tokens[index + 5].text == "."
-                && tokens[index + 6].text == "target"
-            {
-                let Some(call_close) = matching_close.get(index + 1).copied().flatten() else {
-                    index += 1;
-                    continue;
-                };
-                let mut end = call_close;
-                if matches!(
-                    tokens.get(call_close + 1).map(|token| token.text),
-                    Some(",") | Some(";")
-                ) && call_close + 1 < ctor_close
-                {
-                    end = call_close + 1;
-                }
-                // A constructor left holding nothing is itself redundant: an
-                // implicit constructor has the same arity and the same body.
-                let empty_head = (ctor_open >= 3
-                    && tokens[ctor_open - 1].text == ")"
-                    && tokens[ctor_open - 2].text == "("
-                    && tokens[ctor_open - 3].text == "constructor")
-                    .then(|| ctor_open - 3);
-                let empties_constructor =
-                    index == ctor_open + 1 && end + 1 == ctor_close && empty_head.is_some();
-                if let (true, Some(head)) = (empties_constructor, empty_head) {
-                    replacements.push((tokens[head].start, tokens[ctor_close].end, String::new()));
-                } else {
-                    replacements.push((tokens[index].start, tokens[end].end, String::new()));
-                }
-                index = call_close + 1;
-                continue;
-            }
-            index += 1;
-        }
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 fn constructor_identity_guard_names<'a>(
     tokens: &'a [Token<'a>],
@@ -7582,35 +7344,7 @@ fn is_new_target_identity_guard_body(
 }
 
 
-/// `m(a){return (async (self,a)=>{BODY})(this,a)}` is how an `async` free
-/// function reaches a fused class: the method table installed an adapter, so
-/// the async body had to live in an arrow that takes the receiver explicitly.
-/// The class can hold `async m(a){BODY}` directly. That is smaller, and it
-/// removes an arrow allocation and a call from every invocation.
-///
-/// The arrow's own parameter names become the method's formals, so nothing in
-/// the body has to be renamed except the receiver, and `.length` is unchanged.
-pub(crate) fn hoist_async_arrow_method_bodies(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let matching_close = matching_closers(&tokens);
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    for site in class_sites(&tokens, &matching_close) {
-        let mut index = site.body_open + 1;
-        while index < site.body_close {
-            if let Some((end, replacement)) =
-                async_arrow_method_at(source, &tokens, &matching_close, index, site.body_close)
-            {
-                replacements.push((tokens[index].start, tokens[end].end, replacement));
-                index = end + 1;
-                continue;
-            }
-            index += 1;
-        }
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
+
 
 fn async_arrow_method_at(
     source: &str,
@@ -7704,61 +7438,77 @@ fn async_arrow_method_at(
     ))
 }
 
-#[cfg(test)]
-mod async_hoist_tests {
-    use super::hoist_async_arrow_method_bodies;
-
-    #[test]
-    fn hoists_an_async_arrow_applied_to_the_receiver_and_formals() {
-        let source = r#"class C{applyModifiers(t){return (async (e,t)=>{for(var r=0;r<e.modifiers.length;)t=await e.modifiers[r](t),++r;return t})(this,t)}}"#;
-        let (out, count) = hoist_async_arrow_method_bodies(source).unwrap();
-        assert_eq!(count, 1, "{out}");
-        assert_eq!(
-            out,
-            r#"class C{async applyModifiers(t){for(var r=0;r<this.modifiers.length;)t=await this.modifiers[r](t),++r;return t}}"#
-        );
-    }
-
-    #[test]
-    fn refuses_shapes_that_are_not_the_receiver_plus_formals() {
-        for source in [
-            // arguments are not the method's formals in order
-            r#"class C{m(a,b){return (async (e,a,b)=>{return e.f(b,a)})(this,b,a)}}"#,
-            // receiver is not passed first
-            r#"class C{m(a){return (async (e,a)=>{return e.f(a)})(a,this)}}"#,
-            // extra statements after the call
-            r#"class C{m(a){return (async (e,a)=>{return e.f(a)})(this,a),1}}"#,
-            // not async
-            r#"class C{m(a){return ((e,a)=>{return e.f(a)})(this,a)}}"#,
-        ] {
-            let (out, count) = hoist_async_arrow_method_bodies(source).unwrap();
-            assert_eq!(count, 0, "{out}");
-            assert_eq!(out, source);
+pub(crate) fn terminate_bare_prototype_before_statement(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let mut replacements = Vec::new();
+    let mut index = 0usize;
+    while index < tokens.len() {
+        if index + 1 < tokens.len()
+            && tokens[index].text == "prototype"
+            && (tokens[index + 1].kind == TokenKind::Identifier
+                || matches!(
+                    tokens[index + 1].text,
+                    "var" | "let" | "const" | "function" | "class" | "export" | "import"
+                ))
+        {
+            replacements.push((tokens[index].end, tokens[index].end, ";".to_string()));
         }
+        if tokens[index].kind == TokenKind::Identifier
+            && tokens[index].text.starts_with("prototype")
+            && tokens[index].text.len() > "prototype".len()
+            && index
+                .checked_sub(1)
+                .is_some_and(|previous| tokens[previous].text == ".")
+        {
+            let rest = &tokens[index].text["prototype".len()..];
+            if rest
+                .bytes()
+                .next()
+                .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_' || byte == b'$')
+            {
+                replacements.push((
+                    tokens[index].start,
+                    tokens[index].end,
+                    format!("prototype;{rest}"),
+                ));
+            }
+        }
+        index += 1;
     }
+    Ok(apply_token_rewrites(source, replacements))
 }
 
-#[cfg(test)]
-mod regex_statement_tests {
-    use crate::js_peephole::folds::drop_pure_regex_expression_statements as f;
-
-    #[test]
-    fn drops_a_regex_literal_left_in_statement_position() {
-        let (out, count) = f(r#"function g(){return 1}/ab+c/i;var z=2"#).unwrap();
-        assert_eq!(count, 1, "{out}");
-        assert_eq!(out, r#"function g(){return 1}var z=2"#);
-    }
-
-    #[test]
-    fn keeps_a_regex_that_is_used() {
-        for source in [
-            r#"var z=/ab+c/i;"#,
-            r#"function g(s){return /ab+c/i.test(s)}"#,
-            r#"var z=1/a/i;"#,
-        ] {
-            let (out, count) = f(source).unwrap();
-            assert_eq!(count, 0, "{out}");
-            assert_eq!(out, source);
+pub(crate) fn rewrite_class_ctor_identity_to_new_target(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let matching_open = matching_openers(&matching_close);
+    let mut replacements = Vec::new();
+    for site in class_sites(&tokens, &matching_close) {
+        let Some((ctor_open, ctor_close)) =
+            class_constructor_span(&tokens, &matching_close, site.body_open, site.body_close)
+        else {
+            continue;
+        };
+        if ctor_open > 0 && tokens[ctor_open - 1].text == ")" {
+            if let Some(param_open) = matching_open.get(ctor_open - 1).copied().flatten() {
+                if tokens[param_open + 1..ctor_open - 1]
+                    .iter()
+                    .any(|token| token.kind == TokenKind::Identifier && token.text == site.name)
+                {
+                    continue;
+                }
+            }
         }
+        replacements.extend(factory_this_guard_replacements(
+            &tokens,
+            ctor_open + 1,
+            ctor_close,
+            site.name,
+        ));
     }
+    Ok(apply_token_rewrites(source, replacements))
 }

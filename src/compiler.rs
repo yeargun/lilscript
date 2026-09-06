@@ -8875,11 +8875,11 @@ fn late_javascript_cleanup_finalists(
             let mut proposals = beam.clone();
             let mut exhausted = false;
             for candidate in &beam {
-                // Charge the proposal before transformation, repair, or
-                // whole-artifact validation. Invalid/no-op variants still
-                // consume one deterministic work unit, preventing syntax
-                // analysis from multiplying beyond the codec-call cap.
-                if !codec_budget.reserve_work_unit() {
+                // Phase 7e: a pass that yields nothing costs nothing. The unit
+                // was charged per attempt, so deleting three idle passes (7.30)
+                // moved katexlil +1,004 by leaving units to the later families;
+                // the ledger now counts scored proposals, which is the work.
+                if codec_budget.remaining() == 0 {
                     exhausted = true;
                     break;
                 }
@@ -8892,6 +8892,10 @@ fn late_javascript_cleanup_finalists(
                     || proposals.iter().any(|proposal| proposal.code == code)
                 {
                     continue;
+                }
+                if !codec_budget.reserve_work_unit() {
+                    exhausted = true;
+                    break;
                 }
                 let cost = codec_budget
                     .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
@@ -16694,6 +16698,8 @@ mod tests {
         config.javascript.cost_model = CompressionCostModel::Raw;
         config.javascript.candidate_search = CandidateSearch::Always;
         config.javascript.optimizations = Some(vec![JavaScriptOptimization::ParsedPeephole]);
+        // The leaves are folded during exploration only under `"all"` (7.30).
+        config.javascript.peephole_scope = Some("all".to_string());
         let source = "let a=0,b=1;a=a+b;console.log(a)";
 
         let make_candidate = || {

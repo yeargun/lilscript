@@ -123,35 +123,6 @@ pub(crate) fn fold_empty_comma_operators(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-/// `cond?,x:y` is never valid JavaScript (`?.` is optional chaining, `??` is
-/// nullish). A comma immediately after a ternary `?` is an empty then-arm
-/// operand left behind when a sequenced value was deleted. Dropping that comma
-/// restores `cond?x:y`.
-pub(crate) fn fold_empty_ternary_then_comma(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    let mut index = 0usize;
-    while index + 1 < tokens.len() {
-        if tokens[index].text == "?"
-            && !matches!(
-                tokens.get(index + 1).map(|token| token.text),
-                Some(".") | Some("[")
-            )
-            && tokens.get(index + 1).map(|token| token.text) == Some(",")
-        {
-            replacements.push((
-                tokens[index + 1].start,
-                tokens[index + 1].end,
-                String::new(),
-            ));
-        }
-        index += 1;
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
-
 /// A binding compared with itself observes only the equality algorithm, never
 /// coercion between different operands, so strict and loose equality agree.
 /// Keep this as an objective-scored proposal because changing a repeated
@@ -343,39 +314,6 @@ fn comma_is_directly_inside_enclosing_block(
     parens == 0 && brackets == 0 && braces == 0
 }
 
-/// A regex literal alone in statement position evaluates to a fresh `RegExp`
-/// and discards it: no user code runs, so the statement has no effect. The
-/// shape is left behind when a single-use regex binding is rematerialized at
-/// its use site but its declaration is consumed by a different fold first, and
-/// it costs the whole pattern's bytes twice.
-pub(crate) fn drop_pure_regex_expression_statements(
-    source: &str,
-) -> Result<(String, usize), JavaScriptParseError> {
-    let tokens = lex(source)?;
-    let mut replacements = Vec::<(usize, usize, String)>::new();
-    for (index, token) in tokens.iter().enumerate() {
-        if token.kind != TokenKind::Regex {
-            continue;
-        }
-        let starts_statement = match index.checked_sub(1) {
-            None => true,
-            Some(previous) => matches!(tokens[previous].text, ";" | "}"),
-        };
-        if !starts_statement {
-            continue;
-        }
-        // Only a bare literal, never the head of a member or call chain.
-        let Some(next) = tokens.get(index + 1) else {
-            continue;
-        };
-        if next.text != ";" {
-            continue;
-        }
-        replacements.push((token.start, next.end, String::new()));
-    }
-    Ok(apply_token_rewrites(source, replacements))
-}
-
 #[cfg(test)]
 mod tests {
     use super::fold_empty_comma_operators;
@@ -393,7 +331,6 @@ mod tests {
         assert_eq!(stmt, "a=b;c=d");
     }
 }
-
 
 /// `new RegExp("…")` / `new RegExp("…","flags")` → `/…/flags` when the pattern is a
 /// string literal whose escapes decode plainly: 44 sites on katexlil, −68 Brotli measured.

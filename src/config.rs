@@ -618,7 +618,11 @@ impl ProjectConfig {
         let scope = std::env::var("LILSCRIPT_PEEPHOLE_SCOPE")
             .ok()
             .or_else(|| self.javascript.peephole_scope.clone());
-        !matches!(scope.as_deref(), Some("terminal"))
+        // The default is the terminal: the 27-port A/B of 2026-09-06 (migration
+        // 7.30) read −188 bytes over 20 ports with the chain folded only on
+        // what ships, at a fraction of the text layer's CPU. `"all"` restores
+        // the exploratory runs.
+        matches!(scope.as_deref(), Some("all"))
     }
 
     /// The cap on plans admitted to parsed preparation, if any.
@@ -1344,12 +1348,12 @@ pub struct JavaScriptConfig {
     /// every port's toml.
     pub emission_peephole: Option<bool>,
     /// Phase 7g of the migration: where the text peephole runs with the
-    /// search on. `"all"` (the default) folds the entropy sources and the
-    /// admitted leaves during exploration and the finalists at the terminal;
-    /// `"terminal"` folds only at the terminal, since the emitter now writes
-    /// most of the chain's shapes itself (7.25–7.26) and the exploratory runs
-    /// were two thirds of jquerylil's CPU. `LILSCRIPT_PEEPHOLE_SCOPE=all|terminal`
-    /// overrides it for a fleet A/B.
+    /// search on. `"terminal"` (the default since 7.30) folds only what
+    /// ships -- the selected artifact and the late-cleanup finalists -- since
+    /// the emitter writes most of the chain's shapes itself (7.25–7.26) and
+    /// the exploratory runs were two thirds of jquerylil's CPU; `"all"` also
+    /// folds the entropy sources and the admitted leaves during exploration.
+    /// `LILSCRIPT_PEEPHOLE_SCOPE=all|terminal` overrides it for a fleet A/B.
     pub peephole_scope: Option<String>,
     /// Phase 7g: how many plans are admitted to parsed preparation (their
     /// leaves folded and scored) with the search on; unset means every plan

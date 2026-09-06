@@ -38,7 +38,7 @@ mod rename;
 mod rewrite;
 mod scope;
 mod token;
-pub(crate) use token::{lex as lex_javascript, Token as JsToken, TokenKind as JsTokenKind};
+pub(crate) use token::{lex as lex_javascript, TokenKind as JsTokenKind};
 
 #[cfg(test)]
 mod keyword_space_tests;
@@ -2742,7 +2742,6 @@ fn optimize_generated_javascript_pass(
 
     let mut session = RewriteSession::new(apply_rewrites(source, &compound));
     session.rewrites += compound.len();
-    session.run_if(elide_functions, fold_value_binding_iife)?;
     session.run_if(
         elide_functions,
         fold_constructor_prototype_tables_to_classes,
@@ -2751,7 +2750,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_undefined_defaults_into_formals)?;
     session.run(fold_arguments_length_formal_copies)?;
     session.run(fold_arguments_slice_to_rest)?;
-    session.run(rotate_proven_initial_true_loops)?;
     session.run_flag(reuse_dead_var_binding)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(merge_adjacent_declarations)?;
@@ -2795,7 +2793,6 @@ fn optimize_generated_javascript_pass(
     session.run(fold_arguments_length_eq_zero_to_not)?;
     session.run(fold_integer_neq_zero_in_boolean)?;
     session.run(fold_identity_arrow_iife)?;
-    session.run(fold_empty_ternary_then_comma)?;
     session.repeat(fold_single_use_if_assigns, 6)?;
     session.run(fold_if_prefixed_returns)?;
     session.run(fold_nested_unguarded_ifs)?;
@@ -2818,13 +2815,10 @@ fn optimize_generated_javascript_pass(
     session.run(fold_arguments_length_formal_copies)?;
     session.run(fold_arguments_slice_to_rest)?;
     session.run(fold_dead_pure_identifier_assigns)?;
-    session.run_if(pristine_builtins, fold_self_receiver_calls)?;
     session.repeat(fold_self_assignment_chains, 6)?;
     session.run(remove_unused_standalone_vars)?;
     session.run(fold_uninitialized_var_into_assign)?;
-    session.repeat(fold_expression_branches, 4)?;
     session.run(fold_copied_member_presence)?;
-    session.run(fold_same_lvalue_ternary)?;
     session.run(fold_or_reassign_to_ternary)?;
     session.repeat(fold_single_use_if_assigns, 4)?;
     session.run(fold_if_prefixed_returns)?;
@@ -2869,34 +2863,25 @@ fn optimize_generated_javascript_pass(
     session.run(fold_int32_coercions)?;
     session.run(split_fused_keyword_identifiers)?;
     session.run(strip_stale_set_prototype_of)?;
-    session.run(terminate_bare_prototype_before_statement)?;
     session.run_if(
         elide_functions,
         fold_constructor_prototype_tables_to_classes,
     )?;
     session.run(strip_stale_set_prototype_of)?;
-    session.run(terminate_bare_prototype_before_statement)?;
     session.run(fold_dead_pure_identifier_assigns)?;
     session.run(fold_unread_prototype_aliases)?;
     session.run(fold_dead_identifier_copy_declarators)?;
     session.run(remove_unused_standalone_vars)?;
-    session.run(fold_or_empty_object_assign)?;
     session.run_if(pristine_builtins, fold_fresh_empty_object_assign)?;
     if pristine_builtins {
         session.run(fold_array_literal_borrow_pushes)?;
         session.repeat(fold_fresh_empty_array_pushes, 4)?;
     }
-    session.run(fold_named_class_identity)?;
-    session.run(rewrite_class_ctor_identity_to_new_target)?;
-    session.run_if(elide_functions, fold_value_binding_iife)?;
     session.run(fold_undefined_defaults_into_formals)?;
-    session.run(drop_redundant_class_constructor_guards)?;
     session.run(remove_unused_standalone_vars)?;
     session.repeat(fold_single_use_temporaries, 4)?;
     session.run(fold_returned_temporaries)?;
     session.run(remove_unused_standalone_vars)?;
-    session.run(hoist_async_arrow_method_bodies)?;
-    session.run(drop_pure_regex_expression_statements)?;
     session.run(fold_empty_comma_operators)?;
     session.run(elide_asi_safe_semicolons)?;
 
@@ -2961,18 +2946,15 @@ pub(crate) enum LateJavaScriptCleanupPass {
     CommonConditionalArms,
     EarlyExitGuards,
     ContinueTailGuards,
-    InvertedContinueTailGuards,
     SingleStatementControlBraces,
     NegatedEqualities,
     RedundantNullUndefinedOr,
     NullNormalizedNullableTests,
     IdentTernaryToOr,
     OrAssignmentParens,
-    NotGtZeroLength,
     IdentityArrowIife,
     ZeroArgumentReturnIife,
     SingleUseFunctionExpressions,
-    EmptyTernaryThenComma,
     UnusedStandaloneVars,
     ArgumentsLengthCountdownFor,
     CanonicalLeafSyntax,
@@ -2980,7 +2962,7 @@ pub(crate) enum LateJavaScriptCleanupPass {
 }
 
 impl LateJavaScriptCleanupPass {
-    pub(crate) const ALL: [Self; 22] = [
+    pub(crate) const ALL: [Self; 19] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::NegatedConditionalArms,
@@ -2988,17 +2970,14 @@ impl LateJavaScriptCleanupPass {
         Self::UnitCounterUpdates,
         Self::EarlyExitGuards,
         Self::ContinueTailGuards,
-        Self::InvertedContinueTailGuards,
         Self::SingleStatementControlBraces,
         Self::NegatedEqualities,
         Self::RedundantNullUndefinedOr,
         Self::NullNormalizedNullableTests,
         Self::IdentTernaryToOr,
         Self::OrAssignmentParens,
-        Self::NotGtZeroLength,
         Self::IdentityArrowIife,
         Self::ZeroArgumentReturnIife,
-        Self::EmptyTernaryThenComma,
         Self::UnusedStandaloneVars,
         Self::ArgumentsLengthCountdownFor,
         Self::CanonicalLeafSyntax,
@@ -3131,9 +3110,6 @@ fn late_generated_javascript_cleanup_pass_into(
         }
         LateJavaScriptCleanupPass::EarlyExitGuards => session.run(fold_early_exit_guards)?,
         LateJavaScriptCleanupPass::ContinueTailGuards => session.run(fold_continue_tail_guards)?,
-        LateJavaScriptCleanupPass::InvertedContinueTailGuards => {
-            session.run(fold_inverted_continue_tail_guards)?
-        }
         LateJavaScriptCleanupPass::SingleStatementControlBraces => {
             session.run(fold_single_statement_control_braces)?
         }
@@ -3146,16 +3122,12 @@ fn late_generated_javascript_cleanup_pass_into(
         }
         LateJavaScriptCleanupPass::IdentTernaryToOr => session.run(fold_ident_ternary_to_or)?,
         LateJavaScriptCleanupPass::OrAssignmentParens => session.run(fold_or_assignment_parens)?,
-        LateJavaScriptCleanupPass::NotGtZeroLength => session.run(fold_not_gt_zero_length)?,
         LateJavaScriptCleanupPass::IdentityArrowIife => session.run(fold_identity_arrow_iife)?,
         LateJavaScriptCleanupPass::ZeroArgumentReturnIife => {
             session.run(fold_zero_argument_return_iife)?
         }
         LateJavaScriptCleanupPass::SingleUseFunctionExpressions => {
             session.run(fold_single_use_function_expressions)?
-        }
-        LateJavaScriptCleanupPass::EmptyTernaryThenComma => {
-            session.run(fold_empty_ternary_then_comma)?
         }
         LateJavaScriptCleanupPass::UnusedStandaloneVars => {
             session.run(remove_unused_standalone_vars)?
