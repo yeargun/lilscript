@@ -1277,6 +1277,8 @@ struct StatementPolicy {
     /// Phase 6, G3: the assignments and `var` list before a `for` with an
     /// empty initializer move into it (`fold_prior_assign_into_for_init`).
     for_init: bool,
+    /// Phase 6, G6: `(a+b|0)+c|0` is `a+b+c|0` (`fold_int32_coercions`).
+    int32_chains: bool,
     /// The option the shapes above honour when they choose braces.
     braceless_control_bodies: bool,
 }
@@ -1329,6 +1331,7 @@ impl StatementPolicy {
         trailing_increments: false,
         same_target_conditional: false,
         for_init: false,
+        int32_chains: false,
         braceless_control_bodies: false,
     };
 
@@ -1354,7 +1357,10 @@ impl StatementPolicy {
             trailing_increments: port("trailing_increments"),
             same_target_conditional: port("same_target_conditional"),
             for_init: port_off("for_init"),
-            braceless_control_bodies: options.braceless_control_bodies,
+            int32_chains: port("int32_chains"),
+            // The text fold dropped braces whatever the option said, so the
+            // port does too where it runs; the option decides where it does not.
+            braceless_control_bodies: options.braceless_control_bodies || port("control_braces"),
         }
     }
 
@@ -2649,6 +2655,26 @@ impl JsBlock {
 /// neither does this: it is the same spelling decision, made where the
 /// assignment is still a node.
 fn unit_counter_update(statement: JsStatement) -> JsStatement {
+    /// `name=name+1|0` where the read is any node spelling `name`.
+    fn unit_step_named(name: &str, value: &JsExpression) -> Option<JsUpdate> {
+        let stepped = match value.root {
+            JsExpressionRoot::IntegerNormalization => value.operands.first()?,
+            _ => value,
+        };
+        let direction = match stepped.root {
+            JsExpressionRoot::Binary(IrBinaryOp::Add) => JsUpdate::Increment,
+            JsExpressionRoot::Binary(IrBinaryOp::Sub) => JsUpdate::Decrement,
+            _ => return None,
+        };
+        let [base, step] = stepped.operands.as_slice() else {
+            return None;
+        };
+        (matches!(base.root, JsExpressionRoot::Name(_) | JsExpressionRoot::Atom)
+            && base.code == name
+            && step.root == JsExpressionRoot::Atom
+            && step.code == "1")
+        .then_some(direction)
+    }
     fn unit_step(target: &JsExpression, value: &JsExpression) -> Option<JsUpdate> {
         let stepped = match value.root {
             JsExpressionRoot::IntegerNormalization => value.operands.first()?,
@@ -2673,11 +2699,21 @@ fn unit_counter_update(statement: JsStatement) -> JsStatement {
         };
         // The same binding under the same spelling, or the same member
         // chain; the text fold compared spellings and so does this.
+        let identifier = |node: &JsExpression| {
+            node.root == JsExpressionRoot::Atom
+                && !node.code.is_empty()
+                && is_js_identifier_start(node.code.as_bytes()[0])
+                && node.code.bytes().all(is_js_identifier_byte)
+        };
         let same_target = match (base.root, target.root) {
             (JsExpressionRoot::Name(read), JsExpressionRoot::Name(written)) => {
                 read == written && base.code == target.code
             }
             (JsExpressionRoot::Member, JsExpressionRoot::Member) => base.code == target.code,
+            // A module-level name the tree does not bind: `W=W+1|0` is `W++`.
+            (JsExpressionRoot::Atom, JsExpressionRoot::Atom) => {
+                identifier(base) && base.code == target.code
+            }
             _ => false,
         };
         (step.root == JsExpressionRoot::Atom && step.code == "1" && same_target)
@@ -2687,25 +2723,39 @@ fn unit_counter_update(statement: JsStatement) -> JsStatement {
         JsStatement::Binding {
             keyword: None,
             name,
-            bind: Some(bind),
+            bind,
             value,
         } => {
-            let target = JsExpression::name(bind, name.clone());
-            match unit_step(&target, &value) {
+            // A module-level name is written without a bind; its reads are
+            // still `Name` nodes, so the target is spelled as an atom.
+            let target = match bind {
+                Some(bind) => JsExpression::name(bind, name.clone()),
+                None => JsExpression::atom(name.clone()),
+            };
+            let stepped = match bind {
+                Some(_) => unit_step(&target, &value),
+                None => unit_step_named(&name, &value),
+            };
+            match stepped {
                 Some(direction) => JsStatement::Expression {
                     value: JsExpression::update(target, direction),
                 },
                 None => JsStatement::Binding {
                     keyword: None,
                     name,
-                    bind: Some(bind),
+                    bind,
                     value,
                 },
             }
         }
         JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => {
             let direction = match value.operands.as_slice() {
-                [target, assigned] if target.root == JsExpressionRoot::Member => {
+                [target, assigned]
+                    if matches!(
+                        target.root,
+                        JsExpressionRoot::Member | JsExpressionRoot::Atom | JsExpressionRoot::Name(_)
+                    ) =>
+                {
                     unit_step(target, assigned)
                 }
                 _ => None,
@@ -2958,10 +3008,16 @@ fn merge_self_assignment_value(
     name: &str,
     second: &JsExpression,
 ) -> Option<JsExpression> {
-    let JsExpressionRoot::Binary(op) = second.root else {
+    // `x=(x+B)|0` reads `x` through the normalization: `x=(E+B)|0`.
+    let (normalized, arithmetic) = if second.root == JsExpressionRoot::IntegerNormalization {
+        (true, second.operands.first()?)
+    } else {
+        (false, second)
+    };
+    let JsExpressionRoot::Binary(op) = arithmetic.root else {
         return None;
     };
-    let [lhs, rhs] = second.operands.as_slice() else {
+    let [lhs, rhs] = arithmetic.operands.as_slice() else {
         return None;
     };
     if lhs.root != JsExpressionRoot::Name(bind)
@@ -2972,7 +3028,12 @@ fn merge_self_assignment_value(
     {
         return None;
     }
-    Some(JsExpression::binary_in_order(op, first.clone(), rhs.clone()))
+    let merged = JsExpression::binary_in_order(op, first.clone(), rhs.clone());
+    Some(if normalized {
+        JsExpression::integer_normalization(merged)
+    } else {
+        merged
+    })
 }
 
 /// The same merge inside a sequence: `(x=E,x=x OP B)` is `(x=E OP B)`.
@@ -4106,6 +4167,15 @@ impl JsExpression {
     }
 
     fn integer_normalization(value: Self) -> Self {
+        // Phase 6, G6: `(a+b|0)+c|0` is `a+b+c|0` -- int32 operands sum
+        // exactly in a double, and wrapping once wraps the same
+        // (`fold_int32_coercions`, the grouped-plus rule). Additive chains
+        // only: a product may leave the exact range before the wrap.
+        let value = if StatementPolicy::current().int32_chains {
+            Self::flatten_additive_normalization(value)
+        } else {
+            value
+        };
         let optional_access_code = value.optional_access_code.clone();
         let root = JsExpressionRoot::IntegerNormalization;
         let operands = vec![value];
@@ -4117,6 +4187,28 @@ impl JsExpression {
     }
 
     /// `value===void 0` / `value!==void 0`.
+    fn flatten_additive_normalization(value: Self) -> Self {
+        let JsExpressionRoot::Binary(op @ (IrBinaryOp::Add | IrBinaryOp::Sub)) = value.root else {
+            return value;
+        };
+        let [lhs, rhs] = value.operands.as_slice() else {
+            return value;
+        };
+        if lhs.root != JsExpressionRoot::IntegerNormalization || lhs.optional_access_code.is_some() {
+            return value;
+        }
+        let Some(inner) = lhs.operands.first() else {
+            return value;
+        };
+        if !matches!(
+            inner.root,
+            JsExpressionRoot::Binary(IrBinaryOp::Add | IrBinaryOp::Sub)
+        ) {
+            return value;
+        }
+        Self::binary_in_order(op, inner.clone(), rhs.clone())
+    }
+
     fn undefined_test(operand: Self, absent: bool) -> Self {
         let root = JsExpressionRoot::UndefinedTest { absent };
         let operands = vec![operand];
@@ -20997,21 +21089,29 @@ fn statement_joins_sequence(statement: &JsStatement) -> bool {
 /// Whether a statement can stand alone where a braceless body is wanted.
 fn statement_is_braceless(statement: &JsStatement) -> bool {
     match statement {
-        JsStatement::Declaration { .. }
-        | JsStatement::DeclarationGroup { .. }
-        | JsStatement::Declarators { .. }
-        | JsStatement::Function { .. }
+        JsStatement::Function { .. }
         | JsStatement::Class { .. }
         | JsStatement::ClassField { .. }
-        | JsStatement::If { .. }
         | JsStatement::Import { .. }
         | JsStatement::Export { .. }
         | JsStatement::Empty => false,
+        // Phase 6, G2: a `var` is function-scoped, so it stands alone where a
+        // `let` would not; a lone `if` or loop stands alone too (the dangling
+        // `else` is `block_can_absorb_else`'s check, made before an `else`).
+        JsStatement::Declaration { keyword, .. } | JsStatement::DeclarationGroup { keyword, .. } => {
+            StatementPolicy::current().control_braces && *keyword == "var "
+        }
+        JsStatement::Declarators { keyword, .. } => {
+            StatementPolicy::current().control_braces && *keyword == "var "
+        }
+        JsStatement::If { .. } => StatementPolicy::current().control_braces,
         JsStatement::Loop {
             head: JsLoopHead::DoWhile { .. },
             ..
         } => false,
-        JsStatement::Loop { body, .. } => block_is_braceless(&body.block),
+        JsStatement::Loop { body, .. } => {
+            StatementPolicy::current().control_braces || block_is_braceless(&body.block)
+        }
         JsStatement::Binding { .. }
         | JsStatement::Return { .. }
         | JsStatement::Throw { .. }
