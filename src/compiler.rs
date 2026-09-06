@@ -10313,6 +10313,9 @@ fn emit_javascript_candidate(
     if crate::timing::enabled() {
         crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
     }
+    if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+        eprintln!("[emission-ms] {:.1} {}", started.elapsed().as_secs_f64() * 1000.0, code.len());
+    }
     Ok(code)
 }
 
@@ -10341,6 +10344,9 @@ fn emit_javascript_candidate_frozen(
     let code = finish_emitted_javascript(code, &options);
     if crate::timing::enabled() {
         crate::timing::EMIT.record(code.len() as u64, started.elapsed().as_nanos() as u64);
+    }
+    if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
+        eprintln!("[emission-ms] {:.1} {}", started.elapsed().as_secs_f64() * 1000.0, code.len());
     }
     Ok((code, tree))
 }

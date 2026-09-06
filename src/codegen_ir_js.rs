@@ -2059,7 +2059,6 @@ impl JsBlock {
             last.dropped_semicolon = true;
         }
         self.ends_with_semicolon = false;
-        self.tail.pop();
     }
 
     /// Remove a trailing bare `return;` if there is one.
@@ -2077,22 +2076,19 @@ impl JsBlock {
     /// true for what remains.
     fn pop_statement(&mut self) -> Option<EmittedStatement> {
         let popped = self.statements.pop()?;
-        let rendered = popped.render();
-        self.for_opens -= count_needle(rendered.as_bytes(), b"for(");
-        self.while_opens -= count_needle(rendered.as_bytes(), b"while(");
+        let (for_opens, while_opens) = loop_keywords_in_statement(&popped.statement);
+        self.for_opens -= for_opens;
+        self.while_opens -= while_opens;
         match self.statements.last() {
             Some(last) => {
-                let text = last.render();
-                self.ends_with_semicolon = text.ends_with(';');
+                self.ends_with_semicolon =
+                    statement_is_terminated(&last.statement, last.dropped_semicolon);
                 self.trailing_bare_return =
                     matches!(last.statement, JsStatement::Return { value: None }) && !last.dropped_semicolon;
-                let bytes = text.as_bytes();
-                self.tail = bytes[bytes.len().saturating_sub(JS_BLOCK_NEEDLE_SPAN - 1)..].to_vec();
             }
             None => {
                 self.ends_with_semicolon = false;
                 self.trailing_bare_return = false;
-                self.tail.clear();
             }
         }
         Some(popped)
@@ -2201,9 +2197,13 @@ impl JsBlock {
             statement
         };
         let bare_return = matches!(statement, JsStatement::Return { value: None });
-        let rendered = statement.clone().render(options);
-        self.count_appended(&rendered);
-        self.ends_with_semicolon = rendered.ends_with(';');
+        // Phase 7: nothing is rendered at push time. The loop-keyword
+        // counts and the terminator flag are read off the statement's
+        // shape; the text is printed once, at the end.
+        let (for_opens, while_opens) = loop_keywords_in_statement(&statement);
+        self.for_opens += for_opens;
+        self.while_opens += while_opens;
+        self.ends_with_semicolon = statement_is_terminated(&statement, false);
         self.statements.push(EmittedStatement {
             statement,
             options,
@@ -2211,7 +2211,7 @@ impl JsBlock {
         });
         self.trailing_bare_return = bare_return;
         if twin_witness_enabled() {
-            crate::timing::STATEMENT_NODE.event(rendered.len() as u64);
+            crate::timing::STATEMENT_NODE.event(1);
         }
     }
 
@@ -2439,6 +2439,187 @@ fn unit_counter_update(statement: JsStatement) -> JsStatement {
         }
         other => other,
     }
+}
+
+/// Whether a statement's rendering ends in `;` (phase 7: the terminator
+/// read off the shape, not the text). A braceless branch ends the way its
+/// last statement does; a `do` loop ends with its `while(..);`.
+fn statement_is_terminated(statement: &JsStatement, dropped_semicolon: bool) -> bool {
+    if dropped_semicolon {
+        return false;
+    }
+    fn branch_is_terminated(branch: &JsBranch) -> bool {
+        if !branch.braceless {
+            return false;
+        }
+        branch
+            .block
+            .statements
+            .last()
+            .is_some_and(|last| statement_is_terminated(&last.statement, last.dropped_semicolon))
+    }
+    match statement {
+        JsStatement::Declaration { .. }
+        | JsStatement::Binding { .. }
+        | JsStatement::Declarators { .. }
+        | JsStatement::DeclarationGroup { .. }
+        | JsStatement::Expression { .. }
+        | JsStatement::Return { .. }
+        | JsStatement::Throw { .. }
+        | JsStatement::Break
+        | JsStatement::Continue
+        | JsStatement::Import { .. }
+        | JsStatement::Export { .. }
+        | JsStatement::ClassField { .. }
+        | JsStatement::Empty => true,
+        JsStatement::Function { terminated, .. } => *terminated,
+        JsStatement::If {
+            then_branch,
+            else_branch,
+            ..
+        } => branch_is_terminated(else_branch.as_ref().unwrap_or(then_branch)),
+        JsStatement::Loop {
+            body, do_condition, ..
+        } => do_condition.is_some() || branch_is_terminated(body),
+        JsStatement::Try { .. } | JsStatement::Switch { .. } | JsStatement::Class { .. } => false,
+    }
+}
+
+/// How many `for(` and `while(` a statement spells, counted over its shape:
+/// loop heads by kind, and the text of the leaves the tree does not own
+/// (raw nodes, closures' rendered code, atoms), where the old text count
+/// found them too.
+fn loop_keywords_in_statement(target: &JsStatement) -> (usize, usize) {
+    fn expression(node: &JsExpression, counts: &mut (usize, usize)) {
+        match node.root {
+            JsExpressionRoot::Raw | JsExpressionRoot::Closure(_) | JsExpressionRoot::Atom => {
+                counts.0 += count_needle(node.code.as_bytes(), b"for(");
+                counts.1 += count_needle(node.code.as_bytes(), b"while(");
+            }
+            _ => {
+                for operand in &node.operands {
+                    expression(operand, counts);
+                }
+            }
+        }
+    }
+    fn block(block: &JsBlock, counts: &mut (usize, usize)) {
+        for emitted in &block.statements {
+            statement(&emitted.statement, counts);
+        }
+    }
+    fn body(body: &JsFunctionBody, counts: &mut (usize, usize)) {
+        match body {
+            JsFunctionBody::Block(inner) => block(inner, counts),
+            JsFunctionBody::ConciseNode(node) => expression(node, counts),
+            JsFunctionBody::Concise(text) => {
+                counts.0 += count_needle(text.as_bytes(), b"for(");
+                counts.1 += count_needle(text.as_bytes(), b"while(");
+            }
+        }
+    }
+    fn text(text: &str, counts: &mut (usize, usize)) {
+        counts.0 += count_needle(text.as_bytes(), b"for(");
+        counts.1 += count_needle(text.as_bytes(), b"while(");
+    }
+    fn statement(statement: &JsStatement, counts: &mut (usize, usize)) {
+        match statement {
+            JsStatement::Binding { value, .. }
+            | JsStatement::Expression { value }
+            | JsStatement::Throw { value }
+            | JsStatement::Return { value: Some(value) } => expression(value, counts),
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    if let Some(value) = &declarator.value {
+                        expression(value, counts);
+                    }
+                    if let Some(function) = &declarator.function {
+                        text(&function.0.render(), counts);
+                        body(&function.1, counts);
+                    }
+                }
+            }
+            JsStatement::If {
+                condition,
+                condition_tree,
+                then_branch,
+                else_branch,
+            } => {
+                match condition_tree {
+                    Some(tree) => expression(tree, counts),
+                    None => text(condition, counts),
+                }
+                block(&then_branch.block, counts);
+                if let Some(else_branch) = else_branch {
+                    block(&else_branch.block, counts);
+                }
+            }
+            JsStatement::Function { head, body: function_body, .. } => {
+                text(&head.render(), counts);
+                body(function_body, counts);
+            }
+            JsStatement::Try {
+                body: try_body,
+                catch,
+                finally,
+            } => {
+                block(try_body, counts);
+                if let Some(catch) = catch {
+                    block(&catch.body, counts);
+                }
+                if let Some(finally) = finally {
+                    block(finally, counts);
+                }
+            }
+            JsStatement::Switch { discriminant, cases } => {
+                text(discriminant, counts);
+                for case in cases {
+                    text(&case.label, counts);
+                    block(&case.body, counts);
+                }
+            }
+            JsStatement::Class { head, members } => {
+                text(head, counts);
+                block(members, counts);
+            }
+            JsStatement::ClassField { key, value } => {
+                text(key, counts);
+                text(value, counts);
+            }
+            JsStatement::Loop {
+                head,
+                body: loop_body,
+                do_condition,
+                do_condition_tree,
+            } => {
+                // The head's own keyword is in its rendered text.
+                text(&head.render(), counts);
+                block(&loop_body.block, counts);
+                match (do_condition_tree, do_condition) {
+                    (Some(tree), _) => {
+                        counts.1 += 1;
+                        expression(tree, counts);
+                    }
+                    (None, Some(condition)) => {
+                        counts.1 += 1;
+                        text(condition, counts);
+                    }
+                    (None, None) => {}
+                }
+            }
+            JsStatement::Declaration { .. }
+            | JsStatement::DeclarationGroup { .. }
+            | JsStatement::Return { value: None }
+            | JsStatement::Break
+            | JsStatement::Continue
+            | JsStatement::Import { .. }
+            | JsStatement::Export { .. }
+            | JsStatement::Empty => {}
+        }
+    }
+    let mut counts = (0, 0);
+    statement(target, &mut counts);
+    counts
 }
 
 /// The verdict `prune_unreferenced_declarators` applies: a binding no scope
