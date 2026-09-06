@@ -2227,7 +2227,8 @@ fn optimize_and_select_javascript_inner<'src>(
             })
             .collect(),
     )
-    .with_emission_peephole(EmissionPeephole::from_config(config));
+    .with_emission_peephole(EmissionPeephole::from_config(config))
+    .with_reprint_spellings(reprint_spellings_enabled(config));
     for candidate in candidate_arena.candidates() {
         let registered = contexts
             .register_plan(candidate.identity().context_id, candidate.options())
@@ -3117,6 +3118,10 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     /// Phase 7a: the peephole every emission passes through before it is
     /// scored; `None` when the text peephole is not configured.
     emission_peephole: Option<EmissionPeephole>,
+    /// Phase 7b: a plan that differs from an emitted one only in the
+    /// printer's fields (`string_quote`, `elide_call_chain_parentheses`)
+    /// is a re-print of that emission's frozen tree, not an emission.
+    reprint_spellings: bool,
 }
 
 impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
@@ -3136,11 +3141,17 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             emissions_attempted: AtomicUsize::new(0),
             reprint_trees: Mutex::new(AHashMap::default()),
             emission_peephole: None,
+            reprint_spellings: false,
         }
     }
 
     fn with_emission_peephole(mut self, peephole: Option<EmissionPeephole>) -> Self {
         self.emission_peephole = peephole;
+        self
+    }
+
+    fn with_reprint_spellings(mut self, reprint_spellings: bool) -> Self {
+        self.reprint_spellings = reprint_spellings;
         self
     }
 
@@ -3181,47 +3192,71 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         if std::env::var_os("LILSCRIPT_EMISSION_OPTIONS").is_some() {
             eprintln!("[emission-context] ctx={context_id}");
         }
-        if reprint_quotes_enabled() {
-            // `IrJsOptions` holds a borrowed set and is not `Hash`; its debug
-            // form is a faithful key and is built once per emission.
-            let erased = format!(
-                "{:?}",
-                crate::codegen_ir_js::IrJsOptions {
-                    string_quote: crate::codegen_ir_js::StringQuote::Double,
-                    ..options
-                }
-            );
-            let cached = self
-                .reprint_trees
-                .lock()
-                .expect("reprint tree cache lock")
-                .get(&(context_id, erased.clone()))
-                .cloned();
-            if let Some(tree) = cached {
-                return Ok(self.scored_text(context_id, reprint_javascript_candidate(&tree, &options)));
-            }
-            let (code, tree) = self.emit_frozen(context_id, module_output, options)?;
-            self.reprint_trees
-                .lock()
-                .expect("reprint tree cache lock")
-                .entry((context_id, erased))
-                .or_insert_with(|| Arc::new(tree));
-            return Ok(self.scored_text(context_id, code));
+        if self.reprint_spellings || reprint_quotes_enabled() {
+            return self
+                .emit_frozen(context_id, module_output, options)
+                .map(|(code, _)| code);
         }
         self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
         let code = self.get(context_id).emit(module_output, options)?;
         Ok(self.scored_text(context_id, code))
     }
 
+    /// The re-print cache key: the plan's options with the printer's
+    /// fields erased (the quote, the call-chain parentheses, the boolean
+    /// spelling: the print twin reads each identical on the cases). `IrJsOptions` holds a borrowed set and is not `Hash`;
+    /// its debug form is a faithful key and is built once per emission.
+    fn reprint_key(context_id: usize, options: &crate::codegen_ir_js::IrJsOptions) -> (usize, String) {
+        (
+            context_id,
+            format!(
+                "{:?}",
+                crate::codegen_ir_js::IrJsOptions {
+                    string_quote: crate::codegen_ir_js::StringQuote::Double,
+                    elide_call_chain_parentheses: false,
+                    compact_boolean_literals: false,
+                    ..*options
+                }
+            ),
+        )
+    }
+
+    /// An emission with its frozen tree. With re-prints on, a plan whose
+    /// erased options were emitted before is a re-print of that tree, and
+    /// every emission through here enters the cache -- the spelling
+    /// families and the later stages share one (phase 7b).
     fn emit_frozen(
         &self,
         context_id: usize,
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
-    ) -> Result<(String, crate::codegen_ir_js::FrozenModuleTree), crate::codegen_js::CodegenError>
+    ) -> Result<(String, Arc<crate::codegen_ir_js::FrozenModuleTree>), crate::codegen_js::CodegenError>
     {
+        let key = (self.reprint_spellings || reprint_quotes_enabled())
+            .then(|| Self::reprint_key(context_id, &options));
+        if let Some(key) = &key {
+            let cached = self
+                .reprint_trees
+                .lock()
+                .expect("reprint tree cache lock")
+                .get(key)
+                .cloned();
+            if let Some(tree) = cached {
+                let code = self.scored_text(context_id, reprint_javascript_candidate(&tree, &options));
+                return Ok((code, tree));
+            }
+        }
         self.emissions_attempted.fetch_add(1, Ordering::Relaxed);
-        self.get(context_id).emit_frozen(module_output, options)
+        let (code, tree) = self.get(context_id).emit_frozen(module_output, options)?;
+        let tree = Arc::new(tree);
+        if let Some(key) = key {
+            self.reprint_trees
+                .lock()
+                .expect("reprint tree cache lock")
+                .entry(key)
+                .or_insert_with(|| Arc::clone(&tree));
+        }
+        Ok((self.scored_text(context_id, code), tree))
     }
 
     fn plans_registered(&self) -> usize {
@@ -10267,6 +10302,16 @@ fn emit_javascript_candidate_frozen(
     Ok((code, tree))
 }
 
+/// Phase 7b: whether spelling-only plans re-print. The toml field wins,
+/// then `LILSCRIPT_REPRINT_SPELLINGS=0|1`; on by default.
+fn reprint_spellings_enabled(config: &ProjectConfig) -> bool {
+    match std::env::var("LILSCRIPT_REPRINT_SPELLINGS").as_deref() {
+        Ok("0") | Ok("false") | Ok("off") => false,
+        Ok("1") | Ok("true") | Ok("on") => true,
+        _ => config.javascript.reprint_spellings.unwrap_or(true),
+    }
+}
+
 fn reprint_quotes_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| std::env::var_os("LILSCRIPT_REPRINT_QUOTES").is_some())
@@ -14268,6 +14313,7 @@ mod tests {
         let contexts = JavaScriptEmissionContexts {
             root_configured_context_id: 0,
             emission_peephole: None,
+            reprint_spellings: false,
             contexts: vec![
                 JavaScriptEmissionContext::new(0, &ir, None, None, false),
                 JavaScriptEmissionContext::new(1, &ir, None, None, false),

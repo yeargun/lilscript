@@ -22501,8 +22501,14 @@ impl LocalNames {
                     let rendered =
                         render_const(value, compact_boolean_literals, StringQuote::Double);
                     let use_count = uses.get(&out).copied().unwrap_or(0);
-                    let inline_cost = rendered.len() * use_count;
-                    let binding_cost = rendered.len() + 7 + use_count;
+                    // The inline-or-bind decision reads the compact spelling's
+                    // length whichever spelling prints: the tree is the same
+                    // under both, so the boolean spelling is a re-print
+                    // (phase 7b); the verbose spelling pays at most a few
+                    // bytes on a literal it would have bound.
+                    let costed_len = render_const(value, true, StringQuote::Double).len();
+                    let inline_cost = costed_len * use_count;
+                    let binding_cost = costed_len + 7 + use_count;
                     let inlined = match (value, numeric_aliases.get(&rendered)) {
                         (ConstValue::Bool(value), None) => {
                             JsExpression::boolean(*value, compact_boolean_literals)

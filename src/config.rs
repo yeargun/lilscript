@@ -1326,6 +1326,14 @@ pub struct JavaScriptConfig {
     /// switch overrides it, so the pool can carry the A/B without editing
     /// every port's toml.
     pub emission_peephole: Option<bool>,
+    /// Phase 7b of the migration: a candidate that differs from an emitted
+    /// one only in the printer's fields (`string_quote`,
+    /// `elide_call_chain_parentheses`, `compact_boolean_literals`) is a
+    /// re-print of that emission's
+    /// tree instead of a second emission. On by default (the print twin
+    /// reads both fields identical on the cases); `false` re-emits.
+    /// `LILSCRIPT_REPRINT_SPELLINGS=0|1` overrides it.
+    pub reprint_spellings: Option<bool>,
     /// Spell `x != null` on a nullable whose present values are always truthy
     /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests
     /// an object for truthiness in about 3.8 ns against 2.6 for `x!==null`
@@ -1456,6 +1464,7 @@ impl Default for JavaScriptConfig {
             local_name_coalescing: true,
             function_scope: None,
             emission_peephole: None,
+            reprint_spellings: None,
             truthy_nullable_checks: None,
             idiom_directed_naming: false,
             iife_private_callee_clusters: true,
