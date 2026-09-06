@@ -161,6 +161,8 @@ one worker; the current profile is under *Measurement facts*.
 
 | 7.22 | the positional struct literal and the inlined class value are `Array` nodes over their field nodes (the named object forms stay text until an object-literal node exists); field defaults as literal nodes; `LILSCRIPT_ATOM_SITES=1` names the source line of every bracketed atom (`#[track_caller]` on `atom`) | **print twin on the cases: `string_quote` 38/38, `compact_boolean_literals` 24/24, `elide_call_chain_parentheses` 11/11 — 7b's three axes proved per option.** markedlil search off byte-identical; cases identical except interprocedural_finite_values in the none lane (+9: the literal's quote now follows the option); tests 1719; pool 292/292; ports identical |
 
+| 7.23 | fleet A/B of `reprint_names` on the pool (`18df6cc`, 27 ports, 20 built in both arms) | **on 370,105 vs off 370,069: +36 over 20 ports — a wash.** remark-gfm −187 (on better), jquerylil +102, mobxlil +54, posthoglil +28, four small ports +1 to +14; twelve ports identical. Emissions with the knob on: markedlil 276 → 263, remark-gfm 544 → 501, posthoglil 1,212 → 1,083 (191 rename re-prints), micromark 59 → 53. The default stays off (the owner's rule: a flip needs a measured win); the compile-time gain is real and the size is noise, which says the three pure naming policies were never where the bytes were — the structural ones (frequency, shadowing, the source hints) are, and those need the tree to own the bind-or-inline and declarator-order decisions (7e) |
+
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
 | commit | step | evidence |
