@@ -28094,6 +28094,12 @@ impl ModuleTree {
                         .or_else(|| static_calls.then(|| pristine_static_call(node)).flatten())
                 });
                 canonical_print_texts(block);
+                if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                    let seen = INT32_FACT_NORMALIZATIONS.load(std::sync::atomic::Ordering::Relaxed);
+                    if seen > 0 {
+                        eprintln!("[shape] int32-fact normalizations seen so far: {seen}");
+                    }
+                }
                 // `LILSCRIPT_RAW_CHAIN=1` (7.86, measured): the text chain over
                 // each raw holder of the print, as the emission had it over
                 // its whole text; wrapped as an assignment so the value stays.
@@ -29018,6 +29024,9 @@ fn pristine_static_call(node: &JsExpression) -> Option<JsExpression> {
     Some(JsExpression::call(method.clone(), rest.iter().cloned()))
 }
 
+/// How many `|0` wrappers over an `INT32`-fact value the prints saw (7.89).
+static INT32_FACT_NORMALIZATIONS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
 /// The chain's canonical leaf syntax, on the print (7.84): `true`/`false`
 /// spelled `!0`/`!1` (in nodes and, lexed, in raw text), and `|0` dropped
 /// from a `.length`, `.indexOf(..)` or `.lastIndexOf(..)` read, an integer
@@ -29075,11 +29084,17 @@ fn canonical_print_leaf(node: &JsExpression) -> Option<JsExpression> {
                 _ => None,
             };
             let integral = match (value.root, property) {
-                (JsExpressionRoot::Member, Some("length")) => true,
+                (JsExpressionRoot::Member, Some("length" | "size")) => true,
                 (JsExpressionRoot::Call, Some("indexOf" | "lastIndexOf")) => true,
                 _ => false,
             };
-            integral.then(|| value.clone())
+            // 7.89 (measured): a value the integer analysis ranged is an
+            // int32 already; `LILSCRIPT_PORTS=int32_facts`.
+            let ranged = value.facts.contains(JsFacts::INT32) && !node.facts.contains(JsFacts::HAS_OBLIGATION);
+            if ranged {
+                INT32_FACT_NORMALIZATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            (integral || (ranged && port_is_enabled("int32_facts"))).then(|| value.clone())
         }
         _ => None,
     }

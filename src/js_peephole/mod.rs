@@ -2946,7 +2946,12 @@ impl LateJavaScriptCleanupPass {
     /// the text fold sees the printed `!0`/`!1`. The five control shapes
     /// stay too (jquerylil +496 without them: the shapes the tree writes and
     /// the ladder's codec-verified rewrites of them are not the same set).
-    pub(crate) const ALL: [Self; 13] = [
+    /// Migration 7.89: `NegatedEqualities` retired -- with the print's
+    /// finishing funded (7.82) the rung and the finishing cover it, and
+    /// the ten pool ports read −38 without it (jquerylil −55, markedlil
+    /// −51, katexlil −26; rehypelil +50, remarklil +43). The chain's fold
+    /// of the same name stays, on every emission.
+    pub(crate) const ALL: [Self; 12] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::BooleanConditionalValues,
@@ -2954,7 +2959,6 @@ impl LateJavaScriptCleanupPass {
         Self::EarlyExitGuards,
         Self::ContinueTailGuards,
         Self::SingleStatementControlBraces,
-        Self::NegatedEqualities,
         Self::NullNormalizedNullableTests,
         Self::OrAssignmentParens,
         Self::ArgumentsLengthCountdownFor,
