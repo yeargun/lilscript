@@ -6847,6 +6847,14 @@ fn finalize_javascript_candidates_with_parallelism(
                 None
             };
             let print_allowance = tree.as_ref().map_or(0, |_| print_beam_allowance());
+            if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!(
+                    "[shape] bridge for context {}: tree {}, ledger remaining {}, allowance {allowance}, print allowance {print_allowance}",
+                    selected.plan_identity.context_id,
+                    if tree.is_some() { "cached" } else { "none" },
+                    codec_budget.remaining()
+                );
+            }
             codec_budget.begin_fair_slice(allowance.min(8).saturating_add(print_allowance));
             let mut print_report = PrintBeamReport::default();
             let cleaned = late_javascript_cleanup_finalists(
@@ -8878,6 +8886,9 @@ fn offer_print_beam(
         return Ok(());
     }
     let Some(unshaped_cost) = codec_budget.compressed_size(unshaped.as_bytes(), cost_model)? else {
+        if trace {
+            eprintln!("[shape] print beam: the ledger has no probe for the unshaped print");
+        }
         return Ok(());
     };
     report.scored += 1;
@@ -8889,6 +8900,9 @@ fn offer_print_beam(
         // keeps its names, exports included).
         if name == "converge" && !tree.options.mangle_identifiers {
             continue;
+        }
+        if trace {
+            eprintln!("[shape] print beam: rung {name} over {} members", members.len());
         }
         let mut proposals = members.clone();
         for (shapes, text, cost) in &members {
@@ -8912,6 +8926,9 @@ fn offer_print_beam(
                 continue;
             }
             let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                if trace {
+                    eprintln!("[shape] print beam: the ledger ran out at rung {name}");
+                }
                 break 'rungs;
             };
             report.scored += 1;

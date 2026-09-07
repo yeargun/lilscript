@@ -1321,6 +1321,12 @@ struct StatementPolicy {
     raw_return_tails: bool,
     /// The option the shapes above honour when they choose braces.
     braceless_control_bodies: bool,
+    /// Migration 7.58: `!(a==b)` built as `a!=b` (`LILSCRIPT_SKIP_PORTS=negated_equalities`).
+    negated_equalities: bool,
+    /// Migration 7.58: one literal boolean arm folded (`boolean_one_arm`).
+    boolean_one_arm: bool,
+    /// Migration 7.59: `o["name"]` built as `o.name` (`member_keys`).
+    member_keys: bool,
 }
 
 fn env_name_list(variable: &'static str) -> Vec<String> {
@@ -1382,6 +1388,9 @@ impl StatementPolicy {
         void_initializers: false,
         declaration_merge: false,
         braceless_control_bodies: false,
+        negated_equalities: false,
+        boolean_one_arm: false,
+        member_keys: false,
     };
 
     /// Every shape is written exactly where the text peephole would have
@@ -1430,6 +1439,17 @@ impl StatementPolicy {
             // The text fold dropped braces whatever the option said, so the
             // port does too where it runs; the option decides where it does not.
             braceless_control_bodies: options.braceless_control_bodies || port("control_braces"),
+            // Off: on every emission the flip read +289 on ten ports (jquerylil
+            // +367, remarklil +89; mobx −128) -- `!(x==null)` shares its bytes
+            // with the `x==null` tests around it. The `negated_equalities` rung
+            // makes the flip a codec-judged print; `LILSCRIPT_PORTS=negated_equalities`
+            // turns the emission-time flip on.
+            negated_equalities: port_off("negated_equalities"),
+            // Off: on every emission the one-arm folds read +232 on ten ports
+            // (remark-gfm +138, jquerylil +129; unified −61). The
+            // `boolean_one_arm` rung offers them as a codec-judged print.
+            boolean_one_arm: port_off("boolean_one_arm"),
+            member_keys: port("member_keys"),
         }
     }
 
@@ -1788,6 +1808,12 @@ fn render(
             };
             Some(format!("{}{}", target.code, direction.spelling()))
         }
+        JsExpressionRoot::PrefixUpdate(direction) => {
+            let [target] = operands else {
+                return None;
+            };
+            Some(format!("{}{}", direction.spelling(), target.code))
+        }
         JsExpressionRoot::New => {
             let [constructor, arguments @ ..] = operands else {
                 return None;
@@ -1937,6 +1963,9 @@ enum JsExpressionRoot {
     /// text fold spelled from `x=x+1|0` (`fold_unit_counter_updates`). The
     /// one operand is the target, a `Name` or `Member`.
     Update(JsUpdate),
+    /// `++x` / `--x` as a value: the loop head's pre-update test
+    /// (migration 7.59, `for(;--x>=0;)` from `while(!0){x--;if(x<0)break;..}`).
+    PrefixUpdate(JsUpdate),
     /// A string literal; the contents live in the emission's literal table
     /// and the quote character is the printer's (`string_quote`).
     Str(Lit),
@@ -1967,6 +1996,7 @@ impl JsExpressionRoot {
             | Self::IntegerNormalization
             | Self::NullNormalized
             | Self::UndefinedTest { .. } => Some(1),
+            Self::PrefixUpdate(_) => Some(1),
             Self::StrictEquality { .. } => Some(2),
             // `Member`'s second operand is the property name, which the
             // grammar makes a child (`MemberExpression . IdentifierName`).
@@ -1991,7 +2021,8 @@ impl JsExpressionRoot {
             Self::Unary(_)
             | Self::IntegerNormalization
             | Self::NullNormalized
-            | Self::UndefinedTest { .. } => 1,
+            | Self::UndefinedTest { .. }
+            | Self::PrefixUpdate(_) => 1,
             Self::Binary(_) | Self::StrictEquality { .. } => 2,
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
@@ -4886,6 +4917,20 @@ impl JsExpression {
                 }
             }
         }
+        // Migration 7.58: `!(a==b)` is `a!=b`, `!(a===b)` is `a!==b`,
+        // `!(x===void 0)` is `x!==void 0` -- each pair are each other's
+        // inverse in the specification, coercion, effects and order
+        // included (an ordering is not, under NaN, so those stay). The text
+        // ladder's NegatedEqualities won 198 proposals on ten ports after
+        // the print beam, all of them this.
+        if operator == JsUnary::Not && StatementPolicy::current().negated_equalities {
+            match operand.root {
+                JsExpressionRoot::Binary(IrBinaryOp::Eq | IrBinaryOp::NotEq)
+                | JsExpressionRoot::StrictEquality { .. }
+                | JsExpressionRoot::UndefinedTest { .. } => return operand.negated_tree(),
+                _ => {}
+            }
+        }
         let root = JsExpressionRoot::Unary(operator);
         let operands = vec![operand];
         Self {
@@ -4897,6 +4942,52 @@ impl JsExpression {
             origin: None,
             facts: JsFacts::NONE,
             operands,
+        }
+    }
+
+    /// The identifier a string literal spells, when it is one: `"name"`
+    /// without escapes, an identifier start then identifier bytes.
+    fn identifier_string_key(&self) -> Option<String> {
+        if !matches!(
+            self.root,
+            JsExpressionRoot::Str(_) | JsExpressionRoot::Atom | JsExpressionRoot::Raw
+        ) || !self.operands.is_empty()
+        {
+            return None;
+        }
+        let code = self.code.as_bytes();
+        let (first, rest) = code.split_first()?;
+        let (last, inner) = rest.split_last()?;
+        if first != last || !matches!(first, b'"' | b'\'') || inner.is_empty() {
+            return None;
+        }
+        if !is_js_identifier_start(inner[0]) || !inner.iter().copied().all(is_js_identifier_byte) {
+            return None;
+        }
+        std::str::from_utf8(inner).ok().map(str::to_string)
+    }
+
+    /// Whether the expression's value is a boolean: a comparison, a
+    /// negation, a boolean literal, or a boolean literal chosen by
+    /// `&&`/`||` on both sides.
+    fn is_boolean_valued(&self) -> bool {
+        match self.root {
+            JsExpressionRoot::Bool(_)
+            | JsExpressionRoot::Unary(JsUnary::Not)
+            | JsExpressionRoot::UndefinedTest { .. }
+            | JsExpressionRoot::StrictEquality { .. }
+            | JsExpressionRoot::Binary(
+                IrBinaryOp::Eq
+                | IrBinaryOp::NotEq
+                | IrBinaryOp::Less
+                | IrBinaryOp::LessEq
+                | IrBinaryOp::Greater
+                | IrBinaryOp::GreaterEq,
+            ) => true,
+            JsExpressionRoot::Binary(IrBinaryOp::And | IrBinaryOp::Or) => {
+                self.operands.len() == 2 && self.operands.iter().all(Self::is_boolean_valued)
+            }
+            _ => false,
         }
     }
 
@@ -4990,6 +5081,32 @@ impl JsExpression {
             }
             if policy.boolean_arms && then_false && else_true {
                 return Self::unary("!", condition);
+            }
+            // Migration 7.58, one literal arm (`fold_boolean_conditional_values`):
+            // `c?!0:x` is `!!c||x`, `c?!1:x` is `!c&&x`, `c?x:!0` is `!c||x`,
+            // `c?x:!1` is `!!c&&x`; the coercion keeps the literal's boolean
+            // where the condition's own value would have leaked, and drops
+            // where the condition is already a boolean.
+            if policy.boolean_one_arm && (then_true || then_false || else_true || else_false) {
+                let boolean = |condition: Self| {
+                    if condition.is_boolean_valued() {
+                        condition
+                    } else {
+                        Self::unary("!", Self::unary("!", condition))
+                    }
+                };
+                if then_true {
+                    return Self::binary(IrBinaryOp::Or, boolean(condition), else_value);
+                }
+                if then_false {
+                    return Self::binary(IrBinaryOp::And, Self::unary("!", condition), else_value);
+                }
+                if else_true {
+                    return Self::binary(IrBinaryOp::Or, Self::unary("!", condition), then_value);
+                }
+                if else_false {
+                    return Self::binary(IrBinaryOp::And, boolean(condition), then_value);
+                }
             }
             // `a?a:b` is `a||b` when the test is the name read again.
             let same_name = match (condition.root, then_value.root) {
@@ -5143,6 +5260,21 @@ impl JsExpression {
         }
     }
 
+    fn prefix_update(target: Self, direction: JsUpdate) -> Self {
+        let operands = vec![target];
+        Self {
+            code: render(JsExpressionRoot::PrefixUpdate(direction), &operands, JsRenderOptions::UNUSED)
+                .expect("render covers PrefixUpdate"),
+            ungrouped: None,
+            precedence: JsPrecedence::Unary,
+            root: JsExpressionRoot::PrefixUpdate(direction),
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     fn call(callee: Self, args: impl IntoIterator<Item = Self>) -> Self {
         // operands[0] is the callee; operands[1..] are the arguments in order.
         let mut operands = vec![callee];
@@ -5179,6 +5311,13 @@ impl JsExpression {
     }
 
     fn index(object: Self, index: Self, elide_call_chain_parentheses: bool) -> Self {
+        // Migration 7.59: `o["name"]` is `o.name` (`canonicalize_leaf_syntax`):
+        // a string key that is an identifier name is a member access.
+        if StatementPolicy::current().member_keys {
+            if let Some(name) = index.identifier_string_key() {
+                return Self::member(object, &name, elide_call_chain_parentheses);
+            }
+        }
         let root = JsExpressionRoot::Index;
         let options = JsRenderOptions {
             elide_call_chain_parentheses,
@@ -5382,6 +5521,7 @@ impl JsExpression {
             }
             JsExpressionRoot::Assign => Self::assign(child(0), child(1)),
             JsExpressionRoot::Update(direction) => Self::update(child(0), direction),
+            JsExpressionRoot::PrefixUpdate(direction) => Self::prefix_update(child(0), direction),
             JsExpressionRoot::Array => {
                 Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
@@ -12181,16 +12321,32 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let result = self.emit_function_body(root, String::new(), true, false, &mut returned);
         self.loop_captured_closures = restored_loop_captures;
         result?;
-        body.push_statement(JsStatement::Return {
-            value: Some(JsExpression::raw(returned.into_string(), JsPrecedence::Primary)),
-        });
+        // Migration 7.60: the returned root and the wrapper are closure
+        // trees, like the named cluster's (the private cluster was raw text:
+        // 12,787 of micromark's 94,837 bytes, out of every shape's and the
+        // renamer's reach).
+        let returned_value = match returned.statements.as_mut_slice() {
+            [only] if !only.dropped_semicolon => match &only.statement {
+                JsStatement::Function { head, body, .. } => {
+                    let rendered = self.render_closure_statement(head.clone(), body.clone());
+                    Some(self.closure_node(rendered, JsPrecedence::Primary))
+                }
+                JsStatement::Expression { value } => Some(value.clone()),
+                _ => None,
+            },
+            _ => None,
+        };
+        let value = returned_value
+            .unwrap_or_else(|| JsExpression::raw(returned.into_string(), JsPrecedence::Primary));
+        body.push_statement(JsStatement::Return { value: Some(value) });
+        let mut head = JsHead::default();
+        head.push_text("function()");
+        let wrapper = self.render_closure_statement(head, JsFunctionBody::Block(body));
+        let callee = self.closure_node(wrapper, JsPrecedence::Comma);
         out.push_statement(JsStatement::Binding {
             keyword: Some("var "),
             name: outer,
-            value: JsExpression::raw(
-                format!("(function(){{{}}})()", body.into_braced_body()),
-                JsPrecedence::Call,
-            ),
+            value: JsExpression::call(callee, []),
             bind: None,
         });
         Ok(())
@@ -26558,6 +26714,12 @@ pub(crate) struct TreeShapes {
     pub(crate) negated_equalities: bool,
     /// Migration 7.57: `a===a` is `a==a` (`SameBindingStrictEquality`).
     pub(crate) same_binding_equality: bool,
+    /// Migration 7.59: an infinite loop's leading unit update and break
+    /// guard become the `for` head's test (`UnitCounterUpdates`).
+    pub(crate) loop_bounds: bool,
+    /// Migration 7.59: one literal boolean arm folded to `&&`/`||`
+    /// (`BooleanConditionalValues`), as a print.
+    pub(crate) boolean_one_arm: bool,
     /// Migration 7.55: the emitter's own return-tail shapes (`shape_block`
     /// with `return_tails`) run again on the finished tree, then the guard
     /// suffix `if(c)return a;E;return b` is `return c?a:(E,b)` and the
@@ -26578,7 +26740,7 @@ impl TreeShapes {
     /// The print ladder's rungs in order, each adding one shape to the
     /// incumbent's set; the rename last, since it re-spells what the others
     /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.
-    pub(crate) const RUNG_COUNT: usize = 9;
+    pub(crate) const RUNG_COUNT: usize = 11;
 
     pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
         let rungs: [(&'static str, fn(&mut Self)); Self::RUNG_COUNT] = [
@@ -26587,6 +26749,8 @@ impl TreeShapes {
             ("negated_arms", |shapes| shapes.negated_arms = true),
             ("negated_equalities", |shapes| shapes.negated_equalities = true),
             ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
+            ("loop_bounds", |shapes| shapes.loop_bounds = true),
+            ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
             ("return_tails", |shapes| shapes.return_tails = true),
             ("exit_guards", |shapes| shapes.exit_guards = true),
             ("rebrace", |shapes| shapes.rebrace = true),
@@ -26609,6 +26773,141 @@ impl ModuleTree {
     /// holds (the bodies are rewritten against a snapshot of the map, since
     /// the map is borrowed mutably while they are).
     fn reshape(&mut self, shapes: TreeShapes) {
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            let closures = self.closures.borrow();
+            let (blocks, concise) = closures.values().fold((0usize, 0usize), |(blocks, concise), (_, body)| match body {
+                JsFunctionBody::Block(_) => (blocks + 1, concise),
+                _ => (blocks, concise + 1),
+            });
+            let mut guards = 0usize;
+            let mut count_guards = |block: &JsBlock| {
+                for pair in block.statements.windows(2) {
+                    if matches!(pair[0].statement, JsStatement::If { else_branch: None, .. })
+                        && matches!(pair[1].statement, JsStatement::Return { value: Some(_) })
+                    {
+                        guards += 1;
+                    }
+                }
+            };
+            count_guards(&self.block);
+            for (_, body) in closures.values() {
+                if let JsFunctionBody::Block(block) = body {
+                    count_guards(block);
+                }
+            }
+            // Coverage: the bytes the tree does not own (`Raw` nodes, text
+            // conditions, concise text bodies) against the print's.
+            let mut raw_bytes = 0usize;
+            let mut raw_nodes = 0usize;
+            let mut raw_closures = 0usize;
+            let mut count_raw = |node: &JsExpression| {
+                fn walk(node: &JsExpression, raw_bytes: &mut usize, raw_nodes: &mut usize, raw_closures: &mut usize) {
+                    if node.root == JsExpressionRoot::Raw {
+                        *raw_bytes += node.code.len();
+                        *raw_nodes += 1;
+                        if node.code.contains("=>") || node.code.contains("function") {
+                            *raw_closures += 1;
+                        }
+                        return;
+                    }
+                    for operand in &node.operands {
+                        walk(operand, raw_bytes, raw_nodes, raw_closures);
+                    }
+                }
+                walk(node, &mut raw_bytes, &mut raw_nodes, &mut raw_closures);
+            };
+            let mut text_conditions = 0usize;
+            let mut concise_text = 0usize;
+            fn walk_block(block: &JsBlock, count_raw: &mut dyn FnMut(&JsExpression), text_conditions: &mut usize, concise_text: &mut usize) {
+                for emitted in &block.statements {
+                    if let Some(value) = statement_value(&emitted.statement) {
+                        count_raw(value);
+                    }
+                    match &emitted.statement {
+                        JsStatement::If { condition_tree: None, .. } => *text_conditions += 1,
+                        JsStatement::Declarators { declarators, .. } => {
+                            for declarator in declarators {
+                                if let Some(value) = &declarator.value {
+                                    count_raw(value);
+                                }
+                                if let Some(function) = &declarator.function {
+                                    match &function.as_ref().1 {
+                                        JsFunctionBody::Block(body) => walk_block(body, count_raw, text_conditions, concise_text),
+                                        JsFunctionBody::Concise(_) => *concise_text += 1,
+                                        JsFunctionBody::ConciseNode(node) => count_raw(node),
+                                    }
+                                }
+                            }
+                        }
+                        JsStatement::Function { body: JsFunctionBody::Concise(_), .. } => *concise_text += 1,
+                        JsStatement::Function { body: JsFunctionBody::ConciseNode(node), .. } => count_raw(node),
+                        _ => {}
+                    }
+                    let mut child = |block: &JsBlock| walk_block(block, count_raw, text_conditions, concise_text);
+                    let mut statement = emitted.statement.clone();
+                    for_each_child_block(&mut statement, &mut |block: &mut JsBlock| child(block));
+                }
+            }
+            walk_block(&self.block, &mut count_raw, &mut text_conditions, &mut concise_text);
+            for (_, body) in closures.values() {
+                match body {
+                    JsFunctionBody::Block(block) => walk_block(block, &mut count_raw, &mut text_conditions, &mut concise_text),
+                    JsFunctionBody::Concise(_) => concise_text += 1,
+                    JsFunctionBody::ConciseNode(node) => count_raw(node),
+                }
+            }
+            eprintln!(
+                "[shape] reshape {shapes:?}: module block {} statements, closures {} ({blocks} blocks, {concise} concise), {guards} guard+return pairs at top level of blocks; raw nodes {raw_nodes} ({raw_bytes} bytes, {raw_closures} holding closures), {text_conditions} text conditions, {concise_text} concise text bodies",
+                self.block.statements.len(),
+                closures.len()
+            );
+            if std::env::var_os("LILSCRIPT_SHAPE_RAW").is_some() {
+                let mut raws = Vec::<String>::new();
+                fn collect(node: &JsExpression, raws: &mut Vec<String>) {
+                    if node.root == JsExpressionRoot::Raw {
+                        raws.push(node.code.clone());
+                        return;
+                    }
+                    for operand in &node.operands {
+                        collect(operand, raws);
+                    }
+                }
+                let mut visit = |block: &JsBlock| {
+                    fn walk(block: &JsBlock, raws: &mut Vec<String>) {
+                        for emitted in &block.statements {
+                            if let Some(value) = statement_value(&emitted.statement) {
+                                collect(value, raws);
+                            }
+                            if let JsStatement::Declarators { declarators, .. } = &emitted.statement {
+                                for declarator in declarators {
+                                    if let Some(value) = &declarator.value {
+                                        collect(value, raws);
+                                    }
+                                    if let Some(function) = &declarator.function {
+                                        if let JsFunctionBody::Block(body) = &function.as_ref().1 {
+                                            walk(body, raws);
+                                        }
+                                    }
+                                }
+                            }
+                            let mut statement = emitted.statement.clone();
+                            for_each_child_block(&mut statement, &mut |child: &mut JsBlock| walk(child, raws));
+                        }
+                    }
+                    walk(block, &mut raws);
+                };
+                visit(&self.block);
+                for (_, body) in closures.values() {
+                    if let JsFunctionBody::Block(block) = body {
+                        visit(block);
+                    }
+                }
+                raws.sort_by_key(|raw| std::cmp::Reverse(raw.len()));
+                for raw in raws.iter().take(12) {
+                    eprintln!("[shape] raw {} bytes: {}", raw.len(), raw.chars().take(90).collect::<String>());
+                }
+            }
+        }
         let snapshot = RefCell::new(self.closures.borrow().clone());
         let mut census = BindCensus::default();
         census.block(&self.block, &self.closures);
@@ -26652,6 +26951,20 @@ impl ModuleTree {
                 }
                 if shapes.same_binding_equality {
                     rewrite_block_expressions(block, &mut loosen_same_binding_equality);
+                }
+                if shapes.loop_bounds {
+                    bound_infinite_loops(block);
+                }
+                if shapes.boolean_one_arm {
+                    // `conditional()` folds under the installed policy.
+                    let previous = StatementPolicy::current();
+                    let mut folding = previous;
+                    folding.conditional_shapes = true;
+                    folding.boolean_arms = true;
+                    folding.boolean_one_arm = true;
+                    folding.install();
+                    rewrite_block_expressions(block, &mut fold_one_arm_conditional);
+                    previous.install();
                 }
                 // The module block ends the module; a closure body its
                 // function (the emitter's `shape_block` contexts).
@@ -26933,6 +27246,18 @@ fn for_each_child_block(statement: &mut JsStatement, visit: &mut dyn FnMut(&mut 
             ..
         } => visit(body),
         JsStatement::Class { members, .. } => visit(members),
+        // `let f=a=>{..},g=b=>{..}`: the declarator carries the function
+        // (markedlil's finalist is 19 module statements, one of them
+        // hundreds of these -- found at 7.58, the return-tail rung idle).
+        JsStatement::Declarators { declarators, .. } => {
+            for declarator in declarators.iter_mut() {
+                if let Some(function) = &mut declarator.function {
+                    if let JsFunctionBody::Block(body) = &mut function.as_mut().1 {
+                        visit(body);
+                    }
+                }
+            }
+        }
         _ => {}
     }
 }
@@ -26964,22 +27289,42 @@ fn statements_return_value(statements: &[EmittedStatement]) -> Option<JsExpressi
 /// `fold_guard_return_expression_suffixes`, `fold_expression_return_branches`).
 fn fused_return_tail(tail: &[EmittedStatement]) -> Option<JsExpression> {
     let (guard, rest) = tail.split_first()?;
+    let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
     let JsStatement::If {
-        condition_tree: Some(condition),
+        condition,
+        condition_tree,
         then_branch,
         else_branch,
-        ..
     } = &guard.statement
     else {
         return None;
     };
-    let then_value = statements_return_value(&then_branch.block.statements)?;
+    let Some(condition) = condition_tree else {
+        if trace && then_branch.block.statements.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
+            eprintln!("[shape] return tail refused: no condition tree for `{condition}`");
+        }
+        return None;
+    };
+    let Some(then_value) = statements_return_value(&then_branch.block.statements) else {
+        if trace && then_branch.block.statements.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
+            eprintln!("[shape] return tail refused: then-branch `{}` is not expressions then a return", then_branch.block.clone().into_string().chars().take(80).collect::<String>());
+        }
+        return None;
+    };
     let else_value = match else_branch {
         Some(else_branch) if rest.is_empty() => {
             statements_return_value(&else_branch.block.statements)?
         }
         Some(_) => return None,
-        None => statements_return_value(rest)?,
+        None => match statements_return_value(rest) {
+            Some(value) => value,
+            None => {
+                if trace && rest.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
+                    eprintln!("[shape] return tail refused: suffix {:?} after `{condition}`", rest.iter().map(|emitted| statement_kind_for_trace(&emitted.statement)).collect::<Vec<_>>());
+                }
+                return None;
+            }
+        },
     };
     Some(JsExpression::conditional(
         condition.clone(),
@@ -27010,6 +27355,144 @@ fn fuse_return_tails(block: &mut JsBlock) {
             dropped_semicolon,
         });
         settle_block_tail(block, false);
+    }
+}
+
+/// A conditional with one literal boolean arm, rebuilt so `conditional()`
+/// folds it under the installed policy (the `boolean_one_arm` rung).
+fn fold_one_arm_conditional(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Conditional {
+        return None;
+    }
+    let [condition, then_value, else_value] = node.operands.as_slice() else {
+        return None;
+    };
+    let literal = |value: &JsExpression| is_true_literal(&value.code) || is_false_literal(&value.code);
+    if !(literal(then_value) || literal(else_value)) {
+        return None;
+    }
+    let rebuilt = JsExpression::conditional(condition.clone(), then_value.clone(), else_value.clone());
+    (rebuilt.root != JsExpressionRoot::Conditional).then_some(rebuilt)
+}
+
+/// How many times `bind` is read below `node`.
+fn bind_reads(node: &JsExpression, bind: Bind) -> usize {
+    let here = usize::from(node.root == JsExpressionRoot::Name(bind));
+    here + node.operands.iter().map(|operand| bind_reads(operand, bind)).sum::<usize>()
+}
+
+/// `condition` with its one read of `bind` replaced by `replacement`.
+fn replace_bind_read(node: &JsExpression, bind: Bind, replacement: &JsExpression) -> JsExpression {
+    if node.root == JsExpressionRoot::Name(bind) {
+        return replacement.clone();
+    }
+    if node.operands.is_empty() {
+        return node.clone();
+    }
+    let children = node
+        .operands
+        .iter()
+        .map(|operand| replace_bind_read(operand, bind, replacement))
+        .collect::<Vec<_>>();
+    node.rebuilt_with(JsRenderOptions::UNUSED, &|index| children[index].clone())
+}
+
+/// `while(!0){x--;if(x<0)break;S}` is `for(;--x>=0;){S}` and
+/// `for(;;){x++;if(x>=n)break;S}` is `for(;++x<n;){S}`
+/// (`fold_while_true_unit_increment_bounds`): an infinite loop whose body
+/// begins with a unit update of a local and a break guard that reads the
+/// local once and nothing else it writes; the guard's negation with the
+/// prefix update in the read's place is the loop's test. A `continue` in
+/// `S` reaches the update either way; a `break` leaves either way.
+fn bound_infinite_loops(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut bound_infinite_loops);
+        let JsStatement::Loop {
+            head,
+            body,
+            do_condition: None,
+            ..
+        } = &mut emitted.statement
+        else {
+            continue;
+        };
+        let infinite = match head {
+            JsLoopHead::For {
+                initializer: None,
+                condition: None,
+                update: None,
+                ..
+            } => true,
+            JsLoopHead::While { condition, .. } => is_true_literal(condition),
+            _ => false,
+        };
+        if !infinite || body.block.statements.len() < 2 {
+            if infinite && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!("[shape] loop bound refused: short body");
+            }
+            continue;
+        }
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            eprintln!(
+                "[shape] loop bound candidate: {} then {}",
+                statement_kind_for_trace(&body.block.statements[0].statement),
+                statement_kind_for_trace(&body.block.statements[1].statement)
+            );
+        }
+        let (bind, direction) = match &body.block.statements[0].statement {
+            JsStatement::Expression { value } => match (value.root, value.operands.first()) {
+                (JsExpressionRoot::Update(direction), Some(target)) => match target.root {
+                    JsExpressionRoot::Name(bind) => (bind, direction),
+                    _ => continue,
+                },
+                _ => continue,
+            },
+            _ => continue,
+        };
+        let JsStatement::If {
+            condition_tree: Some(guard),
+            then_branch,
+            else_branch: None,
+            ..
+        } = &body.block.statements[1].statement
+        else {
+            continue;
+        };
+        if !matches!(
+            then_branch.block.statements.as_slice(),
+            [only] if matches!(only.statement, JsStatement::Break)
+        ) {
+            continue;
+        }
+        let JsExpressionRoot::Binary(
+            IrBinaryOp::Less | IrBinaryOp::LessEq | IrBinaryOp::Greater | IrBinaryOp::GreaterEq,
+        ) = guard.root
+        else {
+            continue;
+        };
+        if bind_reads(guard, bind) != 1 || expression_has_closure(guard) {
+            continue;
+        }
+        let target = body.block.statements[0]
+            .statement
+            .clone();
+        let JsStatement::Expression { value } = target else {
+            continue;
+        };
+        let target = value.operands[0].clone();
+        let test = replace_bind_read(
+            &guard.clone().negated_tree(),
+            bind,
+            &JsExpression::prefix_update(target, direction),
+        );
+        *head = JsLoopHead::For {
+            initializer: None,
+            condition: Some(test.clone().into_minimal()),
+            condition_tree: Some(test),
+            update: None,
+        };
+        body.block.statements.drain(0..2);
+        settle_block_tail(&mut body.block, false);
     }
 }
 
