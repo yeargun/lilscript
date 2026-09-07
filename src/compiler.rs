@@ -6901,6 +6901,24 @@ fn finalize_javascript_candidates_with_parallelism(
             codec_budget.end_fair_slice();
             print_reports.push((selected.plan_identity.context_id, print_report));
             let cleaned = cleaned?;
+            // Migration 7.93: where a print is carried, the text finalists are
+            // not finished -- measured byte-identical on the ten pool ports
+            // with the retirements of 7.89–7.91 in place: the print's
+            // finished spelling is the artifact in every beamed context.
+            // `LILSCRIPT_TEXT_FINISH=1` finishes them again, for the A/B.
+            let text_finish = std::env::var("LILSCRIPT_TEXT_FINISH").is_ok_and(|value| value == "1");
+            let cleaned = if !text_finish && print_report.carried.is_some() {
+                let carried_at = print_report.carried.expect("checked");
+                let kept = cleaned
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(offset, candidate)| (offset == carried_at).then_some(candidate))
+                    .collect::<Vec<_>>();
+                print_report.carried = Some(0);
+                kept
+            } else {
+                cleaned
+            };
             // Finish each cleanup spelling and keep the one that ends smallest.
             // The cleanup ranked them by what they cost before the remapping,
             // and the remapping is not monotone in that cost.
