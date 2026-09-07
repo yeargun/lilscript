@@ -6907,7 +6907,15 @@ fn finalize_javascript_candidates_with_parallelism(
             // finished spelling is the artifact in every beamed context.
             // `LILSCRIPT_TEXT_FINISH=1` finishes them again, for the A/B.
             let text_finish = std::env::var("LILSCRIPT_TEXT_FINISH").is_ok_and(|value| value == "1");
-            let cleaned = if !text_finish && print_report.carried.is_some() {
+            // The hedge: a print that does not lead before finishing (the
+            // small cases' ties) keeps the text finalist finished beside it.
+            let print_leads = print_report.carried.is_some_and(|at| {
+                cleaned
+                    .get(at)
+                    .zip(cleaned.first())
+                    .is_some_and(|(print, text)| print.transfer_cost <= text.transfer_cost)
+            });
+            let cleaned = if !text_finish && print_leads {
                 let carried_at = print_report.carried.expect("checked");
                 let kept = cleaned
                     .into_iter()
