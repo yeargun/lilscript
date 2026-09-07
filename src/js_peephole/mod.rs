@@ -2951,10 +2951,15 @@ impl LateJavaScriptCleanupPass {
     /// the ten pool ports read −38 without it (jquerylil −55, markedlil
     /// −51, katexlil −26; rehypelil +50, remarklil +43). The chain's fold
     /// of the same name stays, on every emission.
-    pub(crate) const ALL: [Self; 12] = [
+    /// 7.90: `SameBindingStrictEquality` retired too (+6 on ten ports
+    /// without it: mobxlil +2, jquerylil +4 -- the rung `same_binding_equality`
+    /// and the finishing cover it).
+    /// 7.90: `BooleanConditionalValues` retired: −174 on ten ports without
+    /// it (micromarklil −125, rehypelil −74, remarklil −18; katexlil +26,
+    /// jquerylil +14) -- 7.50's rehypelil +106 was the unfunded print's.
+    pub(crate) const ALL: [Self; 10] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
-        Self::BooleanConditionalValues,
         Self::UnitCounterUpdates,
         Self::EarlyExitGuards,
         Self::ContinueTailGuards,
@@ -2963,7 +2968,6 @@ impl LateJavaScriptCleanupPass {
         Self::OrAssignmentParens,
         Self::ArgumentsLengthCountdownFor,
         Self::CanonicalLeafSyntax,
-        Self::SameBindingStrictEquality,
     ];
 
     /// The ladder as it was before 7.50, for an A/B
