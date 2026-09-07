@@ -8865,6 +8865,16 @@ struct PrintBeamReport {
     selected: bool,
     /// The carried print's position among the returned finalists (7.62).
     carried: Option<usize>,
+    /// Migration 7.78: the least-shaped member (the first rung's best), by
+    /// the hash of its text, for `LILSCRIPT_PRINT_CARRY`.
+    least_shaped: Option<u64>,
+}
+
+fn text_hash(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// `LILSCRIPT_PRINT_BEAM=<n>`: how many prints the beam carries between
@@ -8970,6 +8980,7 @@ fn offer_print_beam(
         }
     }
     let mut members = vec![(TreeShapes::default(), unshaped, unshaped_cost)];
+    let mut first_rung = true;
     'rungs: for (name, add) in TreeShapes::ladder() {
         // The renamer runs only where the plan mangles identifiers -- the
         // same guard the search's rename re-prints have (a readable build
@@ -8994,7 +9005,20 @@ fn offer_print_beam(
             // `LILSCRIPT_SHAPE_DUMP=<path>` keeps a rejected print.
             if !valid(&printed) {
                 if trace {
-                    eprintln!("[shape] rung {name}: rejected by the parser");
+                    let reason = analyze_generated_javascript(&printed)
+                        .err()
+                        .map(|error| format!("analyzer: {error}"))
+                        .or_else(|| admission.validate(&printed).err().map(|error| format!("admission: {error}")))
+                        .or_else(|| {
+                            validate_generated_javascript_with_standard_parser(&printed)
+                                .err()
+                                .map(|error| format!("parser: {error}"))
+                        })
+                        .unwrap_or_default();
+                    eprintln!(
+                        "[shape] rung {name}: rejected ({})",
+                        reason.chars().take(300).collect::<String>()
+                    );
                 }
                 if let Ok(path) = std::env::var("LILSCRIPT_SHAPE_DUMP") {
                     let _ = std::fs::write(format!("{path}.{name}.rejected.js"), &printed);
@@ -9019,6 +9043,23 @@ fn offer_print_beam(
         proposals.sort_by(|left, right| (left.2, left.1.len()).cmp(&(right.2, right.1.len())));
         proposals.truncate(width);
         members = proposals;
+        // 7.78: the first rung's best is the least-shaped print; the text
+        // finishing decides the other shapes site by site where it is the
+        // one carried (`LILSCRIPT_PRINT_CARRY=collapse|both`), so it joins
+        // the cleanup beam whatever the later rungs make of it.
+        if first_rung {
+            first_rung = false;
+            if let Some((_, text, cost)) = members.first() {
+                report.least_shaped = Some(text_hash(text));
+                if !beam.iter().any(|existing| existing.code == *text) {
+                    beam.push(CleanupCandidate {
+                        code: text.clone(),
+                        cost: *cost,
+                        printed: true,
+                    });
+                }
+            }
+        }
     }
     report.best = members.iter().map(|member| member.2).min();
     // Migration 7.61: the emission had the canonical peephole (the emission
@@ -10155,20 +10196,33 @@ fn late_javascript_cleanup_finalists(
     // that would level it. The best print is carried as one more finalist
     // whatever its rank, gets the same remaps and cleanup as the others, and
     // the finished ranking decides. `LILSCRIPT_PRINT_FINALIST=0` turns this off.
-    let carried_print = if beam_printed
-        && std::env::var("LILSCRIPT_PRINT_FINALIST").map_or(true, |value| value != "0")
-    {
-        beam.iter()
-            .filter(|candidate| candidate.printed)
-            .min_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())))
-            .map(|candidate| candidate.code.clone())
-    } else {
-        None
-    };
+    // 7.78: `LILSCRIPT_PRINT_CARRY=best` (the cheapest print, the default),
+    // `collapse` (the least-shaped member) or `both`.
+    let carry_mode = std::env::var("LILSCRIPT_PRINT_CARRY").unwrap_or_else(|_| "best".to_string());
+    let mut carried_prints = Vec::<String>::new();
+    if beam_printed && std::env::var("LILSCRIPT_PRINT_FINALIST").map_or(true, |value| value != "0") {
+        if carry_mode != "collapse" {
+            carried_prints.extend(
+                beam.iter()
+                    .filter(|candidate| candidate.printed)
+                    .min_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())))
+                    .map(|candidate| candidate.code.clone()),
+            );
+        }
+        if carry_mode != "best" {
+            if let Some(least) = print_report.as_deref().and_then(|report| report.least_shaped) {
+                carried_prints.extend(
+                    beam.iter()
+                        .find(|candidate| candidate.printed && text_hash(&candidate.code) == least)
+                        .map(|candidate| candidate.code.clone()),
+                );
+            }
+        }
+    }
 
     let mut finalists = Vec::new();
     for cleaned in beam.into_iter() {
-        let forced = carried_print.as_deref() == Some(cleaned.code.as_str());
+        let forced = carried_prints.iter().any(|carried| *carried == cleaned.code);
         if finalists.len() >= keep.max(1) && !forced {
             continue;
         }
