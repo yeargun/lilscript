@@ -231,6 +231,7 @@ one worker; the current profile is under *Measurement facts*.
 | 7.79 | **After the collapse rung the print stands 15 behind its emission (markedlil; 214 before 7.78).** Four print-side steps, all in the collapse family: (1) the closure inliner's identifier scans lex the text (`identifiers_in`, `text_mentions_identifier`) -- a byte scan read a string's `\n` as an identifier `n`, and 56 closures on markedlil were refused as capturing one; (2) a raw value (a host call) is collapsible into its one read under the first-leaf rule, which keeps its evaluation point whatever the value is (closures stay the inliner's); (3) `x=E;use(x)` as an expression statement collapses like the binding form; (4) `var ..,x,..;x=E` absorbs the assignment (`fold_uninitialized_var_into_any_assign`), the compound form refused as the chain refuses it. Then a rung `expression_bodies` (an arrow's block of expression statements and a returned value as the sequence, `fold_expression_bodies`' arrow case; a sequence body keeps its parentheses in the concise render): it loses on markedlil and the beam drops it. Measured on b81 without a rebuild: `LILSCRIPT_PORTS=concise_node` **+64** (stays off), `LILSCRIPT_PRINT_CARRY=collapse` +1 and `both` +10 (`best` stays), the text reorder fold skipped −9 but not byte-identical (the render-time spelling does not reach a module-level block's `var`; the fold stays), NegatedEqualities off **+20** (was +122 on b78). **Measured: b82 vs b81 −64** (markedlil −47, posthoglil −18, eight ports byte-identical); **b83 vs b82 byte-identical**; **−666 against the baseline**; tests 1,584; probe 22/22; lanes identical (one case −2); pool 292/292; wall 394.0 s. |
 | 7.80 | **Two parity rewrites that lose bytes, parked.** (1) An assignment moved into its first read where other reads remain (`fold_sequence_assignments_into_first_use`): on adjacent statements and a statement's own comma it costs the collapse member +41 on markedlil (`(e=c(e,r)).href=t` breaks the run the codec had); the text fold only touches sequences already inside parentheses, so the tree's form is the nested comma only (and the sequence bodies the `expression_bodies` rung makes). (2) `+x|0` spelled `x|0` (`IntegerNormalization` over a unary plus; ToInt32 begins with ToNumber, so always sound). Both fire a handful of times per print and **b85 vs b83 reads +42** (markedlil +47, unifiedlil −5): five dropped pluses and one move, fewer raw bytes, worse Brotli -- the noise floor, on the wrong side. Off by default behind `LILSCRIPT_PORTS=first_use,unary_plus`; b86 is b83's bytes (markedlil 9,183; lanes identical; tests 1,584; probe 22/22; pool 292/292). |
 | 7.81 | **The census lexes; two more parity rewrites parked; where the print really loses.** (1) The reshape's `BindCensus::text` lexes an opaque text (the emitter's own keeps its byte scan, its policies were measured with it): a string's or a regex's contents (`tableCell`, `Aa`, `CDATA`) no longer make spellings unsafe -- 323 → 202 unsafe spellings on markedlil, 369 → 249 on remark-gfm; the unsafe *binds* stay (165 on remark-gfm: the raw holders name real variables), bytes unchanged. (2) `A?X:B?X:Y` → `(A||B)?X:Y` (`fold_common_conditional_arms`) and `x=E;if(x)` → `if(x=E)` on the print: **b88 vs b86 +45** (markedlil +47 again), parked behind `LILSCRIPT_PORTS=common_arms,assignment_guards`. (3) A traced fleet run (b83) gives the print's standing per port at the finish: ahead on unifiedlil (−135..−214) and at parity on katexlil, mixed on markedlil and posthoglil, behind by 30–110 on mobxlil and micromarklil, 138 on remarklil, 218–352 on remark-gfm, 237–443 on jquerylil; the unshaped print's gap to its emission (the chain's work) is 8 on katexlil, 66–143 on unifiedlil/markedlil, 519–807 on micromark/mobx/remark-gfm, 1,638 on jquerylil, 3,261 on remarklil. The fold census over the same run ranks what the print lacks: `conditional_return_tails` 1,402 fires, `negated_equalities` 900, `guard_return_expression_suffixes` 718, `uninitialized_var_into_any_assign` 666, `boolean_conditional_values` 636, `single_statement_control_braces` 433, `common_conditional_arms` 412, `single_use_if_assigns` 341, `prototype_tables_to_classes` (G12) 329, `int32_coercions` (G6) 297. (4) `LILSCRIPT_PRINT_BASE=chain` (the beam from a chain-shaped print, every chain rung applied unconditionally as the chain does): the base lands within 45 of the emission on markedlil, but the finished print is worse (9,264 vs 9,249; remark-gfm 10,621 vs 10,603) -- the finishing's ladder already re-applies those shapes on the print; what it cannot do is the question. On remark-gfm the finished print keeps `if(..){..;return d}a.exit(e);return b(c)` where the text has `return k(c)&&h<j?(..):(..)` -- ladder-shaped residue -- and the timing says `rename_starved` 9: the carried print is finished last, on a ledger the text finalists have spent. b89 is b86's bytes (lanes identical; tests 1,584). |
+| 7.82 | **7e, the print's finishing funded: −277 on the fleet.** The carried print is finished last, on whatever the text finalists left of the candidate's ledger, and its finishing has the most to do (every ladder pass proposes on it, every remap is live). With the ledger pinned at 4,096 probes (`LILSCRIPT_TERMINAL_PROBES`) the print finished ahead on both local ports (remark-gfm 10,327 vs 10,366; markedlil 9,157 vs 9,208) -- ladder-shaped residue in the finished print was starvation, not a missing rung. Shipped: `LILSCRIPT_PRINT_FINISH_LEDGER=<n>` extends the ledger by `n` probes for the carried print's finishing alone (`TerminalCodecProbeBudget::extend`), **384 by default** (the level-13 base). **Measured on ten pool ports against b89: +384 → −277** (jquerylil −242, remark-gfm −48, unifiedlil −9; posthoglil +25), pool wall 394 → 548 s (+39%), codec CPU 435 → 572 s; **+192 → −227** (jquerylil −219, remark-gfm −30), wall 484 s (+23%); +96 buys nothing on remark-gfm. The bytes are taken at 384 under the rule that a mid-migration step may cost time; the wall is a debt to pay back before the end -- the text finalist's finishing and the print's are independent, and the two can run in parallel on their own slices of the ledger (next). Lanes: 17/18 cases smaller, none larger; tests 1,584; probe 22/22; pool 292/292. **−943 against the baseline.** |
 
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
@@ -329,27 +330,26 @@ another's tree (5.3); the receiver parameter's bind leaked into `Name(bind,"this
 ## What is open, in order
 
 1. **Phase 7′ — one emission, many prints** ([012](012-second-look.md)). Where it stands after
-   7.72: the print beam runs once per context inside each finalist's bridge cleanup, on its own
-   probe allowance, thirteen rungs (`collapse` -- with the chain's single-use inlining into
-   nested functions, captures respelled, identifier copies, the family in every function body --,
-   `for_init`, `negated_arms`, `negated_equalities`, `same_binding_equality`, `loop_bounds`,
-   `boolean_one_arm`, `top_keyword`, `function_let`, `return_tails`, `exit_guards`, `rebrace`,
-   `converge` with parameters first), the cheapest print carried as a finalist through the real
-   finishing; the tree owns strict equality, the prefix update, constant `JSON.parse`, the `for`
-   head, declaration-group and pooled-alias binds; the census resolves its unsafe set per scope.
-   On markedlil the finished prints stand 37 behind on the artifact's context and 173 ahead on
-   another. What is left, in order: (a) the remaining opaque holders (calls and idioms rendered
-   as text, `for..in`/`for..of` heads, switch discriminants, the for-initialiser hoist's
-   group) so the renamer and the census own every name -- concise bodies and records are nodes
-   since 7.75, the concise node off until (b); (b) the naming on the tree: the search's naming
-   family re-prints the tree under alphabet and policy variants and the text convergence and
-   the letter remaps finish it, and every ownership step that lets the re-prints reach more
-   names moves that family's plan choice like a lottery (7.63 the cluster tree, 7.76 the
-   concise node; +77 on one port, −18 on another) -- the family must become the tree's own
-   naming search before those steps can ship; (c) then the ladder's and chain's passes go one by one, each
-   measured with its rung in place (`LILSCRIPT_CLEANUP_LADDER`, `LILSCRIPT_CANONICAL_CHAIN`,
-   `LILSCRIPT_TEXT_CONVERGE=0`); (d) the emission chain last, in bulk. 7e (the ledger sized by
-   the finishing's value) stays open: the beam's allowance is a constant per bridge.
+   7.82: the print beam runs once per context inside each finalist's bridge cleanup on its own
+   allowance, sixteen rungs, the cheapest print carried through the real finishing on a ledger
+   extended by 384 probes for it (7.82, −277 on the fleet; wall +39%, a debt). The tree owns the
+   chain's single-use inlining of functions and literal aliases, the self-assignment chains, the
+   compound spelling and the bare-first `var` order (7.78–7.79); after the collapse rung the print
+   stands within 15 of its emission on markedlil. Per port at the finish (7.81's traced run, before
+   the ledger): ahead on unifiedlil, at parity on katexlil, behind on jquerylil/remark/remark-gfm
+   where the chain's gap is 800–3,300. What is left, in order: (a) pay the wall back -- the text
+   finalist's finishing and the print's are independent and can run in parallel on their own
+   ledger slices; the text passes whose rungs exist come out when the artifact stops needing them
+   (NegatedEqualities off is +20 now, +122 at b78); (b) the chain folds the print still lacks, by
+   the fold census (7.81): `conditional_return_tails`, `boolean_conditional_values`,
+   `uninitialized_var_into_any_assign` (done on the print), `common_conditional_arms` (parked: it
+   loses at the noise floor), G12's class recovery, G6's int32 elision, `arguments` to formals,
+   fresh-array pushes (needs an `Array` node); (c) the raw holders that make 165 binds unsafe on
+   remark-gfm (the emitter's statement-or runs, `x=x||R.exec(y)`, `a?.b??null`, `new T(..)`, array
+   literals) -- each an ownership step with the naming lottery to measure; (d) the naming on the
+   tree: the converge rung costs +150–200 on markedlil, the text convergence and the letter remaps
+   still finish every print. Parity rewrites that fire a handful of times per print each lost
+   ~+45 on markedlil (7.80, 7.81): the fleet decides, never parity.
 2. **Phase 6 under that regime**: the residue on the cases with the shapes off (7.41):
    `fold_prior_assign_into_for_init` 128, `fold_identity_arrow_iife` 108,
    `fold_negated_conditional_arms` 90 and `merge_adjacent_declarations` 72 (all four now carried

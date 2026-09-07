@@ -6891,9 +6891,22 @@ fn finalize_javascript_candidates_with_parallelism(
             let carried = cleaned.len();
             for (offset, cleaned) in cleaned.into_iter().enumerate() {
                 let selected = retain_resolved_javascript(selected.clone(), cleaned);
-                let share = candidate_end
+                let mut share = candidate_end
                     .saturating_sub(codec_budget.used)
                     .div_ceil(carried.saturating_sub(offset).max(1));
+                // Migration 7.82 (7e): the carried print is finished last, on
+                // what the text finalists left, and its finishing has the most
+                // to do (every ladder pass proposes on it). With the ledger
+                // pinned at 4,096 the print won remark-gfm by 49 and markedlil
+                // by 26. `LILSCRIPT_PRINT_FINISH_LEDGER=<n>` extends the ledger
+                // by `n` probes for the print's finishing alone.
+                if print_report.carried == Some(offset) {
+                    let extra = print_finish_ledger();
+                    if extra > 0 {
+                        codec_budget.extend(extra);
+                        share = share.max(extra);
+                    }
+                }
                 codec_budget.begin_fair_slice(share);
                 let remainder = (|| {
                 let remapped = apply_unused_letter_binding_remaps(
@@ -8886,6 +8899,17 @@ fn print_beam_width() -> usize {
         .filter(|width| *width > 0)
         // 2 since 7.70: the beam has its own probe allowance per bridge.
         .unwrap_or(2)
+}
+
+/// `LILSCRIPT_PRINT_FINISH_LEDGER=<n>`: probes added to the ledger for the
+/// carried print's finishing (7.82). 384 (the level-13 base) by default:
+/// measured −277 on ten pool ports (jquerylil −242) for +39% wall -- a
+/// transitional cost, paid back as the text finishing retires.
+fn print_finish_ledger() -> usize {
+    std::env::var("LILSCRIPT_PRINT_FINISH_LEDGER")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(384)
 }
 
 /// The codec probes one finalist's print beam may take: the unshaped print
