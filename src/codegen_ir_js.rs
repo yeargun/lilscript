@@ -1562,7 +1562,7 @@ fn statement_kind_for_trace(statement: &JsStatement) -> String {
                 .collect::<Vec<_>>()
                 .join(",")
         ),
-        JsStatement::DeclarationGroup { keyword, names } => {
+        JsStatement::DeclarationGroup { keyword, names, .. } => {
             format!("DeclarationGroup[{keyword}{}]", names.join(","))
         }
         JsStatement::Expression { value } => format!(
@@ -3567,9 +3567,15 @@ impl BindCensus {
                 }
                 None => self.text(name),
             },
-            JsStatement::DeclarationGroup { names, .. } => {
-                for name in names {
-                    self.text(name);
+            JsStatement::DeclarationGroup { names, binds, .. } => {
+                for (name, bind) in names.iter().zip(binds) {
+                    match bind {
+                        Some(bind) => {
+                            self.declare(name, *bind);
+                            self.write(*bind);
+                        }
+                        None => self.text(name),
+                    }
                 }
             }
             JsStatement::Binding {
@@ -12640,6 +12646,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         out.push_statement(JsStatement::DeclarationGroup {
             keyword: "var ",
             names: reserved.clone(),
+            binds: roots.iter().map(|root| self.function_name_binds.get(root).copied()).collect(),
         });
         let mut body = out.nested();
         self.emit_cluster_helpers(&helpers, &mut body)?;
@@ -15215,6 +15222,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !declared.is_empty() {
             out.push_statement(JsStatement::DeclarationGroup {
                 keyword: "let ",
+                binds: declared.iter().map(|name| context.bind_by_name(name)).collect(),
                 names: declared.iter().map(|name| (*name).to_string()).collect(),
             });
         }
@@ -15493,6 +15501,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !context.inline_declarations && !declared.is_empty() {
             out.push_statement(JsStatement::DeclarationGroup {
                 keyword: "let ",
+                binds: declared.iter().map(|name| context.bind_by_name(name)).collect(),
                 names: declared.iter().map(|name| (*name).to_string()).collect(),
             });
         }
@@ -23311,6 +23320,7 @@ fn hoist_for_initializer_declarations(out: &mut JsBlock, initializer: Option<&st
     }
     out.push_statement(JsStatement::DeclarationGroup {
         keyword: "var ",
+        binds: vec![None; names.len()],
         names: names.iter().map(|name| (*name).to_string()).collect(),
     });
 }
@@ -26032,6 +26042,20 @@ impl LocalNames {
     /// carries a name from `local_names` and no value in `stored_values` — and
     /// declaring only the first left the second assigning an undeclared
     /// identifier, which is a `ReferenceError` in a module's strict code.
+    /// The bind a declared name belongs to: a value's or a local's.
+    fn bind_by_name(&self, name: &str) -> Option<Bind> {
+        self.value_names
+            .iter()
+            .find(|(_, spelled)| spelled.as_str() == name)
+            .and_then(|(value, _)| self.value_binds.get(value).copied())
+            .or_else(|| {
+                self.local_names
+                    .iter()
+                    .find(|(_, spelled)| spelled.as_str() == name)
+                    .and_then(|(local, _)| self.local_binds.get(local).copied())
+            })
+    }
+
     fn non_parameter_names(&self, function: &ControlFlowFunction<'_>) -> Vec<&str> {
         let parameter_names = function
             .params
@@ -26467,6 +26491,10 @@ enum JsStatement {
     DeclarationGroup {
         keyword: &'static str,
         names: Vec<String>,
+        /// Migration 7.71: the binds beside the names, where the emitter
+        /// knows them (a function's locals, a cluster's roots), so the
+        /// renamer and the census own them; `None` where it does not.
+        binds: Vec<Option<Bind>>,
     },
     /// `let a=1,b=2;` / `var a=b,c=d,e;` -- one keyword, several declarators,
     /// each with or without an initialiser. The `let` runs the statement
@@ -26967,9 +26995,15 @@ impl Respell<'_> {
             | JsStatement::Continue
             | JsStatement::Import { .. }
             | JsStatement::Export { .. }
-            | JsStatement::DeclarationGroup { .. }
             | JsStatement::ClassField { .. }
             | JsStatement::Empty => false,
+            JsStatement::DeclarationGroup { names, binds, .. } => {
+                let mut changed = false;
+                for (name, bind) in names.iter_mut().zip(binds.iter()) {
+                    changed |= self.name(name, *bind);
+                }
+                changed
+            }
         }
     }
 }
@@ -27358,7 +27392,7 @@ impl ModuleTree {
         census.resolve();
         let mut entries = std::mem::take(&mut *self.closures.borrow_mut());
         if shapes.collapse {
-            let moved = inline_single_use_declarator_functions(&mut self.block, &mut entries, &census);
+            let moved = inline_single_use_declarator_functions(&mut self.block, &mut entries, &census, &self.table);
             if moved > 0 {
                 crate::timing::FUNCTIONS_MOVED.event(moved as u64);
             }
@@ -27736,8 +27770,13 @@ fn for_each_child_block(statement: &mut JsStatement, visit: &mut dyn FnMut(&mut 
 /// and plain assignments, then a value return.
 fn statements_return_value(statements: &[EmittedStatement]) -> Option<JsExpression> {
     let (last, prefix) = statements.split_last()?;
-    let JsStatement::Return { value: Some(value) } = &last.statement else {
-        return None;
+    // A bare `return` yields `undefined`: `void 0` in the fused arm (7.70,
+    // the text fold's `if(!a)return;..;return` form).
+    let bare = JsExpression::atom("void 0");
+    let value = match &last.statement {
+        JsStatement::Return { value: Some(value) } => value,
+        JsStatement::Return { value: None } => &bare,
+        _ => return None,
     };
     let mut operands = prefix
         .iter()
@@ -28596,6 +28635,70 @@ fn collect_declared_spellings(head: Option<&JsHead>, block: &JsBlock, into: &mut
     }
 }
 
+/// The binds a function frame declares, by spelling; a declaration
+/// without a bind records `None` (it cannot be respelled).
+fn collect_declared_binds(head: Option<&JsHead>, block: &JsBlock, into: &mut AHashMap<String, Vec<Option<Bind>>>) {
+    if let Some(head) = head {
+        for piece in &head.pieces {
+            match piece {
+                JsHeadPiece::Name(bind, spelled) | JsHeadPiece::FunctionName(bind, spelled) => {
+                    into.entry(spelled.clone()).or_default().push(Some(*bind));
+                }
+                JsHeadPiece::Unbound(spelled) => into.entry(spelled.clone()).or_default().push(None),
+                JsHeadPiece::Text(_) => {}
+            }
+        }
+    }
+    for emitted in &block.statements {
+        match &emitted.statement {
+            JsStatement::Declaration { name, bind, .. } | JsStatement::Binding { name, bind, .. } => {
+                into.entry(name.clone()).or_default().push(*bind);
+            }
+            JsStatement::DeclarationGroup { names, binds, .. } => {
+                for (name, bind) in names.iter().zip(binds) {
+                    into.entry(name.clone()).or_default().push(*bind);
+                }
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    into.entry(declarator.name.clone()).or_default().push(declarator.bind);
+                    if let Some(function) = &declarator.function {
+                        let (head, body) = function.as_ref();
+                        match body {
+                            JsFunctionBody::Block(body) => collect_declared_binds(Some(head), body, into),
+                            _ => collect_declared_binds(Some(head), &JsBlock::default(), into),
+                        }
+                    }
+                }
+            }
+            JsStatement::Function { head, body, .. } => match body {
+                JsFunctionBody::Block(body) => collect_declared_binds(Some(head), body, into),
+                _ => collect_declared_binds(Some(head), &JsBlock::default(), into),
+            },
+            JsStatement::Try { catch: Some(catch), .. } => {
+                if let Some(binding) = &catch.binding {
+                    into.entry(binding.clone()).or_default().push(catch.bind);
+                }
+            }
+            JsStatement::Loop {
+                head: JsLoopHead::ForIn { key, bind, .. },
+                ..
+            } => {
+                into.entry(key.clone()).or_default().push(*bind);
+            }
+            JsStatement::Loop {
+                head: JsLoopHead::ForOf { element, bind, .. },
+                ..
+            } => {
+                into.entry(element.clone()).or_default().push(*bind);
+            }
+            _ => {}
+        }
+        let mut probe = emitted.statement.clone();
+        for_each_child_block(&mut probe, &mut |child: &mut JsBlock| collect_declared_binds(None, child, into));
+    }
+}
+
 /// Where the one read of `bind` sits: the spellings declared by every
 /// function frame between the origin block and the read, and whether a
 /// loop encloses it. `None` when the read is not found below `block`.
@@ -28728,7 +28831,16 @@ fn inline_single_use_declarator_functions(
     module: &mut JsBlock,
     entries: &mut AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
     census: &BindCensus,
+    table: &BindTable,
 ) -> usize {
+    // Every spelling in use, for the fresh ones a capture is resolved with.
+    let mut taken = AHashSet::<String>::default();
+    for index in 0..table.len() {
+        taken.insert(table.spelling(Bind(index as u32)));
+    }
+    taken.extend(census.unsafe_names.iter().cloned());
+    let mut fresh_index = 0usize;
+    let canonical = IdentifierAlphabet::canonical();
     let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
     let mut moved = 0usize;
     let mut candidates = Vec::new();
@@ -28871,11 +28983,72 @@ fn inline_single_use_declarator_functions(
             JsFunctionBody::Block(block) => collect_declared_spellings(Some(&head), block, &mut own),
             _ => collect_declared_spellings(Some(&head), &JsBlock::default(), &mut own),
         }
-        if let Some(capture) = mentioned.iter().find(|identifier| frames.contains(*identifier) && !own.contains(*identifier)) {
-            if trace {
-                eprintln!("[shape] declarator function {name}: `{capture}` would be captured on the way");
+        let captured = mentioned
+            .iter()
+            .filter(|identifier| frames.contains(*identifier) && !own.contains(*identifier))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !captured.is_empty() {
+            // Migration 7.69: a capture is a local of a frame on the way
+            // spelled like a name the closure reads (markedlil: `f`, `i`,
+            // `t`, `h` -- short module names against short locals). The
+            // local is respelled fresh through the table, so the move is
+            // sound; the print's renamer re-spells everything after. A
+            // declaration without a bind cannot be respelled: refused.
+            let mut frame_binds = AHashMap::<String, Vec<Option<Bind>>>::default();
+            match in_entry {
+                Some(entry) => {
+                    if let Some((entry_head, JsFunctionBody::Block(block))) = entries.get(&entry) {
+                        collect_declared_binds(Some(entry_head), block, &mut frame_binds);
+                    }
+                }
+                None => collect_declared_binds(None, module, &mut frame_binds),
             }
-            continue;
+            let mut resolvable = true;
+            let mut respells = Vec::<(Bind, String)>::new();
+            for spelling in &captured {
+                let Some(binds) = frame_binds.get(spelling) else {
+                    resolvable = false;
+                    break;
+                };
+                if binds.iter().any(Option::is_none) {
+                    resolvable = false;
+                    break;
+                }
+                for bind in binds.iter().flatten() {
+                    // The closure's own binds keep their spelling (they are
+                    // in `own`, filtered above); a frame's bind that the
+                    // census cannot see written once is left alone too.
+                    if census.is_unsafe(Some(*bind), spelling) {
+                        resolvable = false;
+                        break;
+                    }
+                    let fresh = loop {
+                        let candidate = encode_identifier(fresh_index, &canonical);
+                        fresh_index += 1;
+                        if !is_js_reserved(&candidate) && !taken.contains(&candidate) && !mentioned.contains(&candidate) {
+                            break candidate;
+                        }
+                    };
+                    taken.insert(fresh.clone());
+                    respells.push((*bind, fresh));
+                }
+                if !resolvable {
+                    break;
+                }
+            }
+            if !resolvable {
+                if trace {
+                    eprintln!("[shape] declarator function {name}: `{}` would be captured on the way", captured[0]);
+                }
+                continue;
+            }
+            for (bind, fresh) in &respells {
+                table.respell(*bind, fresh);
+            }
+            if trace {
+                eprintln!("[shape] declarator function {name}: {} capturing locals respelled", respells.len());
+            }
         }
         let id = ClosureId(
             entries
@@ -29667,9 +29840,12 @@ impl ScopeCollector<'_> {
                     }
                 }
             }
-            JsStatement::DeclarationGroup { names, .. } => {
-                for name in names {
-                    self.opaque(scope, name, OpaqueKind::Declaration);
+            JsStatement::DeclarationGroup { names, binds, .. } => {
+                for (name, bind) in names.iter().zip(binds) {
+                    match bind {
+                        Some(bind) => self.tree.declare(scope, *bind),
+                        None => self.opaque(scope, name, OpaqueKind::Declaration),
+                    }
                 }
             }
             JsStatement::Return { value: Some(value) }
@@ -30717,7 +30893,7 @@ impl JsStatement {
             Self::Export { bindings } => {
                 format!("export{{{}}};", JsModuleBinding::clause(&bindings))
             }
-            Self::DeclarationGroup { keyword, names } => {
+            Self::DeclarationGroup { keyword, names, .. } => {
                 format!("{keyword}{};", names.join(","))
             }
             // The statement-position rule lives with the statement: an

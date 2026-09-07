@@ -3146,6 +3146,11 @@ struct JavaScriptEmissionContexts<'ir, 'src> {
     /// emission per (context, options with the printer fields erased), so a
     /// later plan that differs only in those fields is a re-print of it.
     reprint_trees: Mutex<AHashMap<(usize, String), Arc<Mutex<ReprintSlot>>>>,
+    /// Migration 7.71: the contexts the print beam has shaped this compile;
+    /// the naming and pooling passes re-finalize the same contexts and the
+    /// rungs are naming-independent, so once is enough (b72's beam at every
+    /// bridge cost 25 s of the pool's wall for +16 bytes).
+    beamed_contexts: Mutex<ahash::AHashSet<usize>>,
     /// Phase 7a: the peephole every emission passes through before it is
     /// scored; `None` when the text peephole is not configured.
     emission_peephole: Option<EmissionPeephole>,
@@ -3174,6 +3179,7 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
             emissions_attempted: AtomicUsize::new(0),
             reprint_trees: Mutex::new(AHashMap::default()),
+            beamed_contexts: Mutex::new(ahash::AHashSet::default()),
             emission_peephole: None,
             reprint_spellings: false,
             reprint_names: false,
@@ -5927,13 +5933,9 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     // Migration 7.37: one work unit and a declaration ladder per shape
     // challenger, held back so the cleanup searches cannot starve them (the
     // ledger is spent by then on katexlil).
-    let shape_reserve = if config.terminal_shape_challengers_enabled() {
-        print_beam_allowance()
-            .saturating_mul(4)
-            .min(terminal_codec_probe_limit.div_euclid(4))
-    } else {
-        0
-    };
+    // Migration 7.70: the print beam pays from its own allowance per bridge;
+    // nothing is held back from the search for it any more.
+    let shape_reserve = 0usize;
     let mut codec_budget = TerminalCodecProbeBudget::with_final_reserve(
         terminal_codec_probe_limit,
         exact_pair_reserve
@@ -6027,14 +6029,6 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         .map(|candidate| (candidate.identity(), candidate.transfer_cost))
         .collect::<Vec<_>>();
     let used_before_finishing = codec_budget.used;
-    // Migration 7.56: the print beam runs inside each finalist's bridge
-    // cleanup; its probes are the shape reserve, released before the
-    // finalize so the bridge's slice can hold them.
-    codec_budget.release_shape_reserve_once(
-        print_beam_allowance()
-            .saturating_mul(4)
-            .min(codec_budget.limit.div_euclid(4)),
-    );
     let mut selected = finalize_javascript_candidates_with_parallelism(
         candidates,
         configured_baseline,
@@ -6829,14 +6823,31 @@ fn finalize_javascript_candidates_with_parallelism(
             // in the bridge (before the remaps move the text away from it).
             let module_output = generated_javascript_export_names(&selected.code)
                 .is_ok_and(|exports| !exports.is_empty());
-            let tree = if config.terminal_shape_challengers_enabled() && codec_budget.remaining() > 0 {
+            // Migration 7.70: a finalist the search never printed (the
+            // configured plan, context 0, is the artifact's finalist on
+            // markedlil) is emitted for its tree when the ledger holds the
+            // beam's allowance; the one-slot ledgers, which count emissions,
+            // hold less and take the cache only.
+            let emit_for_tree = contexts.plans_registered() > 1;
+            let first_beam_for_context = contexts
+                .beamed_contexts
+                .lock()
+                .map(|mut beamed| beamed.insert(selected.plan_identity.context_id))
+                .unwrap_or(false);
+            let tree = if config.terminal_shape_challengers_enabled()
+                && codec_budget.remaining() > 0
+                && first_beam_for_context
+            {
                 contexts
                     .registered_plan_by_identity(selected.plan_identity)
                     .map(|plan| plan.options)
                     .filter(|options| !options.single_use_collapse)
                     .and_then(|options| {
-                        contexts
-                            .cached_frozen_tree(selected.plan_identity.context_id, module_output, options)
+                        if emit_for_tree {
+                            contexts.frozen_tree(selected.plan_identity.context_id, module_output, options)
+                        } else {
+                            contexts.cached_frozen_tree(selected.plan_identity.context_id, module_output, options)
+                        }
                             .map(|(frozen, rename)| TerminalTree {
                                 frozen,
                                 rename,
@@ -6846,7 +6857,12 @@ fn finalize_javascript_candidates_with_parallelism(
             } else {
                 None
             };
-            let print_allowance = tree.as_ref().map_or(0, |_| print_beam_allowance());
+            // Migration 7.70: the beam pays from its own allowance, not the
+            // shared ledger -- the first finalists spent the shared one and
+            // the later finalize passes (the naming and pooling challengers,
+            // where markedlil's artifact finalist runs) reached the bridge
+            // with nothing left.
+            let print_allowance = 0usize;
             if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
                 eprintln!(
                     "[shape] bridge for context {}: tree {}, ledger remaining {}, allowance {allowance}, print allowance {print_allowance}",
@@ -6916,6 +6932,16 @@ fn finalize_javascript_candidates_with_parallelism(
                         "[shape] finalist {offset} finished at {} bytes{}",
                         selected.transfer_cost,
                         if print_report.carried == Some(offset) { " (the carried print)" } else { "" }
+                    );
+                }
+                if let Ok(path) = std::env::var("LILSCRIPT_SHAPE_DUMP") {
+                    let _ = std::fs::write(
+                        format!(
+                            "{path}.finished.{}.{offset}{}.js",
+                            selected.plan_identity.context_id,
+                            if print_report.carried == Some(offset) { ".print" } else { "" }
+                        ),
+                        &selected.code,
                     );
                 }
                 Ok::<_, CompileError>(selected)
@@ -8848,7 +8874,8 @@ fn print_beam_width() -> usize {
         .ok()
         .and_then(|value| value.parse().ok())
         .filter(|width| *width > 0)
-        .unwrap_or(4)
+        // 2 since 7.70: the beam has its own probe allowance per bridge.
+        .unwrap_or(2)
 }
 
 /// The codec probes one finalist's print beam may take: the unshaped print
@@ -9164,6 +9191,7 @@ fn late_javascript_cleanup_finalists(
     // before any text pass has moved the text away from it.
     let mut print_report = None;
     if let Some((tree, report)) = print_beam {
+        let mut print_budget = TerminalCodecProbeBudget::new(print_beam_allowance());
         let finish = |text: &str| -> Option<String> {
             let optimized = optimize_generated_javascript_assuming(
                 text,
@@ -9183,7 +9211,7 @@ fn late_javascript_cleanup_finalists(
         offer_print_beam(
             &mut beam,
             tree,
-            codec_budget,
+            &mut print_budget,
             &admission,
             config.javascript.cost_model,
             report,
@@ -15548,6 +15576,7 @@ mod tests {
             plan_registry: Mutex::new(JavaScriptPlanRegistry::default()),
             emissions_attempted: AtomicUsize::new(0),
             reprint_trees: Mutex::new(AHashMap::default()),
+            beamed_contexts: Mutex::new(ahash::AHashSet::default()),
         };
         let mut config = ProjectConfig::default();
         config.javascript.priority = JavaScriptPriority::SizeFirst;
