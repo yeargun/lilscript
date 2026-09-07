@@ -221,6 +221,7 @@ one worker; the current profile is under *Measurement facts*.
 | 7.69 | **Captures resolved by respelling.** The inliner's 776 refusals on markedlil were all short module names (`f`, `i`, `t`, `h`, `g`, `e`) declared again as locals of a frame on the way; the colliding locals are now respelled fresh through the bind table (`collect_declared_binds`; a declaration without a bind, or one the census sees written from opaque text, still refuses), so the move is sound and the print's renamer re-spells everything after. markedlil: 124 resolved, 356 still refused, 3,208 moves; the artifact 9,266 either way. `LILSCRIPT_SHAPE_DUMP` also writes every finished finalist (`.finished.<context>.<n>[.print].js`): on markedlil's context 20 the finished print already beats the incumbent (9,377 against 9,555). **Measured (b71 vs b70, ten pool ports): byte-identical**; tests 1,584; probe 22/22; lanes identical; pool 292/292. The trace also shows why markedlil's artifact keeps its incumbent: its finalist (context 0, the configured plan) reaches the bridge in a later finalize pass with the shared ledger at zero, so it never gets a beam. |
 | 7.70 | **The beam pays its own way.** The shape reserve released into the shared ledger was spent by the first finalists, and the later finalize passes (the naming and pooling challengers, where the artifact's finalist runs on markedlil) reached the bridge with nothing left; the beam now draws on its own allowance per bridge (`print_beam_allowance`, width 2), nothing is held back from the search, and a finalist the search never printed is emitted for its tree when more than one plan is registered (the one-slot ledgers count emissions). A bare `return` arm fuses as `void 0` in the return-tail rung (the text fold's `if(!a)return;..;return` form). On markedlil every bridge now gets a beam, the artifact's finalist included (9,272; b70 9,266). **Measured (b72 vs b71, ten pool ports): +16** (remarklil +20, markedlil +13, posthog −15), −509 against the baseline; lanes shipped −32, zodlike −32; but the pool's wall 384 → 408 s: a beam at every bridge of every finalize pass. Tests 1,584; probe 22/22; pool 292/292. |
 | 7.71 | **Once per context; binds on `let a,b,c;`.** The naming and pooling passes re-finalize the same contexts and the rungs are naming-independent, so the beam shapes each context once per compile (`beamed_contexts`). `JsStatement::DeclarationGroup` carries the binds beside its names where the emitter knows them (a function's locals via `LocalNames::bind_by_name`, a cluster's roots), so the renamer, the census and the collectors own them instead of keeping the spellings; the `for`-initialiser hoist's group has none. markedlil's plan inlines its declarations and emits no group, so it reads the same. **Measured (b73 vs b72, ten pool ports): +21** (posthog +15, unified +6), −488 against the baseline; the pool's wall 408 → 393 s. Tests 1,584; probe 22/22; lanes shipped −3; pool 292/292. |
+| 7.72 | **Pooled literals have binds.** The census watch on markedlil found its most-read opaque name to be a pooled numeric alias: the string and number pools took a name from the module mangler without a bind, their declarators had none, and every reference was an `Atom` (276 for one alias). The pools now allocate a bind per alias (`alias_binds`), the declarators carry it, and a reference is a `Name` at both render sites (the emitter's and `LocalNames::new`'s), so the renamer and the census own the aliases. On markedlil the converge print improves by 17 on the first finalist; the artifact reads the same. **Measured (b74 vs b73, ten pool ports): byte-identical**; probe 22/22; lanes identical; pool 292/292; two test call sites of `LocalNames::new` given the map. On markedlil's finished dumps the prints now stand: context 20's print 9,380 against its incumbent's 9,553, context 30's 9,317 against 9,280 (the artifact's, 9,272 shipped), context 0's print alone at 9,364. |
 
 ### Phase 6 — the fold groups (`ea045ca` … `acace54`)
 
@@ -319,24 +320,23 @@ another's tree (5.3); the receiver parameter's bind leaked into `Name(bind,"this
 ## What is open, in order
 
 1. **Phase 7′ — one emission, many prints** ([012](012-second-look.md)). Where it stands after
-   7.62: the print beam runs inside each finalist's bridge cleanup (7.56) on its cached frozen
-   tree, eleven rungs (`collapse`, `for_init`, `negated_arms`, `negated_equalities`,
-   `same_binding_equality`, `loop_bounds`, `boolean_one_arm`, `return_tails`, `exit_guards`,
-   `rebrace`, `converge`), its members finished by the emission chain (7.61) and the cheapest
-   print carried as a finalist through the remaps and the full cleanup (7.62). The tree owns
-   the private cluster IIFE (7.60) and spells strict equality (7.57), the prefix update (7.59)
-   and a constant `JSON.parse` (7.61) itself. What is left, in order: (a) the census
-   (`LILSCRIPT_LADDER_REPORT=1`, samples `before ~> after`) still names ConditionalReturnTails,
-   BooleanConditionalValues, GuardReturnExpressionSuffixes, NegatedEqualities and
-   UnitCounterUpdates as text wins after the beam -- each already has a rung, so the gap is the
-   *finishing*: the finalist's text carries the search's declaration shapes and renames that its
-   frozen tree does not, which is why a print starts ~200 bytes behind on markedlil; the
-   declaration keyword and the text renames must become tree prints (the `converge` rung is the
-   first) before any text pass can be deleted on parity; (b) then the ladder's and chain's
-   passes go one by one, each measured with its rung in place (`LILSCRIPT_CLEANUP_LADDER`,
-   `LILSCRIPT_CANONICAL_CHAIN`, `LILSCRIPT_TEXT_CONVERGE=0`); (c) the emission chain last, in
-   bulk. 7e (the ledger sized by the finishing's value) stays: the beam's probes are the shape
-   reserve, released before the finalize.
+   7.72: the print beam runs once per context inside each finalist's bridge cleanup, on its own
+   probe allowance, thirteen rungs (`collapse` -- with the chain's single-use inlining into
+   nested functions, captures respelled, identifier copies, the family in every function body --,
+   `for_init`, `negated_arms`, `negated_equalities`, `same_binding_equality`, `loop_bounds`,
+   `boolean_one_arm`, `top_keyword`, `function_let`, `return_tails`, `exit_guards`, `rebrace`,
+   `converge` with parameters first), the cheapest print carried as a finalist through the real
+   finishing; the tree owns strict equality, the prefix update, constant `JSON.parse`, the `for`
+   head, declaration-group and pooled-alias binds; the census resolves its unsafe set per scope.
+   On markedlil the finished prints stand 37 behind on the artifact's context and 173 ahead on
+   another. What is left, in order: (a) the remaining opaque holders (calls and idioms rendered
+   as text, concise text bodies, `for..in`/`for..of` heads, switch discriminants, the
+   for-initialiser hoist's group) so the renamer and the census own every name; (b) the naming
+   parity (the tree renamer against the text convergence plus the letter remaps), the reason
+   the cluster tree waits off; (c) then the ladder's and chain's passes go one by one, each
+   measured with its rung in place (`LILSCRIPT_CLEANUP_LADDER`, `LILSCRIPT_CANONICAL_CHAIN`,
+   `LILSCRIPT_TEXT_CONVERGE=0`); (d) the emission chain last, in bulk. 7e (the ledger sized by
+   the finishing's value) stays open: the beam's allowance is a constant per bridge.
 2. **Phase 6 under that regime**: the residue on the cases with the shapes off (7.41):
    `fold_prior_assign_into_for_init` 128, `fold_identity_arrow_iife` 108,
    `fold_negated_conditional_arms` 90 and `merge_adjacent_declarations` 72 (all four now carried

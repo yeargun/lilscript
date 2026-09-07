@@ -6415,6 +6415,10 @@ struct IrJsEmitter<'module, 'src> {
     string_aliases: AHashMap<String, String>,
     pooled_strings: Vec<(String, String)>,
     numeric_aliases: AHashMap<String, String>,
+    /// Migration 7.72: the bind of each pooled literal's alias, by alias
+    /// name, so a reference is a `Name` the renamer and the census own
+    /// (markedlil read one numeric alias 276 times as an opaque atom).
+    alias_binds: AHashMap<String, Bind>,
     pooled_numbers: Vec<(String, String)>,
     property_names: AHashMap<String, String>,
     stable_property_names: AHashSet<String>,
@@ -6650,6 +6654,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             string_aliases: AHashMap::default(),
             pooled_strings: Vec::new(),
             numeric_aliases: AHashMap::default(),
+            alias_binds: AHashMap::default(),
             pooled_numbers: Vec::new(),
             property_names: AHashMap::default(),
             stable_property_names: AHashSet::default(),
@@ -9414,6 +9419,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         &self.preferred_local_names,
                         &self.string_aliases,
                         &self.numeric_aliases,
+                        &self.alias_binds,
                         &self.options,
                         &self.order_sensitive_inline_pure_helpers,
                         &loop_captured_closures(function),
@@ -10143,14 +10149,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
 
     fn emit_pooled_literals(&self, declarators: &mut Vec<JsDeclarator>) {
         for (value, name) in &self.pooled_strings {
-            declarators.push(let_item(
+            let mut item = let_item(
                 name.clone(),
                 render_string_literal(value, self.options.string_quote),
                 JsPrecedence::Primary,
-            ));
+            );
+            item.bind = self.alias_binds.get(name).copied();
+            declarators.push(item);
         }
         for (value, name) in &self.pooled_numbers {
-            declarators.push(let_item(name.clone(), value.clone(), JsPrecedence::Primary));
+            let mut item = let_item(name.clone(), value.clone(), JsPrecedence::Primary);
+            item.bind = self.alias_binds.get(name).copied();
+            declarators.push(item);
         }
     }
 
@@ -11104,6 +11114,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // finer/hypotheses/010-string-pool-alias-pricing.
         for (_, _, value) in candidates {
             let name = self.top_level_mangler.next_name();
+            let bind = self.bind_table.alloc(&name);
+            self.alias_binds.insert(name.clone(), bind);
             self.string_aliases.insert(value.clone(), name.clone());
             self.pooled_strings.push((value, name));
         }
@@ -11157,6 +11169,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 continue;
             }
             self.top_level_mangler = trial;
+            let bind = self.bind_table.alloc(&name);
+            self.alias_binds.insert(name.clone(), bind);
             self.numeric_aliases.insert(value.clone(), name.clone());
             self.pooled_numbers.push((value, name));
         }
@@ -12970,6 +12984,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.string_aliases,
             &self.numeric_aliases,
+            &self.alias_binds,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
             &loop_captured_closures(&callee),
@@ -13110,6 +13125,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.string_aliases,
             &self.numeric_aliases,
+            &self.alias_binds,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
             &self.loop_captured_closures,
@@ -14145,6 +14161,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.string_aliases,
             &self.numeric_aliases,
+            &self.alias_binds,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
             &self.loop_captured_closures,
@@ -15200,6 +15217,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.string_aliases,
             &self.numeric_aliases,
+            &self.alias_binds,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
             &self.loop_captured_closures,
@@ -15475,6 +15493,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.string_aliases,
             &self.numeric_aliases,
+            &self.alias_binds,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
             &self.loop_captured_closures,
@@ -18502,7 +18521,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         value,
                         self.options.string_quote,
                     ),
-                    (_, alias) => JsExpression::atom(alias.cloned().unwrap_or(rendered)),
+                    (_, Some(alias)) => match self.alias_binds.get(alias) {
+                        Some(bind) => JsExpression::name(*bind, alias.clone()),
+                        None => JsExpression::atom(alias.clone()),
+                    },
+                    (_, None) => JsExpression::atom(rendered),
                 }
             }
             ControlFlowOp::CaptureLocal(local) | ControlFlowOp::LoadLocal(local) => {
@@ -20800,6 +20823,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &self.preferred_local_names,
                 &self.string_aliases,
                 &self.numeric_aliases,
+                &self.alias_binds,
                 &self.options,
                 &self.order_sensitive_inline_pure_helpers,
                 &self.loop_captured_closures,
@@ -20863,6 +20887,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             &self.preferred_local_names,
             &self.string_aliases,
             &self.numeric_aliases,
+            &self.alias_binds,
             &self.options,
             &self.order_sensitive_inline_pure_helpers,
             &self.loop_captured_closures,
@@ -25101,6 +25126,7 @@ impl LocalNames {
         preferred_local_names: &AHashMap<String, String>,
         string_aliases: &AHashMap<String, String>,
         numeric_aliases: &AHashMap<String, String>,
+        alias_binds: &AHashMap<String, Bind>,
         options: &IrJsOptions,
         order_sensitive_inline_pure_helpers: &AHashSet<FunctionId>,
         loop_captured_closures: &AHashSet<FunctionId>,
@@ -25245,7 +25271,11 @@ impl LocalNames {
                         (ConstValue::Bool(value), None) => {
                             JsExpression::boolean(*value, compact_boolean_literals)
                         }
-                        (_, alias) => JsExpression::atom(alias.cloned().unwrap_or(rendered)),
+                        (_, Some(alias)) => match alias_binds.get(alias) {
+                            Some(bind) => JsExpression::name(*bind, alias.clone()),
+                            None => JsExpression::atom(alias.clone()),
+                        },
+                        (_, None) => JsExpression::atom(rendered),
                     };
                     (inline_cost <= binding_cost).then_some((out, inlined))
                 }
@@ -25256,7 +25286,13 @@ impl LocalNames {
                     let binding_cost = rendered.len().saturating_add(7).saturating_add(use_count);
                     let savings = inline_cost.saturating_sub(binding_cost);
                     if let Some(alias) = string_aliases.get(value) {
-                        Some((out, JsExpression::atom(alias.clone())))
+                        Some((
+                            out,
+                            match alias_binds.get(alias) {
+                                Some(bind) => JsExpression::name(*bind, alias.clone()),
+                                None => JsExpression::atom(alias.clone()),
+                            },
+                        ))
                     } else {
                         (literalized_regex_arguments.contains(&out)
                             || !options.pool_strings
@@ -41899,6 +41935,7 @@ install();
                 &AHashMap::default(),
                 &AHashMap::default(),
                 &AHashMap::default(),
+                &AHashMap::default(),
                 &options,
                 &AHashSet::default(),
                 &loop_captured_closures(function),
@@ -42277,6 +42314,7 @@ install();
             integer_analysis.function(function.id),
             false,
             &Mangler::default(),
+            &AHashMap::default(),
             &AHashMap::default(),
             &AHashMap::default(),
             &AHashMap::default(),
