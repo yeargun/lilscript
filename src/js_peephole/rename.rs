@@ -610,7 +610,7 @@ const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$
 /// The mangling alphabet ordered by how much of this artifact's identifier text
 /// each character already carries, so a converged name reuses a byte the codec
 /// has seen rather than introducing one it has not.
-fn dominant_identifier_alphabet(tokens: &[Token<'_>]) -> Vec<u8> {
+pub(crate) fn dominant_identifier_alphabet(tokens: &[Token<'_>]) -> Vec<u8> {
     let mut weight = [0usize; 256];
     for (index, token) in tokens.iter().enumerate() {
         if token.kind != TokenKind::Identifier || is_property_identifier(tokens, index) {

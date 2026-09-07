@@ -5820,6 +5820,25 @@ impl IdentifierAlphabet {
         }
     }
 
+    /// The alphabet in a given order of its 54 first-characters (the text
+    /// convergence's `dominant_identifier_alphabet`: identifier bytes only,
+    /// most carried first); the rest follows that order, digits last.
+    pub fn from_order(order: &[u8]) -> Self {
+        let mut first = *b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+        let mut position = 0usize;
+        for byte in order {
+            if position < first.len() && first[position..].contains(byte) && !first[..position].contains(byte) {
+                let at = position + first[position..].iter().position(|b| b == byte).unwrap();
+                first.swap(position, at);
+                position += 1;
+            }
+        }
+        let mut rest = [0u8; 64];
+        rest[..54].copy_from_slice(&first);
+        rest[54..].copy_from_slice(b"0123456789");
+        Self { first, rest }
+    }
+
     pub fn for_code(code: &str) -> Self {
         let mut counts = [0usize; 128];
         for byte in code.bytes().filter(|byte| byte.is_ascii()) {
@@ -12331,7 +12350,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // 12,787 of micromark's 94,837 bytes, out of every shape's and the
         // renamer's reach).
         // `LILSCRIPT_SKIP_PORTS=cluster_tree` keeps the raw text, for the A/B.
-        let as_tree = !port_is_skipped("cluster_tree");
+        // Off until the tree's renamer matches the text convergence: with the
+        // cluster owned, the search's rename re-print renames its helpers with
+        // the tree renamer and wins the search's gate, and the finished
+        // artifact is bigger (+192 on ten ports, jquerylil +153; off: −16).
+        // `LILSCRIPT_PORTS=cluster_tree` turns it on.
+        let as_tree = port_is_enabled("cluster_tree");
         let returned_value = match returned.statements.as_mut_slice() {
             [only] if as_tree && !only.dropped_semicolon => match &only.statement {
                 JsStatement::Function { head, body, .. } => {
@@ -26722,11 +26746,26 @@ impl FrozenModuleTree {
         tree.reshape(shapes);
         previous.install();
         if shapes.converge {
+            // Migration 7.63: the plan's alphabet, measured: on markedlil the
+            // converge print reads −20/−26 with it (parameters first), +105
+            // with the alphabet ordered by every byte of the print (`code`)
+            // and +4/+27 ordered by identifier bytes only (`identifiers`, the
+            // text convergence's rule). `LILSCRIPT_CONVERGE_ALPHABET` picks.
+            let dominant = match std::env::var("LILSCRIPT_CONVERGE_ALPHABET").as_deref() {
+                Ok("code") => Some(IdentifierAlphabet::for_code(&tree.reprint(options))),
+                Ok("identifiers") => {
+                    let text = tree.reprint(options);
+                    crate::js_peephole::lex_javascript(&text)
+                        .ok()
+                        .map(|tokens| IdentifierAlphabet::from_order(&crate::js_peephole::dominant_identifier_alphabet(&tokens)))
+                }
+                _ => None,
+            };
             let scopes = ScopeCollector::module(&tree.closures, &tree.block);
             let renamer = Renamer {
                 tree: scopes,
                 table: &tree.table,
-                alphabet: &options.identifier_alphabet,
+                alphabet: dominant.as_ref().unwrap_or(&options.identifier_alphabet),
             };
             let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Frequency);
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
@@ -28262,6 +28301,11 @@ struct RenameScope {
     parent: Option<usize>,
     /// Bindings declared here, in first-seen order, each once.
     declared: Vec<Bind>,
+    /// Migration 7.63: the head's parameters in position order, so the
+    /// frequency order can keep them first (the text convergence's rule:
+    /// parameters by position, then the rest by descending use, so
+    /// same-arity headers spell the same).
+    parameters: Vec<Bind>,
     /// Every `Name` reference made from this scope's own text (multiplicity
     /// kept: it is the frequency).
     referenced: Vec<Bind>,
@@ -28459,7 +28503,13 @@ impl ScopeCollector<'_> {
         for piece in &head.pieces {
             match piece {
                 JsHeadPiece::Text(text) => self.opaque(inner, text, OpaqueKind::Head),
-                JsHeadPiece::Name(bind, _) => self.tree.declare(inner, *bind),
+                JsHeadPiece::Name(bind, _) => {
+                    self.tree.declare(inner, *bind);
+                    let scope = &mut self.tree.scopes[inner];
+                    if !scope.parameters.contains(bind) {
+                        scope.parameters.push(*bind);
+                    }
+                }
                 JsHeadPiece::FunctionName(bind, _) => self
                     .tree
                     .declare(if name_binds_inner { inner } else { outer }, *bind),
@@ -28814,14 +28864,26 @@ impl Renamer<'_> {
                 scopes_full += 1;
             }
             match order {
-                RenameOrder::Frequency => renameable.sort_by(|left, right| {
-                    counts
-                        .get(right)
+                RenameOrder::Frequency => {
+                    // Parameters by position first (7.63), then the rest by
+                    // descending use.
+                    let parameters = self.tree.scopes[scope].parameters.clone();
+                    let (mut heads, mut rest): (Vec<Bind>, Vec<Bind>) = renameable
+                        .iter()
                         .copied()
-                        .unwrap_or(0)
-                        .cmp(&counts.get(left).copied().unwrap_or(0))
-                        .then_with(|| left.cmp(right))
-                }),
+                        .partition(|bind| parameters.contains(bind));
+                    heads.sort_by_key(|bind| parameters.iter().position(|p| p == bind));
+                    rest.sort_by(|left, right| {
+                        counts
+                            .get(right)
+                            .copied()
+                            .unwrap_or(0)
+                            .cmp(&counts.get(left).copied().unwrap_or(0))
+                            .then_with(|| left.cmp(right))
+                    });
+                    heads.extend(rest);
+                    renameable = heads;
+                }
                 RenameOrder::Emission => renameable.sort(),
             }
             // A preferred spelling (an idiom's) is honoured when the scope

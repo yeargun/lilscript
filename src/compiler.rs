@@ -8981,8 +8981,15 @@ fn offer_print_beam(
     // costs 9,343 where the unshaped print costs 9,528 -- so each member is
     // also finished by that chain before it joins the cleanup beam, and
     // competes like for like until the chain's folds are rungs.
+    // Off (7.63): with the members finished by the chain no artifact changed
+    // on ten ports and jquerylil's text-peephole CPU doubled (13 → 30 s).
+    // `LILSCRIPT_PRINT_FINISH=1` turns it on.
+    let finish_members = std::env::var("LILSCRIPT_PRINT_FINISH").is_ok_and(|value| value == "1");
     for (_, text, cost) in members {
-        let finished = finish(&text).filter(|finished| *finished != text && valid(finished));
+        let finished = finish_members
+            .then(|| finish(&text))
+            .flatten()
+            .filter(|finished| *finished != text && valid(finished));
         if !beam.iter().any(|existing| existing.code == text) {
             beam.push(CleanupCandidate {
                 code: text,
