@@ -5976,6 +5976,7 @@ impl JsExpression {
             JsExpressionRoot::PrefixUpdate(direction) => Self::prefix_update(child(0), direction),
             JsExpressionRoot::Spread => Self::spread(child(0)),
             JsExpressionRoot::Object => Self::object((0..self.operands.len()).map(child).collect::<Vec<_>>()),
+            JsExpressionRoot::Array => Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>()),
             JsExpressionRoot::Array => {
                 Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
@@ -27874,8 +27875,19 @@ impl ModuleTree {
                     }
                 }
                 raws.sort_by_key(|raw| std::cmp::Reverse(raw.len()));
-                for raw in raws.iter().take(12) {
-                    eprintln!("[shape] raw {} bytes: {}", raw.len(), raw.chars().take(90).collect::<String>());
+                // `LILSCRIPT_SHAPE_RAW=<text>` lists every raw holding the text.
+                let filter = std::env::var("LILSCRIPT_SHAPE_RAW").ok().filter(|value| value != "1");
+                match filter {
+                    Some(needle) => {
+                        for raw in raws.iter().filter(|raw| raw.contains(&needle)) {
+                            eprintln!("[shape] raw {} bytes: {}", raw.len(), raw.chars().take(120).collect::<String>());
+                        }
+                    }
+                    None => {
+                        for raw in raws.iter().take(12) {
+                            eprintln!("[shape] raw {} bytes: {}", raw.len(), raw.chars().take(90).collect::<String>());
+                        }
+                    }
                 }
             }
         }
@@ -28747,6 +28759,26 @@ fn canonical_print_leaf(node: &JsExpression) -> Option<JsExpression> {
             rewritten.code = code;
             rewritten.ungrouped = None;
             Some(rewritten)
+        }
+        // `a&&!!b` is `a&&b` and `a||!!b` is `a||b`
+        // (`fold_boolean_context_double_not`, on every emission).
+        JsExpressionRoot::Binary(op @ (IrBinaryOp::And | IrBinaryOp::Or)) => {
+            let [lhs, rhs] = node.operands.as_slice() else {
+                return None;
+            };
+            if rhs.root != JsExpressionRoot::Unary(JsUnary::Not) {
+                return None;
+            }
+            let [inner] = rhs.operands.as_slice() else {
+                return None;
+            };
+            if inner.root != JsExpressionRoot::Unary(JsUnary::Not) {
+                return None;
+            }
+            let [value] = inner.operands.as_slice() else {
+                return None;
+            };
+            Some(JsExpression::binary(op, lhs.clone(), value.clone()))
         }
         JsExpressionRoot::IntegerNormalization => {
             let [value] = node.operands.as_slice() else {
@@ -29812,6 +29844,11 @@ fn collapse_family(
     if absorbed > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
         eprintln!("[shape] {absorbed} assignments absorbed into bare declarators");
     }
+    // 7.85: `x=[];x.push(a);x.push(b)` is `x=[a,b]` (`fold_fresh_empty_array_pushes`).
+    let arrays = fold_fresh_array_pushes(block);
+    if arrays > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+        eprintln!("[shape] {arrays} arrays written as literals from their pushes");
+    }
     // 7.80: `x=E;..x..` is `..(x=E)..` where the read is the first thing
     // evaluated (the chain's `fold_sequence_assignments_into_first_use`,
     // and the same on adjacent statements); `+x|0` is `x|0`.
@@ -29945,6 +29982,162 @@ fn merge_assignment_guards(block: &mut JsBlock) -> usize {
         settle_block_tail(block, false);
     }
     merged
+}
+
+/// The elements pushed by `call` onto `bind`, when it is `x.push(..)` or
+/// `Array.prototype.push.call(x,..)` and no element reads `x`.
+fn pushed_elements(call: &JsExpression, bind: Bind) -> Option<Vec<JsExpression>> {
+    if call.root != JsExpressionRoot::Call {
+        return None;
+    }
+    let (callee, arguments) = call.operands.split_first()?;
+    if callee.root != JsExpressionRoot::Member {
+        return None;
+    }
+    let elements = if callee.code == "Array.prototype.push.call" {
+        let (receiver, rest) = arguments.split_first()?;
+        if receiver.root != JsExpressionRoot::Name(bind) {
+            return None;
+        }
+        rest
+    } else {
+        let [object, property] = callee.operands.as_slice() else {
+            return None;
+        };
+        if object.root != JsExpressionRoot::Name(bind) || property.code != "push" {
+            return None;
+        }
+        arguments
+    };
+    if elements.is_empty() || elements.iter().any(|element| bind_reads(element, bind) > 0 || expression_has_closure(element)) {
+        return None;
+    }
+    Some(elements.to_vec())
+}
+
+fn is_empty_array_literal(node: &JsExpression) -> bool {
+    matches!(node.root, JsExpressionRoot::Atom | JsExpressionRoot::Raw) && node.code == "[]"
+        || (node.root == JsExpressionRoot::Array && node.operands.is_empty())
+}
+
+/// `x=[];x.push(a);x.push(b)` → `x=[a,b]`: the pushes are the statements
+/// (or the leading comma operands of the statement) right after the empty
+/// literal, their values discarded, and no pushed value reads `x`.
+fn fold_fresh_array_pushes(block: &mut JsBlock) -> usize {
+    let mut folded = 0usize;
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut |child: &mut JsBlock| {
+            folded += fold_fresh_array_pushes(child);
+        });
+    }
+    let mut index = 0usize;
+    while index + 1 < block.statements.len() {
+        let bind = if block.statements[index].dropped_semicolon {
+            None
+        } else {
+            match &block.statements[index].statement {
+                JsStatement::Declarators { declarators, .. } => declarators.last().and_then(|declarator| {
+                    (declarator.function.is_none() && declarator.value.as_ref().is_some_and(is_empty_array_literal))
+                        .then_some(declarator.bind)
+                        .flatten()
+                }),
+                JsStatement::Binding {
+                    bind: Some(bind),
+                    value,
+                    ..
+                } if is_empty_array_literal(value) => Some(*bind),
+                JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => {
+                    match value.operands.as_slice() {
+                        [target, assigned] if is_empty_array_literal(assigned) => match target.root {
+                            JsExpressionRoot::Name(bind) => Some(bind),
+                            _ => None,
+                        },
+                        _ => None,
+                    }
+                }
+                _ => None,
+            }
+        };
+        let Some(bind) = bind else {
+            index += 1;
+            continue;
+        };
+        let mut elements = Vec::new();
+        let mut consumed = 0usize;
+        let mut remainder: Option<JsExpression> = None;
+        for next in block.statements[index + 1..].iter() {
+            let JsStatement::Expression { value } = &next.statement else {
+                break;
+            };
+            if let Some(pushed) = pushed_elements(value, bind) {
+                elements.extend(pushed);
+                consumed += 1;
+                continue;
+            }
+            if value.root == JsExpressionRoot::Comma {
+                let mut taken = 0usize;
+                for operand in &value.operands {
+                    match pushed_elements(operand, bind) {
+                        Some(pushed) => {
+                            elements.extend(pushed);
+                            taken += 1;
+                        }
+                        None => break,
+                    }
+                }
+                if taken > 0 && taken < value.operands.len() {
+                    let rest = value.operands[taken..].to_vec();
+                    remainder = Some(if rest.len() == 1 {
+                        rest.into_iter().next().expect("one operand")
+                    } else {
+                        JsExpression::comma(rest)
+                    });
+                    consumed += 1;
+                } else if taken > 0 {
+                    consumed += 1;
+                }
+            }
+            break;
+        }
+        if elements.is_empty() {
+            index += 1;
+            continue;
+        }
+        let literal = JsExpression::array(elements);
+        match &mut block.statements[index].statement {
+            JsStatement::Declarators { declarators, .. } => {
+                if let Some(declarator) = declarators.last_mut() {
+                    declarator.value = Some(literal);
+                }
+            }
+            JsStatement::Binding { value, .. } => *value = literal,
+            JsStatement::Expression { value } => {
+                if let Some(target) = value.operands.first() {
+                    *value = JsExpression::assign(target.clone(), literal);
+                }
+            }
+            _ => {}
+        }
+        let last_options = block.statements[index + consumed].options;
+        let last_dropped = block.statements[index + consumed].dropped_semicolon;
+        block.statements.drain(index + 1..index + 1 + consumed);
+        if let Some(rest) = remainder {
+            block.statements.insert(
+                index + 1,
+                EmittedStatement {
+                    statement: JsStatement::Expression { value: rest },
+                    options: last_options,
+                    dropped_semicolon: last_dropped,
+                },
+            );
+        }
+        folded += 1;
+        index += 1;
+    }
+    if folded > 0 {
+        settle_block_tail(block, false);
+    }
+    folded
 }
 
 /// `+x|0` is `x|0`: `|0` applies ToInt32, whose first step is ToNumber.
