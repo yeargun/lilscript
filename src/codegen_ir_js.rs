@@ -27981,7 +27981,7 @@ impl ModuleTree {
                     _ => None,
                 };
                 if let Some(node) = node {
-                    *body = JsFunctionBody::ConciseNode(node);
+                    *body = JsFunctionBody::ConciseNode(sequence_body(node));
                 }
             }
         }
@@ -29134,6 +29134,12 @@ fn expression_body_of(block: &JsBlock) -> Option<JsExpression> {
     Some(JsExpression::comma(parts))
 }
 
+/// A sequence body with its leading assignments moved into their first
+/// use (7.80), then the body.
+fn sequence_body(node: JsExpression) -> JsExpression {
+    sequence_assignment_into_first_use(&node).unwrap_or(node)
+}
+
 /// The arrow bodies below `block` that are sequences, made so.
 fn concise_expression_bodies(block: &mut JsBlock) -> usize {
     let mut made = 0usize;
@@ -29152,7 +29158,7 @@ fn concise_expression_bodies(block: &mut JsBlock) -> usize {
                     _ => None,
                 };
                 if let Some(node) = node {
-                    *body = JsFunctionBody::ConciseNode(node);
+                    *body = JsFunctionBody::ConciseNode(sequence_body(node));
                     made += 1;
                 }
             }
@@ -29174,7 +29180,7 @@ fn concise_expression_bodies(block: &mut JsBlock) -> usize {
                         _ => None,
                     };
                     if let Some(node) = node {
-                        *body = JsFunctionBody::ConciseNode(node);
+                        *body = JsFunctionBody::ConciseNode(sequence_body(node));
                         made += 1;
                     }
                 }
@@ -29412,6 +29418,228 @@ fn collapse_family(
     if absorbed > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
         eprintln!("[shape] {absorbed} assignments absorbed into bare declarators");
     }
+    // 7.80: `x=E;..x..` is `..(x=E)..` where the read is the first thing
+    // evaluated (the chain's `fold_sequence_assignments_into_first_use`,
+    // and the same on adjacent statements); `+x|0` is `x|0`.
+    // Measured off (b85 vs b83, ten ports: +42, markedlil +47 -- the raw
+    // wins Brotli scores worse); `LILSCRIPT_PORTS=first_use,unary_plus`.
+    let moved = if port_is_enabled("first_use") {
+        move_assignments_into_first_use(block)
+    } else {
+        0
+    };
+    let plus = if port_is_enabled("unary_plus") {
+        rewrite_block_expressions(block, &mut drop_unary_plus_under_int32)
+    } else {
+        0
+    };
+    if (moved > 0 || plus > 0) && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+        eprintln!("[shape] {moved} assignments moved into their first use, {plus} unary pluses dropped under |0");
+    }
+}
+
+/// `+x|0` is `x|0`: `|0` applies ToInt32, whose first step is ToNumber.
+fn drop_unary_plus_under_int32(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::IntegerNormalization {
+        return None;
+    }
+    let [value] = node.operands.as_slice() else {
+        return None;
+    };
+    if value.root != JsExpressionRoot::Unary(JsUnary::Plus) {
+        return None;
+    }
+    let [operand] = value.operands.as_slice() else {
+        return None;
+    };
+    Some(JsExpression::integer_normalization(operand.clone()))
+}
+
+/// Whether a leaf is a literal an evaluation can pass over.
+fn leaf_is_inert(node: &JsExpression) -> bool {
+    match node.root {
+        JsExpressionRoot::Str(_) | JsExpressionRoot::Bool(_) => true,
+        JsExpressionRoot::Atom => {
+            let code = node.code.as_str();
+            matches!(code, "true" | "false" | "null" | "void 0" | "!0" | "!1")
+                || is_rendered_string_literal(code)
+                || js_atom_is_number_literal(code)
+        }
+        _ => false,
+    }
+}
+
+/// The first name `node` reads when evaluated, passing over literals and
+/// closure creations (nothing observable happens before it), or `None`
+/// where a call, an update, an assignment's effect or an opaque text
+/// comes first.
+fn first_evaluated_read_of(node: &JsExpression) -> Option<&JsExpression> {
+    enum Step<'a> {
+        Read(&'a JsExpression),
+        Inert,
+        Stop,
+    }
+    fn walk(node: &JsExpression) -> Step<'_> {
+        match node.root {
+            JsExpressionRoot::Name(_) => Step::Read(node),
+            JsExpressionRoot::Atom if is_plain_identifier(&node.code) && !leaf_is_inert(node) => Step::Read(node),
+            JsExpressionRoot::Closure(_) => Step::Inert,
+            _ if leaf_is_inert(node) => Step::Inert,
+            JsExpressionRoot::Raw | JsExpressionRoot::Update(_) | JsExpressionRoot::PrefixUpdate(_) => Step::Stop,
+            JsExpressionRoot::Assign => {
+                // `x=v` evaluates `v` first (a name target is not a read);
+                // `o.p=v` evaluates `o` first.
+                let [target, value] = node.operands.as_slice() else {
+                    return Step::Stop;
+                };
+                match target.root {
+                    JsExpressionRoot::Name(_) | JsExpressionRoot::Atom => walk(value),
+                    _ => walk(target),
+                }
+            }
+            _ => {
+                for operand in &node.operands {
+                    match walk(operand) {
+                        Step::Inert => continue,
+                        step => return step,
+                    }
+                }
+                // Every operand inert: the node's own operation is next --
+                // a call, a `new`, a member read (a getter) all observe.
+                match node.root {
+                    JsExpressionRoot::Binary(_)
+                    | JsExpressionRoot::Unary(_)
+                    | JsExpressionRoot::Conditional
+                    | JsExpressionRoot::Comma
+                    | JsExpressionRoot::Nullish
+                    | JsExpressionRoot::StrictEquality { .. }
+                    | JsExpressionRoot::UndefinedTest { .. }
+                    | JsExpressionRoot::NullNormalized
+                    | JsExpressionRoot::IntegerNormalization
+                    | JsExpressionRoot::Object
+                    | JsExpressionRoot::Spread => Step::Inert,
+                    _ => Step::Stop,
+                }
+            }
+        }
+    }
+    match walk(node) {
+        Step::Read(read) => Some(read),
+        _ => None,
+    }
+}
+
+/// The first read of `x` in `into` replaced by the assignment `x=value`,
+/// when that read is the first thing `into` evaluates.
+fn assignment_into_first_read(into: &JsExpression, target: &JsExpression, value: &JsExpression) -> Option<JsExpression> {
+    let read = first_evaluated_read_of(into)?;
+    if !same_name_node(read, target) {
+        return None;
+    }
+    let assignment = JsExpression::assign(target.clone(), value.clone());
+    let mut done = false;
+    let rewritten = rewrite_expression(into, &mut |candidate| {
+        if !done && std::ptr::eq(candidate, read) {
+            done = true;
+            Some(assignment.clone())
+        } else {
+            None
+        }
+    })?;
+    done.then_some(rewritten.0)
+}
+
+/// The sequences *inside* the block's statement values (a nested comma
+/// is a parenthesised one -- the text fold's `(x=R,..)`): `(x=E,R)` → `R`
+/// with `(x=E)` at its first read. A statement's own comma and adjacent
+/// statements are left alone: measured, the wider move loses (markedlil
+/// +41 on the collapse member; `(e=c(e,r)).href=t` breaks the run).
+fn move_assignments_into_first_use(block: &mut JsBlock) -> usize {
+    let mut moved = 0usize;
+    for emitted in block.statements.iter_mut() {
+        if let Some(value) = statement_value_mut(&mut emitted.statement) {
+            moved += nested_sequences_into_first_use(value);
+        }
+        if let JsStatement::If {
+            condition,
+            condition_tree: Some(tree),
+            ..
+        } = &mut emitted.statement
+        {
+            *condition = tree.clone().into_minimal();
+        }
+    }
+    moved
+}
+
+/// The nested sequences of `value` (never its root) with their leading
+/// assignments moved into their first use.
+fn nested_sequences_into_first_use(value: &mut JsExpression) -> usize {
+    let mut count = 0usize;
+    let mut rewrite = |node: &JsExpression| -> Option<JsExpression> {
+        if node.root != JsExpressionRoot::Comma {
+            return None;
+        }
+        let rewritten = sequence_assignment_into_first_use(node);
+        if rewritten.is_some() {
+            count += 1;
+        }
+        rewritten
+    };
+    if value.root == JsExpressionRoot::Comma {
+        let mut operands = value.operands.clone();
+        let mut changed = false;
+        for operand in operands.iter_mut() {
+            if let Some((rewritten, _)) = rewrite_expression(operand, &mut rewrite) {
+                *operand = rewritten;
+                changed = true;
+            }
+        }
+        if changed {
+            *value = JsExpression::comma(operands);
+        }
+    } else if let Some((rewritten, _)) = rewrite_expression(value, &mut rewrite) {
+        *value = rewritten;
+    }
+    count
+}
+
+/// `(x=E,R)` → `R` with `(x=E)` at its first read, when that read is the
+/// first thing `R` evaluates; the leading operands one at a time.
+fn sequence_assignment_into_first_use(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Comma || node.operands.len() < 2 {
+        return None;
+    }
+    let mut operands = node.operands.clone();
+    let mut changed = false;
+    while operands.len() >= 2 {
+        let first = &operands[0];
+        if first.root != JsExpressionRoot::Assign {
+            break;
+        }
+        let [target, value] = first.operands.as_slice() else {
+            break;
+        };
+        if !matches!(target.root, JsExpressionRoot::Name(_) | JsExpressionRoot::Atom)
+            || compound_assignment_text(first).is_some()
+        {
+            break;
+        }
+        let Some(rewritten) = assignment_into_first_read(&operands[1], target, value) else {
+            break;
+        };
+        operands.remove(0);
+        operands[0] = rewritten;
+        changed = true;
+    }
+    if !changed {
+        return None;
+    }
+    Some(if operands.len() == 1 {
+        operands.pop().expect("one operand")
+    } else {
+        JsExpression::comma(operands)
+    })
 }
 
 /// `var …,x,…;x=E[,rest]` → `var …,x=E;[rest]`: the assignment is the
