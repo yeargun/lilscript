@@ -2957,17 +2957,19 @@ impl LateJavaScriptCleanupPass {
     /// 7.90: `BooleanConditionalValues` retired: −174 on ten ports without
     /// it (micromarklil −125, rehypelil −74, remarklil −18; katexlil +26,
     /// jquerylil +14) -- 7.50's rehypelil +106 was the unfunded print's.
-    pub(crate) const ALL: [Self; 10] = [
+    /// 7.91: `CanonicalLeafSyntax` retired: byte-identical without it on
+    /// ten ports -- the tree spells every leaf canonically (7.84).
+    /// 7.91: `NullNormalizedNullableTests` retired the same way, byte-identical
+    /// without it on ten ports (the tree's null tests, 7.65).
+    /// 7.91: `OrAssignmentParens` and `ArgumentsLengthCountdownFor` retired
+    /// the same way, byte-identical without them on ten ports.
+    pub(crate) const ALL: [Self; 6] = [
         Self::ConditionalReturnTails,
         Self::GuardReturnExpressionSuffixes,
         Self::UnitCounterUpdates,
         Self::EarlyExitGuards,
         Self::ContinueTailGuards,
         Self::SingleStatementControlBraces,
-        Self::NullNormalizedNullableTests,
-        Self::OrAssignmentParens,
-        Self::ArgumentsLengthCountdownFor,
-        Self::CanonicalLeafSyntax,
     ];
 
     /// The ladder as it was before 7.50, for an A/B

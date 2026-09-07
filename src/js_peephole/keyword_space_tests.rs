@@ -1870,7 +1870,10 @@ fn parenthesizes_and_followed_by_an_assignment() {
         optimized.code
     );
 
-    let already_and = late_generated_javascript_cleanup(
+    // 7.91: the ladder no longer carries `OrAssignmentParens` (the tree
+    // groups a guarded assignment as it builds it); the fold itself still
+    // repairs the text form on the chain.
+    let (already_and, _) = super::folds::fold_or_assignment_parens(
         "function nameOf(e,a,r){var i;(!e||a)&&i=r.name_,observe(i);return i}",
     )
     .unwrap();
