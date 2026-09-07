@@ -27559,6 +27559,13 @@ impl FrozenModuleTree {
         if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
             eprintln!("[shape] reprint with {shapes:?}, rename {rename}");
         }
+        // 7.84: the chain's canonical leaf syntax spells every emission's
+        // booleans `!0`/`!1` whatever the plan asked; the print's respell
+        // follows these options, so they say so too.
+        let options = &IrJsOptions {
+            compact_boolean_literals: true,
+            ..*options
+        };
         let mut tree = self.thaw();
         if rename {
             let scopes = ScopeCollector::module(&tree.closures, &tree.block);
@@ -27910,6 +27917,10 @@ impl ModuleTree {
             let mut blocks = vec![&mut self.block];
             blocks.append(&mut bodies);
             for (position, block) in blocks.iter_mut().enumerate() {
+                // 7.84: the chain's canonical leaf syntax on every print,
+                // unconditionally as the chain has it on every emission.
+                rewrite_block_expressions(block, &mut canonical_print_leaf);
+                canonical_print_texts(block);
                 if shapes.collapse {
                     if position == 0 {
                         let moved = inline_single_use_functions(block, &census, &snapshot);
@@ -28096,13 +28107,118 @@ fn rewrite_block_expressions(
                         }
                     }
                     if let Some(function) = &mut declarator.function {
-                        if let JsFunctionBody::Block(body) = &mut function.as_mut().1 {
-                            count += rewrite_block_expressions(body, rewrite);
+                        match &mut function.as_mut().1 {
+                            JsFunctionBody::Block(body) => count += rewrite_block_expressions(body, rewrite),
+                            JsFunctionBody::ConciseNode(node) => {
+                                if let Some((rewritten, n)) = rewrite_expression(node, rewrite) {
+                                    *node = rewritten;
+                                    count += n;
+                                }
+                            }
+                            JsFunctionBody::Concise(_) => {}
                         }
                     }
                 }
             }
-            JsStatement::Loop { body, .. } => count += rewrite_block_expressions(&mut body.block, rewrite),
+            JsStatement::Loop {
+                head,
+                body,
+                do_condition,
+                do_condition_tree,
+            } => {
+                // 7.84: the heads' trees too, their texts re-rendered.
+                let mut tree_slot = |tree: &mut JsExpression, count: &mut usize| -> Option<String> {
+                    let (rewritten, n) = rewrite_expression(tree, rewrite)?;
+                    *tree = rewritten;
+                    *count += n;
+                    Some(tree.clone().into_minimal())
+                };
+                match head {
+                    JsLoopHead::For {
+                        initializer,
+                        condition,
+                        condition_tree,
+                        update,
+                        initializer_tree,
+                        update_tree,
+                    } => {
+                        if let Some(tree) = condition_tree {
+                            if let Some(text) = tree_slot(tree, &mut count) {
+                                *condition = Some(text);
+                            }
+                        }
+                        if let Some(tree) = update_tree {
+                            if let Some(text) = tree_slot(tree, &mut count) {
+                                *update = Some(text);
+                            }
+                        }
+                        match initializer_tree {
+                            Some(JsForInit::Expression(tree)) => {
+                                if let Some(text) = tree_slot(tree, &mut count) {
+                                    *initializer = Some(text);
+                                }
+                            }
+                            Some(JsForInit::Declarators { declarators, .. }) => {
+                                let mut changed = false;
+                                for declarator in declarators.iter_mut() {
+                                    if let Some(value) = &mut declarator.value {
+                                        if tree_slot(value, &mut count).is_some() {
+                                            changed = true;
+                                        }
+                                    }
+                                }
+                                if changed {
+                                    if let Some(tree) = initializer_tree {
+                                        *initializer = Some(tree.render());
+                                    }
+                                }
+                            }
+                            None => {}
+                        }
+                    }
+                    JsLoopHead::While {
+                        condition,
+                        condition_tree: Some(tree),
+                    } => {
+                        if let Some(text) = tree_slot(tree, &mut count) {
+                            *condition = text;
+                        }
+                    }
+                    JsLoopHead::DoWhile {
+                        guard,
+                        guard_tree: Some(tree),
+                    } => {
+                        if let Some(text) = tree_slot(tree, &mut count) {
+                            *guard = text;
+                        }
+                    }
+                    JsLoopHead::ForIn {
+                        object,
+                        object_tree: Some(tree),
+                        ..
+                    } => {
+                        if let Some(text) = tree_slot(tree, &mut count) {
+                            *object = text;
+                        }
+                    }
+                    JsLoopHead::ForOf {
+                        iterable,
+                        iterable_tree: Some(tree),
+                        ..
+                    } => {
+                        if let Some(text) = tree_slot(tree, &mut count) {
+                            *iterable = text;
+                        }
+                    }
+                    _ => {}
+                }
+                if let Some(tree) = do_condition_tree {
+                    if let Some(text) = tree_slot(tree, &mut count) {
+                        *do_condition = Some(text);
+                    }
+                }
+                count += rewrite_block_expressions(&mut body.block, rewrite);
+            }
             JsStatement::Try {
                 body,
                 catch,
@@ -28125,6 +28241,15 @@ fn rewrite_block_expressions(
                 body: JsFunctionBody::Block(body),
                 ..
             } => count += rewrite_block_expressions(body, rewrite),
+            JsStatement::Function {
+                body: JsFunctionBody::ConciseNode(node),
+                ..
+            } => {
+                if let Some((rewritten, n)) = rewrite_expression(node, rewrite) {
+                    *node = rewritten;
+                    count += n;
+                }
+            }
             JsStatement::Class { members, .. } => count += rewrite_block_expressions(members, rewrite),
             _ => {}
         }
@@ -28600,6 +28725,215 @@ fn replace_bind_read(node: &JsExpression, bind: Bind, replacement: &JsExpression
 /// local once and nothing else it writes; the guard's negation with the
 /// prefix update in the read's place is the loop's test. A `continue` in
 /// `S` reaches the update either way; a `break` leaves either way.
+/// The chain's canonical leaf syntax, on the print (7.84): `true`/`false`
+/// spelled `!0`/`!1` (in nodes and, lexed, in raw text), and `|0` dropped
+/// from a `.length`, `.indexOf(..)` or `.lastIndexOf(..)` read, an integer
+/// already (remarklil's print carried 129 long booleans and 21 `length|0`
+/// against none in its emission).
+fn canonical_print_leaf(node: &JsExpression) -> Option<JsExpression> {
+    match node.root {
+        JsExpressionRoot::Bool(value) if matches!(node.code.as_str(), "true" | "false") => {
+            Some(JsExpression::boolean(value, true))
+        }
+        JsExpressionRoot::Atom if node.code == "true" => Some(JsExpression::boolean(true, true)),
+        JsExpressionRoot::Atom if node.code == "false" => Some(JsExpression::boolean(false, true)),
+        // An atom holding composite text (an object literal, an idiom) and a
+        // raw text: the words inside, by the lexer.
+        JsExpressionRoot::Atom | JsExpressionRoot::Raw
+            if node.code.contains("true") || node.code.contains("false") =>
+        {
+            let code = canonical_leaf_text(&node.code)?;
+            let mut rewritten = node.clone();
+            rewritten.code = code;
+            rewritten.ungrouped = None;
+            Some(rewritten)
+        }
+        JsExpressionRoot::IntegerNormalization => {
+            let [value] = node.operands.as_slice() else {
+                return None;
+            };
+            let property = match value.root {
+                JsExpressionRoot::Member => value.operands.get(1).map(|property| property.code.as_str()),
+                JsExpressionRoot::Call => value.operands.first().and_then(|callee| {
+                    (callee.root == JsExpressionRoot::Member)
+                        .then(|| callee.operands.get(1).map(|property| property.code.as_str()))
+                        .flatten()
+                }),
+                _ => None,
+            };
+            let integral = match (value.root, property) {
+                (JsExpressionRoot::Member, Some("length")) => true,
+                (JsExpressionRoot::Call, Some("indexOf" | "lastIndexOf")) => true,
+                _ => false,
+            };
+            integral.then(|| value.clone())
+        }
+        _ => None,
+    }
+}
+
+/// The canonical leaf syntax in the texts the tree still holds as text:
+/// conditions and heads without a tree, concise text bodies, class
+/// fields, case labels.
+fn canonical_print_texts(block: &mut JsBlock) {
+    fn text(slot: &mut String) {
+        if let Some(canonical) = canonical_leaf_text(slot) {
+            *slot = canonical;
+        }
+    }
+    fn body(body: &mut JsFunctionBody) {
+        match body {
+            JsFunctionBody::Block(block) => canonical_print_texts(block),
+            JsFunctionBody::Concise(code) => text(code),
+            JsFunctionBody::ConciseNode(_) => {}
+        }
+    }
+    for emitted in block.statements.iter_mut() {
+        match &mut emitted.statement {
+            JsStatement::If {
+                condition,
+                condition_tree: None,
+                ..
+            } => text(condition),
+            JsStatement::Loop {
+                head,
+                do_condition,
+                do_condition_tree,
+                ..
+            } => {
+                match head {
+                    JsLoopHead::For {
+                        initializer,
+                        condition,
+                        update,
+                        condition_tree,
+                        initializer_tree,
+                        update_tree,
+                    } => {
+                        if condition_tree.is_none() {
+                            if let Some(condition) = condition {
+                                text(condition);
+                            }
+                        }
+                        if update_tree.is_none() {
+                            if let Some(update) = update {
+                                text(update);
+                            }
+                        }
+                        if initializer_tree.is_none() {
+                            if let Some(initializer) = initializer {
+                                text(initializer);
+                            }
+                        }
+                    }
+                    JsLoopHead::While {
+                        condition,
+                        condition_tree: None,
+                    } => text(condition),
+                    JsLoopHead::DoWhile {
+                        guard,
+                        guard_tree: None,
+                    } => text(guard),
+                    JsLoopHead::ForIn {
+                        object,
+                        object_tree: None,
+                        ..
+                    } => text(object),
+                    JsLoopHead::ForOf {
+                        iterable,
+                        iterable_tree: None,
+                        ..
+                    } => text(iterable),
+                    _ => {}
+                }
+                if do_condition_tree.is_none() {
+                    if let Some(guard) = do_condition {
+                        text(guard);
+                    }
+                }
+            }
+            JsStatement::Switch {
+                discriminant,
+                discriminant_tree: None,
+                cases,
+            } => {
+                text(discriminant);
+                for case in cases.iter_mut() {
+                    text(&mut case.label);
+                }
+            }
+            JsStatement::Switch { cases, .. } => {
+                for case in cases.iter_mut() {
+                    text(&mut case.label);
+                }
+            }
+            JsStatement::ClassField { value, .. } => text(value),
+            JsStatement::Function { body: function_body, .. } => body(function_body),
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    if let Some(function) = &mut declarator.function {
+                        body(&mut function.as_mut().1);
+                    }
+                }
+            }
+            _ => {}
+        }
+        for_each_child_block(&mut emitted.statement, &mut |child: &mut JsBlock| canonical_print_texts(child));
+    }
+}
+
+/// `true`/`false` as `!0`/`!1` in a raw text, by the lexer: not a property
+/// name, not an object key, not a receiver (`true.x` would need a group).
+fn canonical_leaf_text(code: &str) -> Option<String> {
+    let tokens = match crate::js_peephole::lex_javascript(code) {
+        Ok(tokens) => tokens,
+        Err(error) => {
+            if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() && (code.contains("true") || code.contains("false")) {
+                eprintln!(
+                    "[shape] leaf text does not lex ({}): {}",
+                    format!("{error:?}").chars().take(60).collect::<String>(),
+                    code.chars().take(80).collect::<String>()
+                );
+            }
+            return None;
+        }
+    };
+    let mut out = String::with_capacity(code.len());
+    let mut last = 0usize;
+    let mut changed = false;
+    for (index, token) in tokens.iter().enumerate() {
+        if !matches!(token.text, "true" | "false")
+            || !matches!(token.kind, crate::js_peephole::JsTokenKind::Keyword | crate::js_peephole::JsTokenKind::Identifier)
+        {
+            continue;
+        }
+        let previous = index.checked_sub(1).map(|at| tokens[at].text);
+        let next = tokens.get(index + 1).map(|token| token.text);
+        if matches!(previous, Some("." | "?."))
+            || (matches!(previous, Some("{" | ",")) && next == Some(":"))
+            || matches!(next, Some("." | "?." | "[" | "("))
+        {
+            continue;
+        }
+        let mut before = &code[last..token.start];
+        // `return false` was spaced for a word; `return!1` needs no space.
+        if before.ends_with(' ')
+            && previous.is_some_and(|text| text.bytes().last().is_some_and(is_js_identifier_byte))
+        {
+            before = &before[..before.len() - 1];
+        }
+        out.push_str(before);
+        out.push_str(if token.text == "true" { "!0" } else { "!1" });
+        last = token.end;
+        changed = true;
+    }
+    if !changed {
+        return None;
+    }
+    out.push_str(&code[last..]);
+    Some(out)
+}
+
 /// The compound spelling of a binary operator, for `a=a OP b` as
 /// `a OP=b` (the chain's `compound_assignment_rewrite` list: the logical
 /// operators short-circuit and are not in it).
