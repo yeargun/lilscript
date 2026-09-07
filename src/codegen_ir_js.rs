@@ -3956,8 +3956,28 @@ fn declarator_is_collapsible(declarator: &JsDeclarator, census: &BindCensus) -> 
         && census.writes.get(&bind).copied() == Some(1)
         && !census.is_unsafe(Some(bind), &declarator.name)
         && !expression_is_structural(value)
-        && !matches!(value.root, JsExpressionRoot::Raw | JsExpressionRoot::Closure(_)))
+        && value_is_collapsible(value))
     .then(|| (bind, value.clone()))
+}
+
+/// The bind a name node reads.
+fn name_bind(node: &JsExpression) -> Bind {
+    match node.root {
+        JsExpressionRoot::Name(bind) => bind,
+        _ => Bind(u32::MAX),
+    }
+}
+
+/// A value the collapse may move into its one read: not a closure (the
+/// function inliner's), and (7.79) a raw text only when it holds none --
+/// the first-leaf rule in `collapse_is_safe` keeps its evaluation point,
+/// whatever it is.
+fn value_is_collapsible(value: &JsExpression) -> bool {
+    match value.root {
+        JsExpressionRoot::Closure(_) => false,
+        JsExpressionRoot::Raw => !value.code.contains("=>") && !value.code.contains("function"),
+        _ => true,
+    }
 }
 
 /// `var a=f(),b=a.x` -> `var b=f().x`: a declarator read once, in the value
@@ -4316,10 +4336,26 @@ fn collapse_block(
                 && census.writes.get(bind).copied() == Some(1)
                 && !census.is_unsafe(Some(*bind), name)
                 && !expression_is_structural(value)
-                && !matches!(value.root, JsExpressionRoot::Raw | JsExpressionRoot::Closure(_)) =>
+                && value_is_collapsible(value) =>
             {
                 Some((*bind, value.clone(), false))
             }
+            // 7.79: `x=E;use(x)` as an expression statement too (the chain's
+            // `fold_statement_assignments_into_first_use`); the bare
+            // declaration stays for the pruner.
+            JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => match value.operands.as_slice() {
+                [target, assigned]
+                    if matches!(target.root, JsExpressionRoot::Name(_))
+                        && census.reads.get(&name_bind(target)).copied() == Some(1)
+                        && census.writes.get(&name_bind(target)).copied() == Some(1)
+                        && !census.is_unsafe(Some(name_bind(target)), &target.code)
+                        && !expression_is_structural(assigned)
+                        && value_is_collapsible(assigned) =>
+                {
+                    Some((name_bind(target), assigned.clone(), false))
+                }
+                _ => None,
+            },
             JsStatement::Declarators { declarators, .. } => declarators
                 .last()
                 .and_then(|declarator| declarator_is_collapsible(declarator, census))
@@ -27597,6 +27633,10 @@ pub(crate) struct TreeShapes {
     /// `if(!c)return;S` / `if(!c)continue;S` -- the inverse of
     /// `exit_guards`; the beam keeps the cheaper.
     pub(crate) guard_tails: bool,
+    /// Migration 7.79: an arrow's block body of expression statements and a
+    /// returned value as the sequence `(a,b,v)` (the chain's
+    /// `fold_expression_bodies`).
+    pub(crate) expression_bodies: bool,
     /// Migration 7.55: every branch's braces decided again after the other
     /// shapes changed what the branches hold (`SingleStatementControlBraces`).
     pub(crate) rebrace: bool,
@@ -27607,7 +27647,7 @@ impl TreeShapes {
     /// The print ladder's rungs in order, each adding one shape to the
     /// incumbent's set; the rename last, since it re-spells what the others
     /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.
-    pub(crate) const RUNG_COUNT: usize = 15;
+    pub(crate) const RUNG_COUNT: usize = 16;
 
     pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
         let rungs: [(&'static str, fn(&mut Self)); Self::RUNG_COUNT] = [
@@ -27624,6 +27664,7 @@ impl TreeShapes {
             ("top_keyword", |shapes| shapes.top_keyword = true),
             ("function_let", |shapes| shapes.function_let = true),
             ("return_tails", |shapes| shapes.return_tails = true),
+            ("expression_bodies", |shapes| shapes.expression_bodies = true),
             ("guard_tails", |shapes| shapes.guard_tails = true),
             ("exit_guards", |shapes| shapes.exit_guards = true),
             ("rebrace", |shapes| shapes.rebrace = true),
@@ -27891,6 +27932,9 @@ impl ModuleTree {
                     );
                     fuse_return_tails(block);
                 }
+                if shapes.expression_bodies {
+                    concise_expression_bodies(block);
+                }
                 if shapes.guard_tails {
                     flatten_tail_guards(
                         block,
@@ -27926,6 +27970,18 @@ impl ModuleTree {
             for (_, (head, body)) in entries.iter_mut() {
                 if let JsFunctionBody::Block(block) = body {
                     lexicalize_leading_var(head, block);
+                }
+            }
+        }
+        // 7.79: the closure map's own arrow bodies too.
+        if shapes.expression_bodies {
+            for (head, body) in entries.values_mut() {
+                let node = match body {
+                    JsFunctionBody::Block(inner) if head_is_arrow(head) => expression_body_of(inner),
+                    _ => None,
+                };
+                if let Some(node) = node {
+                    *body = JsFunctionBody::ConciseNode(node);
                 }
             }
         }
@@ -29040,6 +29096,99 @@ fn fuse_self_assignment_chains(block: &mut JsBlock) -> usize {
     fused
 }
 
+/// Whether a head is an arrow's.
+fn head_is_arrow(head: &JsHead) -> bool {
+    head.pieces
+        .iter()
+        .any(|piece| matches!(piece, JsHeadPiece::Text(text) if text.contains("=>")))
+}
+
+/// `{a;b;return v}` as the sequence `(a,b,v)`: two or more statements,
+/// every one an expression (or a keyword-less assignment), the last a
+/// returned value (`fold_expression_bodies`' arrow case).
+fn expression_body_of(block: &JsBlock) -> Option<JsExpression> {
+    if block.statements.len() < 2 {
+        return None;
+    }
+    let last = block.statements.len() - 1;
+    let mut parts = Vec::with_capacity(block.statements.len());
+    for (index, emitted) in block.statements.iter().enumerate() {
+        match &emitted.statement {
+            JsStatement::Expression { value } if index < last => parts.push(value.clone()),
+            JsStatement::Binding {
+                keyword: None,
+                name,
+                bind,
+                value,
+            } if index < last => {
+                let target = match bind {
+                    Some(bind) => JsExpression::name(*bind, name.clone()),
+                    None => JsExpression::atom(name.clone()),
+                };
+                parts.push(JsExpression::assign(target, value.clone()));
+            }
+            JsStatement::Return { value: Some(value) } if index == last => parts.push(value.clone()),
+            _ => return None,
+        }
+    }
+    Some(JsExpression::comma(parts))
+}
+
+/// The arrow bodies below `block` that are sequences, made so.
+fn concise_expression_bodies(block: &mut JsBlock) -> usize {
+    let mut made = 0usize;
+    for emitted in block.statements.iter_mut() {
+        match &mut emitted.statement {
+            JsStatement::Function { head, body, .. } => {
+                let node = match body {
+                    JsFunctionBody::Block(inner) => {
+                        made += concise_expression_bodies(inner);
+                        if head_is_arrow(head) {
+                            expression_body_of(inner)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+                if let Some(node) = node {
+                    *body = JsFunctionBody::ConciseNode(node);
+                    made += 1;
+                }
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    let Some(function) = &mut declarator.function else {
+                        continue;
+                    };
+                    let (head, body) = function.as_mut();
+                    let node = match body {
+                        JsFunctionBody::Block(inner) => {
+                            made += concise_expression_bodies(inner);
+                            if head_is_arrow(head) {
+                                expression_body_of(inner)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+                    if let Some(node) = node {
+                        *body = JsFunctionBody::ConciseNode(node);
+                        made += 1;
+                    }
+                }
+            }
+            statement => {
+                for_each_child_block(statement, &mut |child: &mut JsBlock| {
+                    made += concise_expression_bodies(child);
+                });
+            }
+        }
+    }
+    made
+}
+
 /// A body's last `if(c){S}` (no else, `S` without a block-scoped
 /// declaration) as the guard `if(!c)return;S` in a function body and
 /// `if(!c)continue;S` in a loop body -- the flat form the text ladder
@@ -29257,6 +29406,146 @@ fn collapse_family(
     }
     drop_void_initializers(block, census);
     merge_block_declarations(block);
+    // 7.79: `var ..,x,..;x=E` is `var ..,x=E` (the chain's
+    // `fold_uninitialized_var_into_any_assign`).
+    let absorbed = absorb_declarator_assignments(block);
+    if absorbed > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+        eprintln!("[shape] {absorbed} assignments absorbed into bare declarators");
+    }
+}
+
+/// `var …,x,…;x=E[,rest]` → `var …,x=E;[rest]`: the assignment is the
+/// statement right after the list, so its evaluation point stays; `x`
+/// leaves its bare slot and joins the end of the list. Refused for the
+/// compound form (`x=x+1`, which the chain spells `x+=1` and leaves), and
+/// when another declarator's initialiser mentions `x`.
+fn absorb_declarator_assignments(block: &mut JsBlock) -> usize {
+    let mut absorbed = 0usize;
+    let mut index = 0usize;
+    while index + 1 < block.statements.len() {
+        let has_bare = match &block.statements[index].statement {
+            JsStatement::Declarators {
+                keyword: "var ",
+                declarators,
+            } => {
+                !block.statements[index].dropped_semicolon
+                    && declarators
+                        .iter()
+                        .any(|declarator| declarator.value.is_none() && declarator.function.is_none())
+            }
+            _ => false,
+        };
+        if !has_bare {
+            index += 1;
+            continue;
+        }
+        // The next statement's leading assignment, and what follows it.
+        let (target, value, rest) = match &block.statements[index + 1].statement {
+            JsStatement::Binding {
+                keyword: None,
+                name,
+                bind,
+                value,
+            } => {
+                let target = match bind {
+                    Some(bind) => JsExpression::name(*bind, name.clone()),
+                    None => JsExpression::atom(name.clone()),
+                };
+                (target, value.clone(), None)
+            }
+            JsStatement::Expression { value: expression } => {
+                let (head, rest) = if expression.root == JsExpressionRoot::Comma && expression.operands.len() > 1 {
+                    let mut rest = expression.operands.clone();
+                    let head = rest.remove(0);
+                    (head, Some(rest))
+                } else {
+                    (expression.clone(), None)
+                };
+                if head.root != JsExpressionRoot::Assign {
+                    index += 1;
+                    continue;
+                }
+                let [target, value] = head.operands.as_slice() else {
+                    index += 1;
+                    continue;
+                };
+                if !matches!(target.root, JsExpressionRoot::Name(_) | JsExpressionRoot::Atom) {
+                    index += 1;
+                    continue;
+                }
+                (target.clone(), value.clone(), rest)
+            }
+            _ => {
+                index += 1;
+                continue;
+            }
+        };
+        if compound_assignment_text(&JsExpression::assign(target.clone(), value.clone())).is_some() {
+            index += 1;
+            continue;
+        }
+        let target_bind = match target.root {
+            JsExpressionRoot::Name(bind) => Some(bind),
+            _ => None,
+        };
+        let JsStatement::Declarators { declarators, .. } = &mut block.statements[index].statement else {
+            unreachable!("checked above");
+        };
+        let slot = declarators.iter().position(|declarator| {
+            declarator.value.is_none()
+                && declarator.function.is_none()
+                && match (target_bind, declarator.bind) {
+                    (Some(bind), Some(declared)) => bind == declared,
+                    _ => declarator.name == target.code,
+                }
+        });
+        let Some(slot) = slot else {
+            index += 1;
+            continue;
+        };
+        let mentioned = declarators.iter().enumerate().any(|(at, declarator)| {
+            at != slot
+                && declarator.value.as_ref().is_some_and(|initializer| match target_bind {
+                    Some(bind) => bind_reads(initializer, bind) > 0 || text_mentions_identifier(&initializer.code, &target.code),
+                    None => text_mentions_identifier(&initializer.code, &target.code),
+                })
+        });
+        if mentioned {
+            index += 1;
+            continue;
+        }
+        let taken = declarators.remove(slot);
+        declarators.push(JsDeclarator {
+            name: taken.name,
+            bind: taken.bind,
+            value: Some(value),
+            function: None,
+        });
+        let options = block.statements[index + 1].options;
+        let dropped = block.statements[index + 1].dropped_semicolon;
+        match rest {
+            Some(mut rest) => {
+                let value = if rest.len() == 1 {
+                    rest.pop().expect("one operand")
+                } else {
+                    JsExpression::comma(rest)
+                };
+                block.statements[index + 1] = EmittedStatement {
+                    statement: JsStatement::Expression { value },
+                    options,
+                    dropped_semicolon: dropped,
+                };
+            }
+            None => {
+                block.statements.remove(index + 1);
+            }
+        }
+        absorbed += 1;
+    }
+    if absorbed > 0 {
+        settle_block_tail(block, false);
+    }
+    absorbed
 }
 
 /// Whether a child block of any statement in `block` declares `spelling`
@@ -29562,6 +29851,12 @@ fn reduce_immediate_call(
 
 /// Whether `text` spells `name` as a whole identifier anywhere.
 fn text_mentions_identifier(text: &str, name: &str) -> bool {
+    if let Ok(tokens) = crate::js_peephole::lex_javascript(text) {
+        return tokens.iter().any(|token| {
+            matches!(token.kind, crate::js_peephole::JsTokenKind::Identifier | crate::js_peephole::JsTokenKind::Keyword)
+                && token.text == name
+        });
+    }
     let bytes = text.as_bytes();
     let mut from = 0usize;
     while let Some(at) = text[from..].find(name) {
@@ -30847,6 +31142,17 @@ impl OpaqueKind {
 /// Every identifier-shaped run in a piece of text, reserved words included:
 /// what an opaque string might be referring to.
 fn identifiers_in(text: &str, into: &mut AHashSet<String>) {
+    // 7.79: the lexer, so a string's `\n` is not an identifier `n` (56
+    // closures on markedlil were refused as capturing one); the byte scan
+    // only where the text does not lex.
+    if let Ok(tokens) = crate::js_peephole::lex_javascript(text) {
+        for token in &tokens {
+            if matches!(token.kind, crate::js_peephole::JsTokenKind::Identifier | crate::js_peephole::JsTokenKind::Keyword) {
+                into.insert(token.text.to_string());
+            }
+        }
+        return;
+    }
     let bytes = text.as_bytes();
     let mut start = None;
     for (index, byte) in bytes.iter().enumerate() {
@@ -32045,8 +32351,11 @@ impl JsStatement {
                 }
             }
             JsFunctionBody::ConciseNode(node) => {
+                // A sequence body keeps its parentheses (7.79), as an object
+                // literal keeps its own.
+                let sequence = node.root == JsExpressionRoot::Comma;
                 let expression = strip_outer_parens(node);
-                if expression.starts_with('{') {
+                if expression.starts_with('{') || sequence {
                     text.push('(');
                     text.push_str(&expression);
                     text.push(')');
