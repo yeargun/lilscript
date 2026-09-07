@@ -32,7 +32,7 @@ when the migration is *finished*, not at every step. Byte identity is evidence, 
 
 | port | `54e1948` | now (`acace54`) | Δ |
 |---|---:|---:|---:|
-| markedlil `marked.esm.js` | 9,470 | **9,322** | −148 |
+| markedlil `marked.esm.js` | 9,470 | **9,202** (b105, pool) | −268 |
 | zodlil `zod.core.js` | 32,489 | **32,415** | −74 |
 
 Both are below the baseline they must end at or below, with every correctness fix's cost inside
@@ -336,26 +336,27 @@ another's tree (5.3); the receiver parameter's bind leaked into `Name(bind,"this
 ## What is open, in order
 
 1. **Phase 7′ — one emission, many prints** ([012](012-second-look.md)). Where it stands after
-   7.82: the print beam runs once per context inside each finalist's bridge cleanup on its own
-   allowance, sixteen rungs, the cheapest print carried through the real finishing on a ledger
-   extended by 384 probes for it (7.82, −277 on the fleet; wall +39%, a debt). The tree owns the
-   chain's single-use inlining of functions and literal aliases, the self-assignment chains, the
-   compound spelling and the bare-first `var` order (7.78–7.79); after the collapse rung the print
-   stands within 15 of its emission on markedlil. Per port at the finish (7.81's traced run, before
-   the ledger): ahead on unifiedlil, at parity on katexlil, behind on jquerylil/remark/remark-gfm
-   where the chain's gap is 800–3,300. What is left, in order: (a) pay the wall back -- the text
-   finalist's finishing and the print's are independent and can run in parallel on their own
-   ledger slices; the text passes whose rungs exist come out when the artifact stops needing them
-   (NegatedEqualities off is +20 now, +122 at b78); (b) the chain folds the print still lacks, by
-   the fold census (7.81): `conditional_return_tails`, `boolean_conditional_values`,
-   `uninitialized_var_into_any_assign` (done on the print), `common_conditional_arms` (parked: it
-   loses at the noise floor), G12's class recovery, G6's int32 elision, `arguments` to formals,
-   fresh-array pushes (needs an `Array` node); (c) the raw holders that make 165 binds unsafe on
-   remark-gfm (the emitter's statement-or runs, `x=x||R.exec(y)`, `a?.b??null`, `new T(..)`, array
-   literals) -- each an ownership step with the naming lottery to measure; (d) the naming on the
-   tree: the converge rung costs +150–200 on markedlil, the text convergence and the letter remaps
-   still finish every print. Parity rewrites that fire a handful of times per print each lost
-   ~+45 on markedlil (7.80, 7.81): the fleet decides, never parity.
+   7.88: the print beam runs once per context inside each finalist's bridge cleanup on its own
+   allowance, sixteen rungs; the cheapest print is carried through the real finishing on a
+   ledger extended by 384 probes where its best unfinished member is within 3,000 of the
+   emission (7.82–7.86), its first letter remap skipped (7.88), the finishings in parallel
+   (7.83). The tree owns the chain's single-use inlining of functions and literal aliases, the
+   self-assignment chains, the compound spelling, the bare-first `var` order, arrays from their
+   pushes, and every print carries the chain's canonical leaf syntax (7.78–7.85). The print is
+   the artifact on unifiedlil, markedlil, posthoglil, remark-gfm, remarklil and jquerylil; it
+   ties on katexlil, loses by 30–240 on micromarklil and mobxlil, and rehypelil's level-12
+   config runs no beam. −1,229 against the baseline; the pool's wall is a debt (+35% before
+   the pool's own drift, 7.88). What is left, in order: (a) the wall: jquerylil's probes and the
+   ports where the print never wins yet pay the beam; (b) the text passes retire only when the
+   print is the artifact everywhere (7.88's deletions: ConditionalReturnTails +986 alone);
+   (c) the raw holders -- the clustered roots (`cluster_tree` +81 when on, 7.85), the emitter's
+   statement-or runs, `new T(..)` -- each an ownership step with the naming lottery to
+   measure; (d) the naming on the tree: the converge rung costs +150–200 on markedlil, and a
+   fresh bind (7.87's formals) lands on a two-letter name because the renamer forbids every
+   nested function's locals; (e) parked behind `LILSCRIPT_PORTS`: `first_use`, `unary_plus`,
+   `common_arms`, `assignment_guards`, `loop_head_collapse`, `formals`, `null_tests`,
+   `static_calls`, `concise_node`, `cluster_tree`, `minmax_call`, `negated_equalities`,
+   `boolean_one_arm` -- each measured at the noise floor or below it on the fleet.
 2. **Phase 6 under that regime**: the residue on the cases with the shapes off (7.41):
    `fold_prior_assign_into_for_init` 128, `fold_identity_arrow_iife` 108,
    `fold_negated_conditional_arms` 90 and `merge_adjacent_declarations` 72 (all four now carried
