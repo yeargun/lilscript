@@ -8982,12 +8982,13 @@ fn print_finish_ledger() -> usize {
 
 /// `LILSCRIPT_PRINT_FINISH_GAP=<n>`: the print's finishing is funded only
 /// where its best unfinished member is within `n` codec bytes of the
-/// emission (7.83); 1500 by default.
+/// emission (7.83). 3000 since 7.86: remarklil's stands 2,900 behind and
+/// finishes 112 ahead, for 35 s.
 fn print_finish_gap() -> usize {
     std::env::var("LILSCRIPT_PRINT_FINISH_GAP")
         .ok()
         .and_then(|value| value.parse().ok())
-        .unwrap_or(1500)
+        .unwrap_or(3000)
 }
 
 /// The codec probes one finalist's print beam may take: the unshaped print

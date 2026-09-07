@@ -27583,6 +27583,8 @@ impl FrozenModuleTree {
         // is installed for them and the previous one put back.
         let previous = StatementPolicy::current();
         StatementPolicy::of(options).install();
+        let mut shapes = shapes;
+        shapes.pristine_builtins = options.assume_pristine_builtins;
         tree.reshape(shapes);
         previous.install();
         if shapes.converge {
@@ -27674,6 +27676,9 @@ pub(crate) struct TreeShapes {
     /// returned value as the sequence `(a,b,v)` (the chain's
     /// `fold_expression_bodies`).
     pub(crate) expression_bodies: bool,
+    /// The plan's `assume_pristine_builtins` (7.85): the array-from-pushes
+    /// fold is equivalent only under it, as the text fold is.
+    pub(crate) pristine_builtins: bool,
     /// Migration 7.55: every branch's braces decided again after the other
     /// shapes changed what the branches hold (`SingleStatementControlBraces`).
     pub(crate) rebrace: bool,
@@ -27933,6 +27938,13 @@ impl ModuleTree {
                 // unconditionally as the chain has it on every emission.
                 rewrite_block_expressions(block, &mut canonical_print_leaf);
                 canonical_print_texts(block);
+                // `LILSCRIPT_RAW_CHAIN=1` (7.86, measured): the text chain over
+                // each raw holder of the print, as the emission had it over
+                // its whole text; wrapped as an assignment so the value stays.
+                if std::env::var("LILSCRIPT_RAW_CHAIN").is_ok_and(|value| value == "1") {
+                    let pristine = shapes.pristine_builtins;
+                    rewrite_block_expressions(block, &mut |node| chain_raw_holder(node, pristine));
+                }
                 if shapes.collapse {
                     if position == 0 {
                         let moved = inline_single_use_functions(block, &census, &snapshot);
@@ -27947,9 +27959,9 @@ impl ModuleTree {
                     // innermost first, then this block.
                     // `LILSCRIPT_COLLAPSE_BODIES=0` keeps to this block, for the A/B.
                     if std::env::var("LILSCRIPT_COLLAPSE_BODIES").map_or(true, |value| value != "0") {
-                        for_each_function_body(block, &mut |_, body| collapse_family(body, &census, &snapshot));
+                        for_each_function_body(block, &mut |_, body| collapse_family(body, &census, &snapshot, shapes.pristine_builtins));
                     }
-                    collapse_family(block, &census, &snapshot);
+                    collapse_family(block, &census, &snapshot, shapes.pristine_builtins);
                     // 7.78: `x=E,x=x+R` is `x=E+R` (`fold_self_assignment_chains`).
                     for_each_function_body(block, &mut |_, body| {
                         fuse_self_assignment_chains(body);
@@ -28802,6 +28814,48 @@ fn canonical_print_leaf(node: &JsExpression) -> Option<JsExpression> {
         }
         _ => None,
     }
+}
+
+/// A raw holder's text through the emission chain (7.86): `$$=(RAW);`, the
+/// chain, the prefix and the terminator off again. Kept as it was when the
+/// chain fails or reshapes the statement itself.
+fn chain_raw_holder(node: &JsExpression, pristine_builtins: bool) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Raw || node.code.len() < 64 {
+        return None;
+    }
+    let wrapped = format!("$$=({});", node.code);
+    let optimized = match crate::js_peephole::optimize_generated_javascript_assuming(&wrapped, pristine_builtins) {
+        Ok(optimized) => optimized,
+        Err(error) => {
+            if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!("[raw-chain] {} bytes: chain error {}", node.code.len(), format!("{error:?}").chars().take(80).collect::<String>());
+            }
+            return None;
+        }
+    };
+    if optimized.rewrites == 0 {
+        return None;
+    }
+    // The chain declares the wrapper's implicit global first.
+    let code = optimized.code.strip_prefix("var $$;").unwrap_or(&optimized.code);
+    let Some(code) = code
+        .strip_prefix("$$=")
+        .map(|code| code.strip_suffix(';').unwrap_or(code))
+    else {
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            eprintln!(
+                "[raw-chain] {} bytes: the chain reshaped the wrapper: `{}`",
+                node.code.len(),
+                optimized.code.chars().take(60).collect::<String>()
+            );
+        }
+        return None;
+    };
+    let code = code.strip_prefix('(').and_then(|inner| inner.strip_suffix(')')).unwrap_or(code);
+    if code.is_empty() || code == node.code || code.contains("$$") {
+        return None;
+    }
+    Some(JsExpression::raw(code.to_string(), node.precedence))
 }
 
 /// The canonical leaf syntax in the texts the tree still holds as text:
@@ -29822,6 +29876,7 @@ fn collapse_family(
     block: &mut JsBlock,
     census: &BindCensus,
     closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    pristine_builtins: bool,
 ) {
     // `LILSCRIPT_COPIES=0` skips the copies, for the A/B.
     if std::env::var("LILSCRIPT_COPIES").map_or(true, |value| value != "0") {
@@ -29844,8 +29899,9 @@ fn collapse_family(
     if absorbed > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
         eprintln!("[shape] {absorbed} assignments absorbed into bare declarators");
     }
-    // 7.85: `x=[];x.push(a);x.push(b)` is `x=[a,b]` (`fold_fresh_empty_array_pushes`).
-    let arrays = fold_fresh_array_pushes(block);
+    // 7.85: `x=[];x.push(a);x.push(b)` is `x=[a,b]` (`fold_fresh_empty_array_pushes`),
+    // under the pristine-builtins contract only, as the text fold.
+    let arrays = if pristine_builtins { fold_fresh_array_pushes(block) } else { 0 };
     if arrays > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
         eprintln!("[shape] {arrays} arrays written as literals from their pushes");
     }
