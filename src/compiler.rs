@@ -3385,7 +3385,33 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         module_output: bool,
         options: crate::codegen_ir_js::IrJsOptions,
     ) -> Option<(Arc<crate::codegen_ir_js::FrozenModuleTree>, bool)> {
+        self.frozen_tree_with(context_id, module_output, options, true)
+    }
+
+    /// Migration 7.56: the print beam runs on every finalist's tree, but a
+    /// finalist the search never printed (a seed, a direct source) gets no
+    /// emission for it: the tree comes from the cache or the beam is skipped
+    /// (the one-slot ledgers count emissions).
+    fn cached_frozen_tree(
+        &self,
+        context_id: usize,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+    ) -> Option<(Arc<crate::codegen_ir_js::FrozenModuleTree>, bool)> {
+        self.frozen_tree_with(context_id, module_output, options, false)
+    }
+
+    fn frozen_tree_with(
+        &self,
+        context_id: usize,
+        module_output: bool,
+        options: crate::codegen_ir_js::IrJsOptions,
+        emit: bool,
+    ) -> Option<(Arc<crate::codegen_ir_js::FrozenModuleTree>, bool)> {
         if !(self.reprint_spellings || reprint_quotes_enabled()) {
+            if !emit {
+                return None;
+            }
             let (_, tree) = self.get(context_id).emit_frozen(module_output, options).ok()?;
             return Some((Arc::new(tree), false));
         }
@@ -3402,10 +3428,11 @@ impl<'ir, 'src> JavaScriptEmissionContexts<'ir, 'src> {
         };
         let (tree, base_naming) = match cached(self) {
             Some(entry) => entry,
-            None => {
+            None if emit => {
                 self.emit_frozen(context_id, module_output, options).ok()?;
                 cached(self)?
             }
+            None => return None,
         };
         let rename = options.mangle_identifiers && base_naming != Self::naming_key(&options);
         Some((tree, rename))
@@ -5333,86 +5360,39 @@ fn terminal_scope_naming_options(
     variants
 }
 
-/// Migration 7.36: the tree's off-by-default shapes, one challenger each,
-/// on the finalist's own plan. A shape that runs on every emission moves the
-/// search's plan choice (the single-use collapse read +128 net on the fleet
-/// that way, six wins and six losses); offered here it is scored on the text
-/// that ships and kept only when the codec says it is smaller -- the slot
-/// the terminal text folds it replaces have always had.
-fn terminal_shape_texts(
-    parent: crate::codegen_ir_js::IrJsOptions,
-    context_id: usize,
-    module_output: bool,
-    config: &ProjectConfig,
-    contexts: &JavaScriptEmissionContexts<'_, '_>,
-) -> (Option<String>, Vec<(crate::codegen_ir_js::IrJsOptions, String)>) {
-    if !config.terminal_shape_challengers_enabled() || parent.single_use_collapse {
-        return (None, Vec::new());
-    }
-    // 7.37 re-emitted the finalist's plan with the shape on and lost 71 to
-    // 101 bytes on markedlil every time, with the shape doing nothing there:
-    // a fresh emission never has the finishing the finalist's tree carries.
-    // The challenger is that tree, collapsed, printed the way the plan
-    // prints it.
-    let Some((tree, rename)) = contexts.frozen_tree(context_id, module_output, parent) else {
-        return (None, Vec::new());
-    };
-    use crate::codegen_ir_js::TreeShapes;
-    // The unshaped print is the gate's incumbent: a print of the tree is
-    // not the emission byte for byte (7.33 knew), so a shaped print is
-    // judged against the unshaped one, print against print.
-    let unshaped = tree.reprint_reshaped(&parent, rename, TreeShapes::default());
-    let shapes = [
-        TreeShapes {
-            collapse: true,
-            ..TreeShapes::default()
-        },
-        TreeShapes {
-            for_init: true,
-            ..TreeShapes::default()
-        },
-        TreeShapes {
-            negated_arms: true,
-            ..TreeShapes::default()
-        },
-        TreeShapes {
-            converge: true,
-            ..TreeShapes::default()
-        },
-        TreeShapes {
-            collapse: true,
-            converge: true,
-            ..TreeShapes::default()
-        },
-        TreeShapes {
-            collapse: true,
-            for_init: true,
-            negated_arms: true,
-            converge: true,
-        },
-    ];
-    let texts = shapes
-        .into_iter()
-        // The renamer runs only where the plan mangles identifiers -- the same
-        // guard the search's rename re-prints have (a readable build keeps
-        // its names, exports included).
-        .filter(|shape| !shape.converge || parent.mangle_identifiers)
-        .map(|shape| {
-            let options = crate::codegen_ir_js::IrJsOptions {
-                single_use_collapse: shape.collapse,
-                hoist_for_initializers: shape.for_init,
-                negated_conditional_arms: shape.negated_arms,
-                ..parent
-            };
-            (options, tree.reprint_reshaped(&parent, rename, shape))
-        })
-        .filter(|(_, text)| *text != unshaped)
-        .collect();
-    (Some(unshaped), texts)
+/// `LILSCRIPT_LADDER_REPORT=1`: every scored proposal of the text ladder and
+/// the structural chain on stderr, `[ladder] Pass before -> after` and
+/// `[chain] .. before -> after`, for the census of what the tree's shapes
+/// still leave to the text (7.55).
+fn ladder_report() -> bool {
+    std::env::var_os("LILSCRIPT_LADDER_REPORT").is_some()
 }
 
-/// How many shape challengers `terminal_shape_texts` offers at most.
-const TERMINAL_SHAPE_CHALLENGERS: usize = 6;
+/// The first place two texts differ, with a little context on each side:
+/// `before ~> after`, for the census to show what a pass rewrote.
+fn first_difference_sample(before: &str, after: &str) -> String {
+    let start = before
+        .bytes()
+        .zip(after.bytes())
+        .take_while(|(left, right)| left == right)
+        .count();
+    let tail = before
+        .bytes()
+        .rev()
+        .zip(after.bytes().rev())
+        .take_while(|(left, right)| left == right)
+        .count()
+        .min(before.len().saturating_sub(start))
+        .min(after.len().saturating_sub(start));
+    let clip = |text: &str| {
+        let from = start.saturating_sub(24);
+        let to = (text.len() - tail + 24).min(text.len());
+        let from = (0..=from).rev().find(|index| text.is_char_boundary(*index)).unwrap_or(0);
+        let to = (to..=text.len()).find(|index| text.is_char_boundary(*index)).unwrap_or(text.len());
+        text[from..to].replace('\n', " ")
+    };
+    format!("{} ~> {}", clip(before), clip(after))
+}
 
 fn terminal_string_pooling_options(
     parent: crate::codegen_ir_js::IrJsOptions,
@@ -5948,9 +5928,9 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers(
     // challenger, held back so the cleanup searches cannot starve them (the
     // ledger is spent by then on katexlil).
     let shape_reserve = if config.terminal_shape_challengers_enabled() {
-        TERMINAL_SHAPE_CHALLENGERS
-            .saturating_mul(MAX_DECLARATION_VARIANTS + 2)
-            .min(terminal_codec_probe_limit.div_euclid(8))
+        print_beam_allowance()
+            .saturating_mul(4)
+            .min(terminal_codec_probe_limit.div_euclid(4))
     } else {
         0
     };
@@ -6042,11 +6022,19 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     // Migration 7.38: every finalist's cost before finishing, and what the
     // finishing itself cost the ledger -- the shape stage's gate and its
     // allowance.
-    let pre_finishing_costs = candidates
+    let _pre_finishing_costs = candidates
         .iter()
         .map(|candidate| (candidate.identity(), candidate.transfer_cost))
         .collect::<Vec<_>>();
     let used_before_finishing = codec_budget.used;
+    // Migration 7.56: the print beam runs inside each finalist's bridge
+    // cleanup; its probes are the shape reserve, released before the
+    // finalize so the bridge's slice can hold them.
+    codec_budget.release_shape_reserve_once(
+        print_beam_allowance()
+            .saturating_mul(4)
+            .min(codec_budget.limit.div_euclid(4)),
+    );
     let mut selected = finalize_javascript_candidates_with_parallelism(
         candidates,
         configured_baseline,
@@ -6058,7 +6046,7 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         true,
         codec_budget,
     )?;
-    let finishing_cost = codec_budget.used.saturating_sub(used_before_finishing);
+    let _finishing_cost = codec_budget.used.saturating_sub(used_before_finishing);
     // Naming and declaration spelling jointly determine the binding topology.
     // Release only their small allowance here; keep the exact pair reserve
     // protected until every naming/string-pooling challenger has settled.
@@ -6073,116 +6061,6 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     let mut terminal_string_pooling_selected = false;
     let mut terminal_string_pooling_incumbent_bytes = None;
     let mut terminal_string_pooling_best_bytes = None;
-    let mut terminal_shape_challengers = 0usize;
-    let mut terminal_shape_selected = false;
-    let mut terminal_shape_incumbent_bytes = None;
-    let mut terminal_shape_best_bytes = None;
-
-    // Migration 7.36/7.38: the tree's off-by-default shapes, on the structural
-    // winner and before the naming and pooling families -- a shape changes
-    // the tree those two spell, and this early the ledger still has the
-    // finishing (rename, cleanup) the incumbent had, so the comparison is
-    // like for like (7.37 ran them last: four offered on markedlil, the best
-    // 101 bytes worse, all of it the finishing the ledger could no longer pay).
-    codec_budget.release_shape_reserve_once(
-        TERMINAL_SHAPE_CHALLENGERS
-            .saturating_mul(MAX_DECLARATION_VARIANTS + 2)
-            .min(codec_budget.limit.div_euclid(8)),
-    );
-    if config.terminal_shape_challengers_enabled() {
-        terminal_budget.grant(
-            TERMINAL_SHAPE_CHALLENGERS,
-            TERMINAL_SHAPE_CHALLENGERS.saturating_mul(selected.code.len()),
-        );
-    }
-    if let Some(shape_parent_options) = contexts
-        .registered_plan_by_identity(selected.plan_identity)
-        .map(|plan| plan.options)
-    {
-        // Nothing is printed, let alone emitted, when the ledger cannot
-        // score it (a zero terminal budget skips every optional emission).
-        let (unshaped_print, shape_texts) = if codec_budget.remaining() > 0 && terminal_budget.has_plan_slot() {
-            terminal_shape_texts(
-                shape_parent_options,
-                selected.plan_identity.context_id,
-                module_output,
-                config,
-                contexts,
-            )
-        } else {
-            (None, Vec::new())
-        };
-        // Print against print: the unshaped print's cost is the gate's
-        // incumbent when the ledger can score it.
-        let unshaped_cost = match (&unshaped_print, shape_texts.is_empty()) {
-            (Some(text), false) => codec_budget
-                .compressed_size(text.as_bytes(), config.javascript.cost_model)?,
-            _ => None,
-        };
-        let shape_candidates = score_terminal_javascript_challenger_texts(
-            shape_texts,
-            selected.plan_identity.context_id,
-            config.javascript.cost_model,
-            contexts,
-            &mut terminal_budget,
-            codec_budget,
-        );
-        if !shape_candidates.is_empty() {
-            terminal_shape_challengers = shape_candidates.len();
-            // The gate: a shape must beat the incumbent *before* finishing,
-            // where the two are on equal terms; then the one that does is
-            // finished on the incumbent's finishing allowance.
-            let incumbent_before_finishing = unshaped_cost.unwrap_or_else(|| {
-                pre_finishing_costs
-                    .iter()
-                    .find(|(identity, _)| *identity == selected.plan_identity)
-                    .map_or(selected.transfer_cost, |(_, cost)| *cost)
-            });
-            // Reported as the gate sees them: both before finishing. A
-            // finished challenger overwrites its side below.
-            terminal_shape_incumbent_bytes = Some(incumbent_before_finishing);
-            terminal_shape_best_bytes = shape_candidates
-                .iter()
-                .map(|candidate| candidate.transfer_cost)
-                .min();
-            let promising = shape_candidates
-                .into_iter()
-                .filter(|candidate| candidate.transfer_cost < incumbent_before_finishing)
-                .min_by_key(|candidate| candidate.transfer_cost)
-                .into_iter()
-                .collect::<Vec<_>>();
-            if !promising.is_empty() {
-                codec_budget.extend(finishing_cost);
-            }
-            if let Ok(candidate) = finalize_javascript_candidates_with_parallelism(
-                promising,
-                configured_baseline,
-                configured_plan_identity,
-                config,
-                contexts,
-                profile,
-                usize::MAX,
-                true,
-                codec_budget,
-            ) {
-                // A print of the finalist's tree is terminal work, not a
-                // structural candidate: it does not count against the
-                // search's candidate budget (the inlining probe's two-slot
-                // test holds the count at two).
-                terminal_shape_incumbent_bytes = Some(selected.transfer_cost);
-                terminal_shape_best_bytes = Some(candidate.transfer_cost);
-                terminal_shape_selected = finalized_javascript_candidate_precedes(
-                    &candidate,
-                    &selected,
-                    config,
-                    baseline_transfer,
-                );
-                if terminal_shape_selected {
-                    selected = candidate;
-                }
-            }
-        }
-    }
 
     // The winner's options: a structural plan's from the ranked list, a
     // shape challenger's from the terminal registry.
@@ -6196,10 +6074,6 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
         })
     else {
         selected.candidates_evaluated = candidates_evaluated;
-        selected.terminal_shape_challengers = terminal_shape_challengers;
-        selected.terminal_shape_selected = terminal_shape_selected;
-        selected.terminal_shape_incumbent_bytes = terminal_shape_incumbent_bytes;
-        selected.terminal_shape_best_bytes = terminal_shape_best_bytes;
         return Ok(selected);
     };
 
@@ -6304,10 +6178,6 @@ fn finalize_javascript_candidates_with_terminal_objective_challengers_in_current
     selected.terminal_string_pooling_selected = terminal_string_pooling_selected;
     selected.terminal_string_pooling_incumbent_bytes = terminal_string_pooling_incumbent_bytes;
     selected.terminal_string_pooling_best_bytes = terminal_string_pooling_best_bytes;
-    selected.terminal_shape_challengers = terminal_shape_challengers;
-    selected.terminal_shape_selected = terminal_shape_selected;
-    selected.terminal_shape_incumbent_bytes = terminal_shape_incumbent_bytes;
-    selected.terminal_shape_best_bytes = terminal_shape_best_bytes;
     codec_budget.begin_final_phase();
     selected = apply_exact_two_binding_unused_letter_remap(selected, config, codec_budget)?;
     Ok(selected)
@@ -6944,6 +6814,7 @@ fn finalize_javascript_candidates_with_parallelism(
     codec_budget.release_finalist_reserve_once(terminal_finalist_reserve);
     let terminal_source_count = terminal_source_indices.len();
     let mut terminal_finalists = Vec::with_capacity(terminal_source_count);
+    let mut print_reports = Vec::<(usize, PrintBeamReport)>::with_capacity(terminal_source_count);
     for (position, index) in terminal_source_indices.into_iter().enumerate() {
         let remaining_finalists = terminal_source_count.saturating_sub(position).max(1);
         let allowance = codec_budget.remaining().div_ceil(remaining_finalists);
@@ -6954,15 +6825,40 @@ fn finalize_javascript_candidates_with_parallelism(
             // consume this finalist's fair slice before a locally neutral
             // rename exposes single-use function movement.
             let candidate_end = codec_budget.used.saturating_add(allowance);
-            codec_budget.begin_fair_slice(allowance.min(8));
+            // Migration 7.56: the finalist's frozen tree, for the print beam
+            // in the bridge (before the remaps move the text away from it).
+            let module_output = generated_javascript_export_names(&selected.code)
+                .is_ok_and(|exports| !exports.is_empty());
+            let tree = if config.terminal_shape_challengers_enabled() && codec_budget.remaining() > 0 {
+                contexts
+                    .registered_plan_by_identity(selected.plan_identity)
+                    .map(|plan| plan.options)
+                    .filter(|options| !options.single_use_collapse)
+                    .and_then(|options| {
+                        contexts
+                            .cached_frozen_tree(selected.plan_identity.context_id, module_output, options)
+                            .map(|(frozen, rename)| TerminalTree {
+                                frozen,
+                                rename,
+                                options,
+                            })
+                    })
+            } else {
+                None
+            };
+            let print_allowance = tree.as_ref().map_or(0, |_| print_beam_allowance());
+            codec_budget.begin_fair_slice(allowance.min(8).saturating_add(print_allowance));
+            let mut print_report = PrintBeamReport::default();
             let cleaned = late_javascript_cleanup_finalists(
                 selected.clone(),
                 config,
                 0,
                 codec_budget,
                 config.javascript.terminal_cleanup_finalists(),
+                tree.as_ref().map(|tree| (tree, &mut print_report)),
             );
             codec_budget.end_fair_slice();
+            print_reports.push((selected.plan_identity.context_id, print_report));
             let cleaned = cleaned?;
             // Finish each cleanup spelling and keep the one that ends smallest.
             // The cleanup ranked them by what they cost before the remapping,
@@ -7054,6 +6950,10 @@ fn finalize_javascript_candidates_with_parallelism(
     let selected = apply_terminal_binding_coordinate_descent(selected, config, codec_budget)?;
     // Last of all, and only on this exact artifact: see `apply_terminal_idiom_convergence`.
     let selected = apply_terminal_idiom_convergence(selected, config, codec_budget)?;
+    let print_report = print_reports
+        .iter()
+        .find(|(context_id, _)| *context_id == selected.plan_identity.context_id)
+        .map_or_else(PrintBeamReport::default, |(_, report)| *report);
     Ok(SelectedJavaScriptCandidate {
         plan_identity: selected.plan_identity,
         code: selected.code,
@@ -7082,10 +6982,10 @@ fn finalize_javascript_candidates_with_parallelism(
         terminal_string_pooling_selected: false,
         terminal_string_pooling_incumbent_bytes: None,
         terminal_string_pooling_best_bytes: None,
-        terminal_shape_challengers: 0,
-        terminal_shape_selected: false,
-        terminal_shape_incumbent_bytes: None,
-        terminal_shape_best_bytes: None,
+        terminal_shape_challengers: print_report.scored,
+        terminal_shape_selected: print_report.selected,
+        terminal_shape_incumbent_bytes: print_report.incumbent,
+        terminal_shape_best_bytes: print_report.best,
         admission: selected.admission,
     })
 }
@@ -8897,6 +8797,144 @@ fn repair_late_javascript_candidate(mut code: String) -> String {
 struct CleanupCandidate {
     code: String,
     cost: usize,
+    /// Migration 7.56: a print of the finalist's tree, or a text rewrite of
+    /// one -- the print beam's lineage, for the explain line.
+    printed: bool,
+}
+
+/// The finalist's frozen tree with what its print needs, for the print
+/// beam (migration 7.56).
+#[derive(Clone)]
+struct TerminalTree {
+    frozen: Arc<crate::codegen_ir_js::FrozenModuleTree>,
+    rename: bool,
+    options: crate::codegen_ir_js::IrJsOptions,
+}
+
+/// What the print beam did on one finalist, for the explain line.
+#[derive(Debug, Clone, Copy, Default)]
+struct PrintBeamReport {
+    /// Prints the codec scored, the unshaped one included.
+    scored: usize,
+    /// The unshaped print's cost.
+    incumbent: Option<usize>,
+    /// The cheapest member's cost after the last rung.
+    best: Option<usize>,
+    /// Whether the cleanup's best spelling is a print or descends from one.
+    selected: bool,
+}
+
+/// `LILSCRIPT_PRINT_BEAM=<n>`: how many prints the beam carries between
+/// rungs (default 4).
+fn print_beam_width() -> usize {
+    std::env::var("LILSCRIPT_PRINT_BEAM")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .filter(|width| *width > 0)
+        .unwrap_or(4)
+}
+
+/// The codec probes one finalist's print beam may take: the unshaped print
+/// and one per rung per member.
+fn print_beam_allowance() -> usize {
+    crate::codegen_ir_js::TreeShapes::RUNG_COUNT
+        .saturating_mul(print_beam_width())
+        .saturating_add(1)
+}
+
+/// Migration 7.56 (7′): the print beam, the cleanup's first family. The
+/// finalist's frozen tree is printed unshaped (a print is not the emission
+/// byte for byte, 7.33, so it enters the beam as its own member), then each
+/// rung adds its shape to every member's set, the tree is reshaped and
+/// printed, the print scored, and the `width` cheapest members go on; the
+/// rename last. The members join the cleanup beam, where the text passes
+/// compete with them under the same codec gate. 7.55 ran the rungs as one
+/// greedy line before the finishing, gated pre-finishing: +70 on ten ports
+/// against six fixed combinations, since the finishing then re-did the work
+/// and the gate saw one candidate instead of six.
+fn offer_print_beam(
+    beam: &mut Vec<CleanupCandidate>,
+    tree: &TerminalTree,
+    codec_budget: &mut TerminalCodecProbeBudget,
+    admission: &JavaScriptArtifactAdmission,
+    cost_model: CompressionCostModel,
+    report: &mut PrintBeamReport,
+) -> Result<(), CompileError> {
+    use crate::codegen_ir_js::TreeShapes;
+    let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
+    let width = print_beam_width();
+    let valid = |text: &str| {
+        analyze_generated_javascript(text).is_ok()
+            && admission.validate(text).is_ok()
+            && validate_generated_javascript_with_standard_parser(text).is_ok()
+    };
+    let unshaped = tree
+        .frozen
+        .reprint_reshaped(&tree.options, tree.rename, TreeShapes::default());
+    if !valid(&unshaped) {
+        if trace {
+            eprintln!("[shape] the unshaped print is rejected by the parser");
+        }
+        return Ok(());
+    }
+    let Some(unshaped_cost) = codec_budget.compressed_size(unshaped.as_bytes(), cost_model)? else {
+        return Ok(());
+    };
+    report.scored += 1;
+    report.incumbent = Some(unshaped_cost);
+    let mut members = vec![(TreeShapes::default(), unshaped, unshaped_cost)];
+    'rungs: for (name, add) in TreeShapes::ladder() {
+        // The renamer runs only where the plan mangles identifiers -- the
+        // same guard the search's rename re-prints have (a readable build
+        // keeps its names, exports included).
+        if name == "converge" && !tree.options.mangle_identifiers {
+            continue;
+        }
+        let mut proposals = members.clone();
+        for (shapes, text, cost) in &members {
+            let mut trial = *shapes;
+            add(&mut trial);
+            let printed = tree.frozen.reprint_reshaped(&tree.options, tree.rename, trial);
+            if printed == *text || proposals.iter().any(|(_, existing, _)| *existing == printed) {
+                continue;
+            }
+            // A print the admission or the standards parser rejects is
+            // dropped, not scored: the ledger's scorer runs admission and
+            // would fail the compile (7.55 on the probe's raw config).
+            // `LILSCRIPT_SHAPE_DUMP=<path>` keeps a rejected print.
+            if !valid(&printed) {
+                if trace {
+                    eprintln!("[shape] rung {name}: rejected by the parser");
+                }
+                if let Ok(path) = std::env::var("LILSCRIPT_SHAPE_DUMP") {
+                    let _ = std::fs::write(format!("{path}.{name}.rejected.js"), &printed);
+                }
+                continue;
+            }
+            let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                break 'rungs;
+            };
+            report.scored += 1;
+            if trace {
+                eprintln!("[shape] rung {name}: {cost} -> {printed_cost}");
+            }
+            proposals.push((trial, printed, printed_cost));
+        }
+        proposals.sort_by(|left, right| (left.2, left.1.len()).cmp(&(right.2, right.1.len())));
+        proposals.truncate(width);
+        members = proposals;
+    }
+    report.best = members.iter().map(|member| member.2).min();
+    for (_, text, cost) in members {
+        if !beam.iter().any(|existing| existing.code == text) {
+            beam.push(CleanupCandidate {
+                code: text,
+                cost,
+                printed: true,
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Offer one scored cleanup family: rewrite each beam member, keep what the
@@ -8946,7 +8984,11 @@ fn offer_cleanup_family(
         };
         if cost < candidate.cost {
             crate::timing::CLEANUP_SHAPED_PUSHED.event((candidate.cost - cost) as u64);
-            beam.push(CleanupCandidate { code, cost });
+            beam.push(CleanupCandidate {
+                code,
+                cost,
+                printed: candidate.printed,
+            });
         } else {
             crate::timing::CLEANUP_SHAPED_LOST.event((cost - candidate.cost) as u64);
         }
@@ -8962,7 +9004,7 @@ fn apply_late_javascript_cleanup(
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
     let fallback = selected.clone();
     Ok(
-        late_javascript_cleanup_finalists(selected, config, terminal_local_rounds, codec_budget, 1)?
+        late_javascript_cleanup_finalists(selected, config, terminal_local_rounds, codec_budget, 1, None)?
             .into_iter()
             .next()
             .unwrap_or(fallback),
@@ -8983,6 +9025,7 @@ fn late_javascript_cleanup_finalists(
     terminal_local_rounds: usize,
     codec_budget: &mut TerminalCodecProbeBudget,
     keep: usize,
+    print_beam: Option<(&TerminalTree, &mut PrintBeamReport)>,
 ) -> Result<Vec<ScoredJavaScriptCandidate>, CompileError> {
     // Late syntax search is the terminal half of ParsedPeephole. An explicit
     // optimization allowlist that omits that feature must preserve the exact
@@ -9010,8 +9053,23 @@ fn late_javascript_cleanup_finalists(
     let original = CleanupCandidate {
         code: selected.code.clone(),
         cost: selected.transfer_cost,
+        printed: false,
     };
     let mut beam = vec![original.clone()];
+    // Migration 7.56: the print beam first, on the finalist's own tree,
+    // before any text pass has moved the text away from it.
+    let mut print_report = None;
+    if let Some((tree, report)) = print_beam {
+        offer_print_beam(
+            &mut beam,
+            tree,
+            codec_budget,
+            &admission,
+            config.javascript.cost_model,
+            report,
+        )?;
+        print_report = Some(report);
+    }
     // A terminal finalist need not have been among the bounded plans admitted
     // to parsed preparation. Re-open the canonical peephole on the finalist
     // itself before narrower cleanup families spend its fair slice. This is
@@ -9070,7 +9128,11 @@ fn late_javascript_cleanup_finalists(
                 codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
             {
                 crate::timing::CLEANUP_CANONICAL_PUSHED.event(cost as u64);
-                let candidate = CleanupCandidate { code, cost };
+                let candidate = CleanupCandidate {
+                    code,
+                    cost,
+                    printed: false,
+                };
                 beam.push(candidate.clone());
                 canonical_peephole = Some(candidate);
             } else {
@@ -9084,8 +9146,12 @@ fn late_javascript_cleanup_finalists(
     // spelling can beat several shorter ones -- but it costs raw bytes and the
     // trade only pays on some artifacts (measured: Monaco -343 Brotli, otlp
     // -28, jQuery +43). Score it and keep it only where it wins.
+    // Migration 7.56: `LILSCRIPT_TEXT_CONVERGE=0` leaves this to the print
+    // ladder's `converge` rung (the tree's renamer), for the fleet A/B that
+    // retires it.
     if config.js_options().mangle_identifiers
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+        && std::env::var("LILSCRIPT_TEXT_CONVERGE").map_or(true, |value| value != "0")
     {
         let sources = beam.clone();
         let source_count = sources.len();
@@ -9122,6 +9188,7 @@ fn late_javascript_cleanup_finalists(
                 beam.push(CleanupCandidate {
                     code: converged,
                     cost,
+                    printed: candidate.printed,
                 });
             } else {
                 crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
@@ -9251,7 +9318,7 @@ fn late_javascript_cleanup_finalists(
                 continue;
             };
             if cost < candidate.cost {
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(CleanupCandidate { code, cost, printed: candidate.printed });
             }
         }
     }
@@ -9311,7 +9378,7 @@ fn late_javascript_cleanup_finalists(
                 else {
                     break 'factored_naming;
                 };
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(CleanupCandidate { code, cost, printed: original.printed });
             }
         }
     }
@@ -9348,7 +9415,310 @@ fn late_javascript_cleanup_finalists(
                 }
                 let cost = codec_budget
                     .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-                proposals.push(CleanupCandidate { code, cost });
+                if ladder_report() {
+                    eprintln!(
+                        "[ladder] {pass:?} {} -> {cost} @ {}",
+                        candidate.cost,
+                        first_difference_sample(&candidate.code, &code)
+                    );
+                }
+                proposals.push(CleanupCandidate { code, cost, printed: candidate.printed });
+            }
+            proposals.sort_by(|left, right| {
+                (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
+            });
+            proposals.dedup_by(|left, right| left.code == right.code);
+            proposals.truncate(BEAM_WIDTH);
+            beam = proposals;
+            if exhausted {
+                break 'cleanup_rounds;
+            }
+        }
+    }
+
+    // Converged local naming: reassign each function scope's own bindings from
+    // one canonical sequence so same-arity headers spell identically. An LZ
+    // match costs about the same however long its text is, so a repeated
+    // spelling can beat several shorter ones -- but it costs raw bytes and the
+    // trade only pays on some artifacts (measured: Monaco -343 Brotli, otlp
+    // -28, jQuery +43). Score it and keep it only where it wins.
+    // Migration 7.56: `LILSCRIPT_TEXT_CONVERGE=0` leaves this to the print
+    // ladder's `converge` rung (the tree's renamer), for the fleet A/B that
+    // retires it.
+    if config.js_options().mangle_identifiers
+        && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+        && std::env::var("LILSCRIPT_TEXT_CONVERGE").map_or(true, |value| value != "0")
+    {
+        let sources = beam.clone();
+        let source_count = sources.len();
+        for (position, candidate) in sources.into_iter().enumerate() {
+            if !codec_budget.reserve_work_unit() {
+                crate::timing::RENAME_STARVED.event((source_count - position) as u64);
+                break;
+            }
+            crate::timing::RENAME_CANDIDATES.event(candidate.code.len() as u64);
+            let Ok((converged, rewrites)) = converge_local_names(&candidate.code) else {
+                crate::timing::RENAME_UNPARSED.event(0);
+                continue;
+            };
+            if rewrites == 0 || converged == candidate.code {
+                crate::timing::RENAME_IDLE.event(0);
+                continue;
+            }
+            if analyze_generated_javascript(&converged).is_err() {
+                crate::timing::RENAME_UNPARSED.event(rewrites as u64);
+                continue;
+            }
+            if admission.validate(&converged).is_err() {
+                crate::timing::RENAME_REFUSED.event(rewrites as u64);
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(converged.as_bytes(), config.javascript.cost_model)?
+            else {
+                crate::timing::RENAME_UNPROBED.event(rewrites as u64);
+                continue;
+            };
+            if cost < candidate.cost {
+                crate::timing::RENAME_WON.event((candidate.cost - cost) as u64);
+                beam.push(CleanupCandidate {
+                    code: converged,
+                    cost,
+                    printed: candidate.printed,
+                });
+            } else {
+                crate::timing::RENAME_LOST.event((cost - candidate.cost) as u64);
+            }
+        }
+    }
+    // The uniform scored families, offered in order, each rewriting every beam
+    // member and keeping what the codec says is cheaper.
+    //
+    // They divide the cleanup's slice rather than draining it in order. That
+    // slice is eight work units for all of them, so a family that offers itself
+    // to all eight members leaves nothing for the ones behind it -- measured on
+    // katexlil, a family placed ahead of declaration shaping starved a
+    // candidate worth 831 Brotli and cost 1356. An equal share bounds that, and
+    // what a family leaves unspent stays for the next, so cheap families and
+    // early refusals still give the later ones everything they would have had.
+    let pristine = config.javascript.assume_pristine_builtins;
+    let mangles = config.js_options().mangle_identifiers;
+    let families: [(bool, &dyn Fn(&str) -> Option<String>); 4] = [
+        // `d={p:1};…;d.k=v` is one object, and the builders a port ends in are
+        // written that way. Gated like the session's empty-literal case: a
+        // literal property is an own property, where an assignment goes through
+        // whatever setter the prototype chain offers.
+        (pristine, &|code| {
+            crate::js_peephole::absorb_property_writes_into_literals(code)
+                .ok()
+                .filter(|(_, rewrites)| *rewrites > 0)
+                .map(|(absorbed, _)| absorbed)
+        }),
+        // One `var` per module binding, each initialised `void 0`, is the
+        // emitter's faithful spelling of `JsValue x = undef()` globals; the
+        // joins only exist across declarations, so the per-declaration pass
+        // cannot reach them. Applied unconditionally it lost on two portfolio
+        // ports to naming cascades, so it is scored here instead.
+        (true, &|code| {
+            crate::js_peephole::shape_declarations(code)
+                .ok()
+                .filter(|(_, rewrites)| *rewrites > 0)
+                .map(|(shaped, _)| shaped)
+        }),
+        // `new RegExp("…")` → `/…/`; the compact lexer's `/` certainty is why
+        // this is a scored candidate rather than an ordinary fold.
+        (pristine, &|code| {
+            crate::js_peephole::spell_regexp_literals(code)
+                .ok()
+                .filter(|(_, rewrites)| *rewrites > 0)
+                .map(|(spelled, _)| spelled)
+        }),
+        // A function bound once and read once costs a declarator for nothing.
+        // Moving the literal drops the name JavaScript infers from the binding,
+        // so it runs only where identifier mangling is already in force: such a
+        // build has replaced every inferred name with a generated one already.
+        (mangles, &|code| {
+            // One move can expose the next: a list that loses its last function
+            // declarator leaves a statement the ordinary passes can fold. The
+            // result is offered as it stands -- running those passes here was
+            // measured as a loss, buying raw bytes by specializing shapes (on
+            // jQuery a 33-byte Brotli win became 16); the cleanup rounds below
+            // still reach this candidate.
+            let mut inlined = code.to_string();
+            let mut moved = 0usize;
+            for _ in 0..4 {
+                let Ok((next, count)) = inline_single_use_functions(&inlined) else {
+                    break;
+                };
+                if count == 0 || next == inlined {
+                    break;
+                }
+                inlined = next;
+                moved += count;
+            }
+            (moved > 0).then_some(inlined)
+        }),
+    ];
+    let mut enabled = families.iter().filter(|(on, _)| *on).count();
+    for (on, shape) in families {
+        if !on {
+            continue;
+        }
+        let share = codec_budget.remaining().div_ceil(enabled);
+        enabled -= 1;
+        offer_cleanup_family(
+            &mut beam,
+            codec_budget,
+            &admission,
+            config.javascript.cost_model,
+            share,
+            shape,
+        )?;
+    }
+    // Braces and `return` around a body that is only expressions are syntax
+    // spent on nothing: `()=>{q();return v}` says what `()=>(q(),v)` says in
+    // six fewer bytes, and the sequence form is one shape where the block form
+    // was several. Scored, because a shape that repeats can beat a shape that
+    // is short.
+    {
+        let sources = beam.clone();
+        for candidate in sources {
+            if !codec_budget.reserve_work_unit() {
+                break;
+            }
+            let mut folded = candidate.code.clone();
+            let mut moved = 0usize;
+            for _ in 0..4 {
+                let Ok((next, count)) = fold_expression_bodies(&folded) else {
+                    break;
+                };
+                if count == 0 || next == folded {
+                    break;
+                }
+                folded = next;
+                moved += count;
+            }
+            if moved == 0 || folded == candidate.code {
+                continue;
+            }
+            let code = repair_late_javascript_candidate(folded);
+            if analyze_generated_javascript(&code).is_err()
+                || admission.validate(&code).is_err()
+                || beam.iter().any(|existing| existing.code == code)
+            {
+                continue;
+            }
+            let Some(cost) =
+                codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+            else {
+                continue;
+            };
+            if cost < candidate.cost {
+                beam.push(CleanupCandidate { code, cost, printed: candidate.printed });
+            }
+        }
+    }
+    // A namespace change can be locally neutral or worse yet unlock whole
+    // single-use function movement by separating a binding from a shadowing
+    // callback parameter. Carry a tiny, deterministic punctuation-name
+    // neighborhood through parsed cleanup before the general cleanup beam can
+    // spend this finalist's fair slice. Every attempted remap is charged
+    // before repair/analysis and every valid leaf pays its exact-codec unit.
+    if config.js_options().mangle_identifiers
+        && config.entropy_aware_mangling_enabled()
+        && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+    {
+        let identifiers = single_character_identifiers(&original.code)
+            .map_err(generated_javascript_parse_error)?;
+        let mut sources = single_character_resolved_binding_identifiers(&original.code)
+            .map_err(generated_javascript_parse_error)?;
+        let counts = single_character_identifier_use_counts(&original.code)
+            .map_err(generated_javascript_parse_error)?;
+        sources.sort_unstable_by(|left, right| {
+            counts[*right as usize]
+                .cmp(&counts[*left as usize])
+                .then_with(|| left.cmp(right))
+        });
+        'factored_naming: for replacement in [b'_', b'$'] {
+            if identifiers.contains(&replacement) {
+                continue;
+            }
+            for source in sources.iter().copied().take(8) {
+                if !codec_budget.reserve_work_unit() {
+                    break 'factored_naming;
+                }
+                let mut mapping = std::array::from_fn(|index| index as u8);
+                mapping[source as usize] = replacement;
+                mapping[replacement as usize] = source;
+                let Ok(remapped) = remap_single_character_identifiers(&original.code, &mapping)
+                else {
+                    continue;
+                };
+                crate::timing::PEEPHOLE_CLEANUP.event(1);
+                let Ok(optimized) = optimize_generated_javascript_assuming(
+                    &remapped,
+                    config.javascript.assume_pristine_builtins,
+                ) else {
+                    continue;
+                };
+                let code = repair_late_javascript_candidate(optimized.code);
+                if code == original.code
+                    || analyze_generated_javascript(&code).is_err()
+                    || admission.validate(&code).is_err()
+                    || beam.iter().any(|candidate| candidate.code == code)
+                {
+                    continue;
+                }
+                let Some(cost) =
+                    codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+                else {
+                    break 'factored_naming;
+                };
+                beam.push(CleanupCandidate { code, cost, printed: original.printed });
+            }
+        }
+    }
+    'cleanup_rounds: for _ in 0..ROUNDS {
+        for pass in LateJavaScriptCleanupPass::ladder().iter().copied() {
+            // Skipping a rewrite is a first-class branch. In particular, a
+            // raw-byte reduction is not assumed to help either dictionary
+            // codec, and a codec win in one artifact is not generalized to
+            // another artifact.
+            let mut proposals = beam.clone();
+            let mut exhausted = false;
+            for candidate in &beam {
+                // Phase 7e: a pass that yields nothing costs nothing. The unit
+                // was charged per attempt, so deleting three idle passes (7.30)
+                // moved katexlil +1,004 by leaving units to the later families;
+                // the ledger now counts scored proposals, which is the work.
+                if codec_budget.remaining() == 0 {
+                    exhausted = true;
+                    break;
+                }
+                let Ok(code) = late_generated_javascript_cleanup_pass(&candidate.code, pass) else {
+                    continue;
+                };
+                if code == candidate.code
+                    || analyze_generated_javascript(&code).is_err()
+                    || admission.validate(&code).is_err()
+                    || proposals.iter().any(|proposal| proposal.code == code)
+                {
+                    continue;
+                }
+                if !codec_budget.reserve_work_unit() {
+                    exhausted = true;
+                    break;
+                }
+                let cost = codec_budget
+                    .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
+                if ladder_report() {
+                    eprintln!(
+                        "[ladder] {pass:?} {} -> {cost} @ {}",
+                        candidate.cost,
+                        first_difference_sample(&candidate.code, &code)
+                    );
+                }
+                proposals.push(CleanupCandidate { code, cost, printed: candidate.printed });
             }
             proposals.sort_by(|left, right| {
                 (left.cost, left.code.len()).cmp(&(right.cost, right.code.len()))
@@ -9384,9 +9754,10 @@ fn late_javascript_cleanup_finalists(
                     beam.push(CleanupCandidate {
                         code: remapped,
                         cost: remapped_cost,
-                    });
+                    printed: original.printed,
+                });
                 }
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(CleanupCandidate { code, cost, printed: original.printed });
             }
         }
     }
@@ -9409,6 +9780,7 @@ fn late_javascript_cleanup_finalists(
                 beam.push(CleanupCandidate {
                     code: remapped,
                     cost: remapped_cost,
+                    printed: candidate.printed,
                 });
             }
         }
@@ -9478,6 +9850,12 @@ fn late_javascript_cleanup_finalists(
                 }
                 let cost = codec_budget
                     .measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
+                if ladder_report() {
+                    eprintln!(
+                        "[chain] single_use={include_single_use_functions} {} -> {cost}",
+                        candidate.cost
+                    );
+                }
                 if let Some((remapped, remapped_cost)) = best_one_function_local_binding_remap(
                     &code,
                     config.javascript.cost_model,
@@ -9487,9 +9865,10 @@ fn late_javascript_cleanup_finalists(
                     beam.push(CleanupCandidate {
                         code: remapped,
                         cost: remapped_cost,
-                    });
+                    printed: candidate.printed,
+                });
                 }
-                beam.push(CleanupCandidate { code, cost });
+                beam.push(CleanupCandidate { code, cost, printed: candidate.printed });
             }
         }
     }
@@ -9567,7 +9946,7 @@ fn late_javascript_cleanup_finalists(
             .map(|code| {
                 codec_budget
                     .measure_reserved(code.as_bytes(), config.javascript.cost_model)
-                    .map(|cost| CleanupCandidate { code, cost })
+                    .map(|cost| CleanupCandidate { code, cost, printed: false })
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
@@ -9611,11 +9990,14 @@ fn late_javascript_cleanup_finalists(
         }
         let cost =
             codec_budget.measure_reserved_compile(code.as_bytes(), config.javascript.cost_model)?;
-        beam.push(CleanupCandidate { code, cost });
+        beam.push(CleanupCandidate { code, cost, printed: candidate.printed });
     }
     beam.push(original);
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
     beam.dedup_by(|left, right| left.code == right.code);
+    if let Some(report) = print_report {
+        report.selected = beam.first().is_some_and(|best| best.printed);
+    }
 
     let mut finalists = Vec::new();
     for cleaned in beam.into_iter() {

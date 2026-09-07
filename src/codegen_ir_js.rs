@@ -1719,6 +1719,19 @@ fn render(
             let operand = operand.clone().at_least(JsPrecedence::Equality);
             Some(format!("{operand}{}void 0", if absent { "===" } else { "!==" }))
         }
+        JsExpressionRoot::StrictEquality { negated } => {
+            let [lhs, rhs] = operands else {
+                return None;
+            };
+            // Equality is left-associative: the right operand must bind
+            // tighter than the comparison itself.
+            Some(format!(
+                "{}{}{}",
+                lhs.clone().at_least(JsPrecedence::Equality),
+                if negated { "!==" } else { "===" },
+                rhs.clone().at_least(JsPrecedence::Relational),
+            ))
+        }
         JsExpressionRoot::Call => {
             // Variadic: operands[0] is the callee, operands[1..] the arguments.
             let [callee, arguments @ ..] = operands else {
@@ -1901,6 +1914,11 @@ enum JsExpressionRoot {
     /// that is `undefined` when absent. A node so that negation flips the
     /// operator instead of wrapping the test in `!(..)`.
     UndefinedTest { absent: bool },
+    /// `a===b` (`negated: false`) or `a!==b`: the strict comparison the
+    /// intrinsics spell. A node so that negation flips the operator and the
+    /// shapes see both operands (migration 7.57: as raw text, `!(a===b)`
+    /// was the text ladder's, 207 wins on ten ports after the print beam).
+    StrictEquality { negated: bool },
     Raw,
     /// An ordinary property/index read followed by `??null`, used to model
     /// LilScript's nullable collection lookup at a JavaScript boundary.
@@ -1949,6 +1967,7 @@ impl JsExpressionRoot {
             | Self::IntegerNormalization
             | Self::NullNormalized
             | Self::UndefinedTest { .. } => Some(1),
+            Self::StrictEquality { .. } => Some(2),
             // `Member`'s second operand is the property name, which the
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
@@ -1973,7 +1992,7 @@ impl JsExpressionRoot {
             | Self::IntegerNormalization
             | Self::NullNormalized
             | Self::UndefinedTest { .. } => 1,
-            Self::Binary(_) => 2,
+            Self::Binary(_) | Self::StrictEquality { .. } => 2,
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
             Self::Assign => 2,
@@ -5221,6 +5240,18 @@ impl JsExpression {
         Self::binary_in_order(op, inner.clone(), rhs.clone())
     }
 
+    /// `lhs===rhs` / `lhs!==rhs`, a constant on the right (the intrinsic's
+    /// own rule, kept for the twin).
+    fn strict_equality(mut lhs: Self, mut rhs: Self, negated: bool) -> Self {
+        if rhs.is_constant_literal() && !lhs.is_constant_literal() {
+            core::mem::swap(&mut lhs, &mut rhs);
+        }
+        let root = JsExpressionRoot::StrictEquality { negated };
+        let operands = vec![lhs, rhs];
+        let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers StrictEquality");
+        Self::grouped(code, JsPrecedence::Equality, root).with_operands(operands)
+    }
+
     fn undefined_test(operand: Self, absent: bool) -> Self {
         let root = JsExpressionRoot::UndefinedTest { absent };
         let operands = vec![operand];
@@ -5333,6 +5364,7 @@ impl JsExpression {
             JsExpressionRoot::Conditional => Self::conditional(child(0), child(1), child(2)),
             JsExpressionRoot::IntegerNormalization => Self::integer_normalization(child(0)),
             JsExpressionRoot::UndefinedTest { absent } => Self::undefined_test(child(0), absent),
+            JsExpressionRoot::StrictEquality { negated } => Self::strict_equality(child(0), child(1), negated),
             JsExpressionRoot::Member => Self::member(
                 child(0),
                 &self.operands[1].code,
@@ -5514,6 +5546,11 @@ impl JsExpression {
         if let JsExpressionRoot::UndefinedTest { absent } = self.root {
             if let Some(operand) = self.operands.first() {
                 return Self::undefined_test(operand.clone(), !absent);
+            }
+        }
+        if let JsExpressionRoot::StrictEquality { negated } = self.root {
+            if let [lhs, rhs] = self.operands.as_slice() {
+                return Self::strict_equality(lhs.clone(), rhs.clone(), !negated);
             }
         }
         Self::unary("!", self)
@@ -19408,18 +19445,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     "!=="
                 };
-                let mut left = receiver;
-                let mut right = take_value(*rhs, context, cache)?;
-                if right.is_constant_literal() && !left.is_constant_literal() {
-                    core::mem::swap(&mut left, &mut right);
-                }
-                return Ok(JsExpression::raw(
-                    format!(
-                        "{}{operator}{}",
-                        left.at_least(JsPrecedence::Equality),
-                        right.at_least(JsPrecedence::Equality),
-                    ),
-                    JsPrecedence::Equality,
+                let right = take_value(*rhs, context, cache)?;
+                return Ok(JsExpression::strict_equality(
+                    receiver,
+                    right,
+                    operator == "!==",
                 ));
             }
             Intrinsic::JsTruthy => {
@@ -26488,7 +26518,13 @@ impl FrozenModuleTree {
             let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
         }
+        // The shapes read the installed statement policy (live-16: the
+        // thread's last emission may have set another); the print's own
+        // is installed for them and the previous one put back.
+        let previous = StatementPolicy::current();
+        StatementPolicy::of(options).install();
         tree.reshape(shapes);
+        previous.install();
         if shapes.converge {
             let scopes = ScopeCollector::module(&tree.closures, &tree.block);
             let renamer = Renamer {
@@ -26516,7 +26552,56 @@ pub(crate) struct TreeShapes {
     /// Migration 7.54 (7′): the tree's renamer over every scope, most
     /// referenced first -- the text convergence's job (`converge_local_names`)
     /// done on the spelling table, so it is a print.
+    /// Migration 7.55: `!(a==b)` is `a!=b` (the ladder's
+    /// `NegatedEqualities`), equality only -- an ordering's inverse is not
+    /// its negation under NaN.
+    pub(crate) negated_equalities: bool,
+    /// Migration 7.57: `a===a` is `a==a` (`SameBindingStrictEquality`).
+    pub(crate) same_binding_equality: bool,
+    /// Migration 7.55: the emitter's own return-tail shapes (`shape_block`
+    /// with `return_tails`) run again on the finished tree, then the guard
+    /// suffix `if(c)return a;E;return b` is `return c?a:(E,b)` and the
+    /// branch `if(c){E;return a}return b` is `return c?(E,a):b` (the
+    /// ladder's `ConditionalReturnTails` and `GuardReturnExpressionSuffixes`,
+    /// the chain's `ExpressionReturnBranches`).
+    pub(crate) return_tails: bool,
+    /// Migration 7.55: the emitter's early exits and continue tails run
+    /// again (`EarlyExitGuards`, `ContinueTailGuards`).
+    pub(crate) exit_guards: bool,
+    /// Migration 7.55: every branch's braces decided again after the other
+    /// shapes changed what the branches hold (`SingleStatementControlBraces`).
+    pub(crate) rebrace: bool,
     pub(crate) converge: bool,
+}
+
+impl TreeShapes {
+    /// The print ladder's rungs in order, each adding one shape to the
+    /// incumbent's set; the rename last, since it re-spells what the others
+    /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.
+    pub(crate) const RUNG_COUNT: usize = 9;
+
+    pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
+        let rungs: [(&'static str, fn(&mut Self)); Self::RUNG_COUNT] = [
+            ("collapse", |shapes| shapes.collapse = true),
+            ("for_init", |shapes| shapes.for_init = true),
+            ("negated_arms", |shapes| shapes.negated_arms = true),
+            ("negated_equalities", |shapes| shapes.negated_equalities = true),
+            ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
+            ("return_tails", |shapes| shapes.return_tails = true),
+            ("exit_guards", |shapes| shapes.exit_guards = true),
+            ("rebrace", |shapes| shapes.rebrace = true),
+            ("converge", |shapes| shapes.converge = true),
+        ];
+        let filter = std::env::var("LILSCRIPT_SHAPE_LADDER").ok();
+        rungs
+            .into_iter()
+            .filter(|(name, _)| {
+                filter
+                    .as_ref()
+                    .map_or(true, |filter| filter.split(',').any(|allowed| allowed.trim() == *name))
+            })
+            .collect()
+    }
 }
 
 impl ModuleTree {
@@ -26561,6 +26646,53 @@ impl ModuleTree {
                 }
                 if shapes.for_init {
                     hoist_for_initializers_in_block(block);
+                }
+                if shapes.negated_equalities {
+                    rewrite_block_expressions(block, &mut negate_equalities);
+                }
+                if shapes.same_binding_equality {
+                    rewrite_block_expressions(block, &mut loosen_same_binding_equality);
+                }
+                // The module block ends the module; a closure body its
+                // function (the emitter's `shape_block` contexts).
+                let context = if position == 0 {
+                    ShapeContext::Module
+                } else {
+                    ShapeContext::FunctionBody
+                };
+                if shapes.return_tails {
+                    shape_block(
+                        block,
+                        StatementPolicy {
+                            return_tails: true,
+                            ..StatementPolicy::NONE
+                        },
+                        context,
+                    );
+                    fuse_return_tails(block);
+                }
+                if shapes.exit_guards {
+                    shape_block(
+                        block,
+                        StatementPolicy {
+                            early_exits: true,
+                            continue_tails: true,
+                            ..StatementPolicy::NONE
+                        },
+                        context,
+                    );
+                }
+                if shapes.rebrace {
+                    // `block_is_braceless` reads the installed policy's
+                    // `control_braces`; the rung decides every branch by the
+                    // full rule, whatever the plan's emission chose.
+                    let previous = StatementPolicy::current();
+                    let mut braces = previous;
+                    braces.control_braces = true;
+                    braces.braceless_control_bodies = true;
+                    braces.install();
+                    shape_block(block, braces, context);
+                    previous.install();
                 }
             }
         }
@@ -26706,6 +26838,179 @@ fn swap_negated_arms(node: &JsExpression) -> Option<JsExpression> {
         1 => else_value.clone(),
         _ => then_value.clone(),
     }))
+}
+
+/// `!(a==b)` is `a!=b` (`fold_negated_equalities`), on a finished tree: an
+/// equality and its inequality are each other's inverse in the
+/// specification, coercion, effects and order included. An ordering is not
+/// (NaN), so only these and the undefined test.
+fn negate_equalities(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Unary(JsUnary::Not) {
+        return None;
+    }
+    let inner = node.unary_operand()?;
+    match inner.root {
+        JsExpressionRoot::Binary(operator @ (IrBinaryOp::Eq | IrBinaryOp::NotEq)) => {
+            let (lhs, rhs) = inner.binary_operands()?;
+            Some(JsExpression::binary_in_order(
+                inverse_comparison(operator)?,
+                lhs.clone(),
+                rhs.clone(),
+            ))
+        }
+        JsExpressionRoot::UndefinedTest { absent } => Some(JsExpression::undefined_test(
+            inner.operands.first()?.clone(),
+            !absent,
+        )),
+        JsExpressionRoot::StrictEquality { negated } => {
+            let [lhs, rhs] = inner.operands.as_slice() else {
+                return None;
+            };
+            Some(JsExpression::strict_equality(lhs.clone(), rhs.clone(), !negated))
+        }
+        _ => None,
+    }
+}
+
+/// `a===a` is `a==a` (`fold_same_binding_strict_equality`): a binding
+/// compared with itself observes only the equality algorithm, never a
+/// coercion between different operands, so strict and loose agree.
+fn loosen_same_binding_equality(node: &JsExpression) -> Option<JsExpression> {
+    let JsExpressionRoot::StrictEquality { negated } = node.root else {
+        return None;
+    };
+    let [lhs, rhs] = node.operands.as_slice() else {
+        return None;
+    };
+    let (JsExpressionRoot::Name(left), JsExpressionRoot::Name(right)) = (lhs.root, rhs.root) else {
+        return None;
+    };
+    if left != right {
+        return None;
+    }
+    Some(JsExpression::binary_in_order(
+        if negated { IrBinaryOp::NotEq } else { IrBinaryOp::Eq },
+        lhs.clone(),
+        rhs.clone(),
+    ))
+}
+
+/// Every block a statement owns, to `visit`: branches, loop and function
+/// bodies, try clauses, switch cases, class members.
+fn for_each_child_block(statement: &mut JsStatement, visit: &mut dyn FnMut(&mut JsBlock)) {
+    match statement {
+        JsStatement::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            visit(&mut then_branch.block);
+            if let Some(else_branch) = else_branch {
+                visit(&mut else_branch.block);
+            }
+        }
+        JsStatement::Loop { body, .. } => visit(&mut body.block),
+        JsStatement::Try {
+            body,
+            catch,
+            finally,
+        } => {
+            visit(body);
+            if let Some(catch) = catch {
+                visit(&mut catch.body);
+            }
+            if let Some(finally) = finally {
+                visit(finally);
+            }
+        }
+        JsStatement::Switch { cases, .. } => {
+            for case in cases {
+                visit(&mut case.body);
+            }
+        }
+        JsStatement::Function {
+            body: JsFunctionBody::Block(body),
+            ..
+        } => visit(body),
+        JsStatement::Class { members, .. } => visit(members),
+        _ => {}
+    }
+}
+
+/// `E;..;return a` as the one expression `(E,..,a)`: expression statements
+/// and plain assignments, then a value return.
+fn statements_return_value(statements: &[EmittedStatement]) -> Option<JsExpression> {
+    let (last, prefix) = statements.split_last()?;
+    let JsStatement::Return { value: Some(value) } = &last.statement else {
+        return None;
+    };
+    let mut operands = prefix
+        .iter()
+        .map(|emitted| statement_expression_node(&emitted.statement))
+        .collect::<Option<Vec<_>>>()?;
+    if operands.is_empty() {
+        return Some(value.clone());
+    }
+    operands.push(value.clone());
+    Some(JsExpression::comma(operands))
+}
+
+/// A block's tail from a value-returning guard as one return:
+/// `if(c)return a;E;return b` is `return c?a:(E,b)`, `if(c){E;return a}return b`
+/// is `return c?(E,a):b`, and `if(c)return a;else return b` is
+/// `return c?a:b` -- the guarded arm returns, so what follows runs exactly
+/// when the condition is falsy, and both spellings evaluate the same
+/// expressions in the same order (`fold_conditional_return_tails`,
+/// `fold_guard_return_expression_suffixes`, `fold_expression_return_branches`).
+fn fused_return_tail(tail: &[EmittedStatement]) -> Option<JsExpression> {
+    let (guard, rest) = tail.split_first()?;
+    let JsStatement::If {
+        condition_tree: Some(condition),
+        then_branch,
+        else_branch,
+        ..
+    } = &guard.statement
+    else {
+        return None;
+    };
+    let then_value = statements_return_value(&then_branch.block.statements)?;
+    let else_value = match else_branch {
+        Some(else_branch) if rest.is_empty() => {
+            statements_return_value(&else_branch.block.statements)?
+        }
+        Some(_) => return None,
+        None => statements_return_value(rest)?,
+    };
+    Some(JsExpression::conditional(
+        condition.clone(),
+        then_value,
+        else_value,
+    ))
+}
+
+/// `fused_return_tail` over a block and its children, the children first
+/// and the last guard first: a fused tail is the tail of the guard before it.
+fn fuse_return_tails(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut fuse_return_tails);
+    }
+    let mut index = block.statements.len();
+    while index > 0 {
+        index -= 1;
+        let Some(fused) = fused_return_tail(&block.statements[index..]) else {
+            continue;
+        };
+        let last = block.statements.last().expect("a tail has a last statement");
+        let options = last.options;
+        let dropped_semicolon = last.dropped_semicolon;
+        block.statements.truncate(index);
+        block.statements.push(EmittedStatement {
+            statement: JsStatement::Return { value: Some(fused) },
+            options,
+            dropped_semicolon,
+        });
+        settle_block_tail(block, false);
+    }
 }
 
 /// Whether an expression holds a closure anywhere below it.

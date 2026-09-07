@@ -748,6 +748,14 @@ pub(crate) fn nested_function_end(
 ) -> Option<usize> {
     if tokens[scan].text == "function" {
         let mut index = scan + 1;
+        // `function*f(){..}`: a generator declaration is a function span
+        // too. Without this a module-level generator had no span and no
+        // module binding, and its call sites were "unresolved" whenever
+        // another function had a local of the same name (found at 7.55 by
+        // the tree's renamer on the probe's raw config).
+        if tokens.get(index).map(|token| token.text) == Some("*") {
+            index += 1;
+        }
         if tokens
             .get(index)
             .is_some_and(|token| token.kind == TokenKind::Identifier)

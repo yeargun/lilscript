@@ -490,6 +490,16 @@ this started.
   rule on the pool, no rebuild, and the answer is never a group's sum. Three tranches today by
   this method: five ladder passes, three chain passes, and the emission chain's folds next.
 
+- **The emitter already owned the control shapes (found at 7.55).** `shape_block`
+  (phase 6, G2/G5) is the tree's port of the return tails, early exits, continue
+  tails and braces, run at emission under the plan's policy. The print ladder's
+  `return_tails`, `exit_guards` and `rebrace` rungs call it again on the finished
+  tree, after the collapse and merge changed what the branches hold; only the
+  guard-suffix and branch forms (`if(c)return a;E;return b`, `if(c){E;return a}return b`)
+  were new. The ladder's text passes for these fire, then, on shapes the emission
+  refused under its policy or that later stages created -- the census
+  (`LILSCRIPT_LADDER_REPORT=1`) says which.
+
 ### 7′, concretely (added 2026-09-06 after 7.53)
 
 Three text stages still stand between the selected tree and the artifact, and everything the

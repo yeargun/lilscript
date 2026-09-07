@@ -1687,3 +1687,18 @@ fn grouped_integer_length_fold_cannot_form_postfix_increment_tokens() {
 }
 
 
+
+#[test]
+fn permits_a_module_generator_with_a_same_named_local_elsewhere() {
+    // `nested_function_end` skipped `function*`, so a generator had no
+    // module binding; the "non-enclosing function local" rule then
+    // rejected its call sites whenever another function had a local of the
+    // same name (migration 7.55, the tree renamer's frequency order).
+    for source in [
+        "function*f(a){yield a}function g(){let f=1;return f}console.log(f(1),g())",
+        "function g(){let f=1;return f}function*f(a){yield a}console.log(f(1),g())",
+        "function*f(a){yield a}console.log(f(1))",
+    ] {
+        analyze_generated_javascript(source).unwrap();
+    }
+}
