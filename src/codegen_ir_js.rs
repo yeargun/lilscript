@@ -1825,6 +1825,29 @@ fn render(
             };
             Some(format!("...{}", operand.clone().at_least(JsPrecedence::Assignment)))
         }
+        JsExpressionRoot::Object => {
+            let mut rendered = String::from("{");
+            let mut index = 0usize;
+            let mut first = true;
+            while index < operands.len() {
+                if !first {
+                    rendered.push(',');
+                }
+                first = false;
+                if operands[index].root == JsExpressionRoot::Spread {
+                    rendered.push_str(&operands[index].code);
+                    index += 1;
+                } else {
+                    let value = operands.get(index + 1)?;
+                    rendered.push_str(&operands[index].code);
+                    rendered.push(':');
+                    rendered.push_str(&value.clone().at_least(JsPrecedence::Assignment));
+                    index += 2;
+                }
+            }
+            rendered.push('}');
+            Some(rendered)
+        }
         JsExpressionRoot::New => {
             let [constructor, arguments @ ..] = operands else {
                 return None;
@@ -1980,6 +2003,10 @@ enum JsExpressionRoot {
     /// `...x` inside an array or a call (migration 7.73: `[...s].length`
     /// was raw text, its operand out of the renamer's and census's reach).
     Spread,
+    /// `{k:v,..}`, variadic: the operands alternate key atoms and values;
+    /// a `Spread` operand stands alone (migration 7.75: records were atoms,
+    /// their values out of the renamer's and the census's reach).
+    Object,
     /// A string literal; the contents live in the emission's literal table
     /// and the quote character is the printer's (`string_quote`).
     Str(Lit),
@@ -2016,7 +2043,7 @@ impl JsExpressionRoot {
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
             Self::Conditional => Some(3),
-            Self::Call | Self::Comma | Self::Array | Self::New => None,
+            Self::Call | Self::Comma | Self::Array | Self::New | Self::Object => None,
         }
     }
 
@@ -2044,7 +2071,7 @@ impl JsExpressionRoot {
             Self::Assign => 2,
             Self::Update(_) => 1,
             // Variadic: callee plus arguments, all retained.
-            Self::Call | Self::Comma | Self::Array | Self::New => 0,
+            Self::Call | Self::Comma | Self::Array | Self::New | Self::Object => 0,
             Self::Atom | Self::Name(_) | Self::Closure(_) | Self::Raw | Self::Bool(_) | Self::Str(_) => 0,
         }
     }
@@ -2054,7 +2081,7 @@ impl JsExpressionRoot {
         match self {
             // Variadic, and `call` retains callee plus every argument, so the
             // fixed-arity comparison below does not apply.
-            Self::Call | Self::Comma | Self::Array | Self::New => true,
+            Self::Call | Self::Comma | Self::Array | Self::New | Self::Object => true,
             _ => match self.grammar_arity() {
                 Some(arity) => arity == self.retained_arity(),
                 None => false,
@@ -3522,6 +3549,12 @@ impl BindCensus {
                     self.expression(operand, closures);
                 }
             }
+            JsExpressionRoot::Object => {
+                // Keys are property names, not reads; values and spreads are.
+                for operand in object_value_operands(node) {
+                    self.expression(operand, closures);
+                }
+            }
             _ => {
                 for operand in &node.operands {
                     self.expression(operand, closures);
@@ -3563,7 +3596,16 @@ impl BindCensus {
     ) {
         match body {
             JsFunctionBody::Block(block) => self.block(block, closures),
-            JsFunctionBody::ConciseNode(node) => self.expression(node, closures),
+            // 7.76: the emitter's census scans a concise body as text (its
+            // policies were measured so: remark-gfm +83 when they saw the
+            // node); the reshape's walks it.
+            JsFunctionBody::ConciseNode(node) => {
+                if self.by_spelling {
+                    self.text(&node.code);
+                } else {
+                    self.expression(node, closures);
+                }
+            }
             JsFunctionBody::Concise(text) => self.text(text),
         }
     }
@@ -5534,6 +5576,13 @@ impl JsExpression {
         }
     }
 
+    /// `{k:v,..}` from key atoms and values (a `Spread` operand alone).
+    fn object(operands: Vec<Self>) -> Self {
+        let code = render(JsExpressionRoot::Object, &operands, JsRenderOptions::UNUSED)
+            .expect("render covers Object");
+        Self::grouped(code, JsPrecedence::Primary, JsExpressionRoot::Object).with_operands(operands)
+    }
+
     fn spread(operand: Self) -> Self {
         let operands = vec![operand];
         Self {
@@ -5812,6 +5861,7 @@ impl JsExpression {
             JsExpressionRoot::Update(direction) => Self::update(child(0), direction),
             JsExpressionRoot::PrefixUpdate(direction) => Self::prefix_update(child(0), direction),
             JsExpressionRoot::Spread => Self::spread(child(0)),
+            JsExpressionRoot::Object => Self::object((0..self.operands.len()).map(child).collect::<Vec<_>>()),
             JsExpressionRoot::Array => {
                 Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
@@ -13445,7 +13495,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             // the old splice would have put the coercions somewhere inside
             // `X` if they ever did.
             debug_assert!(public_int_params.is_empty(), "coercions on a concise arrow body");
-            JsFunctionBody::Concise(expression)
+            // 7.75: the returned value's node, where the body has it, so the
+            // renamer and the census own the concise body (markedlil kept 56
+            // spellings for concise text bodies).
+            match concise_arrow_node(&body) {
+                // Off until the naming family is the tree's: with the node the
+                // search's rename re-prints re-spell the names inside concise
+                // bodies and the naming family lands on another plan
+                // (remark-gfm +77, jquerylil −18, mobx −15; +82 on ten ports).
+                // `LILSCRIPT_PORTS=concise_node` turns it on.
+                Some(node) if port_is_enabled("concise_node") => JsFunctionBody::ConciseNode(node),
+                _ => JsFunctionBody::Concise(expression),
+            }
         } else if public_int_params.is_empty() {
             JsFunctionBody::Block(body)
         } else {
@@ -18729,24 +18790,42 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // A null prototype makes every string key a real record slot:
                 // inherited names such as `toString` are absent, and dynamic
                 // `__proto__` writes cannot invoke Object.prototype's setter.
-                let mut rendered = String::from(if self.options.ordinary_record_literals {
-                    "{"
-                } else {
-                    "{__proto__:null"
-                });
-                for (key, item) in entries {
-                    if rendered.len() > 1 {
-                        rendered.push(',');
+                // 7.75: an `Object` node (`LILSCRIPT_SKIP_PORTS=object_node`
+                // keeps the atom).
+                if port_is_skipped("object_node") {
+                    let mut rendered = String::from(if self.options.ordinary_record_literals {
+                        "{"
+                    } else {
+                        "{__proto__:null"
+                    });
+                    for (key, item) in entries {
+                        if rendered.len() > 1 {
+                            rendered.push(',');
+                        }
+                        rendered.push_str(&object_literal_key(
+                            self.property_name(key),
+                            self.options.string_quote,
+                        ));
+                        rendered.push(':');
+                        rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                     }
-                    rendered.push_str(&object_literal_key(
-                        self.property_name(key),
-                        self.options.string_quote,
-                    ));
-                    rendered.push(':');
-                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
+                    rendered.push('}');
+                    JsExpression::atom(rendered)
+                } else {
+                    let mut operands = Vec::with_capacity(entries.len() * 2 + 2);
+                    if !self.options.ordinary_record_literals {
+                        operands.push(JsExpression::atom("__proto__"));
+                        operands.push(JsExpression::atom("null"));
+                    }
+                    for (key, item) in entries {
+                        operands.push(JsExpression::atom(object_literal_key(
+                            self.property_name(key),
+                            self.options.string_quote,
+                        )));
+                        operands.push(value(*item, cache)?);
+                    }
+                    JsExpression::object(operands)
                 }
-                rendered.push('}');
-                JsExpression::atom(rendered)
             }
             ControlFlowOp::RecordSpread(operands) => {
                 self.require_syntax(JsSyntaxFeature::ObjectRestSpread)?;
@@ -22250,6 +22329,22 @@ fn concise_arrow_body(body: &JsBlock) -> Option<String> {
         return None;
     }
     Some(expression)
+}
+
+/// `concise_arrow_body`'s node: the one returned value, when its minimal
+/// text is exactly what the text form would have spelled.
+fn concise_arrow_node(body: &JsBlock) -> Option<JsExpression> {
+    let [only] = body.statements.as_slice() else {
+        return None;
+    };
+    let JsStatement::Return { value: Some(value) } = &only.statement else {
+        return None;
+    };
+    let expression = strip_outer_parens(value.clone());
+    if expression.is_empty() || expression_has_top_level_statement_break(&expression) {
+        return None;
+    }
+    (value.clone().into_minimal() == expression).then(|| value.clone())
 }
 
 fn object_method_shorthand(property: &str, expression: &JsExpression) -> Option<String> {
@@ -28527,6 +28622,24 @@ fn join_guarded_assignments(block: &mut JsBlock) {
     }
 }
 
+/// An `Object` node's value operands and spreads, its key atoms left out.
+fn object_value_operands(node: &JsExpression) -> Vec<&JsExpression> {
+    let mut values = Vec::new();
+    let mut index = 0usize;
+    while index < node.operands.len() {
+        if node.operands[index].root == JsExpressionRoot::Spread {
+            values.push(&node.operands[index]);
+            index += 1;
+        } else {
+            if let Some(value) = node.operands.get(index + 1) {
+                values.push(value);
+            }
+            index += 2;
+        }
+    }
+    values
+}
+
 /// Whether an expression holds a closure anywhere below it.
 fn expression_has_closure(node: &JsExpression) -> bool {
     matches!(node.root, JsExpressionRoot::Closure(_)) || node.operands.iter().any(expression_has_closure)
@@ -30278,6 +30391,12 @@ impl ScopeCollector<'_> {
                 // The property is a key, not a reference.
                 if let Some(object) = expression.operands.first() {
                     self.expression(scope, object);
+                }
+            }
+            JsExpressionRoot::Object => {
+                // Keys are property names, not references.
+                for operand in object_value_operands(expression) {
+                    self.expression(scope, operand);
                 }
             }
             _ => {
