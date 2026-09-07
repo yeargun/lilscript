@@ -5038,6 +5038,16 @@ impl JsExpression {
     }
 
     fn binary(op: IrBinaryOp, mut lhs: Self, mut rhs: Self) -> Self {
+        // Migration 7.65: `x===void 0||null==x` is `x==null` and
+        // `x!==void 0&&null!=x` is `x!=null` -- loose null equality is
+        // exactly "undefined or null" -- when `x` is a name read (evaluated
+        // once either way, no getter to observe the second read). The text
+        // chain did this on every emission; a print must too.
+        if matches!(op, IrBinaryOp::Or | IrBinaryOp::And) {
+            if let Some(folded) = Self::null_test_of(op, &lhs, &rhs) {
+                return folded;
+            }
+        }
         if op == IrBinaryOp::Add {
             if is_rendered_string_literal(&rhs.code) {
                 lhs = lhs.without_explicit_tostring();
@@ -5055,6 +5065,47 @@ impl JsExpression {
         let operands = vec![lhs, rhs];
         let code = render(root, &operands, JsRenderOptions::UNUSED).expect("render covers Binary");
         Self::grouped(code, js_binary_precedence(op), root).with_operands(operands)
+    }
+
+    fn undefined_test_subject(node: &Self, absent: bool) -> Option<&Self> {
+        match node.root {
+            JsExpressionRoot::UndefinedTest { absent: tested } if tested == absent => node.operands.first(),
+            _ => None,
+        }
+    }
+
+    fn null_test_subject(node: &Self, absent: bool) -> Option<&Self> {
+        let wanted = if absent { IrBinaryOp::Eq } else { IrBinaryOp::NotEq };
+        if node.root != JsExpressionRoot::Binary(wanted) {
+            return None;
+        }
+        let (left, right) = node.binary_operands()?;
+        let is_null = |side: &Self| side.root == JsExpressionRoot::Atom && side.code == "null";
+        if is_null(left) {
+            Some(right)
+        } else if is_null(right) {
+            Some(left)
+        } else {
+            None
+        }
+    }
+
+    fn null_test_of(op: IrBinaryOp, lhs: &Self, rhs: &Self) -> Option<Self> {
+        let absent = op == IrBinaryOp::Or;
+        let (subject, other) = Self::undefined_test_subject(lhs, absent)
+            .zip(Self::null_test_subject(rhs, absent))
+            .or_else(|| Self::null_test_subject(lhs, absent).zip(Self::undefined_test_subject(rhs, absent)))?;
+        let (JsExpressionRoot::Name(a), JsExpressionRoot::Name(b)) = (subject.root, other.root) else {
+            return None;
+        };
+        if a != b || subject.code != other.code {
+            return None;
+        }
+        Some(Self::binary_in_order(
+            if absent { IrBinaryOp::Eq } else { IrBinaryOp::NotEq },
+            subject.clone(),
+            Self::atom("null"),
+        ))
     }
 
     /// `binary` without the constant-first swap and the string-coercion
@@ -26799,6 +26850,12 @@ pub(crate) struct TreeShapes {
     /// Migration 7.59: one literal boolean arm folded to `&&`/`||`
     /// (`BooleanConditionalValues`), as a print.
     pub(crate) boolean_one_arm: bool,
+    /// Migration 7.64: the module's leading declaration keyword flipped
+    /// (`var`/`let`), the search's top-level declaration variant.
+    pub(crate) top_keyword: bool,
+    /// Migration 7.64: a function's leading `var` list spelled `let` where
+    /// the search's function-leading declaration variant would.
+    pub(crate) function_let: bool,
     /// Migration 7.55: the emitter's own return-tail shapes (`shape_block`
     /// with `return_tails`) run again on the finished tree, then the guard
     /// suffix `if(c)return a;E;return b` is `return c?a:(E,b)` and the
@@ -26819,7 +26876,7 @@ impl TreeShapes {
     /// The print ladder's rungs in order, each adding one shape to the
     /// incumbent's set; the rename last, since it re-spells what the others
     /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.
-    pub(crate) const RUNG_COUNT: usize = 11;
+    pub(crate) const RUNG_COUNT: usize = 13;
 
     pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
         let rungs: [(&'static str, fn(&mut Self)); Self::RUNG_COUNT] = [
@@ -26830,6 +26887,8 @@ impl TreeShapes {
             ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
             ("loop_bounds", |shapes| shapes.loop_bounds = true),
             ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
+            ("top_keyword", |shapes| shapes.top_keyword = true),
+            ("function_let", |shapes| shapes.function_let = true),
             ("return_tails", |shapes| shapes.return_tails = true),
             ("exit_guards", |shapes| shapes.exit_guards = true),
             ("rebrace", |shapes| shapes.rebrace = true),
@@ -26991,6 +27050,12 @@ impl ModuleTree {
         let mut census = BindCensus::default();
         census.block(&self.block, &self.closures);
         let mut entries = std::mem::take(&mut *self.closures.borrow_mut());
+        if shapes.collapse {
+            let moved = inline_single_use_declarator_functions(&mut self.block, &mut entries, &census);
+            if moved > 0 {
+                crate::timing::FUNCTIONS_MOVED.event(moved as u64);
+            }
+        }
         {
             let mut bodies = entries
                 .iter_mut()
@@ -27007,6 +27072,12 @@ impl ModuleTree {
                         let moved = inline_single_use_functions(block, &census, &snapshot);
                         if moved > 0 {
                             crate::timing::FUNCTIONS_MOVED.event(moved as u64);
+                        }
+                    }
+                    // Copies first, twice: `h=ea,b=h` propagates in two steps.
+                    for _ in 0..2 {
+                        if propagate_identifier_copies(block, &census) == 0 {
+                            break;
                         }
                     }
                     collapse_block(block, &census, &snapshot);
@@ -27033,6 +27104,16 @@ impl ModuleTree {
                 }
                 if shapes.loop_bounds {
                     bound_infinite_loops(block);
+                }
+                if shapes.top_keyword && position == 0 {
+                    flip_leading_declaration_keyword(block);
+                }
+                if shapes.function_let {
+                    if position > 0 {
+                        // A closure body from the map: its head is the entry's.
+                        // (Handled below, where the head is in reach.)
+                    }
+                    for_each_function_body(block, &mut |head, body| lexicalize_leading_var(head, body));
                 }
                 if shapes.boolean_one_arm {
                     // `conditional()` folds under the installed policy.
@@ -27085,6 +27166,13 @@ impl ModuleTree {
                     braces.install();
                     shape_block(block, braces, context);
                     previous.install();
+                }
+            }
+        }
+        if shapes.function_let {
+            for (_, (head, body)) in entries.iter_mut() {
+                if let JsFunctionBody::Block(block) = body {
+                    lexicalize_leading_var(head, block);
                 }
             }
         }
@@ -27454,6 +27542,151 @@ fn fold_one_arm_conditional(node: &JsExpression) -> Option<JsExpression> {
     (rebuilt.root != JsExpressionRoot::Conditional).then_some(rebuilt)
 }
 
+/// Every function body a block owns, with its head: `function` statements,
+/// declarator functions, and the same below nested blocks.
+fn for_each_function_body(block: &mut JsBlock, visit: &mut dyn FnMut(&JsHead, &mut JsBlock)) {
+    for emitted in block.statements.iter_mut() {
+        match &mut emitted.statement {
+            JsStatement::Function {
+                head,
+                body: JsFunctionBody::Block(body),
+                ..
+            } => {
+                for_each_function_body(body, visit);
+                visit(head, body);
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    if let Some(function) = &mut declarator.function {
+                        let (head, body) = function.as_mut();
+                        if let JsFunctionBody::Block(body) = body {
+                            for_each_function_body(body, visit);
+                            visit(head, body);
+                        }
+                    }
+                }
+            }
+            statement => for_each_child_block(statement, &mut |child| for_each_function_body(child, visit)),
+        }
+    }
+}
+
+/// `var a,b;` at the module's top is `let a,b;` and back
+/// (`top_level_declaration_variants`): the same semantics for generated
+/// entry bindings, a byte or more apart under a codec.
+fn flip_leading_declaration_keyword(block: &mut JsBlock) {
+    let Some(first) = block.statements.first_mut() else {
+        return;
+    };
+    let flip = |keyword: &'static str| -> Option<&'static str> {
+        match keyword {
+            "var " => Some("let "),
+            "let " => Some("var "),
+            _ => None,
+        }
+    };
+    match &mut first.statement {
+        JsStatement::Declarators { keyword, .. }
+        | JsStatement::Declaration { keyword, .. }
+        | JsStatement::DeclarationGroup { keyword, .. } => {
+            if let Some(flipped) = flip(keyword) {
+                *keyword = flipped;
+            }
+        }
+        JsStatement::Binding {
+            keyword: Some(keyword),
+            ..
+        } => {
+            if let Some(flipped) = flip(keyword) {
+                *keyword = flipped;
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Whether a `var` is declared anywhere below, nested functions included
+/// (the text variant's scan is over every token of the body).
+fn block_declares_var(block: &JsBlock) -> bool {
+    block.statements.iter().any(|emitted| statement_declares_var(&emitted.statement))
+}
+
+fn statement_declares_var(statement: &JsStatement) -> bool {
+    match statement {
+        JsStatement::Declarators { keyword, .. }
+        | JsStatement::Declaration { keyword, .. }
+        | JsStatement::DeclarationGroup { keyword, .. } => *keyword == "var ",
+        JsStatement::Binding {
+            keyword: Some(keyword),
+            ..
+        } => *keyword == "var ",
+        JsStatement::Loop {
+            head: JsLoopHead::ForIn { declare: true, .. } | JsLoopHead::ForOf { declare: true, .. },
+            ..
+        } => true,
+        JsStatement::Loop { head: JsLoopHead::For { initializer: Some(initializer), .. }, body, .. } => {
+            initializer.starts_with("var ") || block_declares_var(&body.block)
+        }
+        _ => {
+            let mut found = false;
+            let mut probe = statement.clone();
+            for_each_child_block(&mut probe, &mut |child: &mut JsBlock| found |= block_declares_var(child));
+            found
+        }
+    }
+}
+
+/// A function's leading `var a,b=1;` is `let a,b=1;`
+/// (`function_leading_declaration_variant`): the names are not parameters,
+/// every initializer is a literal, no other `var` follows in the body, and
+/// no function or class declaration stands in it.
+fn lexicalize_leading_var(head: &JsHead, body: &mut JsBlock) {
+    let parameters = head
+        .pieces
+        .iter()
+        .filter_map(|piece| match piece {
+            JsHeadPiece::Name(bind, _) => Some(*bind),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let Some(first) = body.statements.first() else {
+        return;
+    };
+    let qualifies = match &first.statement {
+        JsStatement::Declarators { keyword: "var ", declarators } => declarators.iter().all(|declarator| {
+            declarator.function.is_none()
+                && declarator.bind.is_some_and(|bind| !parameters.contains(&bind))
+                && declarator.value.as_ref().map_or(true, JsExpression::is_constant_literal)
+        }),
+        JsStatement::Declaration {
+            keyword: "var ",
+            bind: Some(bind),
+            ..
+        } => !parameters.contains(bind),
+        JsStatement::Binding {
+            keyword: Some("var "),
+            bind: Some(bind),
+            value,
+            ..
+        } => !parameters.contains(bind) && value.is_constant_literal(),
+        _ => false,
+    };
+    if !qualifies {
+        return;
+    }
+    if body.statements[1..].iter().any(|emitted| {
+        statement_declares_var(&emitted.statement)
+            || matches!(emitted.statement, JsStatement::Function { .. } | JsStatement::Class { .. })
+    }) {
+        return;
+    }
+    match &mut body.statements[0].statement {
+        JsStatement::Declarators { keyword, .. } | JsStatement::Declaration { keyword, .. } => *keyword = "let ",
+        JsStatement::Binding { keyword, .. } => *keyword = Some("let "),
+        _ => {}
+    }
+}
+
 /// How many times `bind` is read below `node`.
 fn bind_reads(node: &JsExpression, bind: Bind) -> usize {
     let here = usize::from(node.root == JsExpressionRoot::Name(bind));
@@ -27573,6 +27806,123 @@ fn bound_infinite_loops(block: &mut JsBlock) {
         body.block.statements.drain(0..2);
         settle_block_tail(&mut body.block, false);
     }
+}
+
+/// Whether a child block of any statement in `block` declares `spelling`
+/// (a nested `let` could shadow a propagated source).
+fn child_blocks_declare(block: &JsBlock, spelling: &str) -> bool {
+    block.statements.iter().any(|emitted| {
+        let mut found = false;
+        let mut probe = emitted.statement.clone();
+        for_each_child_block(&mut probe, &mut |child: &mut JsBlock| {
+            let mut declared = AHashSet::default();
+            collect_declared_spellings(None, child, &mut declared);
+            found |= declared.contains(spelling);
+        });
+        found
+    })
+}
+
+/// `var b=h` where `h` is never written again and `b` never written
+/// again: every read of `b` at this function's level reads `h` and the
+/// copy goes (`fold_identifier_copies`). Reads below a nested function
+/// stay out of reach, so the copy stays when it has any; a nested block
+/// declaring the source's spelling stops it too.
+fn propagate_identifier_copies(block: &mut JsBlock, census: &BindCensus) -> usize {
+    let mut propagated = 0usize;
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let copies = match &block.statements[index].statement {
+            JsStatement::Declarators { declarators, .. } => declarators
+                .iter()
+                .filter_map(|declarator| {
+                    let bind = declarator.bind?;
+                    let value = declarator.value.as_ref()?;
+                    (declarator.function.is_none()).then(|| (bind, declarator.name.clone(), value.clone()))
+                })
+                .collect::<Vec<_>>(),
+            JsStatement::Binding {
+                keyword: Some(_),
+                name,
+                bind: Some(bind),
+                value,
+            } => vec![(*bind, name.clone(), value.clone())],
+            _ => Vec::new(),
+        };
+        let mut removed = Vec::<Bind>::new();
+        for (bind, name, value) in copies {
+            let JsExpressionRoot::Name(source) = value.root else {
+                continue;
+            };
+            let reads = census.reads.get(&bind).copied().unwrap_or(0);
+            let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
+            if reads == 0
+                || census.writes.get(&bind).copied() != Some(1)
+                || census.writes.get(&source).copied() != Some(1)
+                || census.unsafe_names.contains(&name)
+                || census.unsafe_names.contains(&value.code)
+                || child_blocks_declare(block, &value.code)
+            {
+                if trace {
+                    eprintln!(
+                        "[shape] copy {name}={}: refused (reads {reads}, writes {:?}, source writes {:?}, unsafe {}/{}, shadowed {})",
+                        value.code,
+                        census.writes.get(&bind),
+                        census.writes.get(&source),
+                        census.unsafe_names.contains(&name),
+                        census.unsafe_names.contains(&value.code),
+                        child_blocks_declare(block, &value.code)
+                    );
+                }
+                continue;
+            }
+            // Count first: every read must be at this level.
+            let mut seen = 0usize;
+            let mut count = |node: &JsExpression| -> Option<JsExpression> {
+                if node.root == JsExpressionRoot::Name(bind) {
+                    seen += 1;
+                }
+                None
+            };
+            let mut probe = block.clone();
+            rewrite_block_expressions_shallow(&mut probe, &mut count);
+            if seen != reads {
+                if trace {
+                    eprintln!("[shape] copy {name}={}: {seen} of {reads} reads at this level", value.code);
+                }
+                continue;
+            }
+            if trace {
+                eprintln!("[shape] copy {name}={}: propagated {reads} reads", value.code);
+            }
+            let replacement = value.clone();
+            let mut replace = |node: &JsExpression| -> Option<JsExpression> {
+                (node.root == JsExpressionRoot::Name(bind)).then(|| replacement.clone())
+            };
+            rewrite_block_expressions_shallow(block, &mut replace);
+            removed.push(bind);
+            propagated += 1;
+        }
+        if !removed.is_empty() {
+            let statement = &mut block.statements[index].statement;
+            match statement {
+                JsStatement::Declarators { declarators, .. } => {
+                    declarators.retain(|declarator| !declarator.bind.is_some_and(|bind| removed.contains(&bind)));
+                    if declarators.is_empty() {
+                        *statement = JsStatement::Empty;
+                    }
+                }
+                JsStatement::Binding { .. } => *statement = JsStatement::Empty,
+                _ => {}
+            }
+        }
+        index += 1;
+    }
+    if propagated > 0 {
+        block.statements.retain(|emitted| !matches!(emitted.statement, JsStatement::Empty));
+        settle_block_tail(block, false);
+    }
+    propagated
 }
 
 /// Whether an expression holds a closure anywhere below it.
@@ -27840,6 +28190,396 @@ fn inline_single_use_functions(
         } else {
             index += 1;
         }
+    }
+    moved
+}
+
+/// The spellings a function frame declares: its parameters and every
+/// binding in its body, nested blocks and nested functions included
+/// (conservative: a moved closure must not read any of them).
+fn collect_declared_spellings(head: Option<&JsHead>, block: &JsBlock, into: &mut AHashSet<String>) {
+    if let Some(head) = head {
+        for piece in &head.pieces {
+            match piece {
+                JsHeadPiece::Name(_, spelled)
+                | JsHeadPiece::FunctionName(_, spelled)
+                | JsHeadPiece::Unbound(spelled) => {
+                    into.insert(spelled.clone());
+                }
+                JsHeadPiece::Text(_) => {}
+            }
+        }
+    }
+    for emitted in &block.statements {
+        match &emitted.statement {
+            JsStatement::Declaration { name, .. } | JsStatement::Binding { name, .. } => {
+                into.insert(name.clone());
+            }
+            JsStatement::DeclarationGroup { names, .. } => into.extend(names.iter().cloned()),
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    into.insert(declarator.name.clone());
+                    if let Some(function) = &declarator.function {
+                        let (head, body) = function.as_ref();
+                        match body {
+                            JsFunctionBody::Block(body) => collect_declared_spellings(Some(head), body, into),
+                            _ => collect_declared_spellings(Some(head), &JsBlock::default(), into),
+                        }
+                    }
+                }
+            }
+            JsStatement::Function { head, body, .. } => match body {
+                JsFunctionBody::Block(body) => collect_declared_spellings(Some(head), body, into),
+                _ => collect_declared_spellings(Some(head), &JsBlock::default(), into),
+            },
+            JsStatement::Try { catch: Some(catch), .. } => {
+                if let Some(binding) = &catch.binding {
+                    into.insert(binding.clone());
+                }
+            }
+            JsStatement::Loop {
+                head: JsLoopHead::ForIn { key, .. },
+                ..
+            } => {
+                into.insert(key.clone());
+            }
+            JsStatement::Loop {
+                head: JsLoopHead::ForOf { element, .. },
+                ..
+            } => {
+                into.insert(element.clone());
+            }
+            _ => {}
+        }
+        let mut probe = emitted.statement.clone();
+        for_each_child_block(&mut probe, &mut |child: &mut JsBlock| collect_declared_spellings(None, child, into));
+    }
+}
+
+/// Where the one read of `bind` sits: the spellings declared by every
+/// function frame between the origin block and the read, and whether a
+/// loop encloses it. `None` when the read is not found below `block`.
+fn read_site(
+    block: &JsBlock,
+    bind: Bind,
+    frames: &mut AHashSet<String>,
+    in_loop: bool,
+) -> Option<bool> {
+    for emitted in &block.statements {
+        if let Some(value) = statement_value(&emitted.statement) {
+            if bind_reads(value, bind) > 0 {
+                return Some(in_loop);
+            }
+        }
+        match &emitted.statement {
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators {
+                    if declarator.value.as_ref().is_some_and(|value| bind_reads(value, bind) > 0) {
+                        return Some(in_loop);
+                    }
+                    if let Some(function) = &declarator.function {
+                        let (head, body) = function.as_ref();
+                        match body {
+                            JsFunctionBody::Block(body) => {
+                                let mut inner = frames.clone();
+                                collect_declared_spellings(Some(head), body, &mut inner);
+                                if let Some(looped) = read_site(body, bind, &mut inner, false) {
+                                    *frames = inner;
+                                    return Some(looped);
+                                }
+                            }
+                            JsFunctionBody::ConciseNode(node) => {
+                                if bind_reads(node, bind) > 0 {
+                                    collect_declared_spellings(Some(head), &JsBlock::default(), frames);
+                                    return Some(false);
+                                }
+                            }
+                            JsFunctionBody::Concise(_) => {}
+                        }
+                    }
+                }
+            }
+            JsStatement::Function { head, body, .. } => match body {
+                JsFunctionBody::Block(body) => {
+                    let mut inner = frames.clone();
+                    collect_declared_spellings(Some(head), body, &mut inner);
+                    if let Some(looped) = read_site(body, bind, &mut inner, false) {
+                        *frames = inner;
+                        return Some(looped);
+                    }
+                }
+                JsFunctionBody::ConciseNode(node) => {
+                    if bind_reads(node, bind) > 0 {
+                        collect_declared_spellings(Some(head), &JsBlock::default(), frames);
+                        return Some(false);
+                    }
+                }
+                JsFunctionBody::Concise(_) => {}
+            },
+            JsStatement::Loop { body, head, .. } => {
+                let head_reads = match head {
+                    JsLoopHead::For { condition_tree: Some(tree), .. } | JsLoopHead::While { condition_tree: Some(tree), .. } => bind_reads(tree, bind) > 0,
+                    _ => false,
+                };
+                if head_reads {
+                    return Some(true);
+                }
+                if let Some(looped) = read_site(&body.block, bind, frames, true) {
+                    return Some(looped);
+                }
+            }
+            statement => {
+                let mut found = None;
+                let mut probe = statement.clone();
+                for_each_child_block(&mut probe, &mut |child: &mut JsBlock| {
+                    if found.is_none() {
+                        found = read_site(child, bind, frames, in_loop);
+                    }
+                });
+                if found.is_some() {
+                    return found;
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Every `Name(bind)` read below `block` replaced by `replacement`, nested
+/// functions included; how many were replaced.
+fn replace_bind_reads_deep(block: &mut JsBlock, bind: Bind, replacement: &JsExpression) -> usize {
+    let mut count = 0usize;
+    let mut rewrite = |node: &JsExpression| -> Option<JsExpression> {
+        if node.root == JsExpressionRoot::Name(bind) {
+            count += 1;
+            Some(replacement.clone())
+        } else {
+            None
+        }
+    };
+    rewrite_block_expressions(block, &mut rewrite);
+    count
+}
+
+/// `let f=a=>..` declared in the module block and read exactly once moves
+/// to that read as a closure expression (the text chain's single-use
+/// function inlining, which the tree's `inline_single_use_functions` did
+/// only for `function f(){}` statements -- markedlil's are declarators).
+/// The read may sit inside another function when no spelling the closure
+/// mentions is declared by a frame on the way (a capture), no loop encloses
+/// the read (a closure per iteration), and an arrow mentions no `this`.
+fn inline_single_use_declarator_functions(
+    module: &mut JsBlock,
+    entries: &mut AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
+    census: &BindCensus,
+) -> usize {
+    let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
+    let mut moved = 0usize;
+    let mut candidates = Vec::new();
+    for (index, emitted) in module.statements.iter().enumerate() {
+        if emitted.dropped_semicolon {
+            continue;
+        }
+        // `function f(a){..}` statements too (7.65): the same move, the
+        // expression head without its name.
+        if let JsStatement::Function {
+            head,
+            body: JsFunctionBody::Block(body),
+            terminated: false,
+        } = &emitted.statement
+        {
+            let mut name = None;
+            let mut plain = true;
+            let mut expression_head = JsHead::default();
+            for piece in &head.pieces {
+                match piece {
+                    JsHeadPiece::FunctionName(bind, spelled) => name = Some((*bind, spelled.clone())),
+                    JsHeadPiece::Text(text) if text.trim_end() == "function" => {
+                        expression_head.pieces.push(JsHeadPiece::Text("function".to_string()));
+                    }
+                    JsHeadPiece::Text(text)
+                        if text
+                            .bytes()
+                            .all(|byte| matches!(byte, b'(' | b')' | b',' | b' ')) =>
+                    {
+                        expression_head.pieces.push(piece.clone());
+                    }
+                    JsHeadPiece::Name(..) => expression_head.pieces.push(piece.clone()),
+                    _ => plain = false,
+                }
+            }
+            if let Some((bind, spelled)) = name {
+                if plain
+                    && census.reads.get(&bind).copied() == Some(1)
+                    && census.writes.get(&bind).copied() == Some(1)
+                    && !census.unsafe_names.contains(&spelled)
+                    && !block_has_closure(body)
+                {
+                    candidates.push((index, usize::MAX, bind, spelled, expression_head, JsFunctionBody::Block(body.clone())));
+                }
+            }
+            continue;
+        }
+        if let JsStatement::Declarators { declarators, .. } = &emitted.statement {
+            for (position, declarator) in declarators.iter().enumerate() {
+                let (Some(bind), Some(function)) = (declarator.bind, &declarator.function) else {
+                    continue;
+                };
+                if census.reads.get(&bind).copied() != Some(1)
+                    || census.writes.get(&bind).copied() != Some(1)
+                    || census.unsafe_names.contains(&declarator.name)
+                {
+                    continue;
+                }
+                let (head, body) = function.as_ref();
+                let closure_inside = match body {
+                    JsFunctionBody::Block(block) => block_has_closure(block),
+                    JsFunctionBody::ConciseNode(node) => expression_has_closure(node),
+                    JsFunctionBody::Concise(text) => text.contains("=>") || text.contains("function"),
+                };
+                if closure_inside {
+                    continue;
+                }
+                candidates.push((index, position, bind, declarator.name.clone(), head.clone(), body.clone()));
+            }
+        }
+    }
+    for (index, position, bind, name, head, body) in candidates {
+        let code = JsStatement::render_function_value(
+            head.clone(),
+            body.clone(),
+            JsStatementOptions {
+                elide_block_terminal_semicolons: true,
+            },
+        );
+        if text_mentions_identifier(&code, "arguments") || text_mentions_identifier(&code, "super") {
+            continue;
+        }
+        let is_arrow = code.contains("=>") && !code.starts_with("function");
+        // The read: in the module block or below one of its functions, or
+        // in one of the closure map's bodies.
+        let mut frames = AHashSet::<String>::default();
+        let mut site = read_site(module, bind, &mut frames, false);
+        let mut in_entry = None;
+        if site.is_none() {
+            for (id, (entry_head, entry_body)) in entries.iter() {
+                let found = match entry_body {
+                    JsFunctionBody::Block(block) => {
+                        let mut inner = AHashSet::default();
+                        collect_declared_spellings(Some(entry_head), block, &mut inner);
+                        let found = read_site(block, bind, &mut inner, false);
+                        if found.is_some() {
+                            frames = inner;
+                        }
+                        found
+                    }
+                    JsFunctionBody::ConciseNode(node) => (bind_reads(node, bind) > 0).then(|| {
+                        collect_declared_spellings(Some(entry_head), &JsBlock::default(), &mut frames);
+                        false
+                    }),
+                    JsFunctionBody::Concise(_) => None,
+                };
+                if found.is_some() {
+                    site = found;
+                    in_entry = Some(*id);
+                    break;
+                }
+            }
+        }
+        let Some(in_loop) = site else {
+            if trace {
+                eprintln!("[shape] declarator function {name}: read not found");
+            }
+            continue;
+        };
+        // A read inside a loop makes a closure per iteration where there
+        // was one; the text chain has always done this on every emission
+        // (it is the baseline the ports' harnesses measure), so the print
+        // does too. `LILSCRIPT_INLINE_LOOPS=0` refuses, for the A/B.
+        if in_loop && std::env::var("LILSCRIPT_INLINE_LOOPS").is_ok_and(|value| value == "0") {
+            if trace {
+                eprintln!("[shape] declarator function {name}: read inside a loop");
+            }
+            continue;
+        }
+        if is_arrow && !frames.is_empty() && text_mentions_identifier(&code, "this") {
+            if trace {
+                eprintln!("[shape] declarator function {name}: an arrow reading this moves into a function");
+            }
+            continue;
+        }
+        let mut mentioned = AHashSet::<String>::default();
+        identifiers_in(&code, &mut mentioned);
+        let mut own = AHashSet::<String>::default();
+        match &body {
+            JsFunctionBody::Block(block) => collect_declared_spellings(Some(&head), block, &mut own),
+            _ => collect_declared_spellings(Some(&head), &JsBlock::default(), &mut own),
+        }
+        if let Some(capture) = mentioned.iter().find(|identifier| frames.contains(*identifier) && !own.contains(*identifier)) {
+            if trace {
+                eprintln!("[shape] declarator function {name}: `{capture}` would be captured on the way");
+            }
+            continue;
+        }
+        let id = ClosureId(
+            entries
+                .keys()
+                .map(|key| key.0 + 1)
+                .max()
+                .unwrap_or(0),
+        );
+        let replacement = JsExpression::closure(id, code, JsPrecedence::Comma);
+        let replaced = match in_entry {
+            Some(entry) => match entries.get_mut(&entry) {
+                Some((_, JsFunctionBody::Block(block))) => replace_bind_reads_deep(block, bind, &replacement),
+                Some((_, JsFunctionBody::ConciseNode(node))) => {
+                    match rewrite_expression(node, &mut |candidate| {
+                        (candidate.root == JsExpressionRoot::Name(bind)).then(|| replacement.clone())
+                    }) {
+                        Some((rewritten, count)) => {
+                            *node = rewritten;
+                            count
+                        }
+                        None => 0,
+                    }
+                }
+                _ => 0,
+            },
+            None => replace_bind_reads_deep(module, bind, &replacement),
+        };
+        if replaced != 1 {
+            if trace {
+                eprintln!("[shape] declarator function {name}: {replaced} reads replaced, expected one");
+            }
+            // A partial replacement would be a wrong program: undo by
+            // leaving the declarator in place is not possible after a
+            // rewrite, so the count is checked before any structural edit
+            // only through the census; this branch means the census and
+            // the tree disagree.
+            debug_assert_eq!(replaced, 1);
+            continue;
+        }
+        entries.insert(id, (head, body));
+        if position == usize::MAX {
+            module.statements[index].statement = JsStatement::Empty;
+        } else if let JsStatement::Declarators { declarators, .. } = &mut module.statements[index].statement {
+            if position < declarators.len() && declarators[position].bind == Some(bind) {
+                declarators.remove(position);
+            } else if let Some(at) = declarators.iter().position(|declarator| declarator.bind == Some(bind)) {
+                declarators.remove(at);
+            }
+            if declarators.is_empty() {
+                module.statements[index].statement = JsStatement::Empty;
+            }
+        }
+        moved += 1;
+        if trace {
+            eprintln!("[shape] declarator function {name}: moved to its read");
+        }
+    }
+    if moved > 0 {
+        module.statements.retain(|emitted| !matches!(emitted.statement, JsStatement::Empty));
+        settle_block_tail(module, false);
     }
     moved
 }

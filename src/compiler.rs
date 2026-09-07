@@ -6911,6 +6911,13 @@ fn finalize_javascript_candidates_with_parallelism(
                     selected.performance.score,
                     baseline_performance.score,
                 );
+                if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                    eprintln!(
+                        "[shape] finalist {offset} finished at {} bytes{}",
+                        selected.transfer_cost,
+                        if print_report.carried == Some(offset) { " (the carried print)" } else { "" }
+                    );
+                }
                 Ok::<_, CompileError>(selected)
                 })();
                 codec_budget.end_fair_slice();
@@ -8830,6 +8837,8 @@ struct PrintBeamReport {
     best: Option<usize>,
     /// Whether the cleanup's best spelling is a print or descends from one.
     selected: bool,
+    /// The carried print's position among the returned finalists (7.62).
+    carried: Option<usize>,
 }
 
 /// `LILSCRIPT_PRINT_BEAM=<n>`: how many prints the beam carries between
@@ -8918,13 +8927,19 @@ fn offer_print_beam(
             beam.first().map_or(0, |original| original.cost)
         );
     }
-    if let Ok(path) = std::env::var("LILSCRIPT_SHAPE_DUMP") {
+    // One prefix per beam (`{path}.f<n>.`), so the dumps of one finalist
+    // stay together.
+    static DUMPED_BEAMS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let dump_prefix = std::env::var("LILSCRIPT_SHAPE_DUMP").ok().map(|path| {
+        format!("{path}.f{}", DUMPED_BEAMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    });
+    if let Some(prefix) = &dump_prefix {
         if let Some(original) = beam.first() {
-            let _ = std::fs::write(format!("{path}.emission.js"), &original.code);
+            let _ = std::fs::write(format!("{prefix}.emission.js"), &original.code);
         }
-        let _ = std::fs::write(format!("{path}.unshaped.js"), &unshaped);
+        let _ = std::fs::write(format!("{prefix}.unshaped.js"), &unshaped);
         if let Some(finished) = finish(&unshaped) {
-            let _ = std::fs::write(format!("{path}.unshaped.finished.js"), &finished);
+            let _ = std::fs::write(format!("{prefix}.unshaped.finished.js"), &finished);
         }
     }
     let mut members = vec![(TreeShapes::default(), unshaped, unshaped_cost)];
@@ -8968,6 +8983,9 @@ fn offer_print_beam(
             report.scored += 1;
             if trace {
                 eprintln!("[shape] rung {name}: {cost} -> {printed_cost}");
+            }
+            if let Some(prefix) = &dump_prefix {
+                let _ = std::fs::write(format!("{prefix}.{name}.{cost}.js"), &printed);
             }
             proposals.push((trial, printed, printed_cost));
         }
@@ -10099,7 +10117,8 @@ fn late_javascript_cleanup_finalists(
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
     beam.dedup_by(|left, right| left.code == right.code);
     let beam_printed = print_report.is_some();
-    if let Some(report) = print_report {
+    let mut print_report = print_report;
+    if let Some(report) = print_report.as_deref_mut() {
         report.selected = beam.first().is_some_and(|best| best.printed);
     }
     // Migration 7.62: the finalist's text had the search's finishing (the
@@ -10155,6 +10174,11 @@ fn late_javascript_cleanup_finalists(
             .any(|existing: &ScoredJavaScriptCandidate| existing.code == candidate.code)
         {
             continue;
+        }
+        if forced {
+            if let Some(report) = print_report.as_deref_mut() {
+                report.carried = Some(finalists.len());
+            }
         }
         finalists.push(candidate);
     }
@@ -16933,9 +16957,14 @@ mod tests {
         // here from a path the final peephole join never reached no longer
         // exists. On a 52-byte artifact the separator is worth three Brotli
         // bytes either way; on the ports the sequence spelling wins.
+        // 45, not 55, since migration 7.64: the print beam's `top_keyword`
+        // rung offers the module's leading declaration as `var`, and on this
+        // 55-byte artifact `var m=n=>10+n|0;..` is ten Brotli bytes cheaper
+        // than `let a=i=>10+i|0;..` (the search's own declaration variant
+        // had scored `let` on the emission, before the finishing).
         assert_eq!(
             outputs.last().map(|row| row.1),
-            Some(55),
+            Some(45),
             "the highest built-in effort tier retains the exact pair winner"
         );
     }
