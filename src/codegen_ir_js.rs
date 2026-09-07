@@ -27756,6 +27756,8 @@ impl FrozenModuleTree {
             // keeps the earlier most-referenced-first order for the A/B.
             let order = if std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() == Ok("frequency") {
                 RenameOrder::Frequency
+            } else if shapes.converge_text {
+                RenameOrder::ConvergeText
             } else {
                 RenameOrder::Converge
             };
@@ -27826,6 +27828,8 @@ pub(crate) struct TreeShapes {
     /// shapes changed what the branches hold (`SingleStatementControlBraces`).
     pub(crate) rebrace: bool,
     pub(crate) converge: bool,
+    /// 7.96: the convergence under the text rule (`RenameOrder::ConvergeText`).
+    pub(crate) converge_text: bool,
 }
 
 impl TreeShapes {
@@ -33126,6 +33130,11 @@ enum RenameOrder {
     /// the canonical form under which two alpha-equivalent functions spell
     /// the same.
     Converge,
+    /// 7.96: `Converge` under the text convergence's rules whatever the
+    /// port says -- the rest by use count, a nested scope's spellings
+    /// blocked per bind where its extent refers to the bind -- for the
+    /// tree ladder at the end of the beam.
+    ConvergeText,
 }
 
 impl Renamer<'_> {
@@ -33157,7 +33166,9 @@ impl Renamer<'_> {
         let mut binds_renamed = 0;
         for scope in 0..self.tree.scopes.len() {
             let declared = self.tree.scopes[scope].declared.clone();
-            if declared.is_empty() || (order == RenameOrder::Converge && scope == 0) {
+            let converging = matches!(order, RenameOrder::Converge | RenameOrder::ConvergeText);
+            let text_rule = order == RenameOrder::ConvergeText || (converging && port_is_enabled("converge_text_rule"));
+            if declared.is_empty() || (converging && scope == 0) {
                 scopes_full += 1;
                 continue;
             }
@@ -33179,7 +33190,7 @@ impl Renamer<'_> {
                 for (name, kinds) in &inner_scope.opaque {
                     *mentioned.entry(name.clone()).or_insert(0) |= kinds;
                 }
-                if *inner != scope && !(order == RenameOrder::Converge && port_is_enabled("converge_text_rule")) {
+                if *inner != scope && !text_rule {
                     for bind in &inner_scope.declared {
                         forbidden.insert(self.table.spelling(*bind));
                     }
@@ -33203,7 +33214,7 @@ impl Renamer<'_> {
             // a converge print that wins the beam is carried, and finishes
             // worse than the text's convergence at the end of the finishing.
             // `LILSCRIPT_PORTS=converge_text_rule`.
-            let inner_blocks: Vec<(AHashSet<Bind>, AHashSet<String>)> = if order == RenameOrder::Converge && port_is_enabled("converge_text_rule") {
+            let inner_blocks: Vec<(AHashSet<Bind>, AHashSet<String>)> = if text_rule {
                 subtree
                     .iter()
                     .filter(|inner| **inner != scope)
@@ -33270,7 +33281,7 @@ impl Renamer<'_> {
                     renameable = heads;
                 }
                 RenameOrder::Emission => renameable.sort(),
-                RenameOrder::Converge => {
+                RenameOrder::Converge | RenameOrder::ConvergeText => {
                     // Function and class names keep their spelling; the
                     // parameters by position; the rest in bind order, the
                     // emission's first occurrence.
@@ -33288,7 +33299,7 @@ impl Renamer<'_> {
                     // 7.94: the rest by descending use, the text convergence's
                     // secondary rank (bind order was the emission's) -- under
                     // the port only, with the per-bind blocks.
-                    if port_is_enabled("converge_text_rule") {
+                    if text_rule {
                         rest.sort_by(|left, right| {
                             counts
                                 .get(right)
@@ -33347,7 +33358,7 @@ impl Renamer<'_> {
             }
             let pooled = if keep_the_rest { Vec::new() } else { pooled };
             for bind in pooled.into_iter().chain(unplaced) {
-                let spelling = if order == RenameOrder::Converge && port_is_enabled("converge_text_rule") {
+                let spelling = if text_rule {
                     // From the sequence's start each time: a name an inner
                     // scope blocks for this bind stays free for the next.
                     let mut index = 0usize;

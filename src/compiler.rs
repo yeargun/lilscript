@@ -9212,6 +9212,63 @@ fn offer_print_beam(
         }
     }
     report.best = members.iter().map(|member| member.2).min();
+    // 7.96: `LILSCRIPT_TREE_FINISH=1` -- the tree ladder at the end of the
+    // beam: the finishing rungs (the six text passes' shapes) one by one on
+    // the best member, greedily and codec-verified as the text ladder is,
+    // then the tree's convergence under the text rule, last; the result
+    // joins the cleanup beam as a print.
+    if std::env::var("LILSCRIPT_TREE_FINISH").is_ok_and(|value| value == "1") {
+        if let Some((shapes, text, cost)) = members
+            .iter()
+            .min_by(|left, right| (left.2, left.1.len()).cmp(&(right.2, right.1.len())))
+            .cloned()
+        {
+            let mut current = (shapes, text, cost);
+            let rungs = TreeShapes::ladder();
+            let finishing = ["return_tails", "guard_tails", "exit_guards", "rebrace", "negated_equalities", "same_binding_equality", "boolean_one_arm"];
+            'finishing: for name in finishing {
+                let Some((_, add)) = rungs.iter().find(|(rung, _)| *rung == name) else {
+                    continue;
+                };
+                let mut trial = current.0;
+                add(&mut trial);
+                if trial == current.0 {
+                    continue;
+                }
+                let printed = tree.frozen.reprint_reshaped(&tree.options, tree.rename, trial);
+                if printed == current.1 || !valid(&printed) {
+                    continue;
+                }
+                let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                    break 'finishing;
+                };
+                report.scored += 1;
+                if trace {
+                    eprintln!("[shape] tree finish {name}: {} -> {printed_cost}", current.2);
+                }
+                if printed_cost < current.2 {
+                    current = (trial, printed, printed_cost);
+                }
+            }
+            let mut converged = current.0;
+            converged.converge = true;
+            converged.converge_text = true;
+            let printed = tree.frozen.reprint_reshaped(&tree.options, tree.rename, converged);
+            if printed != current.1 && valid(&printed) {
+                if let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? {
+                    report.scored += 1;
+                    if trace {
+                        eprintln!("[shape] tree finish converge: {} -> {printed_cost}", current.2);
+                    }
+                    current = (converged, printed, printed_cost);
+                }
+            }
+            if !members.iter().any(|member| member.1 == current.1) {
+                members.push(current);
+            }
+            report.best = members.iter().map(|member| member.2).min();
+        }
+    }
     // Migration 7.61: the emission had the canonical peephole (the emission
     // chain) on its text and a print has not -- on markedlil the emission
     // costs 9,343 where the unshaped print costs 9,528 -- so each member is
