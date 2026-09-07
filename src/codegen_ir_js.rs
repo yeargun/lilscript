@@ -1327,6 +1327,9 @@ struct StatementPolicy {
     boolean_one_arm: bool,
     /// Migration 7.59: `o["name"]` built as `o.name` (`member_keys`).
     member_keys: bool,
+    /// Migration 7.61: a constant `JSON.parse("..")` built as the literal
+    /// (`json_literals`).
+    json_literals: bool,
 }
 
 fn env_name_list(variable: &'static str) -> Vec<String> {
@@ -1391,6 +1394,7 @@ impl StatementPolicy {
         negated_equalities: false,
         boolean_one_arm: false,
         member_keys: false,
+        json_literals: false,
     };
 
     /// Every shape is written exactly where the text peephole would have
@@ -1450,6 +1454,7 @@ impl StatementPolicy {
             // `boolean_one_arm` rung offers them as a codec-judged print.
             boolean_one_arm: port_off("boolean_one_arm"),
             member_keys: port("member_keys"),
+            json_literals: port("json_literals"),
         }
     }
 
@@ -12325,8 +12330,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // trees, like the named cluster's (the private cluster was raw text:
         // 12,787 of micromark's 94,837 bytes, out of every shape's and the
         // renamer's reach).
+        // `LILSCRIPT_SKIP_PORTS=cluster_tree` keeps the raw text, for the A/B.
+        let as_tree = !port_is_skipped("cluster_tree");
         let returned_value = match returned.statements.as_mut_slice() {
-            [only] if !only.dropped_semicolon => match &only.statement {
+            [only] if as_tree && !only.dropped_semicolon => match &only.statement {
                 JsStatement::Function { head, body, .. } => {
                     let rendered = self.render_closure_statement(head.clone(), body.clone());
                     Some(self.closure_node(rendered, JsPrecedence::Primary))
@@ -12339,14 +12346,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let value = returned_value
             .unwrap_or_else(|| JsExpression::raw(returned.into_string(), JsPrecedence::Primary));
         body.push_statement(JsStatement::Return { value: Some(value) });
-        let mut head = JsHead::default();
-        head.push_text("function()");
-        let wrapper = self.render_closure_statement(head, JsFunctionBody::Block(body));
-        let callee = self.closure_node(wrapper, JsPrecedence::Comma);
+        let value = if as_tree {
+            let mut head = JsHead::default();
+            head.push_text("function()");
+            let wrapper = self.render_closure_statement(head, JsFunctionBody::Block(body));
+            let callee = self.closure_node(wrapper, JsPrecedence::Comma);
+            JsExpression::call(callee, [])
+        } else {
+            JsExpression::raw(
+                format!("(function(){{{}}})()", body.into_braced_body()),
+                JsPrecedence::Call,
+            )
+        };
         out.push_statement(JsStatement::Binding {
             keyword: Some("var "),
             name: outer,
-            value: JsExpression::call(callee, []),
+            value,
             bind: None,
         });
         Ok(())
@@ -19377,6 +19392,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             _ => None,
         };
         if let Some(callee) = static_callee {
+            // Migration 7.61: `JSON.parse("{..}")` with a constant argument is
+            // the literal itself when that is shorter (`fold_constant_json_parse`
+            // did this on the text, so the emission and its tree disagreed and
+            // every print of micromark's tree failed the admission -- the
+            // direct source had no `.parse` -- and its print beam never ran).
+            // The constant is peeked in the context's table, never taken: a
+            // taken value is gone from the cache, and the generic call below
+            // then spelled the register's name (jquerylil failed to build).
+            if intrinsic == Intrinsic::JsonParse
+                && StatementPolicy::current().json_literals
+                && args.len() == 1
+            {
+                if let Some(content) = context.string_constants.get(&args[0]) {
+                    let literal = render_string_literal(content, self.options.string_quote);
+                    if let Some(rendered) = crate::js_peephole::render_json_parse_literal(&literal)
+                    {
+                        if rendered.len() < callee.len() + 2 + literal.len() {
+                            // The constant's own instruction stays in the cache
+                            // unread; it is a literal, so nothing is lost.
+                            let _ = take_value(args[0], context, cache)?;
+                            return Ok(JsExpression::raw(rendered, JsPrecedence::Primary));
+                        }
+                    }
+                }
+            }
             if matches!(
                 intrinsic,
                 Intrinsic::JsParseFloat
@@ -37463,6 +37503,25 @@ mod tests {
         assert!(output.contains("throw\"bad\""), "{output}");
         assert!(output.contains("catch{}"), "{output}");
         assert!(output.contains("finally{"), "{output}");
+    }
+
+    #[test]
+    fn json_parse_of_a_constant_is_the_literal_and_a_variable_stays_a_call() {
+        // Migration 7.61/7.62: the constant is peeked in the context's
+        // table, never taken -- taking it left the generic call spelling the
+        // register's name (jquerylil: `JSON.parse(a)` with `a` unresolved).
+        let source = "extern string read();JsValue decode(string s){return JSON.parse(s);}\
+                      void run(){print(decode(read()));print(JSON.parse(\"{\\\"a\\\":1,\\\"b\\\":[2,3]}\"));}run();";
+        let output = compile_with_options(
+            source,
+            IrJsOptions {
+                text_peephole: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert!(output.contains("{a:1,b:[2,3]}"), "{output}");
+        assert!(output.contains("JSON.parse("), "{output}");
+        crate::js_peephole::analyze_generated_javascript(&output).unwrap();
     }
 
     #[test]

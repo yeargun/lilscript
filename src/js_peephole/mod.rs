@@ -25,7 +25,7 @@ use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 
 mod folds;
 pub(crate) use folds::{
-    fold_constant_json_parse, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots, fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns, fold_nested_unguarded_ifs, fold_null_normalized_nullable_tests, fold_pristine_static_method_calls, fold_redundant_null_undefined_or, inline_single_use_functions,
+    fold_constant_json_parse, render_json_parse_literal, fold_dead_identifier_copy_declarators, fold_dead_increment_snapshots, fold_expression_bodies, fold_fresh_empty_object_assign, fold_if_prefixed_returns, fold_nested_unguarded_ifs, fold_null_normalized_nullable_tests, fold_pristine_static_method_calls, fold_redundant_null_undefined_or, inline_single_use_functions,
 };
 mod binding;
 mod liveness;

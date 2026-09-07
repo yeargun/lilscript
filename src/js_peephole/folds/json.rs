@@ -32,7 +32,7 @@ pub(crate) fn fold_constant_json_parse(
     Ok(apply_token_rewrites(source, replacements))
 }
 
-fn render_json_parse_literal(literal: &str) -> Option<String> {
+pub(crate) fn render_json_parse_literal(literal: &str) -> Option<String> {
     let json = unescape_js_string(literal)?;
     let value = serde_json::from_str::<Value>(&json).ok()?;
     if !matches!(value, Value::Object(_) | Value::Array(_)) {

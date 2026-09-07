@@ -8848,6 +8848,8 @@ fn print_beam_allowance() -> usize {
     crate::codegen_ir_js::TreeShapes::RUNG_COUNT
         .saturating_mul(print_beam_width())
         .saturating_add(1)
+        // The members' finished prints (7.61).
+        .saturating_add(print_beam_width())
 }
 
 /// Migration 7.56 (7′): the print beam, the cleanup's first family. The
@@ -8867,6 +8869,7 @@ fn offer_print_beam(
     admission: &JavaScriptArtifactAdmission,
     cost_model: CompressionCostModel,
     report: &mut PrintBeamReport,
+    finish: &dyn Fn(&str) -> Option<String>,
 ) -> Result<(), CompileError> {
     use crate::codegen_ir_js::TreeShapes;
     let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
@@ -8881,7 +8884,23 @@ fn offer_print_beam(
         .reprint_reshaped(&tree.options, tree.rename, TreeShapes::default());
     if !valid(&unshaped) {
         if trace {
-            eprintln!("[shape] the unshaped print is rejected by the parser");
+            let reason = analyze_generated_javascript(&unshaped)
+                .err()
+                .map(|error| format!("analyzer: {error}"))
+                .or_else(|| admission.validate(&unshaped).err().map(|error| format!("admission: {error}")))
+                .or_else(|| {
+                    validate_generated_javascript_with_standard_parser(&unshaped)
+                        .err()
+                        .map(|error| format!("parser: {error}"))
+                })
+                .unwrap_or_default();
+            eprintln!(
+                "[shape] print beam: the unshaped print is rejected ({})",
+                reason.chars().take(300).collect::<String>()
+            );
+            if let Ok(path) = std::env::var("LILSCRIPT_SHAPE_DUMP") {
+                let _ = std::fs::write(format!("{path}.unshaped.rejected.js"), &unshaped);
+            }
         }
         return Ok(());
     }
@@ -8893,6 +8912,21 @@ fn offer_print_beam(
     };
     report.scored += 1;
     report.incumbent = Some(unshaped_cost);
+    if trace {
+        eprintln!(
+            "[shape] print beam: emission {} bytes, unshaped print {unshaped_cost} bytes",
+            beam.first().map_or(0, |original| original.cost)
+        );
+    }
+    if let Ok(path) = std::env::var("LILSCRIPT_SHAPE_DUMP") {
+        if let Some(original) = beam.first() {
+            let _ = std::fs::write(format!("{path}.emission.js"), &original.code);
+        }
+        let _ = std::fs::write(format!("{path}.unshaped.js"), &unshaped);
+        if let Some(finished) = finish(&unshaped) {
+            let _ = std::fs::write(format!("{path}.unshaped.finished.js"), &finished);
+        }
+    }
     let mut members = vec![(TreeShapes::default(), unshaped, unshaped_cost)];
     'rungs: for (name, add) in TreeShapes::ladder() {
         // The renamer runs only where the plan mangles identifiers -- the
@@ -8942,7 +8976,13 @@ fn offer_print_beam(
         members = proposals;
     }
     report.best = members.iter().map(|member| member.2).min();
+    // Migration 7.61: the emission had the canonical peephole (the emission
+    // chain) on its text and a print has not -- on markedlil the emission
+    // costs 9,343 where the unshaped print costs 9,528 -- so each member is
+    // also finished by that chain before it joins the cleanup beam, and
+    // competes like for like until the chain's folds are rungs.
     for (_, text, cost) in members {
+        let finished = finish(&text).filter(|finished| *finished != text && valid(finished));
         if !beam.iter().any(|existing| existing.code == text) {
             beam.push(CleanupCandidate {
                 code: text,
@@ -8950,6 +8990,28 @@ fn offer_print_beam(
                 printed: true,
             });
         }
+        let Some(finished) = finished else {
+            continue;
+        };
+        if beam.iter().any(|existing| existing.code == finished) {
+            continue;
+        }
+        let Some(finished_cost) = codec_budget.compressed_size(finished.as_bytes(), cost_model)? else {
+            if trace {
+                eprintln!("[shape] print beam: the ledger ran out finishing the members");
+            }
+            break;
+        };
+        report.scored += 1;
+        if trace {
+            eprintln!("[shape] print beam: finished member {cost} -> {finished_cost}");
+        }
+        report.best = Some(report.best.map_or(finished_cost, |best| best.min(finished_cost)));
+        beam.push(CleanupCandidate {
+            code: finished,
+            cost: finished_cost,
+            printed: true,
+        });
     }
     Ok(())
 }
@@ -9077,6 +9139,22 @@ fn late_javascript_cleanup_finalists(
     // before any text pass has moved the text away from it.
     let mut print_report = None;
     if let Some((tree, report)) = print_beam {
+        let finish = |text: &str| -> Option<String> {
+            let optimized = optimize_generated_javascript_assuming(
+                text,
+                config.javascript.assume_pristine_builtins,
+            )
+            .ok()?;
+            let code = repair_late_javascript_candidate(optimized.code);
+            let metrics = analyze_generated_javascript(&code).ok()?;
+            if !config.single_use_function_expression_candidates_enabled()
+                && metrics.functions < selected.metrics.functions
+            {
+                return None;
+            }
+            admission.validate_selected(&code).ok()?;
+            Some(code)
+        };
         offer_print_beam(
             &mut beam,
             tree,
@@ -9084,6 +9162,7 @@ fn late_javascript_cleanup_finalists(
             &admission,
             config.javascript.cost_model,
             report,
+            &finish,
         )?;
         print_report = Some(report);
     }
@@ -10012,22 +10091,41 @@ fn late_javascript_cleanup_finalists(
     beam.push(original);
     beam.sort_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())));
     beam.dedup_by(|left, right| left.code == right.code);
+    let beam_printed = print_report.is_some();
     if let Some(report) = print_report {
         report.selected = beam.first().is_some_and(|best| best.printed);
     }
+    // Migration 7.62: the finalist's text had the search's finishing (the
+    // declaration shapes, the renames) and a print has not, so a print ranks
+    // ~200 bytes behind it here on markedlil and never reached the finishing
+    // that would level it. The best print is carried as one more finalist
+    // whatever its rank, gets the same remaps and cleanup as the others, and
+    // the finished ranking decides. `LILSCRIPT_PRINT_FINALIST=0` turns this off.
+    let carried_print = if beam_printed
+        && std::env::var("LILSCRIPT_PRINT_FINALIST").map_or(true, |value| value != "0")
+    {
+        beam.iter()
+            .filter(|candidate| candidate.printed)
+            .min_by(|left, right| (left.cost, left.code.len()).cmp(&(right.cost, right.code.len())))
+            .map(|candidate| candidate.code.clone())
+    } else {
+        None
+    };
 
     let mut finalists = Vec::new();
     for cleaned in beam.into_iter() {
-        if finalists.len() >= keep.max(1) {
-            break;
+        let forced = carried_print.as_deref() == Some(cleaned.code.as_str());
+        if finalists.len() >= keep.max(1) && !forced {
+            continue;
         }
         // A spelling the beam ranks below the incumbent is not carried: it lost
         // on the only evidence available here, and the caller pays a full
         // remap for each one it takes.
-        let takes = cleaned.code != selected.code
-            && cleaned.cost <= selected.transfer_cost
-            && !(cleaned.cost == selected.transfer_cost
-                && cleaned.code.len() >= selected.code.len());
+        let takes = forced
+            || (cleaned.code != selected.code
+                && cleaned.cost <= selected.transfer_cost
+                && !(cleaned.cost == selected.transfer_cost
+                    && cleaned.code.len() >= selected.code.len()));
         let mut candidate = selected.clone();
         if takes {
             let Ok(metrics) = analyze_generated_javascript(&cleaned.code) else {
