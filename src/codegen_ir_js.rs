@@ -2209,22 +2209,7 @@ impl JsBlock {
             // does nothing at its position; the module's keep source order
             // (script-mode globals). A spelling, so the tree keeps the
             // emitter's order for the hoist and the census.
-            return self
-                .statements
-                .iter()
-                .map(|emitted| match &emitted.statement {
-                    JsStatement::Declarators {
-                        keyword: "var ",
-                        declarators,
-                    } if declarators.len() > 1 => EmittedStatement {
-                        statement: bare_var_declarators_first(emitted.statement.clone()),
-                        options: emitted.options,
-                        dropped_semicolon: emitted.dropped_semicolon,
-                    }
-                    .render(),
-                    _ => emitted.render(),
-                })
-                .collect();
+            return self.statements.iter().map(render_var_reordered).collect();
         }
         let mut rendered = String::new();
         if statement_trace_enabled() {
@@ -2242,6 +2227,9 @@ impl JsBlock {
             );
         }
         for (index, emitted) in self.statements.iter().enumerate() {
+            // The comma-joining path keeps the emitter's `var` order: the
+            // chain's reorder does not reach these (7.87 tried: remark-gfm
+            // +167, the plan moved).
             let mut text = emitted.render();
             if text.ends_with(';')
                 && self
@@ -4338,6 +4326,135 @@ fn statement_value_mut(statement: &mut JsStatement) -> Option<&mut JsExpression>
     }
 }
 
+/// The expression a statement evaluates first, as the collapse's target:
+/// its value, or a loop head's first tree (the initialiser's first value,
+/// else the condition; the object of a `for..in`, the iterable of a
+/// `for..of`; a `do` loop runs its body first).
+fn collapse_target(statement: &JsStatement) -> Option<&JsExpression> {
+    if let Some(value) = statement_value(statement) {
+        return Some(value);
+    }
+    // Measured off (b98 vs b97: jquerylil +51, nothing else moved);
+    // `LILSCRIPT_PORTS=loop_head_collapse`.
+    if !port_is_enabled("loop_head_collapse") {
+        return None;
+    }
+    let JsStatement::Loop { head, .. } = statement else {
+        return None;
+    };
+    match head {
+        JsLoopHead::For {
+            initializer_tree: Some(JsForInit::Expression(tree)),
+            ..
+        } => Some(tree),
+        JsLoopHead::For {
+            initializer_tree: Some(JsForInit::Declarators { declarators, .. }),
+            ..
+        } => declarators.first().and_then(|declarator| declarator.value.as_ref()),
+        JsLoopHead::For {
+            initializer: None,
+            condition_tree: Some(tree),
+            ..
+        } => Some(tree),
+        JsLoopHead::While {
+            condition_tree: Some(tree),
+            ..
+        } => Some(tree),
+        JsLoopHead::ForIn {
+            object_tree: Some(tree),
+            ..
+        } => Some(tree),
+        JsLoopHead::ForOf {
+            iterable_tree: Some(tree),
+            ..
+        } => Some(tree),
+        _ => None,
+    }
+}
+
+fn collapse_target_mut(statement: &mut JsStatement) -> Option<&mut JsExpression> {
+    if matches!(statement, JsStatement::Loop { .. }) {
+        if !port_is_enabled("loop_head_collapse") {
+            return None;
+        }
+        let JsStatement::Loop { head, .. } = statement else {
+            unreachable!()
+        };
+        return match head {
+            JsLoopHead::For {
+                initializer_tree: Some(JsForInit::Expression(tree)),
+                ..
+            } => Some(tree),
+            JsLoopHead::For {
+                initializer_tree: Some(JsForInit::Declarators { declarators, .. }),
+                ..
+            } => declarators.first_mut().and_then(|declarator| declarator.value.as_mut()),
+            JsLoopHead::For {
+                initializer: None,
+                condition_tree: Some(tree),
+                ..
+            } => Some(tree),
+            JsLoopHead::While {
+                condition_tree: Some(tree),
+                ..
+            } => Some(tree),
+            JsLoopHead::ForIn {
+                object_tree: Some(tree),
+                ..
+            } => Some(tree),
+            JsLoopHead::ForOf {
+                iterable_tree: Some(tree),
+                ..
+            } => Some(tree),
+            _ => None,
+        };
+    }
+    statement_value_mut(statement)
+}
+
+/// A loop head's texts re-rendered from its trees, after one changed.
+fn refresh_loop_head_texts(head: &mut JsLoopHead) {
+    match head {
+        JsLoopHead::For {
+            initializer,
+            condition,
+            update,
+            condition_tree,
+            initializer_tree,
+            update_tree,
+        } => {
+            if let Some(tree) = initializer_tree {
+                *initializer = Some(tree.render());
+            }
+            if let Some(tree) = condition_tree {
+                *condition = Some(tree.clone().into_minimal());
+            }
+            if let Some(tree) = update_tree {
+                *update = Some(tree.clone().into_minimal());
+            }
+        }
+        JsLoopHead::While {
+            condition,
+            condition_tree: Some(tree),
+        } => *condition = tree.clone().into_minimal(),
+        JsLoopHead::DoWhile {
+            guard,
+            guard_tree: Some(tree),
+        } => *guard = tree.clone().into_minimal(),
+        JsLoopHead::ForIn {
+            object,
+            object_tree: Some(tree),
+            ..
+        } => *object = tree.clone().into_minimal(),
+        JsLoopHead::ForOf {
+            iterable,
+            iterable_tree: Some(tree),
+            ..
+        } => *iterable = tree.clone().into_minimal(),
+        _ => {}
+    }
+}
+
 /// The collapse over one block, then its children.
 fn collapse_block(
     block: &mut JsBlock,
@@ -4397,21 +4514,22 @@ fn collapse_block(
         };
         let next = &block.statements[index + 1].statement;
         // The one read must be in the next statement's own expression, not
-        // in a nested block of it.
+        // in a nested block of it (7.87: a loop head's first-evaluated tree
+        // counts as the statement's own expression).
         let mut reads_here = BindCensus::default();
-        if let Some(expression) = statement_value(next) {
+        if let Some(expression) = collapse_target(next) {
             reads_here.expression(expression, closures);
         }
         if reads_here.reads.get(&bind).copied() != Some(1) {
             index += 1;
             continue;
         }
-        let safe = statement_value(next).is_some_and(|expression| collapse_is_safe(bind, &value, expression, census));
+        let safe = collapse_target(next).is_some_and(|expression| collapse_is_safe(bind, &value, expression, census));
         if !safe {
             index += 1;
             continue;
         }
-        let Some(expression) = statement_value_mut(&mut block.statements[index + 1].statement) else {
+        let Some(expression) = collapse_target_mut(&mut block.statements[index + 1].statement) else {
             index += 1;
             continue;
         };
@@ -4429,13 +4547,14 @@ fn collapse_block(
             );
         }
         *expression = substituted;
-        if let JsStatement::If {
-            condition,
-            condition_tree: Some(tree),
-            ..
-        } = &mut block.statements[index + 1].statement
-        {
-            *condition = tree.clone().into_minimal();
+        match &mut block.statements[index + 1].statement {
+            JsStatement::If {
+                condition,
+                condition_tree: Some(tree),
+                ..
+            } => *condition = tree.clone().into_minimal(),
+            JsStatement::Loop { head, .. } => refresh_loop_head_texts(head),
+            _ => {}
         }
         crate::timing::SINGLE_USE_COLLAPSED.event(1);
         if in_list {
@@ -27568,6 +27687,30 @@ impl FrozenModuleTree {
             ..*options
         };
         let mut tree = self.thaw();
+        // 7.87: `arguments[k]` reads as formals (the chain's
+        // `fold_indexed_arguments_to_formals`, on every emission), before the
+        // rename so the new binds are spelled with the rest, and before the
+        // census so it declares them.
+        // Measured off (7.87): the fresh binds keep their fresh two-letter
+        // spellings through the rename (remarklil's collapse member +298,
+        // its finish +75); `LILSCRIPT_PORTS=formals` until the renamer
+        // reaches them.
+        if shapes.collapse && port_is_enabled("formals") {
+            let mut taken = AHashSet::<String>::default();
+            for index in 0..tree.table.len() {
+                taken.insert(tree.table.spelling(Bind(index as u32)));
+            }
+            let mut fresh_index = 0usize;
+            let mut made = arguments_to_formals_in_block(&mut tree.block, &tree.table, &mut taken, &mut fresh_index);
+            for (head, body) in tree.closures.borrow_mut().values_mut() {
+                if let JsFunctionBody::Block(block) = body {
+                    made += arguments_to_formals(head, block, &tree.table, &mut taken, &mut fresh_index);
+                }
+            }
+            if made > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!("[shape] {made} functions given formals for their arguments[k] reads");
+            }
+        }
         if rename {
             let scopes = ScopeCollector::module(&tree.closures, &tree.block);
             let renamer = Renamer {
@@ -29111,6 +29254,22 @@ fn is_plain_identifier(code: &str) -> bool {
 /// A function-local `var` list with its bare declarators first
 /// (`reorder_uninitialized_var_declarators`): the initialisers keep their
 /// order, the bare names do nothing at their position.
+/// A statement rendered with its `var` list's bare declarators first.
+fn render_var_reordered(emitted: &EmittedStatement) -> String {
+    match &emitted.statement {
+        JsStatement::Declarators {
+            keyword: "var ",
+            declarators,
+        } if declarators.len() > 1 => EmittedStatement {
+            statement: bare_var_declarators_first(emitted.statement.clone()),
+            options: emitted.options,
+            dropped_semicolon: emitted.dropped_semicolon,
+        }
+        .render(),
+        _ => emitted.render(),
+    }
+}
+
 fn bare_var_declarators_first(statement: JsStatement) -> JsStatement {
     match statement {
         JsStatement::Declarators {
@@ -30038,6 +30197,286 @@ fn merge_assignment_guards(block: &mut JsBlock) -> usize {
         settle_block_tail(block, false);
     }
     merged
+}
+
+/// Whether a node reads the `arguments` object.
+fn is_arguments_read(node: &JsExpression) -> bool {
+    matches!(node.root, JsExpressionRoot::Atom | JsExpressionRoot::Name(_)) && node.code == "arguments"
+}
+
+/// `arguments[k]` with a literal `k`: an `Index` node, or one atom holding
+/// the whole read.
+fn indexed_argument(node: &JsExpression) -> Option<usize> {
+    if matches!(node.root, JsExpressionRoot::Atom | JsExpressionRoot::Raw) {
+        let inner = node.code.strip_prefix("arguments[")?.strip_suffix(']')?;
+        return inner.parse::<usize>().ok().filter(|k| *k < 16);
+    }
+    if node.root != JsExpressionRoot::Index {
+        return None;
+    }
+    let [object, index] = node.operands.as_slice() else {
+        return None;
+    };
+    if !is_arguments_read(object) || index.root != JsExpressionRoot::Atom {
+        return None;
+    }
+    index.code.parse::<usize>().ok().filter(|k| *k < 16)
+}
+
+/// The `arguments` uses of a function body, its own only (a nested
+/// `function` has its own object; a nested arrow shares this one and is
+/// left alone, as the text fold leaves it): the highest literal index
+/// read, or `None` where the object is used any other way -- as a value,
+/// under a non-literal index, or inside an opaque text.
+fn arguments_use(block: &JsBlock) -> Option<Option<usize>> {
+    fn expression(node: &JsExpression, max: &mut Option<usize>) -> bool {
+        if let Some(k) = indexed_argument(node) {
+            *max = Some(max.map_or(k, |m| m.max(k)));
+            return true;
+        }
+        if node.root == JsExpressionRoot::Member {
+            if let [object, property] = node.operands.as_slice() {
+                if is_arguments_read(object) {
+                    return property.code == "length";
+                }
+            }
+        }
+        if is_arguments_read(node) {
+            return false;
+        }
+        if matches!(node.root, JsExpressionRoot::Raw | JsExpressionRoot::Atom) && node.code == "arguments.length" {
+            return true;
+        }
+        if matches!(node.root, JsExpressionRoot::Raw | JsExpressionRoot::Atom) && text_mentions_identifier(&node.code, "arguments") {
+            return false;
+        }
+        if node.root == JsExpressionRoot::Closure(ClosureId(0)) || matches!(node.root, JsExpressionRoot::Closure(_)) {
+            // A closure's body lives in the map; its text is the node's code.
+            return !text_mentions_identifier(&node.code, "arguments");
+        }
+        node.operands.iter().all(|operand| expression(operand, max))
+    }
+    fn block_ok(block: &JsBlock, max: &mut Option<usize>) -> bool {
+        for emitted in &block.statements {
+            match &emitted.statement {
+                JsStatement::Function { .. } => continue,
+                JsStatement::Declarators { declarators, .. } => {
+                    for declarator in declarators {
+                        if declarator.function.is_some() {
+                            continue;
+                        }
+                        if let Some(value) = &declarator.value {
+                            if !expression(value, max) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                JsStatement::Loop { head, .. } => {
+                    let texts: Vec<&str> = match head {
+                        JsLoopHead::For { initializer, condition, update, .. } => {
+                            [initializer.as_deref(), condition.as_deref(), update.as_deref()].into_iter().flatten().collect()
+                        }
+                        JsLoopHead::While { condition, .. } => vec![condition.as_str()],
+                        JsLoopHead::DoWhile { guard, .. } => vec![guard.as_str()],
+                        JsLoopHead::ForIn { object, .. } => vec![object.as_str()],
+                        JsLoopHead::ForOf { iterable, .. } => vec![iterable.as_str()],
+                    };
+                    if texts.iter().any(|text| text_mentions_identifier(text, "arguments")) {
+                        return false;
+                    }
+                }
+                JsStatement::If {
+                    condition,
+                    condition_tree: None,
+                    ..
+                } => {
+                    if text_mentions_identifier(condition, "arguments") {
+                        return false;
+                    }
+                }
+                JsStatement::Switch { discriminant, .. } => {
+                    if text_mentions_identifier(discriminant, "arguments") {
+                        return false;
+                    }
+                }
+                JsStatement::ClassField { value, .. } => {
+                    if text_mentions_identifier(value, "arguments") {
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+            if let Some(value) = statement_value(&emitted.statement) {
+                if !expression(value, max) {
+                    return false;
+                }
+            }
+            let mut ok = true;
+            let mut probe = emitted.statement.clone();
+            for_each_child_block(&mut probe, &mut |child: &mut JsBlock| {
+                if ok && !block_ok(child, max) {
+                    ok = false;
+                }
+            });
+            if !ok {
+                return false;
+            }
+        }
+        true
+    }
+    let mut max = None;
+    block_ok(block, &mut max).then_some(max)
+}
+
+/// A `function` head's parameter count and the piece its parameters close
+/// at, when the head is a plain `function` (no arrow, no default or rest).
+fn function_head_slots(head: &JsHead) -> Option<(usize, usize)> {
+    let mut open = None;
+    let mut close = None;
+    for (index, piece) in head.pieces.iter().enumerate() {
+        if let JsHeadPiece::Text(text) = piece {
+            if text.contains("=>") {
+                return None;
+            }
+            if text.ends_with('(') {
+                open = Some(index);
+                close = None;
+            } else if text.starts_with(')') && open.is_some() && close.is_none() {
+                close = Some(index);
+            }
+        }
+    }
+    let (open, close) = (open?, close?);
+    let mut count = 0usize;
+    for piece in &head.pieces[open + 1..close] {
+        match piece {
+            JsHeadPiece::Name(..) => count += 1,
+            JsHeadPiece::Text(text) if text == "," => {}
+            _ => return None,
+        }
+    }
+    let is_function = head.pieces[..=open]
+        .iter()
+        .any(|piece| matches!(piece, JsHeadPiece::Text(text) if text.contains("function")));
+    is_function.then_some((count, close))
+}
+
+/// One `function`'s `arguments[k]` reads as formals (7.87).
+fn arguments_to_formals(
+    head: &mut JsHead,
+    body: &mut JsBlock,
+    table: &BindTable,
+    taken: &mut AHashSet<String>,
+    fresh_index: &mut usize,
+) -> usize {
+    // A parameterless head is one text piece, `function()`: split so the
+    // formals have a slot between the parentheses.
+    if let Some(at) = head.pieces.iter().position(|piece| {
+        matches!(piece, JsHeadPiece::Text(text) if text.contains("function") && text.ends_with("()") && !text.contains("=>"))
+    }) {
+        let JsHeadPiece::Text(text) = &head.pieces[at] else {
+            unreachable!()
+        };
+        let prefix = text[..text.len() - 1].to_string();
+        head.pieces.splice(at..=at, [JsHeadPiece::Text(prefix), JsHeadPiece::Text(")".to_string())]);
+    }
+    let slots = function_head_slots(head);
+    let use_ = arguments_use(body);
+    if std::env::var_os("LILSCRIPT_FORMALS_TRACE").is_some() && body.render().contains("arguments[") {
+        eprintln!(
+            "[formals] head `{}` pieces {:?} slots {:?} use {:?}",
+            head.render(),
+            head.pieces.iter().map(|piece| match piece {
+                JsHeadPiece::Text(text) => format!("T({text})"),
+                JsHeadPiece::Name(_, name) => format!("N({name})"),
+                JsHeadPiece::FunctionName(_, name) => format!("F({name})"),
+                JsHeadPiece::Unbound(name) => format!("U({name})"),
+            }).collect::<Vec<_>>(),
+            slots,
+            use_
+        );
+    }
+    let Some((existing, close)) = slots else {
+        return 0;
+    };
+    let Some(Some(max_index)) = use_ else {
+        return 0;
+    };
+    if max_index < existing {
+        return 0;
+    }
+    let canonical = IdentifierAlphabet::canonical();
+    let rendered = body.render();
+    let mut formals = Vec::new();
+    for _ in existing..=max_index {
+        let fresh = loop {
+            let candidate = encode_identifier(*fresh_index, &canonical);
+            *fresh_index += 1;
+            if !is_js_reserved(&candidate) && !taken.contains(&candidate) && !text_mentions_identifier(&rendered, &candidate) {
+                break candidate;
+            }
+        };
+        taken.insert(fresh.clone());
+        formals.push((table.alloc(&fresh), fresh));
+    }
+    let mut pieces = Vec::new();
+    for (slot, (bind, spelling)) in formals.iter().enumerate() {
+        if existing + slot > 0 {
+            pieces.push(JsHeadPiece::Text(",".to_string()));
+        }
+        pieces.push(JsHeadPiece::Name(*bind, spelling.clone()));
+    }
+    let tail = head.pieces.split_off(close);
+    head.pieces.extend(pieces);
+    head.pieces.extend(tail);
+    let by_index = formals;
+    rewrite_block_expressions(body, &mut |node| {
+        let k = indexed_argument(node)?;
+        let (bind, spelling) = by_index.get(k.checked_sub(existing)?)?;
+        Some(JsExpression::name(*bind, spelling.clone()))
+    });
+    1
+}
+
+/// The `function` statements and declarators below `block`, their
+/// `arguments[k]` reads as formals; nested bodies first.
+fn arguments_to_formals_in_block(
+    block: &mut JsBlock,
+    table: &BindTable,
+    taken: &mut AHashSet<String>,
+    fresh_index: &mut usize,
+) -> usize {
+    let mut made = 0usize;
+    for emitted in block.statements.iter_mut() {
+        match &mut emitted.statement {
+            JsStatement::Function {
+                head,
+                body: JsFunctionBody::Block(body),
+                ..
+            } => {
+                made += arguments_to_formals_in_block(body, table, taken, fresh_index);
+                made += arguments_to_formals(head, body, table, taken, fresh_index);
+            }
+            JsStatement::Declarators { declarators, .. } => {
+                for declarator in declarators.iter_mut() {
+                    if let Some(function) = &mut declarator.function {
+                        let (head, body) = function.as_mut();
+                        if let JsFunctionBody::Block(block) = body {
+                            made += arguments_to_formals_in_block(block, table, taken, fresh_index);
+                            made += arguments_to_formals(head, block, table, taken, fresh_index);
+                        }
+                    }
+                }
+            }
+            statement => {
+                for_each_child_block(statement, &mut |child: &mut JsBlock| {
+                    made += arguments_to_formals_in_block(child, table, taken, fresh_index);
+                });
+            }
+        }
+    }
+    made
 }
 
 /// The elements pushed by `call` onto `bind`, when it is `x.push(..)` or
