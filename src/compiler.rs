@@ -8925,9 +8925,15 @@ fn offer_print_beam(
             && admission.validate(text).is_ok()
             && validate_generated_javascript_with_standard_parser(text).is_ok()
     };
+    // 7.81: `LILSCRIPT_PRINT_BASE=chain` starts from the chain-shaped print.
+    let base_shapes = if std::env::var("LILSCRIPT_PRINT_BASE").is_ok_and(|value| value == "chain") {
+        TreeShapes::chain_set()
+    } else {
+        TreeShapes::default()
+    };
     let unshaped = tree
         .frozen
-        .reprint_reshaped(&tree.options, tree.rename, TreeShapes::default());
+        .reprint_reshaped(&tree.options, tree.rename, base_shapes);
     if !valid(&unshaped) {
         if trace {
             let reason = analyze_generated_javascript(&unshaped)
@@ -8979,7 +8985,7 @@ fn offer_print_beam(
             let _ = std::fs::write(format!("{prefix}.unshaped.finished.js"), &finished);
         }
     }
-    let mut members = vec![(TreeShapes::default(), unshaped, unshaped_cost)];
+    let mut members = vec![(base_shapes, unshaped, unshaped_cost)];
     let mut first_rung = true;
     'rungs: for (name, add) in TreeShapes::ladder() {
         // The renamer runs only where the plan mangles identifiers -- the

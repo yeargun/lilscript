@@ -3508,6 +3508,35 @@ impl BindCensus {
     }
 
     fn text(&mut self, text: &str) {
+        // 7.81: the reshape's census lexes an opaque text, so a string's
+        // or a regex's contents (`tableCell`, `Aa`, `CDATA`) make no
+        // spelling unsafe; a property name after `.` is not a variable.
+        // The emitter's own census keeps its byte scan (its policies were
+        // measured with it). The byte scan stays where the text does not lex.
+        if !self.by_spelling {
+            if let Ok(tokens) = crate::js_peephole::lex_javascript(text) {
+                for (index, token) in tokens.iter().enumerate() {
+                    if token.kind != crate::js_peephole::JsTokenKind::Identifier {
+                        continue;
+                    }
+                    if index > 0 && matches!(tokens[index - 1].text, "." | "?.") {
+                        continue;
+                    }
+                    self.mentions.push((token.text.to_string(), self.scope));
+                    if let Ok(watched) = std::env::var("LILSCRIPT_CENSUS_WATCH") {
+                        if watched.split(',').any(|name| name == token.text) {
+                            eprintln!(
+                                "[census] `{}` unsafe from text: {}",
+                                token.text,
+                                text.chars().take(100).collect::<String>()
+                            );
+                        }
+                    }
+                    self.unsafe_names.insert(token.text.to_string());
+                }
+                return;
+            }
+        }
         let bytes = text.as_bytes();
         let mut index = 0usize;
         while index < bytes.len() {
@@ -27649,6 +27678,27 @@ impl TreeShapes {
     /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.
     pub(crate) const RUNG_COUNT: usize = 16;
 
+    /// Migration 7.81: the shapes the emission chain applies to every
+    /// emission unconditionally, as the print's base (`LILSCRIPT_PRINT_BASE=chain`):
+    /// the beam then scores only the search's own axes on top.
+    pub(crate) fn chain_set() -> Self {
+        Self {
+            collapse: true,
+            loop_bounds: true,
+            for_init: true,
+            negated_arms: true,
+            negated_equalities: true,
+            same_binding_equality: true,
+            boolean_one_arm: true,
+            or_assigns: true,
+            return_tails: true,
+            expression_bodies: true,
+            exit_guards: true,
+            rebrace: true,
+            ..Self::default()
+        }
+    }
+
     pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
         let rungs: [(&'static str, fn(&mut Self)); Self::RUNG_COUNT] = [
             ("collapse", |shapes| shapes.collapse = true),
@@ -27826,6 +27876,16 @@ impl ModuleTree {
         let mut census = BindCensus::default();
         census.block(&self.block, &self.closures);
         census.resolve();
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            let mut names = census.unsafe_names.iter().cloned().collect::<Vec<_>>();
+            names.sort();
+            eprintln!(
+                "[shape] census: {} unsafe spellings ({}), {} binds unsafe",
+                names.len(),
+                names.iter().take(24).cloned().collect::<Vec<_>>().join(" "),
+                census.unsafe_binds.len()
+            );
+        }
         let mut entries = std::mem::take(&mut *self.closures.borrow_mut());
         if shapes.collapse {
             let moved = inline_single_use_declarator_functions(&mut self.block, &mut entries, &census, &self.table);
@@ -29436,6 +29496,121 @@ fn collapse_family(
     if (moved > 0 || plus > 0) && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
         eprintln!("[shape] {moved} assignments moved into their first use, {plus} unary pluses dropped under |0");
     }
+    // 7.81: `A?X:B?X:Y` is `(A||B)?X:Y` and `A?(B?X:Y):Y` is `(A&&B)?X:Y`
+    // (`fold_common_conditional_arms`); `x=E;if(x)` is `if(x=E)`
+    // (`fold_assignment_guards`, on the print too).
+    // Measured off (b88 vs b86, ten ports: +45, markedlil +47);
+    // `LILSCRIPT_PORTS=common_arms,assignment_guards`.
+    let arms = if port_is_enabled("common_arms") {
+        rewrite_block_expressions(block, &mut factor_common_conditional_arms)
+    } else {
+        0
+    };
+    let guards = if port_is_enabled("assignment_guards") {
+        merge_assignment_guards(block)
+    } else {
+        0
+    };
+    if (arms > 0 || guards > 0) && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+        eprintln!("[shape] {arms} conditional arms factored, {guards} assignment guards merged");
+    }
+}
+
+/// `A?X:B?X:Y` → `(A||B)?X:Y`; `A?(B?X:Y):Y` → `(A&&B)?X:Y`. The kept
+/// arm is evaluated at the same point on every path; only the tests join.
+fn factor_common_conditional_arms(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Conditional {
+        return None;
+    }
+    let [test, then_arm, else_arm] = node.operands.as_slice() else {
+        return None;
+    };
+    if else_arm.root == JsExpressionRoot::Conditional {
+        if let [inner_test, inner_then, inner_else] = else_arm.operands.as_slice() {
+            if inner_then.code == then_arm.code && !expression_has_closure(then_arm) {
+                let joined = JsExpression::binary(IrBinaryOp::Or, test.clone(), inner_test.clone());
+                return Some(JsExpression::conditional(joined, then_arm.clone(), inner_else.clone()));
+            }
+        }
+    }
+    if then_arm.root == JsExpressionRoot::Conditional {
+        if let [inner_test, inner_then, inner_else] = then_arm.operands.as_slice() {
+            if inner_else.code == else_arm.code && !expression_has_closure(else_arm) {
+                let joined = JsExpression::binary(IrBinaryOp::And, test.clone(), inner_test.clone());
+                return Some(JsExpression::conditional(joined, inner_then.clone(), else_arm.clone()));
+            }
+        }
+    }
+    None
+}
+
+/// `x=E;if(x)..` → `if(x=E)..` and `x=E;if(!x)..` → `if(!(x=E))..` on
+/// adjacent statements (the emitter's push-time `merge_assignment_guard`,
+/// for the plans that did not), children first.
+fn merge_assignment_guards(block: &mut JsBlock) -> usize {
+    let mut merged = 0usize;
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut |child: &mut JsBlock| {
+            merged += merge_assignment_guards(child);
+        });
+    }
+    let mut index = 0usize;
+    while index + 1 < block.statements.len() {
+        let assignment = if block.statements[index].dropped_semicolon {
+            None
+        } else {
+            match &block.statements[index].statement {
+                JsStatement::Binding {
+                    keyword: None,
+                    name,
+                    bind: Some(bind),
+                    value,
+                } if value.root != JsExpressionRoot::Comma => Some((*bind, name.clone(), value.clone())),
+                _ => None,
+            }
+        };
+        let Some((bind, name, value)) = assignment else {
+            index += 1;
+            continue;
+        };
+        let rewritten = match &block.statements[index + 1].statement {
+            JsStatement::If {
+                condition_tree: Some(tree),
+                ..
+            } => {
+                let assignment = JsExpression::assign(JsExpression::name(bind, name.clone()), value.clone());
+                match tree.root {
+                    JsExpressionRoot::Name(guarded) if guarded == bind => Some(assignment),
+                    JsExpressionRoot::Unary(JsUnary::Not)
+                        if tree.operands.first().is_some_and(|inner| inner.root == JsExpressionRoot::Name(bind)) =>
+                    {
+                        Some(JsExpression::unary("!", assignment))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        let Some(rewritten) = rewritten else {
+            index += 1;
+            continue;
+        };
+        if let JsStatement::If {
+            condition,
+            condition_tree,
+            ..
+        } = &mut block.statements[index + 1].statement
+        {
+            *condition = rewritten.clone().into_minimal();
+            *condition_tree = Some(rewritten);
+        }
+        block.statements.remove(index);
+        merged += 1;
+    }
+    if merged > 0 {
+        settle_block_tail(block, false);
+    }
+    merged
 }
 
 /// `+x|0` is `x|0`: `|0` applies ToInt32, whose first step is ToNumber.
