@@ -6944,7 +6944,9 @@ fn finalize_javascript_candidates_with_parallelism(
                 // measured): steps the carried print's finishing skips.
                 // `remap1` by default (7.88): on jquerylil the carried print's
                 // first letter-remap search found nothing in 82 s; the tree's
-                // rename and the second remap are what its names need.
+                // rename and the second remap are what its names need. All
+                // three skipped reads +4 on ten ports and moves eighteen of the
+                // small cases (7.95): the second remap and the boolean remap stay.
                 let skips = |step: &str| {
                     print_report.carried == Some(offset)
                         && std::env::var("LILSCRIPT_PRINT_FINISH_SKIP")
