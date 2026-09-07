@@ -1895,7 +1895,7 @@ fn parenthesizes_and_followed_by_an_assignment() {
         already_and
     );
 
-    let member_or = late_generated_javascript_cleanup(
+    let (member_or, _) = super::folds::fold_or_assignment_parens(
         "function asObject(e){var m=e[U];m.proxy_||m.proxy_=new Proxy(e,h);return m.proxy_}",
     )
     .unwrap();
