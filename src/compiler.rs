@@ -5635,6 +5635,23 @@ impl TerminalCodecProbeBudget {
         self.limit = self.limit.saturating_add(extra);
     }
 
+    /// A child ledger of `share` probes for one finalist's finishing, in the
+    /// parent's phase (7.83); `absorb` folds its use back.
+    fn slice(&self, share: usize) -> Self {
+        let mut child = Self::new(share);
+        child.final_phase = self.final_phase;
+        child
+    }
+
+    fn absorb(&mut self, child: &Self) {
+        self.used = self.used.saturating_add(child.used);
+        self.codec_calls.fetch_add(
+            child.codec_calls.load(std::sync::atomic::Ordering::Relaxed),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        self.limit_reached |= child.limit_reached;
+    }
+
     fn release_challenger_reserve_once(&mut self, released: usize) {
         if !self.challenger_reserve_released {
             self.release_reserved(released);
@@ -6889,25 +6906,13 @@ fn finalize_javascript_candidates_with_parallelism(
             // and the remapping is not monotone in that cost.
             let mut finished = Vec::with_capacity(cleaned.len());
             let carried = cleaned.len();
-            for (offset, cleaned) in cleaned.into_iter().enumerate() {
+            // One finalist's finishing on one ledger: the remaps, the late
+            // cleanup, the remaps again, the boolean remap, the rank.
+            let finish_one = |offset: usize,
+                              cleaned: ScoredJavaScriptCandidate,
+                              codec_budget: &mut TerminalCodecProbeBudget|
+             -> Result<ScoredJavaScriptCandidate, CompileError> {
                 let selected = retain_resolved_javascript(selected.clone(), cleaned);
-                let mut share = candidate_end
-                    .saturating_sub(codec_budget.used)
-                    .div_ceil(carried.saturating_sub(offset).max(1));
-                // Migration 7.82 (7e): the carried print is finished last, on
-                // what the text finalists left, and its finishing has the most
-                // to do (every ladder pass proposes on it). With the ledger
-                // pinned at 4,096 the print won remark-gfm by 49 and markedlil
-                // by 26. `LILSCRIPT_PRINT_FINISH_LEDGER=<n>` extends the ledger
-                // by `n` probes for the print's finishing alone.
-                if print_report.carried == Some(offset) {
-                    let extra = print_finish_ledger();
-                    if extra > 0 {
-                        codec_budget.extend(extra);
-                        share = share.max(extra);
-                    }
-                }
-                codec_budget.begin_fair_slice(share);
                 let remainder = (|| {
                 let remapped = apply_unused_letter_binding_remaps(
                     selected.clone(),
@@ -6959,8 +6964,71 @@ fn finalize_javascript_candidates_with_parallelism(
                 }
                 Ok::<_, CompileError>(selected)
                 })();
-                codec_budget.end_fair_slice();
-                finished.push(remainder?);
+                remainder
+            };
+            // Migration 7.83: the finalists' finishings are independent, so
+            // they run in parallel, each on its own slice of the ledger (the
+            // even share; the carried print's extended by
+            // `print_finish_ledger`), and the slices' use is absorbed back in
+            // order. `LILSCRIPT_PARALLEL_FINISH=0` keeps the sequential loop.
+            let parallel = carried > 1
+                && std::env::var("LILSCRIPT_PARALLEL_FINISH").map_or(true, |value| value != "0");
+            // The print's finishing is funded where its best unfinished
+            // member stands within `print_finish_gap()` of the emission it
+            // was printed from (7.83): on the traced fleet jquerylil's stood
+            // 1,150–1,340 behind and won by 242 finished; remarklil's 2,877
+            // behind and never did, for 38 s of probes.
+            let print_gap = print_report
+                .best
+                .map(|best| best.saturating_sub(selected.transfer_cost))
+                .unwrap_or(usize::MAX);
+            let fund_print = print_gap <= print_finish_gap();
+            if parallel {
+                let extra = if fund_print { print_finish_ledger() } else { 0 };
+                let total = candidate_end.saturating_sub(codec_budget.used);
+                let even = total.div_ceil(carried.max(1));
+                if print_report.carried.is_some() && extra > 0 {
+                    codec_budget.extend(extra.saturating_add(carried));
+                }
+                let jobs = cleaned
+                    .into_iter()
+                    .enumerate()
+                    .map(|(offset, cleaned)| {
+                        let mut share = even;
+                        if print_report.carried == Some(offset) && extra > 0 {
+                            share = share.max(extra);
+                        }
+                        (offset, cleaned, codec_budget.slice(share))
+                    })
+                    .collect::<Vec<_>>();
+                let results = jobs
+                    .into_par_iter()
+                    .map(|(offset, cleaned, mut budget)| {
+                        finish_one(offset, cleaned, &mut budget).map(|finished| (finished, budget))
+                    })
+                    .collect::<Vec<_>>();
+                for result in results {
+                    let (candidate, budget) = result?;
+                    codec_budget.absorb(&budget);
+                    finished.push(candidate);
+                }
+            } else {
+                for (offset, cleaned) in cleaned.into_iter().enumerate() {
+                    let mut share = candidate_end
+                        .saturating_sub(codec_budget.used)
+                        .div_ceil(carried.saturating_sub(offset).max(1));
+                    if print_report.carried == Some(offset) && fund_print {
+                        let extra = print_finish_ledger();
+                        if extra > 0 {
+                            codec_budget.extend(extra);
+                            share = share.max(extra);
+                        }
+                    }
+                    codec_budget.begin_fair_slice(share);
+                    let remainder = finish_one(offset, cleaned, codec_budget);
+                    codec_budget.end_fair_slice();
+                    finished.push(remainder?);
+                }
             }
             sort_terminal_javascript_candidates(
                 &mut finished,
@@ -8910,6 +8978,16 @@ fn print_finish_ledger() -> usize {
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(384)
+}
+
+/// `LILSCRIPT_PRINT_FINISH_GAP=<n>`: the print's finishing is funded only
+/// where its best unfinished member is within `n` codec bytes of the
+/// emission (7.83); 1500 by default.
+fn print_finish_gap() -> usize {
+    std::env::var("LILSCRIPT_PRINT_FINISH_GAP")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(1500)
 }
 
 /// The codec probes one finalist's print beam may take: the unshaped print
