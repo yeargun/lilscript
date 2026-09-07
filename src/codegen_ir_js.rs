@@ -2474,6 +2474,8 @@ impl JsBlock {
                     condition,
                     condition_tree,
                     update,
+                    initializer_tree: _,
+                    update_tree,
                 },
             body,
             do_condition: None,
@@ -2483,6 +2485,8 @@ impl JsBlock {
             return statement;
         };
         let mut parts = Vec::<String>::new();
+        let mut nodes = Vec::<JsExpression>::new();
+        let mut declarator_list = None::<Vec<JsDeclarator>>;
         let mut taken = 0usize;
         let mut declared = false;
         for emitted in self.statements.iter().rev() {
@@ -2494,9 +2498,14 @@ impl JsBlock {
                     keyword: None,
                     name,
                     value,
-                    ..
+                    bind,
                 } if !expression_is_structural(value) && !declared => {
                     parts.push(format!("{name}={}", strip_outer_parens(value.clone())));
+                    let target = match bind {
+                        Some(bind) => JsExpression::name(*bind, name.clone()),
+                        None => JsExpression::atom(name.clone()),
+                    };
+                    nodes.push(JsExpression::assign(target, value.clone()));
                     taken += 1;
                 }
                 JsStatement::Declarators {
@@ -2518,6 +2527,7 @@ impl JsBlock {
                             .collect::<Vec<_>>()
                             .join(","),
                     );
+                    declarator_list = Some(declarators.clone());
                     declared = true;
                     taken += 1;
                     break;
@@ -2532,6 +2542,8 @@ impl JsBlock {
                     condition,
                     condition_tree,
                     update,
+                    initializer_tree: None,
+                    update_tree,
                 },
                 body,
                 do_condition: None,
@@ -2542,17 +2554,51 @@ impl JsBlock {
             self.pop_statement();
         }
         parts.reverse();
+        nodes.reverse();
+        // The tree beside the text: the `var` list then the assignments as
+        // its declarators, or the assignments' comma.
+        let initializer_tree = match declarator_list {
+            Some(mut declarators) => {
+                let mut complete = true;
+                for node in &nodes {
+                    match node.operands.as_slice() {
+                        [target, value] if node.root == JsExpressionRoot::Assign => {
+                            declarators.push(JsDeclarator {
+                                name: target.code.clone(),
+                                bind: match target.root {
+                                    JsExpressionRoot::Name(bind) => Some(bind),
+                                    _ => None,
+                                },
+                                value: Some(value.clone()),
+                                function: None,
+                            });
+                        }
+                        _ => complete = false,
+                    }
+                }
+                complete.then_some(JsForInit::Declarators {
+                    keyword: "var ",
+                    declarators,
+                })
+            }
+            None if nodes.len() == 1 => Some(JsForInit::Expression(nodes.remove(0))),
+            None if !nodes.is_empty() => Some(JsForInit::Expression(JsExpression::comma_unmerged(nodes))),
+            None => None,
+        };
         let initializer = if declared {
             format!("var {}", parts.join(","))
         } else {
             parts.join(",")
         };
+        let initializer_tree = if port_is_skipped("for_trees") { None } else { initializer_tree };
         JsStatement::Loop {
             head: JsLoopHead::For {
                 initializer: Some(initializer),
                 condition,
                 condition_tree,
                 update,
+                initializer_tree,
+                update_tree,
             },
             body,
             do_condition: None,
@@ -3179,27 +3225,28 @@ fn lift_trailing_increment(statement: JsStatement, braceless: bool) -> JsStateme
             JsStatement::Expression { value }
                 if is_unit_update(value) && body.block.statements.len() >= 2 =>
             {
-                Some((value.code.clone(), None))
+                Some((value.code.clone(), None, value.clone()))
             }
             JsStatement::Expression { value }
                 if value.root == JsExpressionRoot::Comma
                     && value.operands.last().is_some_and(is_unit_update) =>
             {
-                let update = value.operands.last().expect("an operand").code.clone();
+                let update_node = value.operands.last().expect("an operand").clone();
+                let update = update_node.code.clone();
                 let rest = value.operands[..value.operands.len() - 1].to_vec();
                 let rest = if rest.len() == 1 {
                     rest.into_iter().next().expect("one operand")
                 } else {
                     JsExpression::comma(rest)
                 };
-                Some((update, Some(rest)))
+                Some((update, Some(rest), update_node))
             }
             _ => None,
         }
     } else {
         None
     };
-    let Some((update, remainder)) = update.filter(|_| !block_continues_its_loop(&body.block)) else {
+    let Some((update, remainder, update_tree)) = update.filter(|_| !block_continues_its_loop(&body.block)) else {
         return JsStatement::Loop {
             head,
             body,
@@ -3226,17 +3273,23 @@ fn lift_trailing_increment(statement: JsStatement, braceless: bool) -> JsStateme
             condition: Some(condition),
             condition_tree,
             update: Some(update),
+            initializer_tree: None,
+            update_tree: (!port_is_skipped("for_trees")).then(|| update_tree.clone()),
         },
         JsLoopHead::For {
             initializer,
             condition,
             condition_tree,
             update: None,
+            initializer_tree,
+            update_tree: _,
         } => JsLoopHead::For {
             initializer,
             condition,
             condition_tree,
             update: Some(update),
+            initializer_tree,
+            update_tree: (!port_is_skipped("for_trees")).then(|| update_tree.clone()),
         },
         _ => unreachable!("liftable heads are while and update-less for"),
     };
@@ -3292,9 +3345,65 @@ struct BindCensus {
     scope: usize,
     next_scope: usize,
     loop_depth: usize,
+    /// Migration 7.67: the unsafe set per scope. An opaque mention of a
+    /// spelling makes unsafe the binding that spelling resolves to where
+    /// it is mentioned -- the one declared in that scope or the nearest
+    /// enclosing one -- and no other. `unsafe_names` stays the coarse
+    /// answer for a name without a bind.
+    parents: Vec<Option<usize>>,
+    declared: AHashMap<usize, AHashMap<String, Bind>>,
+    declared_binds: AHashSet<Bind>,
+    mentions: Vec<(String, usize)>,
+    unsafe_binds: AHashSet<Bind>,
+    /// Migration 7.67: whether `for` heads count as opaque text. The
+    /// emitter's census keeps them so (its void drop and merge were
+    /// measured with heads opaque: seeing through them read +156 on
+    /// remark-gfm); the reshape's census sees through them.
+    opaque_for_heads: bool,
+    /// Whether `is_unsafe` answers by spelling for every bind (the emitter's
+    /// census: its policies were measured that way, unifiedlil +169 when
+    /// they were not); the reshape's answers per scope.
+    by_spelling: bool,
 }
 
 impl BindCensus {
+    /// A declaration of `spelling` as `bind` in the current scope.
+    fn declare(&mut self, spelling: &str, bind: Bind) {
+        self.declared
+            .entry(self.scope)
+            .or_default()
+            .insert(spelling.to_string(), bind);
+        self.declared_binds.insert(bind);
+    }
+
+    /// Every opaque mention resolved to the binding it names where it
+    /// stands, after the walk (a declaration may follow its mention).
+    fn resolve(&mut self) {
+        let mentions = std::mem::take(&mut self.mentions);
+        for (spelling, scope) in mentions {
+            let mut current = Some(scope);
+            while let Some(at) = current {
+                if let Some(bind) = self.declared.get(&at).and_then(|names| names.get(&spelling)) {
+                    self.unsafe_binds.insert(*bind);
+                    break;
+                }
+                current = self.parents.get(at).copied().flatten();
+            }
+        }
+    }
+
+    /// Whether `bind` (spelled `spelling`) is reachable from text the tree
+    /// does not own: by bind where the declaration is known, else by
+    /// spelling.
+    fn is_unsafe(&self, bind: Option<Bind>, spelling: &str) -> bool {
+        match bind {
+            Some(bind) if !self.by_spelling && self.declared_binds.contains(&bind) => {
+                self.unsafe_binds.contains(&bind)
+            }
+            _ => self.unsafe_names.contains(spelling),
+        }
+    }
+
     fn write(&mut self, bind: Bind) {
         *self.writes.entry(bind).or_insert(0) += 1;
         let scope = self.scope;
@@ -3323,6 +3432,10 @@ impl BindCensus {
         let saved = (self.scope, self.loop_depth);
         self.next_scope += 1;
         self.scope = self.next_scope;
+        if self.parents.len() <= self.scope {
+            self.parents.resize(self.scope + 1, None);
+        }
+        self.parents[self.scope] = Some(saved.0);
         self.loop_depth = 0;
         self.head(head);
         self.function_body(body, closures);
@@ -3337,6 +3450,18 @@ impl BindCensus {
                 let start = index;
                 while index < bytes.len() && is_js_identifier_byte(bytes[index]) {
                     index += 1;
+                }
+                self.mentions.push((text[start..index].to_string(), self.scope));
+                // `LILSCRIPT_CENSUS_WATCH=name`: which opaque text makes a
+                // name unsafe (7.66's hunt for the text the tree still holds).
+                if let Ok(watched) = std::env::var("LILSCRIPT_CENSUS_WATCH") {
+                    if watched.split(',').any(|name| name == &text[start..index]) {
+                        eprintln!(
+                            "[census] `{}` unsafe from text: {}",
+                            &text[start..index],
+                            text.chars().take(100).collect::<String>()
+                        );
+                    }
                 }
                 self.unsafe_names.insert(text[start..index].to_string());
             } else {
@@ -3385,7 +3510,22 @@ impl BindCensus {
         for piece in &head.pieces {
             match piece {
                 JsHeadPiece::Text(text) | JsHeadPiece::Unbound(text) => self.text(text),
-                JsHeadPiece::Name(bind, _) | JsHeadPiece::FunctionName(bind, _) => {
+                JsHeadPiece::Name(bind, spelled) => {
+                    self.declare(spelled, *bind);
+                    self.write(*bind);
+                }
+                JsHeadPiece::FunctionName(bind, spelled) => {
+                    // A statement's name is the enclosing scope's, an
+                    // expression's its own; declaring it in both is the safe
+                    // over-approximation (7.69: `triple` inlined while a raw
+                    // call in another function still read it).
+                    self.declare(spelled, *bind);
+                    if let Some(parent) = self.parents.get(self.scope).copied().flatten() {
+                        self.declared
+                            .entry(parent)
+                            .or_default()
+                            .insert(spelled.to_string(), *bind);
+                    }
                     self.write(*bind);
                 }
             }
@@ -3421,7 +3561,10 @@ impl BindCensus {
     ) {
         match statement {
             JsStatement::Declaration { name, bind, .. } => match bind {
-                Some(bind) => self.write(*bind),
+                Some(bind) => {
+                    self.declare(name, *bind);
+                    self.write(*bind);
+                }
                 None => self.text(name),
             },
             JsStatement::DeclarationGroup { names, .. } => {
@@ -3437,6 +3580,7 @@ impl BindCensus {
             } => {
                 if let (Some(_), Some(bind)) = (keyword, bind) {
                     self.void_declaration(*bind, value);
+                    self.declare(name, *bind);
                 }
                 match bind {
                     Some(bind) => self.write(*bind),
@@ -3452,7 +3596,10 @@ impl BindCensus {
                         self.void_declaration(bind, value);
                     }
                     match declarator.bind {
-                        Some(bind) => self.write(bind),
+                        Some(bind) => {
+                            self.declare(&declarator.name, bind);
+                            self.write(bind);
+                        }
                         None => self.text(&declarator.name),
                     }
                     if let Some(value) = &declarator.value {
@@ -3503,17 +3650,42 @@ impl BindCensus {
                         condition,
                         condition_tree,
                         update,
+                        initializer_tree,
+                        update_tree,
                     } => {
-                        if let Some(initializer) = initializer {
-                            self.text(initializer);
+                        let (initializer_tree, update_tree) = if self.opaque_for_heads {
+                            (&None, &None)
+                        } else {
+                            (initializer_tree, update_tree)
+                        };
+                        match (initializer_tree, initializer) {
+                            (Some(JsForInit::Expression(tree)), _) => self.expression(tree, closures),
+                            (Some(JsForInit::Declarators { declarators, .. }), _) => {
+                                for declarator in declarators {
+                                    match declarator.bind {
+                                        Some(bind) => {
+                                            self.declare(&declarator.name, bind);
+                                            self.write(bind);
+                                        }
+                                        None => self.text(&declarator.name),
+                                    }
+                                    if let Some(value) = &declarator.value {
+                                        self.expression(value, closures);
+                                    }
+                                }
+                            }
+                            (None, Some(text)) => self.text(text),
+                            (None, None) => {}
                         }
                         match (condition_tree, condition) {
                             (Some(tree), _) => self.expression(tree, closures),
                             (None, Some(text)) => self.text(text),
                             (None, None) => {}
                         }
-                        if let Some(update) = update {
-                            self.text(update);
+                        match (update_tree, update) {
+                            (Some(tree), _) => self.expression(tree, closures),
+                            (None, Some(text)) => self.text(text),
+                            (None, None) => {}
                         }
                     }
                     JsLoopHead::While {
@@ -3631,7 +3803,7 @@ fn collapse_is_safe(bind: Bind, value: &JsExpression, next: &JsExpression, censu
         return true;
     }
     if let JsExpressionRoot::Name(source) = value.root {
-        if census.writes.get(&source).copied() == Some(1) && !census.unsafe_names.contains(&value.code) {
+        if census.writes.get(&source).copied() == Some(1) && !census.is_unsafe(Some(source), &value.code) {
             return true;
         }
     }
@@ -3645,7 +3817,7 @@ fn declarator_is_collapsible(declarator: &JsDeclarator, census: &BindCensus) -> 
     (declarator.function.is_none()
         && census.reads.get(&bind).copied() == Some(1)
         && census.writes.get(&bind).copied() == Some(1)
-        && !census.unsafe_names.contains(&declarator.name)
+        && !census.is_unsafe(Some(bind), &declarator.name)
         && !expression_is_structural(value)
         && !matches!(value.root, JsExpressionRoot::Raw | JsExpressionRoot::Closure(_)))
     .then(|| (bind, value.clone()))
@@ -3701,7 +3873,7 @@ fn drop_void_initializers(block: &mut JsBlock, census: &BindCensus) -> usize {
             "var " => bind.is_some_and(|bind| {
                 census.void_first.contains(&bind)
                     && census.write_scope.get(&bind).copied().flatten().is_some()
-                    && !census.unsafe_names.contains(name)
+                    && !census.is_unsafe(Some(bind), name)
             }),
             _ => false,
         }
@@ -4005,7 +4177,7 @@ fn collapse_block(
                 ..
             } if census.reads.get(bind).copied() == Some(1)
                 && census.writes.get(bind).copied() == Some(1)
-                && !census.unsafe_names.contains(name)
+                && !census.is_unsafe(Some(*bind), name)
                 && !expression_is_structural(value)
                 && !matches!(value.root, JsExpressionRoot::Raw | JsExpressionRoot::Closure(_)) =>
             {
@@ -6574,8 +6746,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     /// `substitute_single_use_symbol` (refs §J), the conservative core.
     fn collapse_single_uses(&self, block: &mut JsBlock) {
         let policy = StatementPolicy::current();
-        let mut census = BindCensus::default();
+        let mut census = BindCensus {
+            opaque_for_heads: true,
+            by_spelling: true,
+            ..BindCensus::default()
+        };
         census.block(block, &self.closure_trees);
+        // 7.67: the per-scope unsafe set is resolved after the walk; without
+        // this the emitter's void drop and merge read every declared bind as
+        // safe (remark-gfm +217 before the beam even ran).
+        census.resolve();
         if policy.single_use_collapse {
             let before = std::env::var_os("LILSCRIPT_SHAPE_TRACE").map(|_| block.clone().into_string());
             collapse_block(block, &census, &self.closure_trees);
@@ -15077,6 +15257,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             condition: None,
             condition_tree: None,
             update: None,
+            initializer_tree: None,
+            update_tree: None,
         };
         let mut dispatch = out.nested_after(&loop_head.render());
         let mut cases: Vec<JsCase> = Vec::new();
@@ -16152,31 +16334,35 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 Some(loop_condition),
                             )
                         } else if let Some(update_clause) = &update_clause {
-                            hoist_for_initializer_declarations(out, for_initializer.as_deref());
+                            hoist_for_initializer_declarations(out, for_initializer.as_ref().map(|(text, _)| text.as_str()));
                             (
                                 JsLoopHead::For {
                                     initializer: for_initializer
-                                        .as_deref()
-                                        .map(for_initializer_text)
-                                        .or_else(|| prior_assignments.clone()),
+                                        .as_ref()
+                                        .map(|(text, _)| for_initializer_text(text))
+                                        .or_else(|| prior_assignments.as_ref().map(|(text, _)| text.clone())),
                                     condition: Some(loop_condition),
                                     condition_tree: Some(loop_condition_tree.clone()),
-                                    update: Some(update_clause.clone()),
+                                    update: Some(update_clause.0.clone()),
+                                    initializer_tree: for_initializer_tree(&for_initializer, &prior_assignments),
+                                    update_tree: if port_is_skipped("for_trees") { None } else { update_clause.1.clone() },
                                 },
                                 None,
                             )
                         } else if compact_loop {
                             if reuse_for_spelling {
-                                hoist_for_initializer_declarations(out, for_initializer.as_deref());
+                                hoist_for_initializer_declarations(out, for_initializer.as_ref().map(|(text, _)| text.as_str()));
                                 (
                                     JsLoopHead::For {
                                         initializer: for_initializer
-                                            .as_deref()
-                                            .map(for_initializer_text)
-                                            .or_else(|| prior_assignments.clone()),
+                                            .as_ref()
+                                            .map(|(text, _)| for_initializer_text(text))
+                                            .or_else(|| prior_assignments.as_ref().map(|(text, _)| text.clone())),
                                         condition: Some(loop_condition),
                                         condition_tree: Some(loop_condition_tree.clone()),
                                         update: None,
+                                        initializer_tree: for_initializer_tree(&for_initializer, &prior_assignments),
+                                        update_tree: None,
                                     },
                                     None,
                                 )
@@ -16192,10 +16378,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         } else {
                             (
                                 JsLoopHead::For {
-                                    initializer: prior_assignments.clone(),
+                                    initializer: prior_assignments.as_ref().map(|(text, _)| text.clone()),
                                     condition: None,
                                     condition_tree: None,
                                     update: None,
+                                    initializer_tree: for_initializer_tree(&None, &prior_assignments),
+                                    update_tree: None,
                                 },
                                 None,
                             )
@@ -22012,7 +22200,7 @@ fn expression_has_top_level_statement_break(expression: &str) -> bool {
 
 /// The one statement a loop's update block holds, as the `for` update clause,
 /// when it is a plain assignment or a `++`/`--` on a name.
-fn for_update_clause(block: &JsBlock) -> Option<String> {
+fn for_update_clause(block: &JsBlock) -> Option<(String, Option<JsExpression>)> {
     let [only] = block.statements.as_slice() else {
         return None;
     };
@@ -22020,10 +22208,11 @@ fn for_update_clause(block: &JsBlock) -> Option<String> {
         return None;
     }
     if let Some((declare, name, value, tail)) = statement_single_assignment(&only.statement) {
-        return (!declare && tail.is_empty()).then(|| format!("{name}={value}"));
+        return (!declare && tail.is_empty())
+            .then(|| (format!("{name}={value}"), statement_expression_node(&only.statement)));
     }
     let clause = statement_expression_text(&only.statement)?;
-    is_unit_update_clause(&clause).then_some(clause)
+    is_unit_update_clause(&clause).then(|| (clause, statement_expression_node(&only.statement)))
 }
 
 fn is_unit_update_clause(clause: &str) -> bool {
@@ -23126,6 +23315,59 @@ fn hoist_for_initializer_declarations(out: &mut JsBlock, initializer: Option<&st
     });
 }
 
+/// The initialiser tree beside `for_initializer_text`: the taken
+/// expression statements' comma, spelled `var a=..,b=..` when the text
+/// is (each part an identifier assignment, so a declarator list), else
+/// the prior assignments' comma.
+fn for_initializer_tree(
+    for_initializer: &Option<(String, Option<JsExpression>)>,
+    prior_assignments: &Option<(String, Option<JsExpression>)>,
+) -> Option<JsForInit> {
+    // `LILSCRIPT_SKIP_PORTS=for_trees` keeps the head as text, for the A/B.
+    if port_is_skipped("for_trees") {
+        return None;
+    }
+    if let Some((text, tree)) = for_initializer {
+        let tree = tree.clone()?;
+        if !for_initializer_is_identifier_assigns(text) {
+            return Some(JsForInit::Expression(tree));
+        }
+        let parts = if tree.root == JsExpressionRoot::Comma {
+            tree.operands.clone()
+        } else {
+            vec![tree]
+        };
+        let mut declarators = Vec::with_capacity(parts.len());
+        for part in parts {
+            if part.root != JsExpressionRoot::Assign {
+                return None;
+            }
+            let [target, value] = part.operands.as_slice() else {
+                return None;
+            };
+            let bind = match target.root {
+                JsExpressionRoot::Name(bind) => Some(bind),
+                JsExpressionRoot::Atom => None,
+                _ => return None,
+            };
+            declarators.push(JsDeclarator {
+                name: target.code.clone(),
+                bind,
+                value: Some(value.clone()),
+                function: None,
+            });
+        }
+        return Some(JsForInit::Declarators {
+            keyword: "var ",
+            declarators,
+        });
+    }
+    prior_assignments
+        .as_ref()
+        .and_then(|(_, tree)| tree.clone())
+        .map(JsForInit::Expression)
+}
+
 fn for_initializer_text(initializer: &str) -> String {
     if for_initializer_is_identifier_assigns(initializer) {
         format!("var {initializer}")
@@ -23191,8 +23433,9 @@ fn for_initializer_is_identifier_assigns(initializer: &str) -> bool {
 /// comma sequence they form -- the `for` initialiser the loop absorbs. Reads
 /// and edits the list; the text follows through `truncate`, whose cut lands
 /// exactly on a statement boundary.
-fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
+fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<(String, Option<JsExpression>)> {
     let mut expressions = Vec::new();
+    let mut nodes = Some(Vec::new());
     while let Some(last) = output.statements.last() {
         if last.dropped_semicolon {
             break;
@@ -23200,6 +23443,10 @@ fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
         let Some(expression) = statement_expression_text(&last.statement) else {
             break;
         };
+        match (nodes.as_mut(), statement_expression_node(&last.statement)) {
+            (Some(nodes), Some(node)) => nodes.push(node),
+            _ => nodes = None,
+        }
         expressions.push(expression);
         output.pop_statement();
     }
@@ -23207,7 +23454,15 @@ fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
         return None;
     }
     expressions.reverse();
-    Some(expressions.join(","))
+    let tree = nodes.map(|mut nodes| {
+        nodes.reverse();
+        if nodes.len() == 1 {
+            nodes.remove(0)
+        } else {
+            JsExpression::comma_unmerged(nodes)
+        }
+    });
+    Some((expressions.join(","), tree))
 }
 
 /// The trailing run of plain assignments (`t=v;`, keyword-less, so to names
@@ -23215,8 +23470,9 @@ fn take_trailing_expression_statements(output: &mut JsBlock) -> Option<String> {
 /// initialiser a `for(` head with none of its own absorbs
 /// (`fold_prior_assign_into_for_init`). A declaration, any other statement, or
 /// a statement whose `;` was dropped ends the run.
-fn take_trailing_assignment_statements(output: &mut JsBlock) -> Option<String> {
+fn take_trailing_assignment_statements(output: &mut JsBlock) -> Option<(String, Option<JsExpression>)> {
     let mut assignments = Vec::new();
+    let mut nodes = Vec::new();
     while let Some(last) = output.statements.last() {
         if last.dropped_semicolon {
             break;
@@ -23225,7 +23481,7 @@ fn take_trailing_assignment_statements(output: &mut JsBlock) -> Option<String> {
             keyword: None,
             name,
             value,
-            ..
+            bind,
         } = &last.statement
         else {
             break;
@@ -23234,6 +23490,11 @@ fn take_trailing_assignment_statements(output: &mut JsBlock) -> Option<String> {
             "{name}={}",
             value.clone().at_least(JsPrecedence::Assignment)
         ));
+        let target = match bind {
+            Some(bind) => JsExpression::name(*bind, name.clone()),
+            None => JsExpression::atom(name.clone()),
+        };
+        nodes.push(JsExpression::assign(target, value.clone()));
         output.pop_statement();
     }
     if assignments.is_empty() {
@@ -23244,7 +23505,13 @@ fn take_trailing_assignment_statements(output: &mut JsBlock) -> Option<String> {
         return None;
     }
     assignments.reverse();
-    Some(assignments.join(","))
+    nodes.reverse();
+    let tree = if nodes.len() == 1 {
+        nodes.remove(0)
+    } else {
+        JsExpression::comma_unmerged(nodes)
+    };
+    Some((assignments.join(","), Some(tree)))
 }
 
 /// The separator a keyword needs before what follows it: nothing when the
@@ -26644,11 +26911,50 @@ impl Respell<'_> {
                     } => self.condition(condition, condition_tree),
                     JsLoopHead::DoWhile { guard, guard_tree } => self.condition(guard, guard_tree),
                     JsLoopHead::For {
-                        condition: Some(condition),
+                        initializer,
+                        condition,
                         condition_tree,
-                        ..
-                    } => self.condition(condition, condition_tree),
-                    JsLoopHead::For { .. } => false,
+                        update,
+                        initializer_tree,
+                        update_tree,
+                    } => {
+                        // Migration 7.66: the trees respell, the texts follow.
+                        let mut changed = match (condition, condition_tree) {
+                            (Some(condition), condition_tree) => self.condition(condition, condition_tree),
+                            _ => false,
+                        };
+                        match initializer_tree {
+                            Some(JsForInit::Expression(tree)) => {
+                                if self.value(tree) {
+                                    *initializer = Some(tree.clone().into_minimal());
+                                    changed = true;
+                                }
+                            }
+                            Some(JsForInit::Declarators { declarators, .. }) => {
+                                let mut respelled = false;
+                                for declarator in declarators.iter_mut() {
+                                    respelled |= self.name(&mut declarator.name, declarator.bind);
+                                    if let Some(value) = &mut declarator.value {
+                                        respelled |= self.value(value);
+                                    }
+                                }
+                                if respelled {
+                                    if let Some(tree) = initializer_tree.as_ref() {
+                                        *initializer = Some(tree.render());
+                                    }
+                                    changed = true;
+                                }
+                            }
+                            None => {}
+                        }
+                        if let Some(tree) = update_tree {
+                            if self.value(tree) {
+                                *update = Some(tree.clone().into_minimal());
+                                changed = true;
+                            }
+                        }
+                        changed
+                    }
                 };
                 if let Some(condition) = do_condition {
                     changed |= self.condition(condition, do_condition_tree);
@@ -27049,6 +27355,7 @@ impl ModuleTree {
         let snapshot = RefCell::new(self.closures.borrow().clone());
         let mut census = BindCensus::default();
         census.block(&self.block, &self.closures);
+        census.resolve();
         let mut entries = std::mem::take(&mut *self.closures.borrow_mut());
         if shapes.collapse {
             let moved = inline_single_use_declarator_functions(&mut self.block, &mut entries, &census);
@@ -27074,26 +27381,22 @@ impl ModuleTree {
                             crate::timing::FUNCTIONS_MOVED.event(moved as u64);
                         }
                     }
-                    // Copies first, twice: `h=ea,b=h` propagates in two steps.
-                    for _ in 0..2 {
-                        if propagate_identifier_copies(block, &census) == 0 {
-                            break;
-                        }
+                    // Migration 7.66: the family runs in every function body
+                    // below this block too (markedlil's are declarator
+                    // functions, which the module-block-and-map loop never
+                    // entered: the copies it holds were never propagated),
+                    // innermost first, then this block.
+                    // `LILSCRIPT_COLLAPSE_BODIES=0` keeps to this block, for the A/B.
+                    if std::env::var("LILSCRIPT_COLLAPSE_BODIES").map_or(true, |value| value != "0") {
+                        for_each_function_body(block, &mut |_, body| collapse_family(body, &census, &snapshot));
                     }
-                    collapse_block(block, &census, &snapshot);
-                    let reduced = rewrite_block_expressions(block, &mut |node| {
-                        reduce_immediate_call(node, &census, &snapshot)
-                    });
-                    if reduced > 0 {
-                        crate::timing::IIFES_REDUCED.event(reduced as u64);
-                    }
-                    drop_void_initializers(block, &census);
-                    merge_block_declarations(block);
+                    collapse_family(block, &census, &snapshot);
                 }
                 if shapes.negated_arms {
                     rewrite_block_expressions(block, &mut swap_negated_arms);
                 }
                 if shapes.for_init {
+                    for_each_function_body(block, &mut |_, body| hoist_for_initializers_in_block(body));
                     hoist_for_initializers_in_block(block);
                 }
                 if shapes.negated_equalities {
@@ -27624,8 +27927,18 @@ fn statement_declares_var(statement: &JsStatement) -> bool {
             head: JsLoopHead::ForIn { declare: true, .. } | JsLoopHead::ForOf { declare: true, .. },
             ..
         } => true,
-        JsStatement::Loop { head: JsLoopHead::For { initializer: Some(initializer), .. }, body, .. } => {
-            initializer.starts_with("var ") || block_declares_var(&body.block)
+        JsStatement::Loop {
+            head: JsLoopHead::For {
+                initializer: Some(initializer),
+                initializer_tree,
+                ..
+            },
+            body,
+            ..
+        } => {
+            matches!(initializer_tree, Some(JsForInit::Declarators { keyword: "var ", .. }))
+                || initializer.starts_with("var ")
+                || block_declares_var(&body.block)
         }
         _ => {
             let mut found = false;
@@ -27802,10 +28115,37 @@ fn bound_infinite_loops(block: &mut JsBlock) {
             condition: Some(test.clone().into_minimal()),
             condition_tree: Some(test),
             update: None,
+            initializer_tree: None,
+            update_tree: None,
         };
         body.block.statements.drain(0..2);
         settle_block_tail(&mut body.block, false);
     }
+}
+
+/// The collapse family on one block: identifier copies (twice, for a
+/// chain), the single-use collapse, immediate calls, void initialisers,
+/// declaration merges.
+fn collapse_family(
+    block: &mut JsBlock,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) {
+    // `LILSCRIPT_COPIES=0` skips the copies, for the A/B.
+    if std::env::var("LILSCRIPT_COPIES").map_or(true, |value| value != "0") {
+        for _ in 0..2 {
+            if propagate_identifier_copies(block, census) == 0 {
+                break;
+            }
+        }
+    }
+    collapse_block(block, census, closures);
+    let reduced = rewrite_block_expressions_shallow(block, &mut |node| reduce_immediate_call(node, census, closures));
+    if reduced > 0 {
+        crate::timing::IIFES_REDUCED.event(reduced as u64);
+    }
+    drop_void_initializers(block, census);
+    merge_block_declarations(block);
 }
 
 /// Whether a child block of any statement in `block` declares `spelling`
@@ -27859,8 +28199,8 @@ fn propagate_identifier_copies(block: &mut JsBlock, census: &BindCensus) -> usiz
             if reads == 0
                 || census.writes.get(&bind).copied() != Some(1)
                 || census.writes.get(&source).copied() != Some(1)
-                || census.unsafe_names.contains(&name)
-                || census.unsafe_names.contains(&value.code)
+                || census.is_unsafe(Some(bind), &name)
+                || census.is_unsafe(Some(source), &value.code)
                 || child_blocks_declare(block, &value.code)
             {
                 if trace {
@@ -27869,8 +28209,8 @@ fn propagate_identifier_copies(block: &mut JsBlock, census: &BindCensus) -> usiz
                         value.code,
                         census.writes.get(&bind),
                         census.writes.get(&source),
-                        census.unsafe_names.contains(&name),
-                        census.unsafe_names.contains(&value.code),
+                        census.is_unsafe(Some(bind), &name),
+                        census.is_unsafe(Some(source), &value.code),
                         child_blocks_declare(block, &value.code)
                     );
                 }
@@ -28318,7 +28658,23 @@ fn read_site(
             },
             JsStatement::Loop { body, head, .. } => {
                 let head_reads = match head {
-                    JsLoopHead::For { condition_tree: Some(tree), .. } | JsLoopHead::While { condition_tree: Some(tree), .. } => bind_reads(tree, bind) > 0,
+                    JsLoopHead::For {
+                        condition_tree,
+                        initializer_tree,
+                        update_tree,
+                        ..
+                    } => {
+                        condition_tree.as_ref().is_some_and(|tree| bind_reads(tree, bind) > 0)
+                            || update_tree.as_ref().is_some_and(|tree| bind_reads(tree, bind) > 0)
+                            || match initializer_tree {
+                                Some(JsForInit::Expression(tree)) => bind_reads(tree, bind) > 0,
+                                Some(JsForInit::Declarators { declarators, .. }) => declarators
+                                    .iter()
+                                    .any(|declarator| declarator.value.as_ref().is_some_and(|value| bind_reads(value, bind) > 0)),
+                                None => false,
+                            }
+                    }
+                    JsLoopHead::While { condition_tree: Some(tree), .. } => bind_reads(tree, bind) > 0,
                     _ => false,
                 };
                 if head_reads {
@@ -28412,7 +28768,7 @@ fn inline_single_use_declarator_functions(
                 if plain
                     && census.reads.get(&bind).copied() == Some(1)
                     && census.writes.get(&bind).copied() == Some(1)
-                    && !census.unsafe_names.contains(&spelled)
+                    && !census.is_unsafe(Some(bind), &spelled)
                     && !block_has_closure(body)
                 {
                     candidates.push((index, usize::MAX, bind, spelled, expression_head, JsFunctionBody::Block(body.clone())));
@@ -28427,7 +28783,7 @@ fn inline_single_use_declarator_functions(
                 };
                 if census.reads.get(&bind).copied() != Some(1)
                     || census.writes.get(&bind).copied() != Some(1)
-                    || census.unsafe_names.contains(&declarator.name)
+                    || census.is_unsafe(Some(bind), &declarator.name)
                 {
                     continue;
                 }
@@ -29416,9 +29772,29 @@ impl ScopeCollector<'_> {
                         condition,
                         condition_tree,
                         update,
+                        initializer_tree,
+                        update_tree,
                     } => {
-                        for text in [initializer, update].into_iter().flatten() {
-                            self.opaque(scope, text, OpaqueKind::LoopText);
+                        match (initializer_tree, initializer) {
+                            (Some(JsForInit::Expression(tree)), _) => self.expression(scope, tree),
+                            (Some(JsForInit::Declarators { declarators, .. }), _) => {
+                                for declarator in declarators {
+                                    match declarator.bind {
+                                        Some(bind) => self.tree.declare(scope, bind),
+                                        None => self.opaque_name(scope, &declarator.name, OpaqueKind::Declaration),
+                                    }
+                                    if let Some(value) = &declarator.value {
+                                        self.expression(scope, value);
+                                    }
+                                }
+                            }
+                            (None, Some(text)) => self.opaque(scope, text, OpaqueKind::LoopText),
+                            (None, None) => {}
+                        }
+                        match (update_tree, update) {
+                            (Some(tree), _) => self.expression(scope, tree),
+                            (None, Some(text)) => self.opaque(scope, text, OpaqueKind::LoopText),
+                            (None, None) => {}
                         }
                         if let Some(condition) = condition {
                             self.condition(scope, condition, condition_tree);
@@ -29963,6 +30339,32 @@ struct JsCase {
 }
 
 /// The clause a loop opens with. `For` with nothing in it is `for(;;)`.
+/// A `for` head's initialiser as a tree: `a=1,b=2` or `var a=1,b`.
+#[derive(Debug, Clone)]
+enum JsForInit {
+    Expression(JsExpression),
+    Declarators {
+        keyword: &'static str,
+        declarators: Vec<JsDeclarator>,
+    },
+}
+
+impl JsForInit {
+    fn render(&self) -> String {
+        match self {
+            Self::Expression(expression) => expression.clone().into_minimal(),
+            Self::Declarators { keyword, declarators } => format!(
+                "{keyword}{}",
+                declarators
+                    .iter()
+                    .map(|declarator| declarator.clone().render())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 enum JsLoopHead {
     /// `if(c)do` -- the guard of a do-while spelled as a guarded do.
@@ -29976,6 +30378,12 @@ enum JsLoopHead {
         condition: Option<String>,
         condition_tree: Option<JsExpression>,
         update: Option<String>,
+        /// Migration 7.66: the initialiser and the update as trees, where
+        /// the emitter had them; the texts are their minimal renderings.
+        /// The census and the renamer see through them instead of
+        /// treating every name in a `for` head as opaque.
+        initializer_tree: Option<JsForInit>,
+        update_tree: Option<JsExpression>,
     },
     /// `while(c)`.
     While {
@@ -47125,7 +47533,7 @@ consume(field(JS.object("type", 1), "type"));
             assign(None, "y", "x+1"),
         ]);
         assert_eq!(
-            take_trailing_expression_statements(&mut prefix).as_deref(),
+            take_trailing_expression_statements(&mut prefix).map(|(text, _)| text).as_deref(),
             Some("x=read(),y=x+1")
         );
         assert_eq!(prefix.render(), "var x;");
