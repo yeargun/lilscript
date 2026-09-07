@@ -27963,6 +27963,12 @@ pub(crate) struct TreeShapes {
     pub(crate) return_tails_plain: bool,
     pub(crate) return_tails_suffix: bool,
     pub(crate) return_branches: bool,
+    /// 7.98: the chain's rewrites still firing on a converged print, as
+    /// finishing steps: bare `var` declarators first on the tree, the unary
+    /// plus under `|0` dropped, a lone guard's expressions-then-return fused.
+    pub(crate) bare_first: bool,
+    pub(crate) unary_plus: bool,
+    pub(crate) return_sequences: bool,
 }
 
 impl TreeShapes {
@@ -28005,6 +28011,11 @@ impl TreeShapes {
             ("guard_tails", |shapes| shapes.guard_tails = true),
             ("exit_guards", |shapes| shapes.exit_guards = true),
             ("rebrace", |shapes| shapes.rebrace = true),
+            ("return_sequences", |shapes| shapes.return_sequences = true),
+            ("for_init", |shapes| shapes.for_init = true),
+            ("or_assigns", |shapes| shapes.or_assigns = true),
+            ("unary_plus", |shapes| shapes.unary_plus = true),
+            ("bare_first", |shapes| shapes.bare_first = true),
         ]
     }
 
@@ -28362,6 +28373,15 @@ impl ModuleTree {
                 }
                 if shapes.expression_bodies {
                     concise_expression_bodies(block);
+                }
+                if shapes.bare_first {
+                    reorder_bare_declarators(block);
+                }
+                if shapes.unary_plus {
+                    rewrite_block_expressions(block, &mut per_site(drop_unary_plus_under_int32));
+                }
+                if shapes.return_sequences {
+                    fuse_lone_return_sequences(block);
                 }
                 if shapes.guard_tails {
                     flatten_tail_guards(
@@ -31486,7 +31506,59 @@ fn join_guarded_assignments(block: &mut JsBlock) {
             },
             _ => JsExpression::binary(IrBinaryOp::And, condition.clone(), assignment),
         };
+        if !site_admit() {
+            continue;
+        }
         emitted.statement = JsStatement::Expression { value: joined };
+    }
+}
+
+/// 7.98: every `var` statement's bare declarators first, on the tree, so
+/// the comma-joining path spells them as the chain's reorder would (the
+/// non-comma path already does at render, `render_var_reordered`).
+fn reorder_bare_declarators(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut reorder_bare_declarators);
+        if let JsStatement::Declarators { keyword, declarators } = &mut emitted.statement {
+            if *keyword == "var " && declarators.len() > 1 {
+                let taken = std::mem::take(declarators);
+                *declarators = bare_declarators_first(taken);
+            }
+        }
+    }
+}
+
+/// 7.98: a lone guard whose block is expressions then a return -- no return
+/// after it -- returns the sequence: `if(c){E;return a}` is `if(c)return E,a`
+/// (the chain's fold), one site at a time.
+fn fuse_lone_return_sequences(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut fuse_lone_return_sequences);
+        let JsStatement::If {
+            then_branch,
+            else_branch: None,
+            ..
+        } = &mut emitted.statement
+        else {
+            continue;
+        };
+        if then_branch.block.statements.len() < 2 {
+            continue;
+        }
+        let Some(value) = statements_return_value(&then_branch.block.statements) else {
+            continue;
+        };
+        if !site_admit() {
+            continue;
+        }
+        let last = then_branch.block.statements.last().expect("two or more statements");
+        let options = last.options;
+        let dropped_semicolon = last.dropped_semicolon;
+        then_branch.block.statements = vec![EmittedStatement {
+            statement: JsStatement::Return { value: Some(value) },
+            options,
+            dropped_semicolon,
+        }];
     }
 }
 
@@ -32439,7 +32511,7 @@ fn hoist_for_initializers_in_block(block: &mut JsBlock) {
                 ..
             }
         );
-        if is_for && index > 0 {
+        if is_for && index > 0 && site_admit() {
             let rest = block.statements.split_off(index + 1);
             let emitted = block.statements.pop().expect("the loop statement");
             let before = block.statements.len();
