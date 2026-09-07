@@ -1819,6 +1819,12 @@ fn render(
             };
             Some(format!("{}{}", direction.spelling(), target.code))
         }
+        JsExpressionRoot::Spread => {
+            let [operand] = operands else {
+                return None;
+            };
+            Some(format!("...{}", operand.clone().at_least(JsPrecedence::Assignment)))
+        }
         JsExpressionRoot::New => {
             let [constructor, arguments @ ..] = operands else {
                 return None;
@@ -1971,6 +1977,9 @@ enum JsExpressionRoot {
     /// `++x` / `--x` as a value: the loop head's pre-update test
     /// (migration 7.59, `for(;--x>=0;)` from `while(!0){x--;if(x<0)break;..}`).
     PrefixUpdate(JsUpdate),
+    /// `...x` inside an array or a call (migration 7.73: `[...s].length`
+    /// was raw text, its operand out of the renamer's and census's reach).
+    Spread,
     /// A string literal; the contents live in the emission's literal table
     /// and the quote character is the printer's (`string_quote`).
     Str(Lit),
@@ -2001,7 +2010,7 @@ impl JsExpressionRoot {
             | Self::IntegerNormalization
             | Self::NullNormalized
             | Self::UndefinedTest { .. } => Some(1),
-            Self::PrefixUpdate(_) => Some(1),
+            Self::PrefixUpdate(_) | Self::Spread => Some(1),
             Self::StrictEquality { .. } => Some(2),
             // `Member`'s second operand is the property name, which the
             // grammar makes a child (`MemberExpression . IdentifierName`).
@@ -2027,7 +2036,8 @@ impl JsExpressionRoot {
             | Self::IntegerNormalization
             | Self::NullNormalized
             | Self::UndefinedTest { .. }
-            | Self::PrefixUpdate(_) => 1,
+            | Self::PrefixUpdate(_)
+            | Self::Spread => 1,
             Self::Binary(_) | Self::StrictEquality { .. } => 2,
             Self::Nullish | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
@@ -3457,7 +3467,8 @@ impl BindCensus {
                 if let Ok(watched) = std::env::var("LILSCRIPT_CENSUS_WATCH") {
                     if watched.split(',').any(|name| name == &text[start..index]) {
                         eprintln!(
-                            "[census] `{}` unsafe from text: {}",
+                            "[census{}] `{}` unsafe from text: {}",
+                            if self.by_spelling { " emitter" } else { "" },
                             &text[start..index],
                             text.chars().take(100).collect::<String>()
                         );
@@ -3477,7 +3488,20 @@ impl BindCensus {
     ) {
         match node.root {
             JsExpressionRoot::Name(bind) => *self.reads.entry(bind).or_insert(0) += 1,
-            JsExpressionRoot::Raw | JsExpressionRoot::Atom => self.text(&node.code),
+            JsExpressionRoot::Raw | JsExpressionRoot::Atom => {
+                if let Ok(watched) = std::env::var("LILSCRIPT_CENSUS_WATCH") {
+                    if watched.split(',').any(|name| name == node.code) {
+                        eprintln!(
+                            "[census{}] `{}` read as {:?} (precedence {:?})",
+                            if self.by_spelling { " emitter" } else { "" },
+                            node.code,
+                            node.root,
+                            node.precedence
+                        );
+                    }
+                }
+                self.text(&node.code)
+            }
             JsExpressionRoot::Closure(id) => {
                 let entry = closures.borrow().get(&id).cloned();
                 match entry {
@@ -3759,11 +3783,27 @@ impl BindCensus {
                 }
             }
             JsStatement::Class { members, .. } => self.block(members, closures),
-            JsStatement::ClassField { .. }
-            | JsStatement::Import { .. }
-            | JsStatement::Export { .. } => {
+            JsStatement::ClassField { .. } | JsStatement::Import { .. } => {
                 // Text the tree does not own: every identifier in it is unsafe.
                 self.text(&statement.clone().render(JsStatementOptions::UNUSED));
+            }
+            JsStatement::Export { bindings } => {
+                // 7.75: a bound binding whose public name is its alias is a
+                // read of that bind; the public names are text.
+                for binding in bindings {
+                    match (&binding.alias, binding.bind) {
+                        (Some(alias), Some(bind)) => {
+                            *self.reads.entry(bind).or_insert(0) += 1;
+                            self.text(alias);
+                        }
+                        _ => {
+                            self.text(&binding.name);
+                            if let Some(alias) = &binding.alias {
+                                self.text(alias);
+                            }
+                        }
+                    }
+                }
             }
             JsStatement::Break | JsStatement::Continue | JsStatement::Empty => {}
         }
@@ -5494,6 +5534,21 @@ impl JsExpression {
         }
     }
 
+    fn spread(operand: Self) -> Self {
+        let operands = vec![operand];
+        Self {
+            code: render(JsExpressionRoot::Spread, &operands, JsRenderOptions::UNUSED)
+                .expect("render covers Spread"),
+            ungrouped: None,
+            precedence: JsPrecedence::Assignment,
+            root: JsExpressionRoot::Spread,
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     fn prefix_update(target: Self, direction: JsUpdate) -> Self {
         let operands = vec![target];
         Self {
@@ -5756,6 +5811,7 @@ impl JsExpression {
             JsExpressionRoot::Assign => Self::assign(child(0), child(1)),
             JsExpressionRoot::Update(direction) => Self::update(child(0), direction),
             JsExpressionRoot::PrefixUpdate(direction) => Self::prefix_update(child(0), direction),
+            JsExpressionRoot::Spread => Self::spread(child(0)),
             JsExpressionRoot::Array => {
                 Self::array((0..self.operands.len()).map(child).collect::<Vec<_>>())
             }
@@ -10093,9 +10149,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     ));
                 }
             };
+            let bind = match export.binding {
+                _ if port_is_skipped("export_binds") => None,
+                ExportBinding::Function(function) => self.function_name_binds.get(&function).copied(),
+                ExportBinding::Global(global) => self.global_binds.get(&global).copied(),
+                ExportBinding::TypeOnly => None,
+            };
             bindings.push(JsModuleBinding {
                 name: binding.to_string(),
                 alias: (binding != export.name).then(|| export.name.to_string()),
+                bind,
             });
         }
         out.push_statement(JsStatement::Export { bindings });
@@ -10460,6 +10523,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     JsModuleBinding {
                         name: specifier.imported.to_string(),
                         alias: (specifier.imported != local).then(|| local.to_string()),
+                        bind: None,
                     }
                 })
                 .collect();
@@ -10524,6 +10588,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .map(|name| JsModuleBinding {
                     name: (*name).clone(),
                     alias: None,
+                    bind: None,
                 })
                 .collect(),
         });
@@ -10569,6 +10634,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .map(|(internal, public)| JsModuleBinding {
                     name: (*internal).to_string(),
                     alias: (internal != public).then(|| (*public).to_string()),
+                    bind: if port_is_skipped("export_binds") { None } else { self.top_level_bind_by_name(internal) },
                 })
                 .collect(),
         });
@@ -20443,10 +20509,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 });
             }
             Intrinsic::StringCodePointLength => {
-                let length = JsExpression::raw(
-                    format!("[...{}].length", receiver.at_least(JsPrecedence::Primary)),
-                    JsPrecedence::Member,
-                );
+                // 7.73: a tree -- `[...s].length` -- not raw text
+                // (`LILSCRIPT_SKIP_PORTS=spread_node` keeps the text).
+                let length = if port_is_skipped("spread_node") {
+                    JsExpression::raw(
+                        format!("[...{}].length", receiver.at_least(JsPrecedence::Primary)),
+                        JsPrecedence::Member,
+                    )
+                } else {
+                    JsExpression::member(
+                        JsExpression::array(vec![JsExpression::spread(receiver)]),
+                        "length",
+                        self.options.elide_call_chain_parentheses,
+                    )
+                };
                 let elide = self.options.elide_safe_integer_coercions
                     && out.is_some_and(|out| context.can_elide_i32_coercion(out));
                 return Ok(if elide {
@@ -20559,13 +20635,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     Intrinsic::FloatMax => "max",
                     _ => unreachable!(),
                 };
-                let mut rendered = format!("Math.{method}({}", strip_outer_parens(receiver));
-                for arg in args {
-                    rendered.push(',');
-                    rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
+                // 7.73: a call node, not raw text (the operands were out of
+                // the renamer's and the census's reach). `LILSCRIPT_SKIP_PORTS=minmax_call`
+                // keeps the text, for the A/B.
+                // Off: as a call node jquerylil read +226 (the raw text gave the
+                // emitter's own folds another shape); `LILSCRIPT_PORTS=minmax_call`
+                // turns the node on.
+                if !port_is_enabled("minmax_call") {
+                    let mut rendered = format!("Math.{method}({}", strip_outer_parens(receiver));
+                    for arg in args {
+                        rendered.push(',');
+                        rendered.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
+                    }
+                    rendered.push(')');
+                    return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
                 }
-                rendered.push(')');
-                return Ok(JsExpression::raw(rendered, JsPrecedence::Call));
+                let mut rendered_args = vec![receiver];
+                for arg in args {
+                    rendered_args.push(take_value(*arg, context, cache)?);
+                }
+                return Ok(JsExpression::call(
+                    JsExpression::atom(format!("Math.{method}")),
+                    rendered_args,
+                ));
             }
             Intrinsic::ArrayMap => "map",
             Intrinsic::ArrayFilter => "filter",
@@ -21539,6 +21631,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         })
     }
 
+    /// The bind of a top-level name: a function's or a global's (7.73, the
+    /// runtime export list names its bindings by their emitted spelling).
+    fn top_level_bind_by_name(&self, name: &str) -> Option<Bind> {
+        self.function_names
+            .iter()
+            .find(|(_, spelled)| spelled.as_str() == name)
+            .and_then(|(function, _)| self.function_name_binds.get(function).copied())
+            .or_else(|| {
+                self.global_names
+                    .iter()
+                    .find(|(_, spelled)| spelled.as_str() == name)
+                    .and_then(|(symbol, _)| self.global_binds.get(symbol).copied())
+            })
+    }
+
     fn global_atom(&self, symbol: SymbolId) -> Result<JsExpression, CodegenError> {
         let name = self.global_name(symbol)?;
         Ok(match self.global_binds.get(&symbol) {
@@ -21764,6 +21871,7 @@ fn emit_chunk_imports(
                 .map(|name| JsModuleBinding {
                     name: name.to_string(),
                     alias: None,
+                    bind: None,
                 })
                 .collect(),
             source,
@@ -23367,11 +23475,18 @@ fn for_initializer_tree(
         if !for_initializer_is_identifier_assigns(text) {
             return Some(JsForInit::Expression(tree));
         }
-        let parts = if tree.root == JsExpressionRoot::Comma {
-            tree.operands.clone()
-        } else {
-            vec![tree]
-        };
+        // Flattened: a taken statement may itself be a comma of assignments.
+        fn flatten(node: JsExpression, into: &mut Vec<JsExpression>) {
+            if node.root == JsExpressionRoot::Comma {
+                for operand in node.operands {
+                    flatten(operand, into);
+                }
+            } else {
+                into.push(node);
+            }
+        }
+        let mut parts = Vec::new();
+        flatten(tree, &mut parts);
         let mut declarators = Vec::with_capacity(parts.len());
         for part in parts {
             if part.root != JsExpressionRoot::Assign {
@@ -27030,9 +27145,19 @@ impl Respell<'_> {
             | JsStatement::Break
             | JsStatement::Continue
             | JsStatement::Import { .. }
-            | JsStatement::Export { .. }
             | JsStatement::ClassField { .. }
             | JsStatement::Empty => false,
+            JsStatement::Export { bindings } => {
+                let mut changed = false;
+                for binding in bindings.iter_mut() {
+                    // The public name is the alias; the internal name follows
+                    // its binding. With no alias the spelling is public.
+                    if binding.alias.is_some() {
+                        changed |= self.name(&mut binding.name, binding.bind);
+                    }
+                }
+                changed
+            }
             JsStatement::DeclarationGroup { names, binds, .. } => {
                 let mut changed = false;
                 for (name, bind) in names.iter_mut().zip(binds.iter()) {
@@ -27194,7 +27319,14 @@ impl FrozenModuleTree {
                 table: &tree.table,
                 alphabet: dominant.as_ref().unwrap_or(&options.identifier_alphabet),
             };
-            let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Frequency);
+            // 7.74: the text convergence's order; `LILSCRIPT_CONVERGE_ORDER=frequency`
+            // keeps the earlier most-referenced-first order for the A/B.
+            let order = if std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() == Ok("frequency") {
+                RenameOrder::Frequency
+            } else {
+                RenameOrder::Converge
+            };
+            let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, order);
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
         }
         tree.reprint(options)
@@ -27226,6 +27358,10 @@ pub(crate) struct TreeShapes {
     /// Migration 7.59: one literal boolean arm folded to `&&`/`||`
     /// (`BooleanConditionalValues`), as a print.
     pub(crate) boolean_one_arm: bool,
+    /// Migration 7.73: `if(c)x=v` is `c&&(x=v)` and `if(!c)x=v` is
+    /// `c||(x=v)` (`fold_statement_or_assigns`), a statement as an
+    /// expression the runs can join.
+    pub(crate) or_assigns: bool,
     /// Migration 7.64: the module's leading declaration keyword flipped
     /// (`var`/`let`), the search's top-level declaration variant.
     pub(crate) top_keyword: bool,
@@ -27252,7 +27388,7 @@ impl TreeShapes {
     /// The print ladder's rungs in order, each adding one shape to the
     /// incumbent's set; the rename last, since it re-spells what the others
     /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.
-    pub(crate) const RUNG_COUNT: usize = 13;
+    pub(crate) const RUNG_COUNT: usize = 14;
 
     pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
         let rungs: [(&'static str, fn(&mut Self)); Self::RUNG_COUNT] = [
@@ -27263,6 +27399,7 @@ impl TreeShapes {
             ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
             ("loop_bounds", |shapes| shapes.loop_bounds = true),
             ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
+            ("or_assigns", |shapes| shapes.or_assigns = true),
             ("top_keyword", |shapes| shapes.top_keyword = true),
             ("function_let", |shapes| shapes.function_let = true),
             ("return_tails", |shapes| shapes.return_tails = true),
@@ -27477,6 +27614,10 @@ impl ModuleTree {
                 }
                 if shapes.loop_bounds {
                     bound_infinite_loops(block);
+                }
+                if shapes.or_assigns {
+                    for_each_function_body(block, &mut |_, body| join_guarded_assignments(body));
+                    join_guarded_assignments(block);
                 }
                 if shapes.top_keyword && position == 0 {
                     flip_leading_declaration_keyword(block);
@@ -28338,6 +28479,52 @@ fn propagate_identifier_copies(block: &mut JsBlock, census: &BindCensus) -> usiz
         settle_block_tail(block, false);
     }
     propagated
+}
+
+/// `if(c)x=v;` with no else and one plain assignment in the arm is the
+/// expression statement `c&&(x=v)`, or `c||(x=v)` when the test is `!c`
+/// (`fold_statement_or_assigns`): the same evaluations in the same order,
+/// and a statement the runs can join with its neighbours.
+fn join_guarded_assignments(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut join_guarded_assignments);
+        let JsStatement::If {
+            condition_tree: Some(condition),
+            then_branch,
+            else_branch: None,
+            ..
+        } = &emitted.statement
+        else {
+            continue;
+        };
+        let [only] = then_branch.block.statements.as_slice() else {
+            continue;
+        };
+        let assignment = match &only.statement {
+            JsStatement::Binding {
+                keyword: None,
+                name,
+                bind,
+                value,
+            } => {
+                let target = match bind {
+                    Some(bind) => JsExpression::name(*bind, name.clone()),
+                    None => JsExpression::atom(name.clone()),
+                };
+                JsExpression::assign(target, value.clone())
+            }
+            JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => value.clone(),
+            _ => continue,
+        };
+        let joined = match condition.root {
+            JsExpressionRoot::Unary(JsUnary::Not) => match condition.unary_operand() {
+                Some(inner) => JsExpression::binary(IrBinaryOp::Or, inner.clone(), assignment),
+                None => continue,
+            },
+            _ => JsExpression::binary(IrBinaryOp::And, condition.clone(), assignment),
+        };
+        emitted.statement = JsStatement::Expression { value: joined };
+    }
 }
 
 /// Whether an expression holds a closure anywhere below it.
@@ -29628,6 +29815,9 @@ struct ScopeTree {
     scopes: Vec<RenameScope>,
     /// Which scope declares each binding, filled once after collection.
     declaring: AHashMap<Bind, usize>,
+    /// Migration 7.74: the binds that name a function or class, which the
+    /// text convergence keeps as they are.
+    function_names: AHashSet<Bind>,
 }
 
 impl ScopeTree {
@@ -29773,6 +29963,7 @@ impl ScopeCollector<'_> {
             tree: ScopeTree {
                 scopes: vec![RenameScope::default()],
                 declaring: AHashMap::default(),
+                function_names: AHashSet::default(),
             },
             closures,
         };
@@ -29815,9 +30006,11 @@ impl ScopeCollector<'_> {
                         scope.parameters.push(*bind);
                     }
                 }
-                JsHeadPiece::FunctionName(bind, _) => self
-                    .tree
-                    .declare(if name_binds_inner { inner } else { outer }, *bind),
+                JsHeadPiece::FunctionName(bind, _) => {
+                    self.tree.function_names.insert(*bind);
+                    self.tree
+                        .declare(if name_binds_inner { inner } else { outer }, *bind)
+                }
                 JsHeadPiece::Unbound(name) => self.opaque_name(inner, name, OpaqueKind::Head),
             }
         }
@@ -30025,11 +30218,27 @@ impl ScopeCollector<'_> {
                 }
                 self.block(scope, &body.block);
             }
-            JsStatement::Import { bindings, .. } | JsStatement::Export { bindings } => {
+            JsStatement::Import { bindings, .. } => {
                 for binding in bindings {
                     self.opaque_name(scope, &binding.name, OpaqueKind::Module);
                     if let Some(alias) = &binding.alias {
                         self.opaque_name(scope, alias, OpaqueKind::Module);
+                    }
+                }
+            }
+            JsStatement::Export { bindings } => {
+                for binding in bindings {
+                    match (&binding.alias, binding.bind) {
+                        (Some(alias), Some(bind)) => {
+                            self.tree.scopes[scope].referenced.push(bind);
+                            self.opaque_name(scope, alias, OpaqueKind::Module);
+                        }
+                        _ => {
+                            self.opaque_name(scope, &binding.name, OpaqueKind::Module);
+                            if let Some(alias) = &binding.alias {
+                                self.opaque_name(scope, alias, OpaqueKind::Module);
+                            }
+                        }
                     }
                 }
             }
@@ -30097,6 +30306,12 @@ enum RenameOrder {
     /// The emission's own order (the bind table's), so a re-name under
     /// another alphabet or policy keeps the emitter's assignment shape.
     Emission,
+    /// Migration 7.74: the text convergence's rules (`converge_local_names`):
+    /// the module scope untouched, function and class names kept,
+    /// parameters by position, then the rest in first-occurrence order --
+    /// the canonical form under which two alpha-equivalent functions spell
+    /// the same.
+    Converge,
 }
 
 impl Renamer<'_> {
@@ -30128,7 +30343,7 @@ impl Renamer<'_> {
         let mut binds_renamed = 0;
         for scope in 0..self.tree.scopes.len() {
             let declared = self.tree.scopes[scope].declared.clone();
-            if declared.is_empty() {
+            if declared.is_empty() || (order == RenameOrder::Converge && scope == 0) {
                 scopes_full += 1;
                 continue;
             }
@@ -30213,6 +30428,25 @@ impl Renamer<'_> {
                     renameable = heads;
                 }
                 RenameOrder::Emission => renameable.sort(),
+                RenameOrder::Converge => {
+                    // Function and class names keep their spelling; the
+                    // parameters by position; the rest in bind order, the
+                    // emission's first occurrence.
+                    let parameters = self.tree.scopes[scope].parameters.clone();
+                    let function_names = &self.tree.function_names;
+                    for bind in renameable.iter().filter(|bind| function_names.contains(*bind)) {
+                        forbidden.insert(self.table.spelling(*bind));
+                    }
+                    renameable.retain(|bind| !function_names.contains(bind));
+                    let (mut heads, mut rest): (Vec<Bind>, Vec<Bind>) = renameable
+                        .iter()
+                        .copied()
+                        .partition(|bind| parameters.contains(bind));
+                    heads.sort_by_key(|bind| parameters.iter().position(|p| p == bind));
+                    rest.sort();
+                    heads.extend(rest);
+                    renameable = heads;
+                }
             }
             // A preferred spelling (an idiom's) is honoured when the scope
             // can take it; the rest draw from the pool in frequency order.
@@ -30822,6 +31056,10 @@ impl JsStatementOptions {
 struct JsModuleBinding {
     name: String,
     alias: Option<String>,
+    /// Migration 7.73: the binding an export names, where the emitter knows
+    /// it, so the renamer can respell an exported binding whose public name
+    /// is its alias (with no alias the spelling is the public name and stays).
+    bind: Option<Bind>,
 }
 
 impl JsModuleBinding {
