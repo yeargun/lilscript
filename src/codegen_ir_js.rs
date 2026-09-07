@@ -27877,8 +27877,14 @@ impl TreeShapes {
             ("converge", |shapes| shapes.converge = true),
         ];
         let filter = std::env::var("LILSCRIPT_SHAPE_LADDER").ok();
+        // 7.94: the converge rung is off the ladder -- a converged print
+        // that wins the beam is carried and finishes worse than the plain
+        // print finished by the text convergence at the end (−97 on ten
+        // ports without it); `LILSCRIPT_PORTS=converge_rung` puts it back.
+        let converge_rung = port_is_enabled("converge_rung");
         rungs
             .into_iter()
+            .filter(|(name, _)| converge_rung || *name != "converge")
             .filter(|(name, _)| {
                 filter
                     .as_ref()
@@ -33173,7 +33179,7 @@ impl Renamer<'_> {
                 for (name, kinds) in &inner_scope.opaque {
                     *mentioned.entry(name.clone()).or_insert(0) |= kinds;
                 }
-                if *inner != scope {
+                if *inner != scope && !(order == RenameOrder::Converge && port_is_enabled("converge_text_rule")) {
                     for bind in &inner_scope.declared {
                         forbidden.insert(self.table.spelling(*bind));
                     }
@@ -33189,6 +33195,34 @@ impl Renamer<'_> {
                     }
                 }
             }
+            // 7.94 (Converge, the text convergence's rule): a nested scope may
+            // reuse an outer spelling as long as nothing in its extent refers
+            // to that outer binding -- so an inner scope's declared spellings
+            // are blocked per bind, for the binds its extent references.
+            // Measured off (b116 vs b115: +61, micromarklil +35, jquerylil +23):
+            // a converge print that wins the beam is carried, and finishes
+            // worse than the text's convergence at the end of the finishing.
+            // `LILSCRIPT_PORTS=converge_text_rule`.
+            let inner_blocks: Vec<(AHashSet<Bind>, AHashSet<String>)> = if order == RenameOrder::Converge && port_is_enabled("converge_text_rule") {
+                subtree
+                    .iter()
+                    .filter(|inner| **inner != scope)
+                    .map(|inner| {
+                        let mut referenced = AHashSet::<Bind>::default();
+                        for deeper in self.tree.subtree(*inner) {
+                            referenced.extend(self.tree.scopes[deeper].referenced.iter().copied());
+                        }
+                        let declared = self.tree.scopes[*inner]
+                            .declared
+                            .iter()
+                            .map(|bind| self.table.spelling(*bind))
+                            .collect::<AHashSet<String>>();
+                        (referenced, declared)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             // A binding whose spelling appears in text the re-spell cannot
             // rewrite keeps it, and keeps it reserved.
             let (mut renameable, kept): (Vec<Bind>, Vec<Bind>) = declared
@@ -33251,7 +33285,21 @@ impl Renamer<'_> {
                         .copied()
                         .partition(|bind| parameters.contains(bind));
                     heads.sort_by_key(|bind| parameters.iter().position(|p| p == bind));
-                    rest.sort();
+                    // 7.94: the rest by descending use, the text convergence's
+                    // secondary rank (bind order was the emission's) -- under
+                    // the port only, with the per-bind blocks.
+                    if port_is_enabled("converge_text_rule") {
+                        rest.sort_by(|left, right| {
+                            counts
+                                .get(right)
+                                .copied()
+                                .unwrap_or(0)
+                                .cmp(&counts.get(left).copied().unwrap_or(0))
+                                .then_with(|| left.cmp(right))
+                        });
+                    } else {
+                        rest.sort();
+                    }
                     heads.extend(rest);
                     renameable = heads;
                 }
@@ -33299,11 +33347,31 @@ impl Renamer<'_> {
             }
             let pooled = if keep_the_rest { Vec::new() } else { pooled };
             for bind in pooled.into_iter().chain(unplaced) {
-                let spelling = loop {
-                    let candidate = encode_identifier(next, self.alphabet);
-                    next += 1;
-                    if !is_js_reserved(&candidate) && !forbidden.contains(&candidate) {
+                let spelling = if order == RenameOrder::Converge && port_is_enabled("converge_text_rule") {
+                    // From the sequence's start each time: a name an inner
+                    // scope blocks for this bind stays free for the next.
+                    let mut index = 0usize;
+                    loop {
+                        let candidate = encode_identifier(index, self.alphabet);
+                        index += 1;
+                        if is_js_reserved(&candidate) || forbidden.contains(&candidate) {
+                            continue;
+                        }
+                        if inner_blocks
+                            .iter()
+                            .any(|(referenced, declared)| referenced.contains(&bind) && declared.contains(&candidate))
+                        {
+                            continue;
+                        }
                         break candidate;
+                    }
+                } else {
+                    loop {
+                        let candidate = encode_identifier(next, self.alphabet);
+                        next += 1;
+                        if !is_js_reserved(&candidate) && !forbidden.contains(&candidate) {
+                            break candidate;
+                        }
                     }
                 };
                 forbidden.insert(spelling.clone());
