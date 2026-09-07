@@ -28077,9 +28077,22 @@ impl ModuleTree {
             let mut blocks = vec![&mut self.block];
             blocks.append(&mut bodies);
             for (position, block) in blocks.iter_mut().enumerate() {
-                // 7.84: the chain's canonical leaf syntax on every print,
-                // unconditionally as the chain has it on every emission.
-                rewrite_block_expressions(block, &mut canonical_print_leaf);
+                // 7.84/7.88: the chain's canonical spellings on every print,
+                // unconditionally as the chain has them on every emission --
+                // the leaf syntax, the null tests, under the pristine
+                // contract the static calls -- in one walk (a walk per print
+                // is what the pool's wall pays for: 7.88 measured +174 s for
+                // three more).
+                // The null tests and the static calls measured off (7.88:
+                // +73 on the fleet, remarklil +75); `LILSCRIPT_PORTS=null_tests,static_calls`.
+                let null_tests = port_is_enabled("null_tests");
+                let static_calls = shapes.pristine_builtins && port_is_enabled("static_calls");
+                rewrite_block_expressions(block, &mut |node| {
+                    canonical_print_leaf(node)
+                        .or_else(|| null_tests.then(|| strict_null_test(node)).flatten())
+                        .or_else(|| null_tests.then(|| null_test_name_first(node)).flatten())
+                        .or_else(|| static_calls.then(|| pristine_static_call(node)).flatten())
+                });
                 canonical_print_texts(block);
                 // `LILSCRIPT_RAW_CHAIN=1` (7.86, measured): the text chain over
                 // each raw holder of the print, as the emission had it over
@@ -28892,6 +28905,119 @@ fn replace_bind_read(node: &JsExpression, bind: Bind, replacement: &JsExpression
 /// local once and nothing else it writes; the guard's negation with the
 /// prefix update in the read's place is the loop's test. A `continue` in
 /// `S` reaches the update either way; a `break` leaves either way.
+/// `null==x&&!(x===void 0)` → `x===null`; `null!=x||x===void 0` → `x!==null`,
+/// for a name `x` (read once either way).
+fn strict_null_test(node: &JsExpression) -> Option<JsExpression> {
+    let JsExpressionRoot::Binary(op @ (IrBinaryOp::And | IrBinaryOp::Or)) = node.root else {
+        return None;
+    };
+    let [lhs, rhs] = node.operands.as_slice() else {
+        return None;
+    };
+    let negated = op == IrBinaryOp::Or;
+    // The loose null test, `null==x` (`null!=x` for the negated form).
+    let loose = if negated { IrBinaryOp::NotEq } else { IrBinaryOp::Eq };
+    if lhs.root != JsExpressionRoot::Binary(loose) {
+        return None;
+    }
+    let [a, b] = lhs.operands.as_slice() else {
+        return None;
+    };
+    let subject = if a.root == JsExpressionRoot::Atom && a.code == "null" {
+        b
+    } else if b.root == JsExpressionRoot::Atom && b.code == "null" {
+        a
+    } else {
+        return None;
+    };
+    if !matches!(subject.root, JsExpressionRoot::Name(_)) {
+        return None;
+    }
+    // The undefined test: `!(x===void 0)` beside `&&`, `x===void 0` beside `||`.
+    let undefined_test = if negated {
+        rhs
+    } else {
+        if rhs.root != JsExpressionRoot::Unary(JsUnary::Not) {
+            return None;
+        }
+        rhs.operands.first()?
+    };
+    let tested = match undefined_test.root {
+        JsExpressionRoot::UndefinedTest { absent: true } => undefined_test.operands.first()?,
+        JsExpressionRoot::StrictEquality { negated: false } => {
+            let [x, y] = undefined_test.operands.as_slice() else {
+                return None;
+            };
+            if y.code == "void 0" {
+                x
+            } else if x.code == "void 0" {
+                y
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
+    };
+    if !same_name_node(tested, subject) {
+        return None;
+    }
+    // The chain's order: the name first, `x===null`.
+    let root = JsExpressionRoot::StrictEquality { negated };
+    let operands = vec![subject.clone(), JsExpression::atom("null")];
+    let code = render(root, &operands, JsRenderOptions::UNUSED)?;
+    Some(JsExpression::grouped(code, JsPrecedence::Equality, root).with_operands(operands))
+}
+
+/// `null==x` → `x==null`, `null!=x` → `x!=null`: the chain's order for the
+/// null tests (the emitter's constant-first swap is undone for `null` alone).
+fn null_test_name_first(node: &JsExpression) -> Option<JsExpression> {
+    let JsExpressionRoot::Binary(op @ (IrBinaryOp::Eq | IrBinaryOp::NotEq)) = node.root else {
+        return None;
+    };
+    let [lhs, rhs] = node.operands.as_slice() else {
+        return None;
+    };
+    if !(lhs.root == JsExpressionRoot::Atom && lhs.code == "null") || rhs.is_constant_literal() {
+        return None;
+    }
+    Some(JsExpression::binary_in_order(op, rhs.clone(), lhs.clone()))
+}
+
+/// `X.f.call(X,a,b)` → `X.f(a,b)` for a global `X` (`String`, `Array`,
+/// `Number`, `Object`, `Math`, `JSON`, `Reflect`, `Promise`, `Date`): the
+/// method's own receiver, under the pristine-builtins contract.
+fn pristine_static_call(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Call {
+        return None;
+    }
+    let (callee, arguments) = node.operands.split_first()?;
+    if callee.root != JsExpressionRoot::Member {
+        return None;
+    }
+    let [method, call] = callee.operands.as_slice() else {
+        return None;
+    };
+    if call.code != "call" || method.root != JsExpressionRoot::Member {
+        return None;
+    }
+    let [receiver, _] = method.operands.as_slice() else {
+        return None;
+    };
+    if !matches!(receiver.root, JsExpressionRoot::Atom)
+        || !matches!(
+            receiver.code.as_str(),
+            "String" | "Array" | "Number" | "Object" | "Math" | "JSON" | "Reflect" | "Promise" | "Date" | "Symbol" | "BigInt"
+        )
+    {
+        return None;
+    }
+    let (this_argument, rest) = arguments.split_first()?;
+    if this_argument.root != JsExpressionRoot::Atom || this_argument.code != receiver.code {
+        return None;
+    }
+    Some(JsExpression::call(method.clone(), rest.iter().cloned()))
+}
+
 /// The chain's canonical leaf syntax, on the print (7.84): `true`/`false`
 /// spelled `!0`/`!1` (in nodes and, lexed, in raw text), and `|0` dropped
 /// from a `.length`, `.indexOf(..)` or `.lastIndexOf(..)` read, an integer

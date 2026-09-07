@@ -6914,12 +6914,23 @@ fn finalize_javascript_candidates_with_parallelism(
              -> Result<ScoredJavaScriptCandidate, CompileError> {
                 let selected = retain_resolved_javascript(selected.clone(), cleaned);
                 let remainder = (|| {
-                let remapped = apply_unused_letter_binding_remaps(
-                    selected.clone(),
-                    config,
-                    true,
-                    codec_budget,
-                )?;
+                // `LILSCRIPT_PRINT_FINISH_SKIP=remap1,remap2,boolean` (7.88,
+                // measured): steps the carried print's finishing skips.
+                // `remap1` by default (7.88): on jquerylil the carried print's
+                // first letter-remap search found nothing in 82 s; the tree's
+                // rename and the second remap are what its names need.
+                let skips = |step: &str| {
+                    print_report.carried == Some(offset)
+                        && std::env::var("LILSCRIPT_PRINT_FINISH_SKIP")
+                            .unwrap_or_else(|_| "remap1".to_string())
+                            .split(',')
+                            .any(|name| name.trim() == step)
+                };
+                let remapped = if skips("remap1") {
+                    selected.clone()
+                } else {
+                    apply_unused_letter_binding_remaps(selected.clone(), config, true, codec_budget)?
+                };
                 let selected = retain_resolved_javascript(selected, remapped);
                 let cleaned =
                     apply_late_javascript_cleanup(selected.clone(), config, 6, codec_budget)?;
@@ -6929,15 +6940,17 @@ fn finalize_javascript_candidates_with_parallelism(
                 // final bytes; the pre-cleanup optimum is not necessarily optimal
                 // for the transformed artifact, and unchanged naming remains the
                 // incumbent candidate.
-                let remapped = apply_unused_letter_binding_remaps(
-                    selected.clone(),
-                    config,
-                    true,
-                    codec_budget,
-                )?;
+                let remapped = if skips("remap2") {
+                    selected.clone()
+                } else {
+                    apply_unused_letter_binding_remaps(selected.clone(), config, true, codec_budget)?
+                };
                 let selected = retain_resolved_javascript(selected, remapped);
-                let mut selected =
-                    apply_terminal_boolean_binding_remap(selected, config, codec_budget)?;
+                let mut selected = if skips("boolean") {
+                    selected
+                } else {
+                    apply_terminal_boolean_binding_remap(selected, config, codec_budget)?
+                };
                 selected.rank = javascript_candidate_rank(
                     config,
                     selected.transfer_cost,
