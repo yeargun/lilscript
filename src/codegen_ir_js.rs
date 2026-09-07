@@ -3041,7 +3041,7 @@ fn loop_keywords_in_statement(target: &JsStatement) -> (usize, usize) {
                     block(finally, counts);
                 }
             }
-            JsStatement::Switch { discriminant, cases } => {
+            JsStatement::Switch { discriminant, cases, .. } => {
                 text(discriminant, counts);
                 for case in cases {
                     text(&case.label, counts);
@@ -3768,25 +3768,42 @@ impl BindCensus {
                         None => self.text(condition),
                     },
                     JsLoopHead::ForIn {
-                        key, bind, object, ..
+                        key,
+                        bind,
+                        object,
+                        object_tree,
+                        ..
                     } => {
                         match bind {
-                            Some(bind) => self.write(*bind),
+                            Some(bind) => {
+                                self.declare(key, *bind);
+                                self.write(*bind);
+                            }
                             None => self.text(key),
                         }
-                        self.text(object);
+                        match object_tree {
+                            Some(tree) if !self.by_spelling => self.expression(tree, closures),
+                            _ => self.text(object),
+                        }
                     }
                     JsLoopHead::ForOf {
                         element,
                         bind,
                         iterable,
+                        iterable_tree,
                         ..
                     } => {
                         match bind {
-                            Some(bind) => self.write(*bind),
+                            Some(bind) => {
+                                self.declare(element, *bind);
+                                self.write(*bind);
+                            }
                             None => self.text(element),
                         }
-                        self.text(iterable);
+                        match iterable_tree {
+                            Some(tree) if !self.by_spelling => self.expression(tree, closures),
+                            _ => self.text(iterable),
+                        }
                     }
                 }
                 self.loop_depth += 1;
@@ -3816,9 +3833,13 @@ impl BindCensus {
             }
             JsStatement::Switch {
                 discriminant,
+                discriminant_tree,
                 cases,
             } => {
-                self.text(discriminant);
+                match discriminant_tree {
+                    Some(tree) if !self.by_spelling => self.expression(tree, closures),
+                    _ => self.text(discriminant),
+                }
                 for case in cases {
                     self.text(&case.label);
                     self.block(&case.body, closures);
@@ -15584,6 +15605,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             StateMachineSpelling::Switch => {
                 dispatch.push_statement(JsStatement::Switch {
                     discriminant: state.to_string(),
+                    discriminant_tree: context
+                        .state_bind()
+                        .map(|bind| JsExpression::name(bind, state.to_string())),
                     cases,
                 });
                 JsBranch {
@@ -16489,7 +16513,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 Some(loop_condition),
                             )
                         } else if let Some(update_clause) = &update_clause {
-                            hoist_for_initializer_declarations(out, for_initializer.as_ref().map(|(text, _)| text.as_str()));
+                            hoist_for_initializer_declarations(out, for_initializer.as_ref().map(|(text, _)| text.as_str()), for_initializer.as_ref().and_then(|(_, tree)| tree.as_ref()));
                             (
                                 JsLoopHead::For {
                                     initializer: for_initializer
@@ -16506,7 +16530,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             )
                         } else if compact_loop {
                             if reuse_for_spelling {
-                                hoist_for_initializer_declarations(out, for_initializer.as_ref().map(|(text, _)| text.as_str()));
+                                hoist_for_initializer_declarations(out, for_initializer.as_ref().map(|(text, _)| text.as_str()), for_initializer.as_ref().and_then(|(_, tree)| tree.as_ref()));
                                 (
                                     JsLoopHead::For {
                                         initializer: for_initializer
@@ -16702,7 +16726,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "for-in shape header does not branch to its body and exit",
                             ));
                         }
-                        let object = take_value(object, context, cache)?.into_minimal();
+                        let object_node = take_value(object, context, cache)?;
+                        let object = object_node.clone().into_minimal();
                         let declare_key = context.claim_declaration(key)?;
                         let key_value = key;
                         let key = context.value_name(key)?;
@@ -16711,6 +16736,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             key: key.to_string(),
                             bind: context.value_bind(key_value),
                             object,
+                            object_tree: Some(object_node),
                         };
                         // The body is a value emitted ahead of its head; it
                         // inherits the head's keyword counts as if the head
@@ -16790,7 +16816,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "for-of shape header does not branch to its body and exit",
                             ));
                         }
-                        let iterable = take_value(iterable, context, cache)?.into_minimal();
+                        let iterable_node = take_value(iterable, context, cache)?;
+                        let iterable = iterable_node.clone().into_minimal();
                         let declare_element = context.claim_declaration(element)?;
                         let element_value = element;
                         let element = context.value_name(element)?;
@@ -16799,6 +16826,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             element: element.to_string(),
                             bind: context.value_bind(element_value),
                             iterable,
+                            iterable_tree: Some(iterable_node),
                         };
                         // As for `for-in`: the body is a value, nested after
                         // the head it will follow.
@@ -23535,7 +23563,11 @@ fn expression_has_top_level_conditional(expression: &str) -> bool {
 /// `for(a=1,b=2;..)` over names not yet declared hoists `var a,b;` ahead of
 /// the loop; an initialiser that is only identifier assigns spells `var`
 /// inline instead (see `for_initializer_text`).
-fn hoist_for_initializer_declarations(out: &mut JsBlock, initializer: Option<&str>) {
+fn hoist_for_initializer_declarations(
+    out: &mut JsBlock,
+    initializer: Option<&str>,
+    tree: Option<&JsExpression>,
+) {
     let Some(initializer) = initializer else {
         return;
     };
@@ -23546,9 +23578,26 @@ fn hoist_for_initializer_declarations(out: &mut JsBlock, initializer: Option<&st
     if names.is_empty() {
         return;
     }
+    // 7.77: the binds from the initialiser tree's assignment targets.
+    fn collect(node: &JsExpression, into: &mut AHashMap<String, Bind>) {
+        if node.root == JsExpressionRoot::Assign {
+            if let Some(target) = node.operands.first() {
+                if let JsExpressionRoot::Name(bind) = target.root {
+                    into.insert(target.code.clone(), bind);
+                }
+            }
+        }
+        for operand in &node.operands {
+            collect(operand, into);
+        }
+    }
+    let mut targets = AHashMap::<String, Bind>::default();
+    if let Some(tree) = tree {
+        collect(tree, &mut targets);
+    }
     out.push_statement(JsStatement::DeclarationGroup {
         keyword: "var ",
-        binds: vec![None; names.len()],
+        binds: names.iter().map(|name| targets.get(&name.to_string()).copied()).collect(),
         names: names.iter().map(|name| (*name).to_string()).collect(),
     });
 }
@@ -26788,6 +26837,9 @@ enum JsStatement {
     /// a block's.
     Switch {
         discriminant: String,
+        /// Migration 7.77: the discriminant as a tree beside its text (the
+        /// state machine's state variable, a bound name).
+        discriminant_tree: Option<JsExpression>,
         cases: Vec<JsCase>,
     },
     /// `class X extends Y{..}` -- the head text and the members as statements:
@@ -27162,8 +27214,18 @@ impl Respell<'_> {
                 }
                 changed
             }
-            JsStatement::Switch { cases, .. } => {
+            JsStatement::Switch {
+                discriminant,
+                discriminant_tree,
+                cases,
+            } => {
                 let mut changed = false;
+                if let Some(tree) = discriminant_tree {
+                    if self.value(tree) {
+                        *discriminant = tree.clone().into_minimal();
+                        changed = true;
+                    }
+                }
                 for case in cases {
                     changed |= self.block(&mut case.body);
                 }
@@ -27177,8 +27239,38 @@ impl Respell<'_> {
                 do_condition_tree,
             } => {
                 let mut changed = match head {
-                    JsLoopHead::ForIn { key, bind, .. } => self.name(key, *bind),
-                    JsLoopHead::ForOf { element, bind, .. } => self.name(element, *bind),
+                    JsLoopHead::ForIn {
+                        key,
+                        bind,
+                        object,
+                        object_tree,
+                        ..
+                    } => {
+                        let mut changed = self.name(key, *bind);
+                        if let Some(tree) = object_tree {
+                            if self.value(tree) {
+                                *object = tree.clone().into_minimal();
+                                changed = true;
+                            }
+                        }
+                        changed
+                    }
+                    JsLoopHead::ForOf {
+                        element,
+                        bind,
+                        iterable,
+                        iterable_tree,
+                        ..
+                    } => {
+                        let mut changed = self.name(element, *bind);
+                        if let Some(tree) = iterable_tree {
+                            if self.value(tree) {
+                                *iterable = tree.clone().into_minimal();
+                                changed = true;
+                            }
+                        }
+                        changed
+                    }
                     JsLoopHead::While {
                         condition,
                         condition_tree,
@@ -29114,6 +29206,8 @@ fn read_site(
                             }
                     }
                     JsLoopHead::While { condition_tree: Some(tree), .. } => bind_reads(tree, bind) > 0,
+                    JsLoopHead::ForIn { object_tree: Some(tree), .. }
+                    | JsLoopHead::ForOf { iterable_tree: Some(tree), .. } => bind_reads(tree, bind) > 0,
                     _ => false,
                 };
                 if head_reads {
@@ -30232,9 +30326,13 @@ impl ScopeCollector<'_> {
             }
             JsStatement::Switch {
                 discriminant,
+                discriminant_tree,
                 cases,
             } => {
-                self.opaque(scope, discriminant, OpaqueKind::Switch);
+                match discriminant_tree {
+                    Some(tree) => self.expression(scope, tree),
+                    None => self.opaque(scope, discriminant, OpaqueKind::Switch),
+                }
                 for case in cases {
                     self.opaque(scope, &case.label, OpaqueKind::Switch);
                     self.block(scope, &case.body);
@@ -30260,6 +30358,7 @@ impl ScopeCollector<'_> {
                         key,
                         bind,
                         object,
+                        object_tree,
                     } => {
                         match (bind, declare) {
                             (Some(bind), true) => self.tree.declare(scope, *bind),
@@ -30268,13 +30367,17 @@ impl ScopeCollector<'_> {
                             }
                             (None, _) => self.opaque(scope, key, OpaqueKind::Declaration),
                         }
-                        self.opaque(scope, object, OpaqueKind::LoopText);
+                        match object_tree {
+                            Some(tree) => self.expression(scope, tree),
+                            None => self.opaque(scope, object, OpaqueKind::LoopText),
+                        }
                     }
                     JsLoopHead::ForOf {
                         declare,
                         element,
                         bind,
                         iterable,
+                        iterable_tree,
                     } => {
                         match (bind, declare) {
                             (Some(bind), true) => self.tree.declare(scope, *bind),
@@ -30283,7 +30386,10 @@ impl ScopeCollector<'_> {
                             }
                             (None, _) => self.opaque(scope, element, OpaqueKind::Declaration),
                         }
-                        self.opaque(scope, iterable, OpaqueKind::LoopText);
+                        match iterable_tree {
+                            Some(tree) => self.expression(scope, tree),
+                            None => self.opaque(scope, iterable, OpaqueKind::LoopText),
+                        }
                     }
                     JsLoopHead::For {
                         initializer,
@@ -30961,6 +31067,8 @@ enum JsLoopHead {
         key: String,
         bind: Option<Bind>,
         object: String,
+        /// Migration 7.77: the object as a tree beside its text.
+        object_tree: Option<JsExpression>,
     },
     /// `for(var e of i)` / `for(e of i)`.
     ForOf {
@@ -30968,6 +31076,8 @@ enum JsLoopHead {
         element: String,
         bind: Option<Bind>,
         iterable: String,
+        /// Migration 7.77: the iterable as a tree beside its text.
+        iterable_tree: Option<JsExpression>,
     },
 }
 
@@ -31299,6 +31409,7 @@ impl JsStatement {
             Self::Switch {
                 discriminant,
                 cases,
+                ..
             } => {
                 let mut text = format!("switch({discriminant}){{");
                 let last = cases.len().checked_sub(1);
