@@ -239,6 +239,16 @@ fn converge_names(
             }
         }
         renameable.sort_unstable();
+        if std::env::var_os("LILSCRIPT_CONVERGE_TRACE").is_some() {
+            let described = renameable
+                .iter()
+                .map(|(rank, secondary, declaration)| {
+                    format!("{}:{}@{declaration}{}", tokens[*declaration].text, usize::MAX - secondary, if *rank == usize::MAX { "" } else { "h" })
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            eprintln!("[converge-text] scope@{start} [{described}] blocked {}", blocked.len());
+        }
 
         // A binding an idiom wants spelled a particular way gets that spelling
         // when the scope still has it free; the canonical sequence below then

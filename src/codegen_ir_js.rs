@@ -7221,6 +7221,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             tree,
             table: &self.bind_table,
             alphabet: &self.options.identifier_alphabet,
+            text_counts: None,
         };
         let (scopes, scopes_full, binds, renamed) = match self.options.name_ordering {
             NameOrdering::EmissionWalk => (0, 0, 0, 0),
@@ -27597,6 +27598,47 @@ pub(crate) struct ModuleTree {
 }
 
 impl ModuleTree {
+    /// 7.97: this tree copied, for the finish's site-by-site probes.
+    fn copy(&self) -> ModuleTree {
+        ModuleTree {
+            block: self.block.clone(),
+            closures: RefCell::new(self.closures.borrow().clone()),
+            table: self.table.clone(),
+            literals: self.literals.clone(),
+        }
+    }
+
+    /// `reshape` under the print's own statement policy (live-16: the
+    /// thread's last emission may have set another) with the site cursor
+    /// installed; returns how many sites the per-site rules met.
+    fn reshape_under(&mut self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> usize {
+        let previous = StatementPolicy::current();
+        StatementPolicy::of(options).install();
+        let mut shapes = shapes;
+        shapes.pristine_builtins = options.assume_pristine_builtins;
+        FINISH_SITE.with(|cell| cell.set((site, 0)));
+        self.reshape(shapes);
+        let seen = FINISH_SITE.with(|cell| {
+            let (_, seen) = cell.get();
+            cell.set((None, 0));
+            seen
+        });
+        previous.install();
+        seen
+    }
+
+    /// 7.97: a copy of this tree shaped by `shapes` -- at one site of the
+    /// per-site rules when `site` is set -- converged when asked, and its
+    /// print: the finish's probe, whose tree is kept when the codec says so.
+    pub(crate) fn shaped_print(&self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
+        let options = &print_options(options);
+        let mut tree = self.copy();
+        let seen = tree.reshape_under(options, shapes, site);
+        converge_names(&mut tree, options, shapes);
+        let text = tree.reprint(options);
+        (tree, text, seen)
+    }
+
     pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
         let (render, statement) = printer_options(options);
         let mut block = self.block.clone();
@@ -27662,6 +27704,7 @@ impl FrozenModuleTree {
             tree: scopes,
             table: &tree.table,
             alphabet: &options.identifier_alphabet,
+            text_counts: None,
         };
         // The base already carries the plan's frequency order (it stays in
         // the cache key), so the pass keeps the base's assignment order.
@@ -27679,13 +27722,19 @@ impl FrozenModuleTree {
         if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
             eprintln!("[shape] reprint with {shapes:?}, rename {rename}");
         }
-        // 7.84: the chain's canonical leaf syntax spells every emission's
-        // booleans `!0`/`!1` whatever the plan asked; the print's respell
-        // follows these options, so they say so too.
-        let options = &IrJsOptions {
-            compact_boolean_literals: true,
-            ..*options
-        };
+        let options = print_options(options);
+        let (mut tree, _) = self.thaw_reshaped(&options, rename, shapes, None);
+        converge_names(&mut tree, &options, shapes);
+        tree.reprint(&options)
+    }
+
+    /// 7.97: the print's reshaping apart from its printing -- thawed, given
+    /// formals, renamed in emission order and shaped by `shapes` -- so the
+    /// finish can keep a shaped tree between its site-by-site probes
+    /// (`ModuleTree::shaped_print`). `site` is the per-site cursor; the
+    /// count returned is how many sites the per-site rules met.
+    pub(crate) fn thaw_reshaped(&self, options: &IrJsOptions, rename: bool, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, usize) {
+        let options = &print_options(options);
         let mut tree = self.thaw();
         // 7.87: `arguments[k]` reads as formals (the chain's
         // `fold_indexed_arguments_to_formals`, on every emission), before the
@@ -27717,54 +27766,134 @@ impl FrozenModuleTree {
                 tree: scopes,
                 table: &tree.table,
                 alphabet: &options.identifier_alphabet,
+                text_counts: None,
             };
             let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
         }
-        // The shapes read the installed statement policy (live-16: the
-        // thread's last emission may have set another); the print's own
-        // is installed for them and the previous one put back.
-        let previous = StatementPolicy::current();
-        StatementPolicy::of(options).install();
-        let mut shapes = shapes;
-        shapes.pristine_builtins = options.assume_pristine_builtins;
-        tree.reshape(shapes);
-        previous.install();
-        if shapes.converge {
-            // Migration 7.63: the plan's alphabet, measured: on markedlil the
-            // converge print reads −20/−26 with it (parameters first), +105
-            // with the alphabet ordered by every byte of the print (`code`)
-            // and +4/+27 ordered by identifier bytes only (`identifiers`, the
-            // text convergence's rule). `LILSCRIPT_CONVERGE_ALPHABET` picks.
-            let dominant = match std::env::var("LILSCRIPT_CONVERGE_ALPHABET").as_deref() {
-                Ok("code") => Some(IdentifierAlphabet::for_code(&tree.reprint(options))),
-                Ok("identifiers") => {
-                    let text = tree.reprint(options);
-                    crate::js_peephole::lex_javascript(&text)
-                        .ok()
-                        .map(|tokens| IdentifierAlphabet::from_order(&crate::js_peephole::dominant_identifier_alphabet(&tokens)))
+        let seen = tree.reshape_under(options, shapes, site);
+        (tree, seen)
+    }
+}
+
+/// 7.84: the chain's canonical leaf syntax spells every emission's booleans
+/// `!0`/`!1` whatever the plan asked; the print's respell follows these
+/// options, so they say so too.
+fn print_options(options: &IrJsOptions) -> IrJsOptions {
+    IrJsOptions {
+        compact_boolean_literals: true,
+        ..*options
+    }
+}
+
+/// The convergence renames (`shapes.converge`), on a shaped tree.
+fn converge_names(tree: &mut ModuleTree, options: &IrJsOptions, shapes: TreeShapes) {
+    if shapes.converge {
+        // Migration 7.63: the plan's alphabet, measured: on markedlil the
+        // converge print reads −20/−26 with it (parameters first), +105
+        // with the alphabet ordered by every byte of the print (`code`)
+        // and +4/+27 ordered by identifier bytes only (`identifiers`, the
+        // text convergence's rule). `LILSCRIPT_CONVERGE_ALPHABET` picks.
+        let dominant = match std::env::var("LILSCRIPT_CONVERGE_ALPHABET").as_deref() {
+            Ok("code") => Some(IdentifierAlphabet::for_code(&tree.reprint(options))),
+            Ok("identifiers") => {
+                let text = tree.reprint(options);
+                crate::js_peephole::lex_javascript(&text)
+                    .ok()
+                    .map(|tokens| IdentifierAlphabet::from_order(&crate::js_peephole::dominant_identifier_alphabet(&tokens)))
+            }
+            _ => None,
+        };
+        let text_rule = shapes.converge_text && std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() != Ok("frequency");
+        let counts_mode = std::env::var("LILSCRIPT_CONVERGE_COUNTS").unwrap_or_default();
+        let scopes = if text_rule && counts_mode == "walk" {
+            ScopeCollector::module_text(&tree.closures, &tree.block)
+        } else {
+            ScopeCollector::module(&tree.closures, &tree.block)
+        };
+        // 7.97: the text convergence's counts, exactly -- the print made
+        // with one unique spelling per bind, lexed: every token of a bind
+        // and its first position (`LILSCRIPT_CONVERGE_COUNTS=tree` keeps the
+        // tree's references, `walk` the walk's compound-once count).
+        let text_counts = if text_rule && counts_mode != "tree" && counts_mode != "walk" {
+            let table = &tree.table;
+            let binds = table.len();
+            let saved = (0..binds).map(|index| table.spelling(Bind(index as u32))).collect::<Vec<_>>();
+            for index in 0..binds {
+                table.respell(Bind(index as u32), &format!("$Q{index}$"));
+            }
+            let text = tree.reprint(options);
+            for (index, spelling) in saved.iter().enumerate() {
+                table.respell(Bind(index as u32), spelling);
+            }
+            let mut counts = AHashMap::<Bind, (usize, usize)>::default();
+            if let Ok(tokens) = crate::js_peephole::lex_javascript(&text) {
+                for (position, token) in tokens.iter().enumerate() {
+                    if token.kind != crate::js_peephole::JsTokenKind::Identifier {
+                        continue;
+                    }
+                    let Some(index) = token.text.strip_prefix("$Q").and_then(|rest| rest.strip_suffix('$')) else {
+                        continue;
+                    };
+                    let Ok(index) = index.parse::<u32>() else {
+                        continue;
+                    };
+                    let entry = counts.entry(Bind(index)).or_insert((0, position));
+                    entry.0 += 1;
                 }
-                _ => None,
-            };
-            let scopes = ScopeCollector::module(&tree.closures, &tree.block);
-            let renamer = Renamer {
-                tree: scopes,
-                table: &tree.table,
-                alphabet: dominant.as_ref().unwrap_or(&options.identifier_alphabet),
-            };
-            // 7.74: the text convergence's order; `LILSCRIPT_CONVERGE_ORDER=frequency`
-            // keeps the earlier most-referenced-first order for the A/B.
-            let order = if std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() == Ok("frequency") {
-                RenameOrder::Frequency
-            } else if shapes.converge_text {
-                RenameOrder::ConvergeText
-            } else {
-                RenameOrder::Converge
-            };
-            let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, order);
-            crate::timing::RENAME_REPRINTS.event(renamed as u64);
+            }
+            Some(counts)
+        } else {
+            None
+        };
+        let renamer = Renamer {
+            tree: scopes,
+            table: &tree.table,
+            alphabet: dominant.as_ref().unwrap_or(&options.identifier_alphabet),
+            text_counts,
+        };
+        // 7.74: the text convergence's order; `LILSCRIPT_CONVERGE_ORDER=frequency`
+        // keeps the earlier most-referenced-first order for the A/B.
+        let order = if std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() == Ok("frequency") {
+            RenameOrder::Frequency
+        } else if shapes.converge_text {
+            RenameOrder::ConvergeText
+        } else {
+            RenameOrder::Converge
+        };
+        let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, order);
+        crate::timing::RENAME_REPRINTS.event(renamed as u64);
+    }
+}
+
+thread_local! {
+    /// 7.97: the finish's site cursor -- which candidate of a per-site step
+    /// this reshape takes, and how many it met. Set and read around one
+    /// synchronous `reshape_under` on the calling thread; every other
+    /// reshape admits every site and counts none.
+    static FINISH_SITE: std::cell::Cell<(Option<usize>, usize)> = const { std::cell::Cell::new((None, 0)) };
+}
+
+/// Whether a per-site rule takes the candidate it is at.
+fn site_admit() -> bool {
+    FINISH_SITE.with(|cell| {
+        let (want, seen) = cell.get();
+        match want {
+            None => true,
+            Some(index) => {
+                cell.set((want, seen + 1));
+                seen == index
+            }
         }
-        tree.reprint(options)
+    })
+}
+
+/// An expression rule made per-site: its rewrites are candidates the cursor
+/// admits one at a time when set.
+fn per_site(rule: fn(&JsExpression) -> Option<JsExpression>) -> impl FnMut(&JsExpression) -> Option<JsExpression> {
+    move |node| {
+        let made = rule(node)?;
+        site_admit().then_some(made)
     }
 }
 
@@ -27830,6 +27959,10 @@ pub(crate) struct TreeShapes {
     pub(crate) converge: bool,
     /// 7.96: the convergence under the text rule (`RenameOrder::ConvergeText`).
     pub(crate) converge_text: bool,
+    /// 7.97: the return tails as the text ladder's three rules, one each.
+    pub(crate) return_tails_plain: bool,
+    pub(crate) return_tails_suffix: bool,
+    pub(crate) return_branches: bool,
 }
 
 impl TreeShapes {
@@ -27857,6 +27990,22 @@ impl TreeShapes {
             rebrace: true,
             ..Self::default()
         }
+    }
+
+    /// 7.97: the tree finish's steps -- the text ladder's remaining passes
+    /// as shapes, one rule each -- for `LILSCRIPT_TREE_FINISH`.
+    pub(crate) fn finishing() -> Vec<(&'static str, fn(&mut Self))> {
+        vec![
+            ("negated_equalities", |shapes| shapes.negated_equalities = true),
+            ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
+            ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
+            ("return_tails_plain", |shapes| shapes.return_tails_plain = true),
+            ("return_tails_suffix", |shapes| shapes.return_tails_suffix = true),
+            ("return_branches", |shapes| shapes.return_branches = true),
+            ("guard_tails", |shapes| shapes.guard_tails = true),
+            ("exit_guards", |shapes| shapes.exit_guards = true),
+            ("rebrace", |shapes| shapes.rebrace = true),
+        ]
     }
 
     pub(crate) fn ladder() -> Vec<(&'static str, fn(&mut Self))> {
@@ -28151,10 +28300,10 @@ impl ModuleTree {
                     hoist_for_initializers_in_block(block);
                 }
                 if shapes.negated_equalities {
-                    rewrite_block_expressions(block, &mut negate_equalities);
+                    rewrite_block_expressions(block, &mut per_site(negate_equalities));
                 }
                 if shapes.same_binding_equality {
-                    rewrite_block_expressions(block, &mut loosen_same_binding_equality);
+                    rewrite_block_expressions(block, &mut per_site(loosen_same_binding_equality));
                 }
                 if shapes.or_assigns {
                     for_each_function_body(block, &mut |_, body| join_guarded_assignments(body));
@@ -28178,7 +28327,7 @@ impl ModuleTree {
                     folding.boolean_arms = true;
                     folding.boolean_one_arm = true;
                     folding.install();
-                    rewrite_block_expressions(block, &mut fold_one_arm_conditional);
+                    rewrite_block_expressions(block, &mut per_site(fold_one_arm_conditional));
                     previous.install();
                 }
                 // The module block ends the module; a closure body its
@@ -28198,6 +28347,18 @@ impl ModuleTree {
                         context,
                     );
                     fuse_return_tails(block);
+                }
+                if shapes.return_tails_plain {
+                    for_each_function_body(block, &mut |_, body| fuse_return_tails_mode(body, ReturnTailMode::Plain));
+                    fuse_return_tails_mode(block, ReturnTailMode::Plain);
+                }
+                if shapes.return_tails_suffix {
+                    for_each_function_body(block, &mut |_, body| fuse_return_tails_mode(body, ReturnTailMode::Suffix));
+                    fuse_return_tails_mode(block, ReturnTailMode::Suffix);
+                }
+                if shapes.return_branches {
+                    for_each_function_body(block, &mut |_, body| fuse_return_tails_mode(body, ReturnTailMode::Branches));
+                    fuse_return_tails_mode(block, ReturnTailMode::Branches);
                 }
                 if shapes.expression_bodies {
                     concise_expression_bodies(block);
@@ -28649,7 +28810,25 @@ fn statements_return_value(statements: &[EmittedStatement]) -> Option<JsExpressi
 /// when the condition is falsy, and both spellings evaluate the same
 /// expressions in the same order (`fold_conditional_return_tails`,
 /// `fold_guard_return_expression_suffixes`, `fold_expression_return_branches`).
+/// Which return tails a fuse takes (7.97): the text ladder's two passes and
+/// the chain's fold are three rules, each its own codec-verified step.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReturnTailMode {
+    /// Every form at once (the beam's `return_tails` rung).
+    All,
+    /// `if(C)return A;return B` → `C?A:B` (`fold_conditional_return_tails`).
+    Plain,
+    /// `if(C)return A;E;return B` → `C?A:(E,B)` (`fold_guard_return_expression_suffixes`).
+    Suffix,
+    /// `if(C){E;return A}return B` → `C?(E,A):B` (`fold_expression_return_branches`).
+    Branches,
+}
+
 fn fused_return_tail(tail: &[EmittedStatement]) -> Option<JsExpression> {
+    fused_return_tail_mode(tail, ReturnTailMode::All)
+}
+
+fn fused_return_tail_mode(tail: &[EmittedStatement], mode: ReturnTailMode) -> Option<JsExpression> {
     let (guard, rest) = tail.split_first()?;
     let trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
     let JsStatement::If {
@@ -28667,6 +28846,23 @@ fn fused_return_tail(tail: &[EmittedStatement]) -> Option<JsExpression> {
         }
         return None;
     };
+    // The mode's shape: a then arm that is one return (`Plain`, `Suffix`) or
+    // expressions then a return (`Branches`); an else side that is one return
+    // (`Plain`, `Branches`) or expressions then a return (`Suffix`).
+    let then_single = then_branch.block.statements.len() == 1;
+    let else_single = match else_branch {
+        Some(else_branch) => else_branch.block.statements.len() == 1,
+        None => rest.len() == 1,
+    };
+    let shape_ok = match mode {
+        ReturnTailMode::All => true,
+        ReturnTailMode::Plain => then_single && else_single,
+        ReturnTailMode::Suffix => then_single && !else_single,
+        ReturnTailMode::Branches => !then_single && else_single,
+    };
+    if !shape_ok {
+        return None;
+    }
     let Some(then_value) = statements_return_value(&then_branch.block.statements) else {
         if trace && then_branch.block.statements.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
             eprintln!("[shape] return tail refused: then-branch `{}` is not expressions then a return", then_branch.block.clone().into_string().chars().take(80).collect::<String>());
@@ -28698,15 +28894,22 @@ fn fused_return_tail(tail: &[EmittedStatement]) -> Option<JsExpression> {
 /// `fused_return_tail` over a block and its children, the children first
 /// and the last guard first: a fused tail is the tail of the guard before it.
 fn fuse_return_tails(block: &mut JsBlock) {
+    fuse_return_tails_mode(block, ReturnTailMode::All);
+}
+
+fn fuse_return_tails_mode(block: &mut JsBlock, mode: ReturnTailMode) {
     for emitted in block.statements.iter_mut() {
-        for_each_child_block(&mut emitted.statement, &mut fuse_return_tails);
+        for_each_child_block(&mut emitted.statement, &mut |child: &mut JsBlock| fuse_return_tails_mode(child, mode));
     }
     let mut index = block.statements.len();
     while index > 0 {
         index -= 1;
-        let Some(fused) = fused_return_tail(&block.statements[index..]) else {
+        let Some(fused) = fused_return_tail_mode(&block.statements[index..], mode) else {
             continue;
         };
+        if !site_admit() {
+            continue;
+        }
         let last = block.statements.last().expect("a tail has a last statement");
         let options = last.options;
         let dropped_semicolon = last.dropped_semicolon;
@@ -32752,12 +32955,32 @@ fn identifiers_in(text: &str, into: &mut AHashSet<String>) {
 struct ScopeCollector<'a> {
     tree: ScopeTree,
     closures: &'a RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    /// 7.97: count and order as the text convergence sees the print -- a
+    /// statement-level `a=a+b` is one token `a+=b`, and a `var` statement's
+    /// bare declarators come first (`render_var_reordered`).
+    text_counts: bool,
 }
 
 impl ScopeCollector<'_> {
     fn module(
         closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
         out: &JsBlock,
+    ) -> ScopeTree {
+        Self::module_counting(closures, out, false)
+    }
+
+    /// The scopes with the text convergence's counts and order (7.97).
+    fn module_text(
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+        out: &JsBlock,
+    ) -> ScopeTree {
+        Self::module_counting(closures, out, true)
+    }
+
+    fn module_counting(
+        closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+        out: &JsBlock,
+        text_counts: bool,
     ) -> ScopeTree {
         let mut collector = ScopeCollector {
             tree: ScopeTree {
@@ -32766,6 +32989,7 @@ impl ScopeCollector<'_> {
                 function_names: AHashSet::default(),
             },
             closures,
+            text_counts,
         };
         collector.block(0, out);
         collector.tree.index_declarations();
@@ -32852,7 +33076,16 @@ impl ScopeCollector<'_> {
                 }
                 self.expression(scope, value);
             }
-            JsStatement::Declarators { declarators, .. } => {
+            JsStatement::Declarators { keyword, declarators } => {
+                // 7.97: the text sees a `var` statement's bare declarators
+                // first (`render_var_reordered`).
+                let reordered;
+                let declarators: &Vec<JsDeclarator> = if self.text_counts && *keyword == "var " && declarators.len() > 1 {
+                    reordered = bare_declarators_first(declarators.clone());
+                    &reordered
+                } else {
+                    declarators
+                };
                 for declarator in declarators {
                     match declarator.bind {
                         Some(bind) => self.tree.declare(scope, bind),
@@ -32879,7 +33112,7 @@ impl ScopeCollector<'_> {
             }
             JsStatement::Return { value: Some(value) }
             | JsStatement::Throw { value }
-            | JsStatement::Expression { value } => self.expression(scope, value),
+            | JsStatement::Expression { value } => self.statement_value(scope, value),
             JsStatement::If {
                 condition,
                 condition_tree,
@@ -33061,6 +33294,36 @@ impl ScopeCollector<'_> {
         }
     }
 
+    /// A statement's value: under `text_counts` a compound self-assignment
+    /// `a=a OP b` -- spelled `a OP=b` at statement level -- reads its name
+    /// once, in each element of a comma-joined statement too.
+    fn statement_value(&mut self, scope: usize, value: &JsExpression) {
+        if !self.text_counts {
+            self.expression(scope, value);
+            return;
+        }
+        if value.root == JsExpressionRoot::Comma {
+            for element in &value.operands {
+                self.statement_value(scope, element);
+            }
+            return;
+        }
+        if value.root == JsExpressionRoot::Assign {
+            if let [target, assigned] = value.operands.as_slice() {
+                if let (JsExpressionRoot::Name(bind), JsExpressionRoot::Binary(op)) = (target.root, assigned.root) {
+                    if let [read, rhs] = assigned.operands.as_slice() {
+                        if read.root == JsExpressionRoot::Name(bind) && compound_assignment_operator(op).is_some() {
+                            self.tree.scopes[scope].referenced.push(bind);
+                            self.expression(scope, rhs);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        self.expression(scope, value);
+    }
+
     fn expression(&mut self, scope: usize, expression: &JsExpression) {
         match expression.root {
             JsExpressionRoot::Name(bind) => self.tree.scopes[scope].referenced.push(bind),
@@ -33114,6 +33377,9 @@ struct Renamer<'a> {
     tree: ScopeTree,
     table: &'a BindTable,
     alphabet: &'a IdentifierAlphabet,
+    /// 7.97: the text convergence's counts -- every token of a bind in the
+    /// print, and its first position -- for the text rule's order.
+    text_counts: Option<AHashMap<Bind, (usize, usize)>>,
 }
 
 /// The order a scope's renameable bindings take their names in.
@@ -33160,6 +33426,9 @@ impl Renamer<'_> {
             for bind in &scope.referenced {
                 *counts.entry(*bind).or_insert(0) += 1;
             }
+        }
+        if let Some(text_counts) = &self.text_counts {
+            counts = text_counts.iter().map(|(bind, (uses, _))| (*bind, *uses)).collect();
         }
         let mut scopes_full = 0;
         let mut binds_total = 0;
@@ -33300,16 +33569,34 @@ impl Renamer<'_> {
                     // secondary rank (bind order was the emission's) -- under
                     // the port only, with the per-bind blocks.
                     if text_rule {
+                        // 7.97: ties by declaration order, as the text's
+                        // resolution sees it (the walk's order).
+                        let position = |bind: &Bind| match &self.text_counts {
+                            Some(text_counts) => text_counts.get(bind).map_or(usize::MAX, |(_, first)| *first),
+                            None => declared.iter().position(|declared| declared == bind).unwrap_or(usize::MAX),
+                        };
                         rest.sort_by(|left, right| {
                             counts
                                 .get(right)
                                 .copied()
                                 .unwrap_or(0)
                                 .cmp(&counts.get(left).copied().unwrap_or(0))
-                                .then_with(|| left.cmp(right))
+                                .then_with(|| position(left).cmp(&position(right)))
                         });
                     } else {
                         rest.sort();
+                    }
+                    if text_rule && std::env::var_os("LILSCRIPT_CONVERGE_TRACE").is_some() {
+                        let describe = |bind: &Bind| {
+                            let (uses, first) = self.text_counts.as_ref().and_then(|counts| counts.get(bind).copied()).unwrap_or((counts.get(bind).copied().unwrap_or(0), usize::MAX));
+                            format!("{}:{uses}@{first}", self.table.spelling(*bind))
+                        };
+                        eprintln!(
+                            "[converge-tree] scope {scope} heads [{}] rest [{}] forbidden {}",
+                            heads.iter().map(describe).collect::<Vec<_>>().join(" "),
+                            rest.iter().map(describe).collect::<Vec<_>>().join(" "),
+                            forbidden.len()
+                        );
                     }
                     heads.extend(rest);
                     renameable = heads;

@@ -9224,43 +9224,86 @@ fn offer_print_beam(
             .cloned()
         {
             let mut current = (shapes, text, cost);
-            let rungs = TreeShapes::ladder();
-            let finishing = ["return_tails", "guard_tails", "exit_guards", "rebrace", "negated_equalities", "same_binding_equality", "boolean_one_arm"];
-            'finishing: for name in finishing {
-                let Some((_, add)) = rungs.iter().find(|(rung, _)| *rung == name) else {
-                    continue;
-                };
-                let mut trial = current.0;
-                add(&mut trial);
-                if trial == current.0 {
-                    continue;
-                }
-                let printed = tree.frozen.reprint_reshaped(&tree.options, tree.rename, trial);
-                if printed == current.1 || !valid(&printed) {
-                    continue;
-                }
-                let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
-                    break 'finishing;
-                };
-                report.scored += 1;
-                if trace {
-                    eprintln!("[shape] tree finish {name}: {} -> {printed_cost}", current.2);
-                }
-                if printed_cost < current.2 {
-                    current = (trial, printed, printed_cost);
+            // 7.97: the shaped tree kept between probes; the per-site steps
+            // take one candidate at a time, as the text passes do, keeping
+            // the tree when the codec says so and moving on otherwise.
+            let (mut base, _) = tree.frozen.thaw_reshaped(&tree.options, tree.rename, shapes, None);
+            const PER_SITE: [&str; 6] = [
+                "negated_equalities",
+                "same_binding_equality",
+                "boolean_one_arm",
+                "return_tails_plain",
+                "return_tails_suffix",
+                "return_branches",
+            ];
+            'finishing: for (name, add) in TreeShapes::finishing() {
+                let mut step = TreeShapes::default();
+                add(&mut step);
+                let per_site = PER_SITE.contains(&name);
+                let mut site = 0usize;
+                loop {
+                    let (candidate, printed, seen) = base.shaped_print(&tree.options, step, per_site.then_some(site));
+                    if per_site && seen <= site {
+                        break;
+                    }
+                    if printed == current.1 || !valid(&printed) {
+                        if !per_site {
+                            break;
+                        }
+                        site += 1;
+                        continue;
+                    }
+                    let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                        break 'finishing;
+                    };
+                    report.scored += 1;
+                    if trace {
+                        eprintln!("[shape] tree finish {name}{}: {} -> {printed_cost}", if per_site { format!(" site {site}") } else { String::new() }, current.2);
+                    }
+                    if let Some(prefix) = &dump_prefix {
+                        let _ = std::fs::write(format!("{prefix}.finish.{name}.{site}.{printed_cost}.js"), &printed);
+                    }
+                    if printed_cost < current.2 {
+                        current = (shapes, printed, printed_cost);
+                        base = candidate;
+                        // A kept site is gone from the enumeration; the
+                        // next candidate has its index.
+                    } else {
+                        site += 1;
+                    }
+                    if !per_site {
+                        break;
+                    }
                 }
             }
-            let mut converged = current.0;
+            if let Some(prefix) = &dump_prefix {
+                let _ = std::fs::write(format!("{prefix}.finish.base.{}.js", current.2), &current.1);
+            }
+            let mut converged = TreeShapes::default();
             converged.converge = true;
             converged.converge_text = true;
-            let printed = tree.frozen.reprint_reshaped(&tree.options, tree.rename, converged);
+            let (_, printed, _) = base.shaped_print(&tree.options, converged, None);
             if printed != current.1 && valid(&printed) {
                 if let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? {
                     report.scored += 1;
                     if trace {
                         eprintln!("[shape] tree finish converge: {} -> {printed_cost}", current.2);
                     }
-                    current = (converged, printed, printed_cost);
+                    if let Some(prefix) = &dump_prefix {
+                        let _ = std::fs::write(format!("{prefix}.finish.converge.{printed_cost}.js"), &printed);
+                        // The text convergence over the tree's, for the diff
+                        // of what the tree's rule still leaves to it.
+                        if let Ok((text, renamed)) = crate::js_peephole::converge_local_names(&printed) {
+                            let _ = std::fs::write(format!("{prefix}.finish.textconv.{renamed}.js"), &text);
+                            if let Ok(chained) = optimize_generated_javascript_assuming(&text, tree.options.assume_pristine_builtins) {
+                                let _ = std::fs::write(format!("{prefix}.finish.textconv.chain.js"), &chained.code);
+                            }
+                        }
+                        if let Ok(chained) = optimize_generated_javascript_assuming(&printed, tree.options.assume_pristine_builtins) {
+                            let _ = std::fs::write(format!("{prefix}.finish.converge.chain.js"), &chained.code);
+                        }
+                    }
+                    current = (shapes, printed, printed_cost);
                 }
             }
             if !members.iter().any(|member| member.1 == current.1) {
@@ -9435,6 +9478,19 @@ fn late_javascript_cleanup_finalists(
         printed: false,
     };
     let mut beam = vec![original.clone()];
+    // `LILSCRIPT_CLEANUP_TRACE=1`: the beam after each stage, each member
+    // as `cost` and its lineage (`p` a print, `t` the emission's text).
+    let cleanup_trace = std::env::var_os("LILSCRIPT_CLEANUP_TRACE").is_some();
+    let stage = |label: &str, beam: &[CleanupCandidate]| {
+        if cleanup_trace {
+            let members = beam
+                .iter()
+                .map(|member| format!("{}{}", member.cost, if member.printed { "p" } else { "t" }))
+                .collect::<Vec<_>>()
+                .join(" ");
+            eprintln!("[cleanup] {label}: {members}");
+        }
+    };
     // Migration 7.56: the print beam first, on the finalist's own tree,
     // before any text pass has moved the text away from it.
     let mut print_report = None;
@@ -9467,6 +9523,7 @@ fn late_javascript_cleanup_finalists(
         )?;
         print_report = Some(report);
     }
+    stage("after print beam", &beam);
     // A terminal finalist need not have been among the bounded plans admitted
     // to parsed preparation. Re-open the canonical peephole on the finalist
     // itself before narrower cleanup families spend its fair slice. This is
@@ -9543,6 +9600,7 @@ fn late_javascript_cleanup_finalists(
     // spelling can beat several shorter ones -- but it costs raw bytes and the
     // trade only pays on some artifacts (measured: Monaco -343 Brotli, otlp
     // -28, jQuery +43). Score it and keep it only where it wins.
+    stage("before convergence", &beam);
     // Migration 7.56: `LILSCRIPT_TEXT_CONVERGE=0` leaves this to the print
     // ladder's `converge` rung (the tree's renamer), for the fleet A/B that
     // retires it.
@@ -9780,6 +9838,7 @@ fn late_javascript_cleanup_finalists(
         }
     }
     'cleanup_rounds: for _ in 0..ROUNDS {
+        stage("before ladder", &beam);
         for pass in LateJavaScriptCleanupPass::ladder().iter().copied() {
             // Skipping a rewrite is a first-class branch. In particular, a
             // raw-byte reduction is not assumed to help either dictionary
@@ -9839,6 +9898,7 @@ fn late_javascript_cleanup_finalists(
     // spelling can beat several shorter ones -- but it costs raw bytes and the
     // trade only pays on some artifacts (measured: Monaco -343 Brotli, otlp
     // -28, jQuery +43). Score it and keep it only where it wins.
+    stage("before convergence", &beam);
     // Migration 7.56: `LILSCRIPT_TEXT_CONVERGE=0` leaves this to the print
     // ladder's `converge` rung (the tree's renamer), for the fleet A/B that
     // retires it.
@@ -10076,6 +10136,7 @@ fn late_javascript_cleanup_finalists(
         }
     }
     'cleanup_rounds: for _ in 0..ROUNDS {
+        stage("before ladder", &beam);
         for pass in LateJavaScriptCleanupPass::ladder().iter().copied() {
             // Skipping a rewrite is a first-class branch. In particular, a
             // raw-byte reduction is not assumed to help either dictionary
@@ -10285,6 +10346,7 @@ fn late_javascript_cleanup_finalists(
     // parenless `catch{..}finally{..}` into the return after it; the tree's
     // return tails cover the shape), so the terminal local pass list is empty.
     const TERMINAL_LOCAL_PASSES: [LateJavaScriptCleanupPass; 0] = [];
+    stage("before local rounds", &beam);
     for round in 0..terminal_local_rounds {
         let previous_codes = beam
             .iter()
