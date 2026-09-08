@@ -91,6 +91,21 @@ struct Args {
 }
 
 fn main() {
+    // Debug: `LILSCRIPT_PARSE_JS=<file>` runs the generated-JavaScript
+    // parser on a file and reports what it makes of it.
+    if let Ok(path) = std::env::var("LILSCRIPT_PARSE_JS") {
+        let source = std::fs::read_to_string(&path).expect("readable file");
+        match lilscript::js_peephole::generated_javascript_export_names(&source) {
+            Ok(names) => println!("exports ok: {} names", names.len()),
+            Err(error) => println!("exports: {error:?}"),
+        }
+        match lilscript::js_peephole::analyze_generated_javascript(&source) {
+            Ok(_) => println!("analyze ok"),
+            Err(error) => println!("analyze: {error:?}"),
+        }
+        std::process::exit(0);
+    }
+
     let started = std::time::Instant::now();
     if let Err(error) = run() {
         eprintln!("{error}");

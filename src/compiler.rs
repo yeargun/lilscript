@@ -9637,6 +9637,12 @@ fn late_javascript_cleanup_finalists(
                 if std::env::var_os("LILSCRIPT_TIMING").is_some() {
                     eprintln!("late-cleanup canonical peephole refused: {refusal:?}");
                 }
+                // Debug: `LILSCRIPT_REFUSED_DUMP=<prefix>` keeps the refused text and
+                // the original it came from.
+                if let Ok(prefix) = std::env::var("LILSCRIPT_REFUSED_DUMP") {
+                    let _ = std::fs::write(format!("{prefix}.refused.js"), &code);
+                    let _ = std::fs::write(format!("{prefix}.original.js"), &original.code);
+                }
             } else if let Some(cost) =
                 codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
             {
