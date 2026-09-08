@@ -32982,14 +32982,6 @@ fn inline_single_use_declarator_functions(
         }
     }
     for (index, position, bind, name, head, body) in candidates {
-        // 8.1: a read inside a concise node body is no target (the text form
-        // of those bodies hid the read; the print keeps stale code there).
-        if read_inside_concise_body(module, entries, bind) {
-            if trace {
-                eprintln!("[shape] declarator function {name}: its read is inside a concise body");
-            }
-            continue;
-        }
         // 8.1: the body from the live tree, not the discovery-time clone --
         // an earlier move may have landed inside it (concise nodes showed
         // it: `a` moved into `b`, `b` moved as its stale clone, and the
@@ -33151,21 +33143,20 @@ fn inline_single_use_declarator_functions(
                 .unwrap_or(0),
         );
         let replacement = JsExpression::closure(id, code, JsPrecedence::Comma);
-        // 8.1: a read inside a concise node body is no target -- the moved
-        // closure's node keeps its stale code where the print's map has no
-        // entry for it, and the read stays while the declarator goes (the
-        // text form hid these reads; concise nodes show them).
-        if let Some(entry) = in_entry {
-            if matches!(entries.get(&entry), Some((_, JsFunctionBody::ConciseNode(_)))) {
-                if trace {
-                    eprintln!("[shape] declarator function {name}: its read is inside a concise body");
-                }
-                continue;
-            }
-        }
         let replaced = match in_entry {
             Some(entry) => match entries.get_mut(&entry) {
                 Some((_, JsFunctionBody::Block(block))) => replace_bind_reads_deep(block, bind, &replacement),
+                Some((_, JsFunctionBody::ConciseNode(node))) => {
+                    match rewrite_expression(node, &mut |candidate| {
+                        (candidate.root == JsExpressionRoot::Name(bind)).then(|| replacement.clone())
+                    }) {
+                        Some((rewritten, count)) => {
+                            *node = rewritten;
+                            count
+                        }
+                        None => 0,
+                    }
+                }
                 _ => 0,
             },
             None => replace_bind_reads_deep(module, bind, &replacement),
