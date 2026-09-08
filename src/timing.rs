@@ -432,7 +432,15 @@ pub fn report(wall_nanos: u128) -> Option<String> {
     if !enabled() {
         return None;
     }
-    let mut out = format!(r#"{{"wall_ms":{:.1}"#, wall_nanos as f64 / 1.0e6);
+    // 8.3g: the LILSCRIPT_* switches this compile ran under, so a worker
+    // log proves its configuration (a fleet A/B whose switch never reached
+    // the pool read as its own baseline).
+    let mut switches = std::env::vars()
+        .filter(|(name, _)| name.starts_with("LILSCRIPT_") && !matches!(name.as_str(), "LILSCRIPT_ROOT" | "LILSCRIPT_COMPILER" | "LILSCRIPT_TIMING"))
+        .map(|(name, value)| format!("{name}={value}"))
+        .collect::<Vec<_>>();
+    switches.sort();
+    let mut out = format!(r#"{{"wall_ms":{:.1},"switches":{:?}"#, wall_nanos as f64 / 1.0e6, switches);
     for bucket in BYTE_BUCKETS {
         let (nanos, calls, bytes) = bucket.snapshot();
         out.push_str(&format!(
