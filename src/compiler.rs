@@ -5399,6 +5399,17 @@ fn terminal_scope_naming_options(
 /// Migration 8.0: the text convergence is off -- the tree's convergence at
 /// the end of the print's finishing has its counts and its rule (7.97);
 /// `LILSCRIPT_TEXT_CONVERGE=1` or `LILSCRIPT_TEXT_STAGES=1` puts it back.
+/// 8.3g: which text cleanup families run (`LILSCRIPT_CLEANUP_FAMILIES`, a
+/// comma list of `absorb`, `declarations`, `regexp`, `inline`, `bodies`;
+/// unset runs them all, `none` runs none), for the fleet A/B that prices
+/// each before its tree port.
+fn cleanup_family_enabled(name: &str) -> bool {
+    match std::env::var("LILSCRIPT_CLEANUP_FAMILIES") {
+        Ok(list) => list.split(',').any(|item| item.trim() == name),
+        Err(_) => true,
+    }
+}
+
 fn text_convergence_enabled() -> bool {
     // 8.3f: on. The text convergence on the carried print reads −910 on
     // ten pool ports against the tree's convergence alone (remark −567 to
@@ -9397,6 +9408,13 @@ fn offer_print_beam(
                 for (_, add) in TreeShapes::finishing() {
                     add(&mut bundle);
                 }
+                // 8.3g: the bundle converged before it is measured -- the
+                // text's local rounds fold and then converge, and the
+                // folds move the counts the names rank by.
+                if std::env::var("LILSCRIPT_TREE_BUNDLE_CONVERGE").as_deref() != Ok("0") {
+                    bundle.converge = true;
+                    bundle.converge_text = true;
+                }
                 let (candidate, printed, _) = base.shaped_print(&tree.options, current.0, bundle, None);
                 if printed != current.1 && valid(&printed) {
                     if let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? {
@@ -10252,6 +10270,12 @@ fn late_javascript_cleanup_finalists(
             (moved > 0).then_some(inlined)
         }),
     ];
+    const FAMILY_NAMES: [&str; 4] = ["absorb", "declarations", "regexp", "inline"];
+    let families = families
+        .into_iter()
+        .zip(FAMILY_NAMES)
+        .map(|((on, shape), name)| (on && cleanup_family_enabled(name), shape))
+        .collect::<Vec<_>>();
     let mut enabled = families.iter().filter(|(on, _)| *on).count();
     for (on, shape) in families {
         if !on {
@@ -10282,6 +10306,9 @@ fn late_javascript_cleanup_finalists(
             let mut folded = candidate.code.clone();
             let mut moved = 0usize;
             for _ in 0..4 {
+                if !cleanup_family_enabled("bodies") {
+                    break;
+                }
                 let Ok((next, count)) = fold_expression_bodies(&folded) else {
                     break;
                 };
@@ -10551,6 +10578,11 @@ fn late_javascript_cleanup_finalists(
             (moved > 0).then_some(inlined)
         }),
     ];
+    let families = families
+        .into_iter()
+        .zip(FAMILY_NAMES)
+        .map(|((on, shape), name)| (on && cleanup_family_enabled(name), shape))
+        .collect::<Vec<_>>();
     let mut enabled = families.iter().filter(|(on, _)| *on).count();
     for (on, shape) in families {
         if !on {
@@ -10581,6 +10613,9 @@ fn late_javascript_cleanup_finalists(
             let mut folded = candidate.code.clone();
             let mut moved = 0usize;
             for _ in 0..4 {
+                if !cleanup_family_enabled("bodies") {
+                    break;
+                }
                 let Ok((next, count)) = fold_expression_bodies(&folded) else {
                     break;
                 };
