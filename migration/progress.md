@@ -23,7 +23,7 @@ Updated 2026-09-05, branch `migration/target-tree`, 111 commits ahead of `main` 
 | 5 naming post-layout | **mechanism done; deletions deferred** | binds, spelling table, respell, scope tree, sound renamer, census; idiom g1 as a per-port pin (−1,168 net on six ports); default byte-identical |
 | 6 fold groups | **4 printer-side retirements landed** (6.1–6.4) | each: solo residue 0, Brotli same-or-better on ports, behaviour/twin/tests/pool green |
 | 7 candidate derivation | **evidence only** | L11 vs L13; emission-count profile; scoring-order pathology named — **next**, see 012 |
-| 8 retire the text layer | **in progress** (7.89–8.2): the end state is the default and sound. Against the sound reference (the base commit's dist, 254,726): **b184 255,867 (+1,141) at 418 s against 660**. Open: the +1,141 (remark +802, mobx +317, micromark +264, katex +219, posthog +178); the mover's moves lost to text mentions; naming. |
+| 8 retire the text layer | **in progress** (7.89–8.3): the end state is the default and sound. Against the sound reference (the base commit's dist, 254,726): **b215 253,877 (−849) at 474 s against 660** (8.3f), the first fleet below the base; b184 was +1,141 at 418 s. Still text: the convergence on the carried print (on, worth ~−900), the four cleanup families and the expression bodies (being priced, 8.3g), the remaps (no-op) and the repair pass. The tree's known deficits: closures it prints as text (method adapters, cluster helper heads) whose names the tree's convergence must keep; the per-site finish scored at quality 5 (8.3), most sites losing on the large ports. Measurement laws since 8.3: the canonical probe is a lottery (±40 on a 140 KB print), the pool is deterministic, `workers.mjs` forwards `LILSCRIPT_*` only from its environment, the timing line names the switches. |
 
 **The gate** (owner, 2026-09-04): behaviour never relaxes; Brotli and compile time must be same-or-better
 when the migration is *finished*, not at every step. Byte identity is evidence, never a requirement.
@@ -385,17 +385,7 @@ another's tree (5.3); the receiver parameter's bind leaked into `Name(bind,"this
    the artifact on unifiedlil, markedlil, posthoglil, remark-gfm, remarklil and jquerylil; it
    ties on katexlil, loses by 30–240 on micromarklil and mobxlil, and rehypelil's level-12
    config runs no beam. −1,229 against the baseline; the pool's wall is a debt (+35% before
-   the pool's own drift, 7.88). What is left, in order: (a) the wall: jquerylil's probes and the
-   ports where the print never wins yet pay the beam; (b) the text passes retire only when the
-   print is the artifact everywhere (7.88's deletions: ConditionalReturnTails +986 alone);
-   (c) the raw holders -- the clustered roots (`cluster_tree` +81 when on, 7.85), the emitter's
-   statement-or runs, `new T(..)` -- each an ownership step with the naming lottery to
-   measure; (d) the naming on the tree: the converge rung costs +150–200 on markedlil, and a
-   fresh bind (7.87's formals) lands on a two-letter name because the renamer forbids every
-   nested function's locals; (e) parked behind `LILSCRIPT_PORTS`: `first_use`, `unary_plus`,
-   `common_arms`, `assignment_guards`, `loop_head_collapse`, `formals`, `null_tests`,
-   `static_calls`, `concise_node`, `cluster_tree`, `minmax_call`, `negated_equalities`,
-   `boolean_one_arm` -- each measured at the noise floor or below it on the fleet.
+   the pool's own drift, 7.88). What is left, in order (8.3): (a) the closures the tree prints as text -- the `(0,function(..){..})` method adapters and the cluster helpers' heads -- as tree closures with bound parameters, so the tree's convergence can do what the text's does (remark −567, micromark −343: the text stage stays on until then); (b) the four text cleanup families and the expression bodies, each priced on the fleet by `LILSCRIPT_CLEANUP_FAMILIES` (b218 chain), then ported or retired; (c) the per-site finish: its steps lose almost everywhere on the large ports at quality 5 and the whole-step candidates too -- the text's local rounds fold and re-converge together and win; a tree bundle scored after a convergence read +135 on remark, so the tree's folds are not the text's yet (the return sequence prints `{return E,x}` where the text prints `return E,x`, braces being a separate step); (d) the naming: an IR global first stored inside a function is a bindless `let` there, kept by the collector as opaque (8.3e; the respell hook fires nowhere); (e) posthog's level-15 `always` search lands in another basin (+128, a plan choice, not a fold).
 2. **Phase 6 under that regime**: the residue on the cases with the shapes off (7.41):
    `fold_prior_assign_into_for_init` 128, `fold_identity_arrow_iife` 108,
    `fold_negated_conditional_arms` 90 and `merge_adjacent_declarations` 72 (all four now carried
