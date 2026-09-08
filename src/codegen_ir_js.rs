@@ -1170,6 +1170,10 @@ struct JsRenderOptions {
     compact_boolean_literals: bool,
     /// The quote character of string literals (a leaf spelling too).
     string_quote: StringQuote,
+    /// 7.99: an object member whose key is marked (`ungrouped` "method")
+    /// and whose value is an arrow block is spelled as a method
+    /// (`struct_method_shorthand`).
+    method_shorthand: bool,
 }
 
 impl JsRenderOptions {
@@ -1179,6 +1183,7 @@ impl JsRenderOptions {
         elide_call_chain_parentheses: false,
         compact_boolean_literals: false,
         string_quote: StringQuote::Double,
+        method_shorthand: false,
     };
 }
 
@@ -1839,7 +1844,15 @@ fn render(
                     index += 1;
                 } else {
                     let value = operands.get(index + 1)?;
-                    rendered.push_str(&operands[index].code);
+                    let key = &operands[index];
+                    if options.method_shorthand && key.ungrouped.as_deref() == Some("method") {
+                        if let Some(method) = object_method_shorthand(&key.code, value) {
+                            rendered.push_str(&method);
+                            index += 2;
+                            continue;
+                        }
+                    }
+                    rendered.push_str(&key.code);
                     rendered.push(':');
                     rendered.push_str(&value.clone().at_least(JsPrecedence::Assignment));
                     index += 2;
@@ -5811,9 +5824,21 @@ impl JsExpression {
 
     /// `{k:v,..}` from key atoms and values (a `Spread` operand alone).
     fn object(operands: Vec<Self>) -> Self {
-        let code = render(JsExpressionRoot::Object, &operands, JsRenderOptions::UNUSED)
-            .expect("render covers Object");
+        Self::object_rendered(operands, JsRenderOptions::UNUSED)
+    }
+
+    /// 7.99: `object` spelled under `options` (the method shorthand).
+    fn object_rendered(operands: Vec<Self>, options: JsRenderOptions) -> Self {
+        let code = render(JsExpressionRoot::Object, &operands, options).expect("render covers Object");
         Self::grouped(code, JsPrecedence::Primary, JsExpressionRoot::Object).with_operands(operands)
+    }
+
+    /// 7.99: an object key that may be spelled as a method head with its
+    /// arrow-block value (`struct_method_shorthand`).
+    fn method_key(code: impl Into<String>) -> Self {
+        let mut key = Self::atom(code);
+        key.ungrouped = Some(String::from("method"));
+        key
     }
 
     fn spread(operand: Self) -> Self {
@@ -6775,6 +6800,9 @@ struct IrJsEmitter<'module, 'src> {
     js_adapter_fallbacks: AHashSet<JsCallingConvention>,
     js_adapter_factory_names: AHashMap<JsCallingConvention, String>,
     loop_captured_closures: AHashSet<FunctionId>,
+    /// 7.99: the outer binds of the captures the next `render_closure`
+    /// takes (`LILSCRIPT_PORTS=capture_binds`), set by the closure site.
+    pending_capture_binds: Vec<Option<Bind>>,
     callee_default_functions: AHashSet<FunctionId>,
     inline_single_use_functions: AHashSet<FunctionId>,
     inline_exclusive_closures: AHashSet<FunctionId>,
@@ -6960,6 +6988,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 elide_call_chain_parentheses: options.elide_call_chain_parentheses,
                 compact_boolean_literals: options.compact_boolean_literals,
                 string_quote: options.string_quote,
+                method_shorthand: options.struct_method_shorthand,
             });
         }
         let bind_table = BindTable::default();
@@ -7011,6 +7040,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             js_adapter_fallbacks: AHashSet::default(),
             js_adapter_factory_names: AHashMap::default(),
             loop_captured_closures: AHashSet::default(),
+            pending_capture_binds: Vec::new(),
             callee_default_functions: AHashSet::default(),
             inline_single_use_functions: AHashSet::default(),
             inline_exclusive_closures: AHashSet::default(),
@@ -13167,6 +13197,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .map(|capture| take_value(capture, context, cache).map(strip_outer_parens))
             .collect::<Result<Vec<_>, _>>()?;
         let rendered = self.render_named_recursive_closure(function, &captures)?;
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            eprintln!("[shape] closure path: recursive iife ({} bytes)", rendered.len());
+        }
         Ok(JsExpression::raw(
             format!("({rendered})"),
             JsPrecedence::Primary,
@@ -13199,6 +13232,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else {
             self.wrap_cluster_iife(&helpers, rendered.into_string())?
         };
+        if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+            eprintln!("[shape] closure path: single-use function expression ({} bytes, {} helpers)", rendered.len(), helpers.len());
+        }
         Ok(JsExpression::raw(rendered, JsPrecedence::Call))
     }
 
@@ -14827,24 +14863,39 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &mut rendered,
             )?;
         }
-        let mut literal = String::from("{");
-        for (index, (key, value)) in pairs.iter().enumerate() {
-            if index != 0 {
-                literal.push(',');
+        let literal = if port_is_enabled("struct_node") {
+            // 7.99: the batched literal as an object node (its members'
+            // closures are the tree's).
+            let mut operands = Vec::with_capacity(pairs.len() * 2);
+            for (key, value) in &pairs {
+                operands.push(JsExpression::atom(object_literal_key(
+                    self.property_name(key),
+                    self.options.string_quote,
+                )));
+                operands.push(take_value(*value, context, cache)?);
             }
-            push_object_literal_key(
-                &mut literal,
-                self.property_name(key),
-                self.options.string_quote,
-            );
-            literal.push(':');
-            literal.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
-        }
-        literal.push('}');
+            JsExpression::object(operands)
+        } else {
+            let mut literal = String::from("{");
+            for (index, (key, value)) in pairs.iter().enumerate() {
+                if index != 0 {
+                    literal.push(',');
+                }
+                push_object_literal_key(
+                    &mut literal,
+                    self.property_name(key),
+                    self.options.string_quote,
+                );
+                literal.push(':');
+                literal.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
+            }
+            literal.push('}');
+            JsExpression::atom(literal)
+        };
         emit_bound_value(
             context,
             object,
-            JsExpression::atom(literal),
+            literal,
             predeclared,
             cache,
             &mut rendered,
@@ -18749,6 +18800,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .ok_or_else(|| {
                         CodegenError::new(instruction.span, "missing boundary struct layout")
                     })?;
+                if port_is_enabled("struct_node") {
+                    // 7.99: the literal as an object node -- its members'
+                    // closures are the tree's (micromarklil's tokenizer
+                    // tables held 220 functions as literal text, out of
+                    // the renamer's reach).
+                    let mut operands = Vec::with_capacity(layout.fields.len() * 2);
+                    for (field, value) in layout.fields.iter().zip(fields) {
+                        let property = self.owned_property_name(name, field.index, field.name);
+                        let value = take_value(*value, context, cache)?;
+                        let key = self.named_literal_key_text(property);
+                        if property != "__proto__" && self.options.struct_method_shorthand {
+                            operands.push(JsExpression::method_key(key));
+                        } else {
+                            operands.push(JsExpression::atom(key));
+                        }
+                        operands.push(value);
+                    }
+                    return Ok(JsExpression::object_rendered(operands, printer_options(&self.options).0));
+                }
                 let mut rendered = String::from("{");
                 for (index, (field, value)) in layout.fields.iter().zip(fields).enumerate() {
                     if index != 0 {
@@ -19119,21 +19189,33 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     return Ok(JsExpression::array(elements));
                 };
-                let mut rendered = String::from("{");
-                for (index, item) in values.iter().enumerate() {
-                    if index != 0 {
-                        rendered.push(',');
+                if port_is_enabled("struct_node") && values.len() <= layout.fields.len() {
+                    let mut operands = Vec::with_capacity(values.len() * 2);
+                    for (index, item) in values.iter().enumerate() {
+                        let field = &layout.fields[index];
+                        operands.push(JsExpression::atom(
+                            self.named_literal_key_text(self.owned_property_name(name, field.index, field.name)),
+                        ));
+                        operands.push(value(*item, cache)?);
                     }
-                    if let Some(field) = layout.fields.get(index) {
-                        self.push_named_literal_key_text(
-                            &mut rendered,
-                            self.owned_property_name(name, field.index, field.name),
-                        );
+                    JsExpression::object(operands)
+                } else {
+                    let mut rendered = String::from("{");
+                    for (index, item) in values.iter().enumerate() {
+                        if index != 0 {
+                            rendered.push(',');
+                        }
+                        if let Some(field) = layout.fields.get(index) {
+                            self.push_named_literal_key_text(
+                                &mut rendered,
+                                self.owned_property_name(name, field.index, field.name),
+                            );
+                        }
+                        rendered.push_str(&strip_outer_parens(value(*item, cache)?));
                     }
-                    rendered.push_str(&strip_outer_parens(value(*item, cache)?));
+                    rendered.push('}');
+                    JsExpression::atom(rendered)
                 }
-                rendered.push('}');
-                JsExpression::atom(rendered)
             }
             ControlFlowOp::NewClass {
                 class,
@@ -19194,11 +19276,29 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     if wrapper_parameters.is_empty() {
                         return Ok(self.closure_node(rendered, JsPrecedence::Assignment));
                     }
+                    if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                        eprintln!("[shape] closure path: snapshot wrapper ({} params, {} bytes)", wrapper_parameters.len(), rendered.len());
+                    }
                     return Ok(JsExpression::atom(format!(
                         "(({})=>{rendered})({})",
                         wrapper_parameters.join(","),
                         wrapper_arguments.join(",")
                     )));
+                }
+                if port_is_enabled("capture_binds") {
+                    // The outer bind of each capture spelled by its own name
+                    // (an inlined expression carries none).
+                    self.pending_capture_binds = capture_values
+                        .iter()
+                        .zip(&captures)
+                        .map(|(value, text)| {
+                            context
+                                .value_binds
+                                .get(value)
+                                .filter(|_| context.value_names.get(value) == Some(text))
+                                .copied()
+                        })
+                        .collect();
                 }
                 let rendered = self.render_closure(*function, &captures)?;
                 let precedence = if rendered.contains("=>") {
@@ -19325,10 +19425,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     // JavaScript NamedEvaluation context. A sequence is not,
                     // and it returns the exact same ordinary function object,
                     // preserving name="", length, prototype, and identity.
-                    JsExpression::atom(format!(
-                        "(0,{})",
-                        callback.at_least(JsPrecedence::Assignment)
-                    ))
+                    if port_is_enabled("struct_node") {
+                        // A comma node whose parens no strip takes (a comma
+                        // is no declarator initializer bare), the callback
+                        // an operand the tree sees.
+                        let mut adapter = JsExpression::comma_unmerged(vec![JsExpression::atom("0"), callback]);
+                        adapter.ungrouped = None;
+                        adapter
+                    } else {
+                        JsExpression::atom(format!(
+                            "(0,{})",
+                            callback.at_least(JsPrecedence::Assignment)
+                        ))
+                    }
                 } else {
                     callback
                 }
@@ -19892,6 +20001,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     self.function(self.module.entry)?.span,
                     "plain-object literal requires key/value argument pairs",
                 ));
+            }
+            if port_is_enabled("struct_node") {
+                let mut operands = Vec::with_capacity(args.len());
+                for pair in args.chunks_exact(2) {
+                    let source_key = context.string_constants.get(&pair[0]).ok_or_else(|| {
+                        CodegenError::new(
+                            self.function(self.module.entry).unwrap().span,
+                            "plain-object literal key is not a constant string",
+                        )
+                    })?;
+                    operands.push(JsExpression::atom(object_literal_key(
+                        self.property_name(source_key),
+                        self.options.string_quote,
+                    )));
+                    operands.push(take_value(pair[1], context, cache)?);
+                }
+                return Ok(JsExpression::object(operands));
             }
             let mut rendered = String::from("{");
             for (index, pair) in args.chunks_exact(2).enumerate() {
@@ -21216,6 +21342,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         captures: &[String],
         named_recursive: bool,
     ) -> Result<String, CodegenError> {
+        // 7.99: the captures' outer binds, from the closure site; taken
+        // here so a nested closure's site sets its own.
+        let capture_binds = std::mem::take(&mut self.pending_capture_binds);
         let function = function.clone();
         let calling_convention = self.js_calling_conventions.get(&function.id).copied();
         if !self.function_is_inlined(&function) {
@@ -21376,15 +21505,41 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
         }
-        for (param, capture) in function.params.iter().zip(captures) {
+        for (index, (param, capture)) in function.params.iter().zip(captures).enumerate() {
+            // 7.99: the capture keeps its outer bind when the site gave one,
+            // so the closure's references are the outer binding's, not text
+            // (micromarklil: 21,000 captured references as atoms kept every
+            // outer local's spelling out of the renamer's reach).
+            let outer = capture_binds.get(index).copied().flatten();
             context.value_names.insert(param.value, capture.clone());
-            context.value_binds.remove(&param.value);
+            match outer {
+                Some(bind) => {
+                    context.value_binds.insert(param.value, bind);
+                }
+                None => {
+                    context.value_binds.remove(&param.value);
+                }
+            }
             if function.mutable_capture_locals.contains(&param.local) {
                 context.local_names.insert(param.local, capture.clone());
-                context.local_binds.remove(&param.local);
+                match outer {
+                    Some(bind) => {
+                        context.local_binds.insert(param.local, bind);
+                    }
+                    None => {
+                        context.local_binds.remove(&param.local);
+                    }
+                }
                 for value in capture_cell_writeback_values(&function, param.local) {
                     context.value_names.insert(value, capture.clone());
-                    context.value_binds.remove(&value);
+                    match outer {
+                        Some(bind) => {
+                            context.value_binds.insert(value, bind);
+                        }
+                        None => {
+                            context.value_binds.remove(&value);
+                        }
+                    }
                 }
             }
         }
@@ -21762,6 +21917,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             "false" | "!1" => JsExpression::boolean(false, self.options.compact_boolean_literals),
             "\"\"" => JsExpression::string_literal(&self.literal_table, "", self.options.string_quote),
             other => JsExpression::atom(other),
+        }
+    }
+
+    /// The key text of a named literal member, without its colon.
+    fn named_literal_key_text(&self, property: &str) -> String {
+        if property == "__proto__" {
+            format!("[{}]", render_property_key_literal(property, self.options.string_quote))
+        } else {
+            property.to_string()
         }
     }
 
@@ -27579,6 +27743,7 @@ fn printer_options(options: &IrJsOptions) -> (JsRenderOptions, JsStatementOption
             elide_call_chain_parentheses: options.elide_call_chain_parentheses,
             compact_boolean_literals: options.compact_boolean_literals,
             string_quote: options.string_quote,
+            method_shorthand: options.struct_method_shorthand,
         },
         JsStatementOptions {
             elide_block_terminal_semicolons: options.elide_block_terminal_semicolons,
@@ -28046,9 +28211,18 @@ impl TreeShapes {
         // print finished by the text convergence at the end (−97 on ten
         // ports without it); `LILSCRIPT_PORTS=converge_rung` puts it back.
         let converge_rung = port_is_enabled("converge_rung");
+        // 7.99: the lean beam -- five rungs read zero or better when removed
+        // one at a time on ten ports (b118: `or_assigns` 0, `function_let`
+        // 0, `guard_tails` 0, `exit_guards` 0, `negated_equalities` −16) and
+        // −56 with −8 s removed together (b122); they stay as finishing
+        // steps, and `LILSCRIPT_PORTS=full_beam` or the filter naming them
+        // puts them back.
+        const LEAN_OUT: [&str; 5] = ["negated_equalities", "or_assigns", "function_let", "guard_tails", "exit_guards"];
+        let full_beam = port_is_enabled("full_beam") || filter.is_some();
         rungs
             .into_iter()
             .filter(|(name, _)| converge_rung || *name != "converge")
+            .filter(|(name, _)| full_beam || !LEAN_OUT.contains(name))
             .filter(|(name, _)| {
                 filter
                     .as_ref()
@@ -33069,6 +33243,9 @@ impl ScopeCollector<'_> {
     }
 
     fn opaque(&mut self, scope: usize, text: &str, kind: OpaqueKind) {
+        if std::env::var_os("LILSCRIPT_CONVERGE_TRACE").is_some() && (text.contains("function") || text.contains("=>")) {
+            eprintln!("[converge-opaque] scope {scope} kind {kind:?} len {} `{}`", text.len(), text.chars().take(70).collect::<String>().replace('\n', " "));
+        }
         let mut found = AHashSet::default();
         identifiers_in(text, &mut found);
         for identifier in found {
@@ -33413,6 +33590,9 @@ impl ScopeCollector<'_> {
             JsExpressionRoot::Atom => {
                 let code = expression.code.as_str();
                 if is_js_property_identifier(code) && !is_js_reserved(code) {
+                    if std::env::var_os("LILSCRIPT_CONVERGE_TRACE").is_some() {
+                        eprintln!("[converge-free] scope {scope} `{code}` in `{}`", &expression.code[..expression.code.len().min(60)]);
+                    }
                     self.tree.scopes[scope].free.insert(code.to_string());
                 } else if !is_js_property_identifier(code) {
                     // A literal spelled with letters (a regex, a template)
@@ -33589,6 +33769,9 @@ impl Renamer<'_> {
                 let kinds = mentioned.get(&spelling).copied().unwrap_or(0);
                 if kinds & (1 << 15) != 0 {
                     crate::timing::RENAME_KEPT_FREE.event(1);
+                }
+                if converging && std::env::var_os("LILSCRIPT_CONVERGE_TRACE").is_some() {
+                    eprintln!("[converge-kept] scope {scope} `{spelling}` kinds {kinds:#x}");
                 }
                 for kind in OpaqueKind::ALL {
                     if kinds & kind.bit() != 0 {
@@ -34170,6 +34353,8 @@ impl JsDeclarator {
             );
         }
         match self.value {
+            // 7.99: a comma keeps its parens -- it is no initializer bare.
+            Some(value) if value.root == JsExpressionRoot::Comma => format!("{}={}", self.name, value.code),
             Some(value) => format!("{}={}", self.name, strip_outer_parens(value)),
             None => self.name,
         }
@@ -41100,6 +41285,11 @@ trait IntoMinimalExpression {
 
 impl IntoMinimalExpression for JsExpression {
     fn into_minimal_expression(self) -> String {
+        // 7.99: a comma keeps its parens -- bare, it is no initializer,
+        // argument or member value.
+        if self.root == JsExpressionRoot::Comma && self.code.starts_with('(') {
+            return self.code;
+        }
         self.into_minimal()
     }
 }

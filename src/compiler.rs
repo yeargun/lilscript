@@ -9240,12 +9240,55 @@ fn offer_print_beam(
                 "or_assigns",
                 "unary_plus",
             ];
+            // 7.99: the convergence first -- on micromarklil the text
+            // convergence is worth 1,100 of the text lineage's 1,700 and
+            // the site probes exhausted the allowance before the tree's
+            // ran -- then the steps, then the convergence again at the end
+            // if anything moved and the allowance allows.
+            let mut converge = |base: &mut crate::codegen_ir_js::ModuleTree, current: &mut (TreeShapes, String, usize), codec_budget: &mut TerminalCodecProbeBudget, report: &mut PrintBeamReport| -> Result<bool, CompileError> {
+                let mut converged = TreeShapes::default();
+                converged.converge = true;
+                converged.converge_text = true;
+                let (candidate, printed, _) = base.shaped_print(&tree.options, converged, None);
+                if printed == current.1 || !valid(&printed) {
+                    return Ok(false);
+                }
+                let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                    return Ok(false);
+                };
+                report.scored += 1;
+                if trace {
+                    eprintln!("[shape] tree finish converge: {} -> {printed_cost}", current.2);
+                }
+                if let Some(prefix) = &dump_prefix {
+                    let _ = std::fs::write(format!("{prefix}.finish.converge.{printed_cost}.js"), &printed);
+                    if let Ok((text, renamed)) = crate::js_peephole::converge_local_names(&printed) {
+                        let _ = std::fs::write(format!("{prefix}.finish.textconv.{renamed}.js"), &text);
+                        if let Ok(chained) = optimize_generated_javascript_assuming(&text, tree.options.assume_pristine_builtins) {
+                            let _ = std::fs::write(format!("{prefix}.finish.textconv.chain.js"), &chained.code);
+                        }
+                    }
+                    if let Ok(chained) = optimize_generated_javascript_assuming(&printed, tree.options.assume_pristine_builtins) {
+                        let _ = std::fs::write(format!("{prefix}.finish.converge.chain.js"), &chained.code);
+                    }
+                }
+                // The convergence is kept whatever the codec says: the
+                // beam's members compete after it (7.96).
+                *current = (current.0, printed, printed_cost);
+                *base = candidate;
+                Ok(true)
+            };
+            converge(&mut base, &mut current, codec_budget, report)?;
+            let converged_cost = current.2;
             'finishing: for (name, add) in TreeShapes::finishing() {
                 let mut step = TreeShapes::default();
                 add(&mut step);
                 let per_site = PER_SITE.contains(&name);
                 let mut site = 0usize;
                 loop {
+                    if codec_budget.remaining() < 2 {
+                        break 'finishing;
+                    }
                     let (candidate, printed, seen) = base.shaped_print(&tree.options, step, per_site.then_some(site));
                     if per_site && seen <= site {
                         break;
@@ -9283,32 +9326,8 @@ fn offer_print_beam(
             if let Some(prefix) = &dump_prefix {
                 let _ = std::fs::write(format!("{prefix}.finish.base.{}.js", current.2), &current.1);
             }
-            let mut converged = TreeShapes::default();
-            converged.converge = true;
-            converged.converge_text = true;
-            let (_, printed, _) = base.shaped_print(&tree.options, converged, None);
-            if printed != current.1 && valid(&printed) {
-                if let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? {
-                    report.scored += 1;
-                    if trace {
-                        eprintln!("[shape] tree finish converge: {} -> {printed_cost}", current.2);
-                    }
-                    if let Some(prefix) = &dump_prefix {
-                        let _ = std::fs::write(format!("{prefix}.finish.converge.{printed_cost}.js"), &printed);
-                        // The text convergence over the tree's, for the diff
-                        // of what the tree's rule still leaves to it.
-                        if let Ok((text, renamed)) = crate::js_peephole::converge_local_names(&printed) {
-                            let _ = std::fs::write(format!("{prefix}.finish.textconv.{renamed}.js"), &text);
-                            if let Ok(chained) = optimize_generated_javascript_assuming(&text, tree.options.assume_pristine_builtins) {
-                                let _ = std::fs::write(format!("{prefix}.finish.textconv.chain.js"), &chained.code);
-                            }
-                        }
-                        if let Ok(chained) = optimize_generated_javascript_assuming(&printed, tree.options.assume_pristine_builtins) {
-                            let _ = std::fs::write(format!("{prefix}.finish.converge.chain.js"), &chained.code);
-                        }
-                    }
-                    current = (shapes, printed, printed_cost);
-                }
+            if current.2 != converged_cost {
+                converge(&mut base, &mut current, codec_budget, report)?;
             }
             if !members.iter().any(|member| member.1 == current.1) {
                 members.push(current);
