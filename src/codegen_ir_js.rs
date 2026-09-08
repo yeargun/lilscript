@@ -32922,17 +32922,11 @@ fn inline_single_use_declarator_functions(
                 }
             }
             if let Some((bind, spelled)) = name {
-                // 8.1: the one read must be in a statement's own tree,
-                // outside every function -- inside another declarator's
-                // function the moved closure's node keeps stale code and the
-                // declarator goes while the read stays (concise nodes show
-                // reads the text form hid).
                 if plain
                     && census.reads.get(&bind).copied() == Some(1)
                     && census.writes.get(&bind).copied() == Some(1)
                     && !census.is_unsafe(Some(bind), &spelled)
                     && !block_has_closure(body)
-                    && read_site_outside_functions(module, bind, false).is_some()
                 {
                     candidates.push((index, usize::MAX, bind, spelled, expression_head, JsFunctionBody::Block(body.clone())));
                 }
@@ -32947,7 +32941,6 @@ fn inline_single_use_declarator_functions(
                 if census.reads.get(&bind).copied() != Some(1)
                     || census.writes.get(&bind).copied() != Some(1)
                     || census.is_unsafe(Some(bind), &declarator.name)
-                    || read_site_outside_functions(module, bind, false).is_none()
                 {
                     continue;
                 }
@@ -32965,6 +32958,22 @@ fn inline_single_use_declarator_functions(
         }
     }
     for (index, position, bind, name, head, body) in candidates {
+        // 8.1: the body from the live tree, not the discovery-time clone --
+        // an earlier move may have landed inside it (concise nodes showed
+        // it: `a` moved into `b`, `b` moved as its stale clone, and the
+        // print kept `a`'s read with `a` gone).
+        let body = match &module.statements[index].statement {
+            JsStatement::Function { body: live, .. } if position == usize::MAX => live.clone(),
+            JsStatement::Declarators { declarators, .. } => match declarators
+                .iter()
+                .find(|declarator| declarator.bind == Some(bind))
+                .and_then(|declarator| declarator.function.as_ref())
+            {
+                Some(function) => function.1.clone(),
+                None => body,
+            },
+            _ => body,
+        };
         let code = JsStatement::render_function_value(
             head.clone(),
             body.clone(),
