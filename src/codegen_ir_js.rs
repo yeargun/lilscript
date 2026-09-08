@@ -13893,7 +13893,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // bodies and the naming family lands on another plan
                 // (remark-gfm +77, jquerylil −18, mobx −15; +82 on ten ports).
                 // `LILSCRIPT_PORTS=concise_node` turns it on.
-                Some(node) if port_is_enabled("concise_node") => JsFunctionBody::ConciseNode(node),
+                // 8.1: under `raw_nodes` too, re-measured with the tree
+                // pipeline (1,772 text bodies on jquerylil, opaque to the
+                // renamer).
+                Some(node) if port_is_enabled("concise_node") || port_is_enabled("raw_nodes") => JsFunctionBody::ConciseNode(node),
                 _ => JsFunctionBody::Concise(expression),
             }
         } else if public_int_params.is_empty() {
@@ -21989,7 +21992,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 ));
             }
             let body = match concise_arrow_body(&body) {
-                Some(expression) => JsFunctionBody::Concise(expression),
+                Some(expression) => match concise_arrow_node(&body) {
+                    Some(node) if port_is_enabled("raw_nodes") => JsFunctionBody::ConciseNode(node),
+                    _ => JsFunctionBody::Concise(expression),
+                },
                 None => JsFunctionBody::Block(body),
             };
             return Ok(self.render_closure_statement(arrow_head(&parameters), body));
