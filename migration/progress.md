@@ -23,7 +23,7 @@ Updated 2026-09-05, branch `migration/target-tree`, 111 commits ahead of `main` 
 | 5 naming post-layout | **mechanism done; deletions deferred** | binds, spelling table, respell, scope tree, sound renamer, census; idiom g1 as a per-port pin (−1,168 net on six ports); default byte-identical |
 | 6 fold groups | **4 printer-side retirements landed** (6.1–6.4) | each: solo residue 0, Brotli same-or-better on ports, behaviour/twin/tests/pool green |
 | 7 candidate derivation | **evidence only** | L11 vs L13; emission-count profile; scoring-order pathology named — **next**, see 012 |
-| 8 retire the text layer | **in progress** (7.89–7.93): seven of the ladder's thirteen passes retired; the text finalist's finishing off where a print is carried (byte-identical, 7.93); what remains is the print's own text finishing (six passes, the remaps, the convergence at +6,909) | each pass measured off on the ten pool ports, then removed as a build |
+| 8 retire the text layer | **in progress** (7.89–8.0): the end state is the default at −344 on ten pool ports, 467 s against 532 (b148/b149, 8.0): the text ladder empty, the text convergence off, the seven ports on, the tree finish on; still on text in the cleanup: the re-opened chain, the remaps, the local rounds. |
 
 **The gate** (owner, 2026-09-04): behaviour never relaxes; Brotli and compile time must be same-or-better
 when the migration is *finished*, not at every step. Byte identity is evidence, never a requirement.
