@@ -4031,6 +4031,27 @@ fn expression_is_void(node: &JsExpression) -> bool {
 /// instead: a literal always; a name never written again (its one write is
 /// its definition, so nothing `next` evaluates can change it); otherwise
 /// only when the read is the first thing `next` evaluates.
+/// 8.13: whether the expression reads through a member or an index, which
+/// no per-bind census tracks.
+fn expression_reads_memory(node: &JsExpression) -> bool {
+    matches!(node.root, JsExpressionRoot::Member | JsExpressionRoot::Index | JsExpressionRoot::Raw)
+        || node.operands.iter().any(expression_reads_memory)
+}
+
+/// 8.13: whether the expression could write a member or an index, or call
+/// out to something that might.
+fn expression_writes_memory_or_calls(node: &JsExpression) -> bool {
+    let here = match node.root {
+        JsExpressionRoot::Call | JsExpressionRoot::New | JsExpressionRoot::Raw | JsExpressionRoot::Closure(_) => true,
+        JsExpressionRoot::Assign | JsExpressionRoot::Update(_) | JsExpressionRoot::PrefixUpdate(_) => node
+            .operands
+            .first()
+            .is_some_and(|target| matches!(target.root, JsExpressionRoot::Member | JsExpressionRoot::Index)),
+        _ => false,
+    };
+    here || node.operands.iter().any(expression_writes_memory_or_calls)
+}
+
 fn collapse_is_safe(bind: Bind, value: &JsExpression, next: &JsExpression, census: &BindCensus) -> bool {
     if expression_is_pure_literal(value) {
         return true;
@@ -4596,19 +4617,21 @@ fn collapse_block(
         // in a nested block of it (7.87: a loop head's first-evaluated tree
         // counts as the statement's own expression).
         let mut reads_here = BindCensus::default();
-        if let Some(expression) = collapse_target(next) {
+        if let Some(expression) = collapse_target(&block.statements[index + 1].statement) {
             reads_here.expression(expression, closures);
         }
         if reads_here.reads.get(&bind).copied() != Some(1) {
             index += 1;
             continue;
         }
+        let target = index + 1;
+        let next = &block.statements[target].statement;
         let safe = collapse_target(next).is_some_and(|expression| collapse_is_safe(bind, &value, expression, census));
         if !safe {
             index += 1;
             continue;
         }
-        let Some(expression) = collapse_target_mut(&mut block.statements[index + 1].statement) else {
+        let Some(expression) = collapse_target_mut(&mut block.statements[target].statement) else {
             index += 1;
             continue;
         };
@@ -4626,7 +4649,7 @@ fn collapse_block(
             );
         }
         *expression = substituted;
-        match &mut block.statements[index + 1].statement {
+        match &mut block.statements[target].statement {
             JsStatement::If {
                 condition,
                 condition_tree: Some(tree),
@@ -15822,12 +15845,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     ) -> Result<(), CodegenError> {
         self.emit_nested_once_run_helpers(function.id, out)?;
         self.emit_calling_convention_aliases(function, &context, out)?;
-        let declared = context.non_parameter_names(function);
+        let declared = context.non_parameter_declarations(function);
         if !declared.is_empty() {
             out.push_statement(JsStatement::DeclarationGroup {
                 keyword: "let ",
-                binds: declared.iter().map(|name| context.bind_by_name(name)).collect(),
-                names: declared.iter().map(|name| (*name).to_string()).collect(),
+                binds: declared.iter().map(|(name, bind)| bind.or_else(|| context.bind_by_name(name))).collect(),
+                names: declared.iter().map(|(name, _)| (*name).to_string()).collect(),
             });
         }
         // The up-front list is a declaration like any other, so record it.
@@ -15841,7 +15864,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // wrote to an identifier bound in no scope.
         let declared_names = declared
             .iter()
-            .map(|name| (*name).to_string())
+            .map(|(name, _)| (*name).to_string())
             .collect::<Vec<_>>();
         {
             let mut names = context.declared_names.borrow_mut();
@@ -16105,12 +16128,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.emit_nested_once_run_helpers(function.id, out)?;
             self.emit_calling_convention_aliases(function, &context, out)?;
         }
-        let declared = context.non_parameter_names(function);
+        let declared = context.non_parameter_declarations(function);
         if !context.inline_declarations && !declared.is_empty() {
             out.push_statement(JsStatement::DeclarationGroup {
                 keyword: "let ",
-                binds: declared.iter().map(|name| context.bind_by_name(name)).collect(),
-                names: declared.iter().map(|name| (*name).to_string()).collect(),
+                binds: declared.iter().map(|(name, bind)| bind.or_else(|| context.bind_by_name(name))).collect(),
+                names: declared.iter().map(|(name, _)| (*name).to_string()).collect(),
             });
         }
         let uses = &context.use_counts;
@@ -27305,6 +27328,66 @@ impl LocalNames {
             )
             .filter(|name| !parameter_names.contains(*name))
             .filter(|name| seen.insert((*name).to_string()))
+            .collect()
+    }
+
+    /// 8.13: the same list, each name paired with the bind of the value or
+    /// local it names. The pre-declaration group used to resolve its binds
+    /// by name (`bind_by_name`), and where that lookup failed the whole
+    /// binding went out unbound -- after the absorption merged the later
+    /// assignment into it, the declarator carried no bind, and with no bind
+    /// the census must treat the spelling as unsafe, which put every state
+    /// closure out of reach of the tree's passes (8.12). The identity is
+    /// right here in the walk; taking it from the value is the fix.
+    fn non_parameter_declarations(&self, function: &ControlFlowFunction<'_>) -> Vec<(&str, Option<Bind>)> {
+        let parameter_names = function
+            .params
+            .iter()
+            .filter_map(|parameter| self.value_names.get(&parameter.value))
+            .cloned()
+            .collect::<AHashSet<_>>();
+        let mut values = function
+            .blocks
+            .iter()
+            .flat_map(|block| {
+                block.phis.iter().map(|phi| phi.out).chain(
+                    block
+                        .instructions
+                        .iter()
+                        .filter_map(|instruction| instruction.out),
+                )
+            })
+            .filter(|value| !self.parameter_values.contains(value))
+            .filter(|value| self.stored_values.contains(value))
+            .collect::<Vec<_>>();
+        values.sort_by_key(|value| value.0);
+        values.dedup();
+        let mut locals = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .filter_map(|instruction| match instruction.op {
+                ControlFlowOp::StoreLocal { local, .. } | ControlFlowOp::LoadLocal(local) => Some(local),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        locals.sort_by_key(|local| local.0);
+        locals.dedup();
+        let mut seen = AHashSet::default();
+        values
+            .into_iter()
+            .filter_map(|value| {
+                self.value_names
+                    .get(&value)
+                    .map(|name| (name.as_str(), self.value_bind(value)))
+            })
+            .chain(locals.into_iter().filter_map(|local| {
+                self.local_names
+                    .get(&local)
+                    .map(|name| (name.as_str(), self.local_bind(local)))
+            }))
+            .filter(|(name, _)| !parameter_names.contains(*name))
+            .filter(|(name, _)| seen.insert((*name).to_string()))
             .collect()
     }
 }
