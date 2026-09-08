@@ -4076,17 +4076,7 @@ fn collapse_declarator_list(
         };
         let mut reads_here = BindCensus::default();
         reads_here.expression(next_value, closures);
-        // 8.1: the one read must be in the declarator's own tree, not inside
-        // a closure body the map holds -- the substitution reaches the tree
-        // only, and a concise node body (a read the text form hid) had its
-        // declarator dropped and its reference kept.
-        let mut direct = BindCensus::default();
-        let no_closures = RefCell::new(AHashMap::default());
-        direct.expression(next_value, &no_closures);
-        if reads_here.reads.get(&bind).copied() != Some(1)
-            || direct.reads.get(&bind).copied() != Some(1)
-            || !collapse_is_safe(bind, &value, next_value, census)
-        {
+        if reads_here.reads.get(&bind).copied() != Some(1) || !collapse_is_safe(bind, &value, next_value, census) {
             index += 1;
             continue;
         }
@@ -4585,15 +4575,10 @@ fn collapse_block(
         // in a nested block of it (7.87: a loop head's first-evaluated tree
         // counts as the statement's own expression).
         let mut reads_here = BindCensus::default();
-        let mut direct = BindCensus::default();
-        let no_closures = RefCell::new(AHashMap::default());
         if let Some(expression) = collapse_target(next) {
             reads_here.expression(expression, closures);
-            direct.expression(expression, &no_closures);
         }
-        // 8.1: the one read in the statement's own tree, not inside a
-        // closure body (the substitution reaches the tree only).
-        if reads_here.reads.get(&bind).copied() != Some(1) || direct.reads.get(&bind).copied() != Some(1) {
+        if reads_here.reads.get(&bind).copied() != Some(1) {
             index += 1;
             continue;
         }
@@ -32872,6 +32857,45 @@ fn replace_bind_reads_deep(block: &mut JsBlock, bind: Bind, replacement: &JsExpr
 /// The read may sit inside another function when no spelling the closure
 /// mentions is declared by a frame on the way (a capture), no loop encloses
 /// the read (a closure per iteration), and an arrow mentions no `this`.
+/// 8.1: whether `bind` is read inside any concise node body -- a declarator's
+/// function in `block` (recursively) or an entry of the map.
+fn read_inside_concise_body(block: &JsBlock, entries: &AHashMap<ClosureId, (JsHead, JsFunctionBody)>, bind: Bind) -> bool {
+    fn in_block(block: &JsBlock, bind: Bind) -> bool {
+        for emitted in &block.statements {
+            if let JsStatement::Declarators { declarators, .. } = &emitted.statement {
+                for declarator in declarators {
+                    if let Some(function) = &declarator.function {
+                        match &function.1 {
+                            JsFunctionBody::ConciseNode(node) if bind_reads(node, bind) > 0 => return true,
+                            JsFunctionBody::Block(inner) if in_block(inner, bind) => return true,
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            let mut found = false;
+            let mut probe = emitted.statement.clone();
+            for_each_child_block(&mut probe, &mut |child: &mut JsBlock| {
+                if !found && in_block(child, bind) {
+                    found = true;
+                }
+            });
+            if found {
+                return true;
+            }
+        }
+        false
+    }
+    if in_block(block, bind) {
+        return true;
+    }
+    entries.values().any(|(_, body)| match body {
+        JsFunctionBody::ConciseNode(node) => bind_reads(node, bind) > 0,
+        JsFunctionBody::Block(inner) => in_block(inner, bind),
+        JsFunctionBody::Concise(_) => false,
+    })
+}
+
 fn inline_single_use_declarator_functions(
     module: &mut JsBlock,
     entries: &mut AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
@@ -32958,6 +32982,14 @@ fn inline_single_use_declarator_functions(
         }
     }
     for (index, position, bind, name, head, body) in candidates {
+        // 8.1: a read inside a concise node body is no target (the text form
+        // of those bodies hid the read; the print keeps stale code there).
+        if read_inside_concise_body(module, entries, bind) {
+            if trace {
+                eprintln!("[shape] declarator function {name}: its read is inside a concise body");
+            }
+            continue;
+        }
         // 8.1: the body from the live tree, not the discovery-time clone --
         // an earlier move may have landed inside it (concise nodes showed
         // it: `a` moved into `b`, `b` moved as its stale clone, and the
