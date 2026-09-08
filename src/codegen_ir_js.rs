@@ -33249,10 +33249,20 @@ fn identifiers_in(text: &str, into: &mut AHashSet<String>) {
         for token in &tokens {
             if matches!(token.kind, crate::js_peephole::JsTokenKind::Identifier | crate::js_peephole::JsTokenKind::Keyword) {
                 into.insert(token.text.to_string());
+            } else if token.kind == crate::js_peephole::JsTokenKind::Template {
+                // 7.99: a template token swallows its `${..}` substitutions;
+                // the names inside are mentions too (probelil: a captured
+                // `seed` renamed away from its `${seed}`).
+                identifier_bytes_in(token.text, into);
             }
         }
         return;
     }
+    identifier_bytes_in(text, into);
+}
+
+/// Every identifier-shaped run of bytes in `text`.
+fn identifier_bytes_in(text: &str, into: &mut AHashSet<String>) {
     let bytes = text.as_bytes();
     let mut start = None;
     for (index, byte) in bytes.iter().enumerate() {
