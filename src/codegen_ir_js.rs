@@ -1364,7 +1364,7 @@ fn port_is_skipped(name: &str) -> bool {
 /// `LILSCRIPT_PORTS=for_init,…` turns on a port that ships off: one the
 /// fleet measured as a loss in the emitter's hands while the text fold it
 /// replaces still runs (the owner's rule: a default flips on a measured win).
-fn port_is_enabled(name: &str) -> bool {
+pub(crate) fn port_is_enabled(name: &str) -> bool {
     static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     NAMES
         .get_or_init(|| env_name_list("LILSCRIPT_PORTS"))

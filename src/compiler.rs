@@ -6845,33 +6845,65 @@ fn finalize_javascript_candidates_with_parallelism(
             // markedlil) is emitted for its tree when the ledger holds the
             // beam's allowance; the one-slot ledgers, which count emissions,
             // hold less and take the cache only.
-            let emit_for_tree = contexts.plans_registered() > 1;
+            // 7.99: a finalist whose context registered one plan has no cached
+            // tree and none was emitted for it (katexlil: no print beam at
+            // all, its whole end-state gap); `LILSCRIPT_PORTS=single_plan_tree`
+            // emits one.
+            let emit_for_tree = contexts.plans_registered() > 1 || crate::codegen_ir_js::port_is_enabled("single_plan_tree");
             let first_beam_for_context = contexts
                 .beamed_contexts
                 .lock()
                 .map(|mut beamed| beamed.insert(selected.plan_identity.context_id))
                 .unwrap_or(false);
+            let shape_trace = std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some();
+            // 7.99: the print beam probes on its own allowance
+            // (`print_beam_allowance`); `LILSCRIPT_PORTS=beam_any_budget` lets
+            // it run when the terminal budget is spent (rehypelil at level
+            // 12: no beam at all, +773 in the end state).
             let tree = if config.terminal_shape_challengers_enabled()
-                && codec_budget.remaining() > 0
+                && (codec_budget.remaining() > 0 || crate::codegen_ir_js::port_is_enabled("beam_any_budget"))
                 && first_beam_for_context
             {
-                contexts
-                    .registered_plan_by_identity(selected.plan_identity)
+                let registered = contexts.registered_plan_by_identity(selected.plan_identity);
+                if shape_trace && registered.is_none() {
+                    eprintln!("[shape] no tree: the finalist's plan is not registered");
+                }
+                registered
                     .map(|plan| plan.options)
-                    .filter(|options| !options.single_use_collapse)
+                    .filter(|options| {
+                        if shape_trace && options.single_use_collapse {
+                            eprintln!("[shape] no tree: the plan collapses single uses");
+                        }
+                        !options.single_use_collapse
+                    })
                     .and_then(|options| {
-                        if emit_for_tree {
+                        let tree = if emit_for_tree {
                             contexts.frozen_tree(selected.plan_identity.context_id, module_output, options)
                         } else {
                             contexts.cached_frozen_tree(selected.plan_identity.context_id, module_output, options)
+                        };
+                        if shape_trace && tree.is_none() {
+                            eprintln!(
+                                "[shape] no tree: no frozen tree (emit {emit_for_tree}, plans {}, reprint spellings {})",
+                                contexts.plans_registered(),
+                                contexts.reprint_spellings
+                            );
                         }
-                            .map(|(frozen, rename)| TerminalTree {
-                                frozen,
-                                rename,
-                                options,
-                            })
+                        tree.map(|(frozen, rename)| TerminalTree {
+                            frozen,
+                            rename,
+                            options,
+                        })
                     })
             } else {
+                if shape_trace {
+                    eprintln!(
+                        "[shape] no tree: challengers {}, budget {}, first beam {}",
+                        config.terminal_shape_challengers_enabled(),
+                        codec_budget.remaining(),
+                        first_beam_for_context
+                    );
+                }
                 None
             };
             // Migration 7.70: the beam pays from its own allowance, not the
@@ -9475,8 +9507,12 @@ fn late_javascript_cleanup_finalists(
     // Late syntax search is the terminal half of ParsedPeephole. An explicit
     // optimization allowlist that omits that feature must preserve the exact
     // emitter spelling (and its already-measured declaration score ledger).
+    // 7.99: with `LILSCRIPT_PORTS=beam_any_budget` and a tree to print, the
+    // cleanup opens on a spent terminal budget for the print beam's own
+    // allowance (the text families then probe nothing).
+    let beam_any_budget = print_beam.is_some() && crate::codegen_ir_js::port_is_enabled("beam_any_budget");
     if selected.has_explicit_lowering_obligations
-        || codec_budget.remaining() == 0
+        || (codec_budget.remaining() == 0 && !beam_any_budget)
         || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
     {
         if codec_budget.remaining() == 0 {
