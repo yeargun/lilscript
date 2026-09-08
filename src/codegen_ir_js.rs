@@ -15251,6 +15251,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "let "
                     }
                 });
+                // 8.3e (measured, reverted): a global first stored inside a
+                // function is declared there as its own `let`, bindless, and
+                // the scope collector reads it as opaque -- the module pool's
+                // two-letter name stays (remark's tokenizer states: `jv`, 826
+                // reads as text, forbidden in every scope beneath). Binding
+                // the declaration to the module's bind renamed it inside the
+                // function while sibling readers kept the module spelling
+                // (markedlil +128, three prints refused); a bind of the
+                // function's own, shared by its loads and closure captures,
+                // failed 11 of 292 lanes and two probe configurations. The
+                // sound port is a naming one: the symbol spelled from the
+                // function's local pool at emission, every reader nested.
                 out.push_statement(JsStatement::Binding {
                     keyword,
                     name,
@@ -19512,6 +19524,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .iter()
                         .zip(&captures)
                         .map(|(value, text)| {
+                            // 8.3e: a captured global load carries the
+                            // global's bind.
                             let bind = context.capture_bind(*value, text);
                             if trace && bind.is_none() {
                                 eprintln!(
@@ -34035,6 +34049,49 @@ impl ScopeTree {
                 self.declaring.entry(*bind).or_insert(index);
             }
         }
+        // 8.3e: a bind declared in a function scope but referenced outside
+        // that function's extent is the module's (an IR global first
+        // assigned inside a function, `let u=..`, read by a sibling):
+        // renamed as the function's own it collided with the readers'
+        // spellings (markedlil +128, three prints refused). It moves to
+        // the module scope, which the convergence leaves as spelled; a
+        // global read only inside its function (remark's tokenizer states)
+        // stays the function's and takes a single letter.
+        let mut hoisted = Vec::new();
+        for (reader, scope) in self.scopes.iter().enumerate() {
+            for bind in &scope.referenced {
+                let Some(owner) = self.declaring.get(bind).copied() else {
+                    continue;
+                };
+                if owner == 0 {
+                    continue;
+                }
+                let mut cursor = Some(reader);
+                let mut inside = false;
+                while let Some(index) = cursor {
+                    if index == owner {
+                        inside = true;
+                        break;
+                    }
+                    cursor = self.scopes[index].parent;
+                }
+                if !inside {
+                    hoisted.push((*bind, owner));
+                }
+            }
+        }
+        if hoisted.is_empty() {
+            return;
+        }
+        hoisted.sort_unstable();
+        hoisted.dedup();
+        for (bind, owner) in hoisted {
+            self.scopes[owner].declared.retain(|declared| *declared != bind);
+            if !self.scopes[0].declared.contains(&bind) {
+                self.scopes[0].declared.push(bind);
+            }
+            self.declaring.insert(bind, 0);
+        }
     }
 }
 
@@ -34804,11 +34861,14 @@ impl Renamer<'_> {
                             let (uses, first) = self.text_counts.as_ref().and_then(|counts| counts.get(bind).copied()).unwrap_or((counts.get(bind).copied().unwrap_or(0), usize::MAX));
                             format!("{}:{uses}@{first}", self.table.spelling(*bind))
                         };
+                        let mut forbidden_names = forbidden.iter().cloned().collect::<Vec<_>>();
+                        forbidden_names.sort();
                         eprintln!(
-                            "[converge-tree] scope {scope} heads [{}] rest [{}] forbidden {}",
+                            "[converge-tree] scope {scope} heads [{}] rest [{}] forbidden {}{}",
                             heads.iter().map(describe).collect::<Vec<_>>().join(" "),
                             rest.iter().map(describe).collect::<Vec<_>>().join(" "),
-                            forbidden.len()
+                            forbidden.len(),
+                            if forbidden.len() >= 30 { format!(" = {}", forbidden_names.join(" ")) } else { String::new() }
                         );
                     }
                     heads.extend(rest);
