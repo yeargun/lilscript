@@ -9362,6 +9362,20 @@ fn offer_print_beam(
             };
             converge(&mut base, &mut current, codec_budget, report)?;
             let converged_cost = current.2;
+            if trace {
+                // 8.3d: the base tree printed with no step must be the
+                // current text; a drift here taxes every candidate.
+                let (_, noop, _) = base.shaped_print(&tree.options, TreeShapes::default(), None);
+                if noop != current.1 {
+                    let at = noop.bytes().zip(current.1.bytes()).take_while(|(a, b)| a == b).count();
+                    eprintln!("[shape] tree finish: DRIFT -- the base's no-step print differs from the current text at byte {at} (lengths {} vs {}): base `{}` current `{}`", noop.len(), current.1.len(), noop.chars().skip(at.saturating_sub(30)).take(70).collect::<String>(), current.1.chars().skip(at.saturating_sub(30)).take(70).collect::<String>());
+                    if let Some(prefix) = &dump_prefix {
+                        let _ = std::fs::write(format!("{prefix}.finish.noop.js"), &noop);
+                    }
+                } else {
+                    eprintln!("[shape] tree finish: base in sync with the current text");
+                }
+            }
             // 8.1: the finishing shapes as one bundle first -- the chain
             // applies its folds together and wins where each alone loses
             // to the codec's noise (remark's print: −206 as a bundle, none
@@ -9392,15 +9406,170 @@ fn offer_print_beam(
                     }
                 }
             }
+            // 8.3: a site is scored on a window around the span it changes,
+            // not on the whole artifact. On remark (140 KB) the whole-artifact
+            // probe of a one-site change scatters ±40 bytes around its median
+            // (425 dumps: min 38,306, median 38,367, p90 38,412), so the
+            // greedy loop kept the four lucky prints and refused the other
+            // 408 sites, a one-byte `+` among them at +88; markedlil (34 KB)
+            // scatters ±10 and its sites win. The window (`LILSCRIPT_FINISH_WINDOW`
+            // bytes each side, 0 for the whole-artifact probe) reads the local
+            // effect, costs a fifteenth of a probe and none of the ledger; the
+            // finished print is then measured whole once and kept only when
+            // it is smaller than the print the steps started from
+            // (`LILSCRIPT_FINISH_REVERT=0` keeps it regardless).
+            // A window around the changed span (8 KB each side) was the
+            // first try: it misses the artifact's repetition -- a common
+            // statement form is cheap whole and dear alone -- and predicted
+            // −711 on remark where the whole probe read +123. Quality 9 of
+            // the whole artifact is smooth (±2 under a one-byte edit) and
+            // keeps the repetition; `LILSCRIPT_FINISH_SMOOTH` sets the
+            // quality, 0 for the canonical budgeted probe per site.
+            // Quality 9 is not smooth either: a one-byte insertion or
+            // deletion in the first 40 KB of remark's print moves it +47..+57
+            // (the same fold read +61 at one site and −1 at another);
+            // qualities 5 and 6 move ±5 at every position, quality 5 in
+            // 4 ms where the canonical probe takes 200.
+            let smooth = std::env::var("LILSCRIPT_FINISH_SMOOTH").ok().and_then(|value| value.parse::<i32>().ok()).unwrap_or(5);
+            let pre_finish = current.clone();
+            let pre_base = base.copy();
+            let mut windowed = false;
+            let mut window_probes = 0usize;
+            let mut current_smooth: Option<usize> = None;
             'finishing: for (name, add) in TreeShapes::finishing() {
                 let mut step = TreeShapes::default();
                 add(&mut step);
                 let per_site = PER_SITE.contains(&name);
                 let site_cap = std::env::var("LILSCRIPT_FINISH_SITE_CAP").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(usize::MAX);
+                let by_window = per_site && smooth > 0;
                 let mut site = 0usize;
                 let mut probed = 0usize;
+                if by_window && std::env::var("LILSCRIPT_FINISH_WHOLE").as_deref() != Ok("0") {
+                    // 8.3c: the step at every site first. A fold that makes
+                    // the module uniform wins as a whole and loses at every
+                    // single site -- remark's `{E;return x}` → `return(E,x)`
+                    // read +3..+8 at 171 of 174 sites and −190 applied to all
+                    // (the text family's candidate). Where the whole wins
+                    // the sites are taken; the per-site pass then refines
+                    // nothing further for this step.
+                    let cost_before = match current_smooth {
+                        Some(cost) => cost,
+                        None => {
+                            let cost = smooth_compressed_size(current.1.as_bytes(), cost_model, smooth)
+                                .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                            current_smooth = Some(cost);
+                            cost
+                        }
+                    };
+                    let (candidate, printed, _) = base.shaped_print(&tree.options, step, None);
+                    if printed != current.1 && valid(&printed) {
+                        let cost_after = smooth_compressed_size(printed.as_bytes(), cost_model, smooth)
+                            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                        window_probes += 1;
+                        if trace {
+                            eprintln!("[shape] tree finish {name} whole: smooth {cost_before} -> {cost_after}");
+                        }
+                        if let Some(prefix) = &dump_prefix {
+                            let _ = std::fs::write(format!("{prefix}.finish.{name}.whole.s{cost_after}.js"), &printed);
+                        }
+                        if cost_after < cost_before {
+                            current = (shapes, printed, current.2);
+                            current_smooth = Some(cost_after);
+                            base = candidate;
+                            windowed = true;
+                            continue 'finishing;
+                        }
+                    }
+                }
+                if by_window {
+                    // 8.3: the sites in batches, each batch's candidates
+                    // printed and scored on the cores (a candidate is a
+                    // copy, a reshape and a reprint of the module: on
+                    // jquerylil's 250 KB print one site at a time ran past
+                    // forty minutes). `LILSCRIPT_FINISH_BATCH` sets the
+                    // batch, `LILSCRIPT_FINISH_PROBE_CAP` the member's probes.
+                    let batch = std::env::var("LILSCRIPT_FINISH_BATCH").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(8).max(1);
+                    let probe_cap = std::env::var("LILSCRIPT_FINISH_PROBE_CAP").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(2000);
+                    let mut exhausted = false;
+                    while !exhausted && probed < site_cap && window_probes < probe_cap {
+                        let cost_before = match current_smooth {
+                            Some(cost) => cost,
+                            None => {
+                                let cost = smooth_compressed_size(current.1.as_bytes(), cost_model, smooth)
+                                    .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                                current_smooth = Some(cost);
+                                cost
+                            }
+                        };
+                        let copies = (0..batch).map(|_| base.copy()).collect::<Vec<_>>();
+                        let options = &tree.options;
+                        let scored = {
+                            use rayon::prelude::*;
+                            copies
+                                .into_par_iter()
+                                .enumerate()
+                                .map(|(offset, copy)| {
+                                    let (candidate, printed, seen) = copy.shaped_print_owned(options, step, Some(site + offset));
+                                    if seen <= site + offset || printed == current.1 || !valid(&printed) {
+                                        return (candidate, printed, seen, None);
+                                    }
+                                    let cost = smooth_compressed_size(printed.as_bytes(), cost_model, smooth).ok();
+                                    (candidate, printed, seen, cost)
+                                })
+                                .collect::<Vec<_>>()
+                        };
+                        probed += batch;
+                        let mut accepted = 0usize;
+                        for (offset, (candidate, printed, seen, cost)) in scored.into_iter().enumerate() {
+                            if seen <= site + offset {
+                                exhausted = true;
+                                break;
+                            }
+                            let Some(cost_after) = cost else {
+                                continue;
+                            };
+                            window_probes += 1;
+                            if trace {
+                                eprintln!("[shape] tree finish {name} site {}: smooth {cost_before} -> {cost_after}", site + offset);
+                            }
+                            if let Some(prefix) = &dump_prefix {
+                                let _ = std::fs::write(format!("{prefix}.finish.{name}.{}.s{cost_after}.js", site + offset), &printed);
+                            }
+                            if cost_after >= cost_before {
+                                continue;
+                            }
+                            if accepted == 0 {
+                                current = (shapes, printed, current.2);
+                                current_smooth = Some(cost_after);
+                                base = candidate;
+                                windowed = true;
+                                accepted += 1;
+                                continue;
+                            }
+                            // A later winner of the batch, re-taken on the
+                            // tree the earlier ones made (its index moved
+                            // down by the sites kept before it) and scored
+                            // again there.
+                            let (candidate, printed, _) = base.shaped_print(options, step, Some(site + offset - accepted));
+                            if printed == current.1 || !valid(&printed) {
+                                continue;
+                            }
+                            let cost_again = smooth_compressed_size(printed.as_bytes(), cost_model, smooth)
+                                .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                            window_probes += 1;
+                            if cost_again < current_smooth.unwrap_or(usize::MAX) {
+                                current = (shapes, printed, current.2);
+                                current_smooth = Some(cost_again);
+                                base = candidate;
+                                accepted += 1;
+                            }
+                        }
+                        site += batch - accepted;
+                    }
+                    continue 'finishing;
+                }
                 loop {
-                    if codec_budget.remaining() < 2 {
+                    if !by_window && codec_budget.remaining() < 2 {
                         break 'finishing;
                     }
                     if per_site && probed >= site_cap {
@@ -9418,6 +9587,66 @@ fn offer_print_beam(
                         site += 1;
                         continue;
                     }
+                    if by_window {
+                        let cost_before = match current_smooth {
+                            Some(cost) => cost,
+                            None => {
+                                let cost = smooth_compressed_size(current.1.as_bytes(), cost_model, smooth)
+                                    .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                                current_smooth = Some(cost);
+                                cost
+                            }
+                        };
+                        let cost_after = smooth_compressed_size(printed.as_bytes(), cost_model, smooth)
+                            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                        window_probes += 1;
+                        if trace {
+                            eprintln!("[shape] tree finish {name} site {site}: smooth {cost_before} -> {cost_after}");
+                        }
+                        if let Some(prefix) = &dump_prefix {
+                            let _ = std::fs::write(format!("{prefix}.finish.{name}.{site}.s{cost_after}.js"), &printed);
+                        }
+                        if cost_after < cost_before {
+                            current = (shapes, printed, current.2);
+                            current_smooth = Some(cost_after);
+                            base = candidate;
+                            windowed = true;
+                        } else {
+                            site += 1;
+                        }
+                        continue;
+                    }
+                    // 8.3c: a whole-module step (`guard_tails`, `exit_guards`,
+                    // `rebrace`) is one draw of the lottery on the exact probe
+                    // (remark's `rebrace` read +15 and lost; the text finishing
+                    // then dropped the same braces); it reads the smooth measure.
+                    if !per_site && smooth > 0 {
+                        let cost_before = match current_smooth {
+                            Some(cost) => cost,
+                            None => {
+                                let cost = smooth_compressed_size(current.1.as_bytes(), cost_model, smooth)
+                                    .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                                current_smooth = Some(cost);
+                                cost
+                            }
+                        };
+                        let cost_after = smooth_compressed_size(printed.as_bytes(), cost_model, smooth)
+                            .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
+                        window_probes += 1;
+                        if trace {
+                            eprintln!("[shape] tree finish {name} whole: smooth {cost_before} -> {cost_after}");
+                        }
+                        if let Some(prefix) = &dump_prefix {
+                            let _ = std::fs::write(format!("{prefix}.finish.{name}.whole.s{cost_after}.js"), &printed);
+                        }
+                        if cost_after < cost_before {
+                            current = (shapes, printed, current.2);
+                            current_smooth = Some(cost_after);
+                            base = candidate;
+                            windowed = true;
+                        }
+                        break;
+                    }
                     let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
                         break 'finishing;
                     };
@@ -9431,6 +9660,9 @@ fn offer_print_beam(
                     if printed_cost < current.2 {
                         current = (shapes, printed, printed_cost);
                         base = candidate;
+                        // The smooth cost is of the print this replaces
+                        // (b193: every site after `rebrace` read +50).
+                        current_smooth = None;
                         // A kept site is gone from the enumeration; the
                         // next candidate has its index.
                     } else {
@@ -9441,11 +9673,95 @@ fn offer_print_beam(
                     }
                 }
             }
+            if windowed {
+                // The finished print measured whole once, exactly. Keeping
+                // it only when that reads below the pre-finish print
+                // (`LILSCRIPT_FINISH_REVERT=1`) is biased: the pre-finish
+                // print is the best of the probes before it -- a lottery
+                // draw of about −1.5σ -- and the finished print is one draw.
+                let revert = std::env::var("LILSCRIPT_FINISH_REVERT").as_deref() == Ok("1");
+                let finished_cost = match codec_budget.compressed_size(current.1.as_bytes(), cost_model)? {
+                    Some(cost) => cost,
+                    // The ledger is spent (the beam's rungs take it on a
+                    // large module); the one exact probe the finish needs is
+                    // taken past it.
+                    None => codec_budget.measure_reserved_compile(current.1.as_bytes(), cost_model)?,
+                };
+                report.scored += 1;
+                if trace {
+                    eprintln!("[shape] tree finish smooth: {} probes at quality {smooth}, pre-finish {} -> finished {finished_cost}{}", window_probes, pre_finish.2, if revert && finished_cost > pre_finish.2 { " (reverted)" } else { "" });
+                }
+                if revert && finished_cost > pre_finish.2 {
+                    current = pre_finish;
+                    base = pre_base;
+                } else {
+                    current.2 = finished_cost;
+                }
+            }
             if let Some(prefix) = &dump_prefix {
                 let _ = std::fs::write(format!("{prefix}.finish.base.{}.js", current.2), &current.1);
             }
             if current.2 != converged_cost {
                 converge(&mut base, &mut current, codec_budget, report)?;
+            }
+            // 8.3: the lottery harvest. The canonical size of an equivalent
+            // print is a draw (±40 on remark, ±12 on markedlil, row 8.3);
+            // the retired per-site probes and the base's text ladder took
+            // the minimum of hundreds of draws. `LILSCRIPT_FINISH_LOTTERY=K`
+            // (0 by default until the fleet reads it) draws K tickets: the
+            // hottest single-letter spellings swapped pairwise across the
+            // module, sound where neither letter is mentioned by text the
+            // tree does not own, each measured whole, the smallest kept.
+            let lottery = std::env::var("LILSCRIPT_FINISH_LOTTERY").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(0);
+            if lottery > 0 && tree.options.mangle_identifiers {
+                if let (Ok(identifiers), Ok(counts)) = (
+                    single_character_identifiers(&current.1),
+                    single_character_identifier_use_counts(&current.1),
+                ) {
+                    let opaque = base.opaque_spellings();
+                    let mut letters = identifiers
+                        .iter()
+                        .copied()
+                        .filter(|letter| letter.is_ascii_alphabetic() && !opaque.contains(&(*letter as char).to_string()))
+                        .collect::<Vec<_>>();
+                    letters.sort_unstable_by(|left, right| counts[*right as usize].cmp(&counts[*left as usize]).then_with(|| left.cmp(right)));
+                    let mut tickets = Vec::new();
+                    'pairs: for span in 1..letters.len() {
+                        for first in 0..letters.len() - span {
+                            tickets.push((letters[first], letters[first + span]));
+                            if tickets.len() >= lottery {
+                                break 'pairs;
+                            }
+                        }
+                    }
+                    let start = current.2;
+                    let mut drawn = 0usize;
+                    for (from, to) in tickets {
+                        if codec_budget.remaining() < 1 {
+                            break;
+                        }
+                        let (from, to) = ((from as char).to_string(), (to as char).to_string());
+                        let (candidate, printed) = base.letter_swapped_print(&tree.options, &from, &to);
+                        if printed == current.1 || !valid(&printed) {
+                            continue;
+                        }
+                        let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                            break;
+                        };
+                        drawn += 1;
+                        report.scored += 1;
+                        if trace {
+                            eprintln!("[shape] tree finish lottery {from}<->{to}: {} -> {printed_cost}", current.2);
+                        }
+                        if printed_cost < current.2 {
+                            current = (shapes, printed, printed_cost);
+                            base = candidate;
+                        }
+                    }
+                    if trace {
+                        eprintln!("[shape] tree finish lottery: {drawn} tickets, {start} -> {}", current.2);
+                    }
+                }
             }
             // 8.1: the cleanup's single-letter remap on the table: the
             // hottest single letters swapped with an unused `_` or `$`, each
@@ -12505,6 +12821,22 @@ fn canonical_gzip_size(bytes: &[u8]) -> Result<usize, String> {
         .map_err(|error| format!("gzip candidate measurement failed: {error}"))
 }
 
+/// 8.3: the size at an encoder quality below the canonical 11. Quality 9
+/// skips the block-splitting search that makes the canonical size of a
+/// 140 KB artifact scatter ±40 bytes under a one-site edit (remark: 425
+/// single-site prints, median +61 over the accepted one; a random letter
+/// substitution ±62 at 11, ±2 at 9); the per-site finish reads it.
+fn smooth_compressed_size(bytes: &[u8], model: CompressionCostModel, quality: i32) -> Result<usize, String> {
+    match model {
+        CompressionCostModel::Raw => Ok(bytes.len()),
+        CompressionCostModel::Gzip => canonical_gzip_size(bytes),
+        CompressionCostModel::Brotli => {
+            let _timing = crate::timing::CODEC.scope(bytes.len());
+            brotli_size_at(bytes, quality)
+        }
+    }
+}
+
 fn canonical_brotli_size(bytes: &[u8]) -> Result<usize, String> {
     let version = canonical_brotli_version();
     if version != CANONICAL_BROTLI_LIBRARY_VERSION {
@@ -12520,11 +12852,20 @@ fn canonical_brotli_size(bytes: &[u8]) -> Result<usize, String> {
     if capacity == 0 && !bytes.is_empty() {
         return Err("Brotli candidate is too large to measure".to_string());
     }
+    brotli_size_at(bytes, 11)
+}
+
+fn brotli_size_at(bytes: &[u8], quality: i32) -> Result<usize, String> {
+    // SAFETY: as `canonical_brotli_size`.
+    let capacity = unsafe { compu_brotli_sys::BrotliEncoderMaxCompressedSize(bytes.len()) };
+    if capacity == 0 && !bytes.is_empty() {
+        return Err("Brotli candidate is too large to measure".to_string());
+    }
     let mut output = vec![0u8; capacity.max(1)];
     let mut encoded_size = output.len();
     let succeeded = unsafe {
         compu_brotli_sys::BrotliEncoderCompress(
-            11,
+            quality,
             22,
             compu_brotli_sys::BrotliEncoderMode_BROTLI_MODE_GENERIC,
             bytes.len(),

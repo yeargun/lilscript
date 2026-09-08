@@ -28207,12 +28207,14 @@ pub(crate) struct ModuleTree {
 
 impl ModuleTree {
     /// 7.97: this tree copied, for the finish's site-by-site probes.
-    fn copy(&self) -> ModuleTree {
+    pub(crate) fn copy(&self) -> ModuleTree {
         ModuleTree {
             block: self.block.clone(),
             closures: RefCell::new(self.closures.borrow().clone()),
-            table: self.table.clone(),
-            literals: self.literals.clone(),
+            // 8.3: tables of the copy's own; they were shared handles, so
+            // a respelling in a copy (the letter swaps) reached the original.
+            table: self.table.detached(),
+            literals: self.literals.detached(),
         }
     }
 
@@ -28239,12 +28241,26 @@ impl ModuleTree {
     /// per-site rules when `site` is set -- converged when asked, and its
     /// print: the finish's probe, whose tree is kept when the codec says so.
     pub(crate) fn shaped_print(&self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
+        self.copy().shaped_print_owned(options, shapes, site)
+    }
+
+    /// `shaped_print` on this tree itself (8.3: the finish's batch prints
+    /// its copies on the pool's cores).
+    pub(crate) fn shaped_print_owned(mut self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
         let options = &print_options(options);
-        let mut tree = self.copy();
-        let seen = tree.reshape_under(options, shapes, site);
-        converge_names(&mut tree, options, shapes);
-        let text = tree.reprint(options);
-        (tree, text, seen)
+        let seen = self.reshape_under(options, shapes, site);
+        converge_names(&mut self, options, shapes);
+        let text = self.reprint(options);
+        (self, text, seen)
+    }
+
+    /// 8.3: the spellings mentioned by text this tree does not own (raw
+    /// nodes, templates, heads): no respelling may touch them.
+    pub(crate) fn opaque_spellings(&self) -> AHashSet<String> {
+        let mut census = BindCensus::default();
+        census.block(&self.block, &self.closures);
+        census.resolve();
+        census.unsafe_names
     }
 
     /// 8.1: a copy of this tree with every bind spelled `from` respelled
@@ -28300,8 +28316,8 @@ impl ModuleTree {
         FrozenModuleTree {
             block: self.block,
             closures: self.closures.into_inner(),
-            spellings: self.table.0.borrow().clone(),
-            literals: self.literals.0.borrow().0.clone(),
+            spellings: self.table.0.read().expect("bind table").clone(),
+            literals: self.literals.0.read().expect("literal table").0.clone(),
         }
     }
 }
@@ -28311,7 +28327,7 @@ impl FrozenModuleTree {
         ModuleTree {
             block: self.block.clone(),
             closures: RefCell::new(self.closures.clone()),
-            table: BindTable(std::rc::Rc::new(RefCell::new(self.spellings.clone()))),
+            table: BindTable(std::sync::Arc::new(std::sync::RwLock::new(self.spellings.clone()))),
             literals: LiteralTable::from_contents(&self.literals),
         }
     }
@@ -28889,6 +28905,13 @@ impl ModuleTree {
             let moved = inline_single_use_declarator_functions(&mut self.block, &mut entries, &census, &self.table);
             if moved > 0 {
                 crate::timing::FUNCTIONS_MOVED.event(moved as u64);
+            }
+            // 8.3: a function nothing reads or mentions goes (the text
+            // chain's `remove_unused_standalone_vars`; remark's base
+            // artifact dropped two the tree kept, 218 bytes).
+            let dropped = remove_dead_functions(&mut self.block, &census);
+            if dropped > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!("[shape] {dropped} dead functions dropped");
             }
             // 7.78: single-use literal aliases (regexes, strings, `!0`) to
             // their read, as the chain's single-use literal folds.
@@ -29533,10 +29556,49 @@ fn fused_return_tail_mode(tail: &[EmittedStatement], mode: ReturnTailMode) -> Op
     // The mode's shape: a then arm that is one return (`Plain`, `Suffix`) or
     // expressions then a return (`Branches`); an else side that is one return
     // (`Plain`, `Branches`) or expressions then a return (`Suffix`).
-    let then_single = then_branch.block.statements.len() == 1;
-    let else_single = match else_branch {
-        Some(else_branch) => else_branch.block.statements.len() == 1,
-        None => rest.len() == 1,
+    // 8.3: a side that is itself a fusable guard tail counts as one
+    // return: `if(a){if(b)return x;return y}return z` is one site,
+    // `a?b?x:y:z` -- the inner fold alone can lose the codec while the
+    // outer needs it (remark's `__proto__` getter kept both guards).
+    // Each side is taken once: taking it for its shape and again for its
+    // value doubled the work per nesting level, and jquerylil's guard
+    // chains ran the finish for hours (b189..b198).
+    let side = |statements: &[EmittedStatement]| -> Option<(JsExpression, bool)> {
+        if let Some(value) = statements_return_value(statements) {
+            return Some((value, statements.len() == 1));
+        }
+        let guard_at = statements
+            .iter()
+            .position(|emitted| matches!(emitted.statement, JsStatement::If { .. }))?;
+        let fused = fused_return_tail_mode(&statements[guard_at..], mode)?;
+        let mut operands = statements[..guard_at]
+            .iter()
+            .map(|emitted| statement_expression_node(&emitted.statement))
+            .collect::<Option<Vec<_>>>()?;
+        if operands.is_empty() {
+            return Some((fused, true));
+        }
+        operands.push(fused);
+        Some((JsExpression::comma(operands), false))
+    };
+    let Some((then_value, then_single)) = side(&then_branch.block.statements) else {
+        if trace && then_branch.block.statements.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
+            eprintln!("[shape] return tail refused: then-branch `{}` is not expressions then a return", then_branch.block.clone().into_string().chars().take(80).collect::<String>());
+        }
+        return None;
+    };
+    let (else_value, else_single) = match else_branch {
+        Some(else_branch) if rest.is_empty() => side(&else_branch.block.statements)?,
+        Some(_) => return None,
+        None => match side(rest) {
+            Some(side) => side,
+            None => {
+                if trace && rest.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
+                    eprintln!("[shape] return tail refused: suffix {:?} after `{condition}`", rest.iter().map(|emitted| statement_kind_for_trace(&emitted.statement)).collect::<Vec<_>>());
+                }
+                return None;
+            }
+        },
     };
     let shape_ok = match mode {
         ReturnTailMode::All => true,
@@ -29547,27 +29609,6 @@ fn fused_return_tail_mode(tail: &[EmittedStatement], mode: ReturnTailMode) -> Op
     if !shape_ok {
         return None;
     }
-    let Some(then_value) = statements_return_value(&then_branch.block.statements) else {
-        if trace && then_branch.block.statements.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
-            eprintln!("[shape] return tail refused: then-branch `{}` is not expressions then a return", then_branch.block.clone().into_string().chars().take(80).collect::<String>());
-        }
-        return None;
-    };
-    let else_value = match else_branch {
-        Some(else_branch) if rest.is_empty() => {
-            statements_return_value(&else_branch.block.statements)?
-        }
-        Some(_) => return None,
-        None => match statements_return_value(rest) {
-            Some(value) => value,
-            None => {
-                if trace && rest.last().is_some_and(|last| matches!(last.statement, JsStatement::Return { value: Some(_) })) {
-                    eprintln!("[shape] return tail refused: suffix {:?} after `{condition}`", rest.iter().map(|emitted| statement_kind_for_trace(&emitted.statement)).collect::<Vec<_>>());
-                }
-                return None;
-            }
-        },
-    };
     Some(JsExpression::conditional(
         condition.clone(),
         then_value,
@@ -31096,6 +31137,14 @@ fn collapse_family(
     if absorbed > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
         eprintln!("[shape] {absorbed} assignments absorbed into bare declarators");
     }
+    // 8.3: `JSON.parse("{..}")` on a string literal is the literal itself
+    // when shorter (`fold_constant_json_parse` on the emission text; the
+    // prints never had it -- remark's entity table, 13 KB of escaped JSON,
+    // cost every print of its tree about 700 bytes and the finish's work).
+    let json = rewrite_block_expressions_shallow(block, &mut fold_json_parse_literal_node);
+    if json > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+        eprintln!("[shape] {json} JSON.parse literals written as literals");
+    }
     // 7.85: `x=[];x.push(a);x.push(b)` is `x=[a,b]` (`fold_fresh_empty_array_pushes`),
     // under the pristine-builtins contract only, as the text fold.
     let arrays = if pristine_builtins { fold_fresh_array_pushes(block) } else { 0 };
@@ -31542,7 +31591,15 @@ fn pushed_elements(call: &JsExpression, bind: Bind) -> Option<Vec<JsExpression>>
         }
         arguments
     };
-    if elements.is_empty() || elements.iter().any(|element| bind_reads(element, bind) > 0 || expression_has_closure(element)) {
+    // 8.3: a pushed closure is the same text inside the literal; remark's
+    // `var Kb=[];push(Kb,function..)` stayed a push for it
+    // (`LILSCRIPT_PUSH_CLOSURES=0` refuses them again).
+    let refuse_closures = std::env::var("LILSCRIPT_PUSH_CLOSURES").as_deref() == Ok("0");
+    if elements.is_empty()
+        || elements
+            .iter()
+            .any(|element| bind_reads(element, bind) > 0 || (refuse_closures && expression_has_closure(element)))
+    {
         return None;
     }
     Some(elements.to_vec())
@@ -31633,6 +31690,12 @@ fn fold_fresh_array_pushes(block: &mut JsBlock) -> usize {
             break;
         }
         if elements.is_empty() {
+            if std::env::var_os("LILSCRIPT_PUSH_TRACE").is_some() {
+                let next = block.statements.get(index + 1).map(|next| {
+                    format!("{:?} `{}`", statement_kind_for_trace(&next.statement), statement_value(&next.statement).map(|value| value.code.chars().take(100).collect::<String>()).unwrap_or_default())
+                });
+                eprintln!("[push] empty literal `{}` not followed by its push: next {next:?}", statement_value(&block.statements[index].statement).map(|value| value.code.chars().take(60).collect::<String>()).unwrap_or_default());
+            }
             index += 1;
             continue;
         }
@@ -31667,10 +31730,88 @@ fn fold_fresh_array_pushes(block: &mut JsBlock) -> usize {
         folded += 1;
         index += 1;
     }
+    // 8.3: the same inside a comma sequence: `..,x=[],x.push(a),..` is
+    // `..,x=[a],..` -- a slot-reused local puts the empty literal
+    // mid-sequence (remark's `encode`), which the statement scan never sees.
+    folded += rewrite_block_expressions_shallow(block, &mut fold_fresh_array_pushes_in_sequence);
     if folded > 0 {
         settle_block_tail(block, false);
     }
     folded
+}
+
+fn fold_json_parse_literal_node(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Call {
+        return None;
+    }
+    let [callee, argument] = node.operands.as_slice() else {
+        return None;
+    };
+    if callee.code != "JSON.parse" || !argument.operands.is_empty() {
+        return None;
+    }
+    let literal = argument.code.as_str();
+    if !(literal.starts_with('"') || literal.starts_with('\'')) {
+        return None;
+    }
+    let rendered = crate::js_peephole::render_json_parse_literal(literal)?;
+    (rendered.len() < node.code.len()).then(|| JsExpression::raw(rendered, JsPrecedence::Primary))
+}
+
+fn fold_fresh_array_pushes_in_sequence(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Comma {
+        return None;
+    }
+    let mut operands = node.operands.clone();
+    let mut folded = 0usize;
+    let mut index = 0usize;
+    while index < operands.len() {
+        let bind = if operands[index].root == JsExpressionRoot::Assign {
+            match operands[index].operands.as_slice() {
+                [target, assigned] if is_empty_array_literal(assigned) => match target.root {
+                    JsExpressionRoot::Name(bind) => Some(bind),
+                    _ => None,
+                },
+                _ => None,
+            }
+        } else {
+            None
+        };
+        let Some(bind) = bind else {
+            index += 1;
+            continue;
+        };
+        let mut elements = Vec::new();
+        let mut taken = 0usize;
+        for operand in &operands[index + 1..] {
+            match pushed_elements(operand, bind) {
+                Some(pushed) => {
+                    elements.extend(pushed);
+                    taken += 1;
+                }
+                None => break,
+            }
+        }
+        if taken == 0 {
+            if std::env::var_os("LILSCRIPT_PUSH_TRACE").is_some() {
+                eprintln!("[push] sequence literal `{}` not followed by its push: next {:?}", operands[index].code, operands.get(index + 1).map(|next| next.code.chars().take(100).collect::<String>()));
+            }
+            index += 1;
+            continue;
+        }
+        let target = operands[index].operands[0].clone();
+        operands[index] = JsExpression::assign(target, JsExpression::array(elements));
+        operands.drain(index + 1..index + 1 + taken);
+        folded += 1;
+        index += 1;
+    }
+    (folded > 0).then(|| {
+        if operands.len() == 1 {
+            operands.into_iter().next().expect("one operand")
+        } else {
+            JsExpression::comma(operands)
+        }
+    })
 }
 
 /// `+x|0` is `x|0`: `|0` applies ToInt32, whose first step is ToNumber.
@@ -32918,6 +33059,53 @@ fn read_inside_concise_body(block: &JsBlock, entries: &AHashMap<ClosureId, (JsHe
         JsFunctionBody::Block(inner) => in_block(inner, bind),
         JsFunctionBody::Concise(_) => false,
     })
+}
+
+/// 8.3: module-level functions -- declarators holding a function, and
+/// function statements -- with no read and no mention in any text are
+/// removed; returns how many.
+fn remove_dead_functions(module: &mut JsBlock, census: &BindCensus) -> usize {
+    let dead = |bind: Bind, name: &str| {
+        census.reads.get(&bind).copied().unwrap_or(0) == 0
+            && !census.is_unsafe(Some(bind), name)
+            && !census.unsafe_names.contains(name)
+    };
+    let mut dropped = 0usize;
+    for emitted in module.statements.iter_mut() {
+        if emitted.dropped_semicolon {
+            continue;
+        }
+        match &mut emitted.statement {
+            JsStatement::Declarators { declarators, .. } => {
+                let before = declarators.len();
+                declarators.retain(|declarator| {
+                    !(declarator.function.is_some() && declarator.bind.is_some_and(|bind| dead(bind, &declarator.name)))
+                });
+                dropped += before - declarators.len();
+                if declarators.is_empty() {
+                    emitted.statement = JsStatement::Empty;
+                }
+            }
+            JsStatement::Function { head, terminated: false, .. } => {
+                let named = head.pieces.iter().find_map(|piece| match piece {
+                    JsHeadPiece::FunctionName(bind, spelled) => Some((*bind, spelled.clone())),
+                    _ => None,
+                });
+                if let Some((bind, spelled)) = named {
+                    if dead(bind, &spelled) {
+                        emitted.statement = JsStatement::Empty;
+                        dropped += 1;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if dropped > 0 {
+        module.statements.retain(|emitted| !matches!(emitted.statement, JsStatement::Empty));
+        settle_block_tail(module, false);
+    }
+    dropped
 }
 
 fn inline_single_use_declarator_functions(
@@ -35277,12 +35465,16 @@ impl JsStatement {
             // stripped it and the other did not; unifying on the node settles
             // that in favour of the shorter spelling.
             Self::Return { value: None } => "return;".to_string(),
+            // 8.3c: a comma value is bare after `return`/`throw` (a complete
+            // Expression); `into_minimal_expression` keeps a comma's parens
+            // for the initializer, argument and member positions, and the
+            // return-sequence fold printed `return(E,x)` at every site.
             Self::Return { value: Some(value) } => {
-                let value = strip_outer_parens(value);
+                let value = bare_statement_value(value);
                 format!("return{}{value};", keyword_separator(&value))
             }
             Self::Throw { value } => {
-                let value = strip_outer_parens(value);
+                let value = bare_statement_value(value);
                 format!("throw{}{value};", keyword_separator(&value))
             }
             Self::Break => "break;".to_string(),
@@ -41984,6 +42176,15 @@ fn strip_outer_parens(value: impl IntoMinimalExpression) -> String {
     value.into_minimal_expression()
 }
 
+/// A statement-level value: a grouped comma spelled bare (the adapter
+/// `(0,f)`, with no ungrouped spelling, keeps its parens).
+fn bare_statement_value(value: JsExpression) -> String {
+    if value.root == JsExpressionRoot::Comma && value.ungrouped.is_some() {
+        return value.into_minimal();
+    }
+    strip_outer_parens(value)
+}
+
 fn strip_outer_parens_from_string(value: String) -> String {
     if !value.starts_with('(') || !value.ends_with(')') {
         return value;
@@ -42093,11 +42294,17 @@ struct Lit(u32);
 /// share one `Lit`, so two nodes spelling the same string compare equal, as
 /// two atoms with the same text did (an arm merge depends on it).
 #[derive(Debug, Clone, Default)]
-struct LiteralTable(std::rc::Rc<RefCell<(Vec<String>, AHashMap<String, Lit>)>>);
+struct LiteralTable(std::sync::Arc<std::sync::RwLock<(Vec<String>, AHashMap<String, Lit>)>>);
 
 impl LiteralTable {
+    /// 8.3: a table of its own with these contents (a tree's copy, printed
+    /// on another core, must not share its tables with the original).
+    fn detached(&self) -> Self {
+        Self(std::sync::Arc::new(std::sync::RwLock::new(self.0.read().expect("literal table").clone())))
+    }
+
     fn intern(&self, value: &str) -> Lit {
-        let mut table = self.0.borrow_mut();
+        let mut table = self.0.write().expect("literal table");
         if let Some(lit) = table.1.get(value) {
             return *lit;
         }
@@ -42108,7 +42315,7 @@ impl LiteralTable {
     }
 
     fn contents(&self, lit: Lit) -> String {
-        self.0.borrow().0[lit.0 as usize].clone()
+        self.0.read().expect("literal table").0[lit.0 as usize].clone()
     }
 
     fn from_contents(contents: &[String]) -> Self {
@@ -42121,27 +42328,31 @@ impl LiteralTable {
 }
 
 #[derive(Debug, Clone, Default)]
-struct BindTable(std::rc::Rc<RefCell<Vec<String>>>);
+struct BindTable(std::sync::Arc<std::sync::RwLock<Vec<String>>>);
 
 impl BindTable {
+    fn detached(&self) -> Self {
+        Self(std::sync::Arc::new(std::sync::RwLock::new(self.0.read().expect("bind table").clone())))
+    }
+
     fn alloc(&self, spelling: &str) -> Bind {
-        let mut table = self.0.borrow_mut();
+        let mut table = self.0.write().expect("bind table");
         let bind = Bind(u32::try_from(table.len()).expect("fewer than 2^32 bindings"));
         table.push(spelling.to_string());
         bind
     }
 
     fn spelling(&self, bind: Bind) -> String {
-        self.0.borrow()[bind.0 as usize].clone()
+        self.0.read().expect("bind table")[bind.0 as usize].clone()
     }
 
     /// Change a binding's spelling; the tree follows through `Respell`.
     fn respell(&self, bind: Bind, spelling: &str) {
-        self.0.borrow_mut()[bind.0 as usize] = spelling.to_string();
+        self.0.write().expect("bind table")[bind.0 as usize] = spelling.to_string();
     }
 
     fn len(&self) -> usize {
-        self.0.borrow().len()
+        self.0.read().expect("bind table").len()
     }
 }
 
