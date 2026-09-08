@@ -1701,6 +1701,12 @@ fn render(
                 else_value.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::Throw => {
+            let [thrown] = operands else {
+                return None;
+            };
+            Some(format!("throw {}", thrown.clone().at_least(JsPrecedence::Comma)))
+        }
         JsExpressionRoot::In => {
             let [key, receiver] = operands else {
                 return None;
@@ -2003,6 +2009,9 @@ enum JsExpressionRoot {
     /// 8.1: `key in receiver` (the membership intrinsic), so the receiver
     /// is a node the renamer sees.
     In,
+    /// 8.1: `throw v` as an expression-position node the statement layer
+    /// turns into its statement (the host alias conventions).
+    Throw,
     Conditional,
     Call,
     Member,
@@ -2086,6 +2095,7 @@ impl JsExpressionRoot {
             // `Member`'s second operand is the property name, which the
             // grammar makes a child (`MemberExpression . IdentifierName`).
             Self::Binary(_) | Self::Nullish | Self::In | Self::Index | Self::Member => Some(2),
+            Self::Throw => Some(1),
             Self::Conditional => Some(3),
             Self::Call | Self::Comma | Self::Array | Self::New | Self::Object => None,
         }
@@ -2111,6 +2121,7 @@ impl JsExpressionRoot {
             | Self::Spread => 1,
             Self::Binary(_) | Self::StrictEquality { .. } => 2,
             Self::Nullish | Self::In | Self::Index | Self::Member => 2,
+            Self::Throw => 1,
             Self::Conditional => 3,
             Self::Assign => 2,
             Self::Update(_) => 1,
@@ -2511,6 +2522,9 @@ impl JsBlock {
         // expression, and every compaction (`c&&throw ..`) then reads it as
         // one. It is a statement, and it is pushed as one.
         let statement = match statement {
+            JsStatement::Expression { value } if value.root == JsExpressionRoot::Throw => JsStatement::Throw {
+                value: value.operands.into_iter().next().expect("a thrown value"),
+            },
             JsStatement::Expression { value }
                 if value.root == JsExpressionRoot::Raw && value.code.starts_with("throw ") =>
             {
@@ -5799,6 +5813,22 @@ impl JsExpression {
     }
 
     /// `new C(a,b)` over its constructor and argument nodes.
+    /// 8.1: `throw v`.
+    fn throw_of(thrown: Self) -> Self {
+        let operands = vec![thrown];
+        let code = render(JsExpressionRoot::Throw, &operands, JsRenderOptions::UNUSED).expect("render covers Throw");
+        Self {
+            code,
+            ungrouped: None,
+            precedence: JsPrecedence::Assignment,
+            root: JsExpressionRoot::Throw,
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     /// 8.1: `key in receiver`.
     fn membership(key: Self, receiver: Self) -> Self {
         let operands = vec![key, receiver];
@@ -6153,6 +6183,7 @@ impl JsExpression {
             JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
             JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
             JsExpressionRoot::In => Self::membership(child(0), child(1)),
+            JsExpressionRoot::Throw => Self::throw_of(child(0)),
             JsExpressionRoot::NullNormalized => Self::null_normalized(child(0)),
             JsExpressionRoot::Conditional => Self::conditional(child(0), child(1), child(2)),
             JsExpressionRoot::IntegerNormalization => Self::integer_normalization(child(0)),
@@ -16366,6 +16397,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             block_compact_return_expression(&then_output),
                             peek_merge_return_expression(function, merge_block, context, cache),
                         ) {
+                            // 8.1: as a node (`raw_nodes`) when both arms are.
+                            if port_is_enabled("raw_nodes") {
+                                if let (Some(then_node), Some(merge_node)) = (
+                                    block_compact_return_node(&then_output),
+                                    peek_merge_return_node(function, merge_block, context, cache),
+                                ) {
+                                    out.push_statement(JsStatement::Return {
+                                        value: Some(JsExpression::conditional(condition_tree.clone(), then_node, merge_node)),
+                                    });
+                                    cache.clear();
+                                    return Ok(PathEnd::Terminated);
+                                }
+                            }
                             push_return_conditional(out, &condition, &then_ret, &merge_ret);
                             cache.clear();
                             return Ok(PathEnd::Terminated);
@@ -19690,12 +19734,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 || Ok(JsExpression::atom("void 0")),
                                 |value| take_value(value, context, cache),
                             )?;
+                            if port_is_enabled("raw_nodes") {
+                                return Ok(JsExpression::throw_of(thrown));
+                            }
                             return Ok(JsExpression::raw(
                                 format!("throw {}", strip_outer_parens(thrown)),
                                 JsPrecedence::Assignment,
                             ));
                         }
                         JsHostAliasConvention::ThrowConstruct => {
+                            if port_is_enabled("raw_nodes") {
+                                let arguments = args
+                                    .first()
+                                    .map(|value| take_value(*value, context, cache))
+                                    .transpose()?
+                                    .into_iter()
+                                    .collect::<Vec<_>>();
+                                let construction = JsExpression::new_call(JsExpression::atom(alias.spelling.to_string()), arguments);
+                                return Ok(JsExpression::throw_of(construction));
+                            }
                             let argument = args
                                 .first()
                                 .map(|value| take_value(*value, context, cache))
@@ -21601,7 +21658,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             // `(p..)=>name(captures..,p..)` with the call a node whose
             // captures carry their outer binds (jquerylil: 2,000 such
             // wrappers as raw text).
-            if self.options.function_spelling != FunctionSpelling::Function && port_is_enabled("raw_nodes") {
+            if port_is_enabled("raw_nodes") {
                 let callee = match self.function_name_binds.get(&function.id) {
                     Some(bind) => JsExpression::name(*bind, name.to_string()),
                     None => JsExpression::atom(name.to_string()),
@@ -21619,8 +21676,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         e
                     })?);
                 }
-                let body = JsFunctionBody::ConciseNode(JsExpression::call(callee, arguments));
-                let head = arrow_head(&head);
+                let call = JsExpression::call(callee, arguments);
+                // `function(p..){return name(..)}` or `(p..)=>name(..)`, by the
+                // plan's spelling.
+                let (head, body) = if self.options.function_spelling == FunctionSpelling::Function {
+                    let mut function_head = JsHead::text("function");
+                    function_head.extend(&head);
+                    let mut block = JsBlock::new();
+                    block.push_statement(JsStatement::Return { value: Some(call) });
+                    (function_head, JsFunctionBody::Block(block))
+                } else {
+                    (arrow_head(&head), JsFunctionBody::ConciseNode(call))
+                };
                 let id = ClosureId(self.next_closure_id.get());
                 self.next_closure_id.set(id.0 + 1);
                 self.closure_trees.borrow_mut().insert(id, (head.clone(), body.clone()));
@@ -24177,6 +24244,26 @@ fn peek_merge_return_expression(
     cache
         .is_empty()
         .then(|| expression.at_least(JsPrecedence::Conditional))
+}
+
+/// 8.1: the merge block's returned value as a node (`raw_nodes`), where
+/// `peek_merge_return_expression` gives its text.
+fn peek_merge_return_node(
+    function: &ControlFlowFunction<'_>,
+    merge_block: BlockId,
+    context: &LocalNames,
+    cache: &ExpressionCache,
+) -> Option<JsExpression> {
+    let block = function.blocks.get(merge_block.0 as usize)?;
+    if !block.phis.is_empty() || !block.instructions.is_empty() {
+        return None;
+    }
+    let Some(Terminator::Return(Some(value))) = block.terminator else {
+        return None;
+    };
+    let mut cache = cache.clone();
+    let expression = take_value(value, context, &mut cache).ok()?;
+    cache.is_empty().then_some(expression)
 }
 
 fn push_return_conditional(out: &mut JsBlock, condition: &str, then_ret: &str, else_ret: &str) {
