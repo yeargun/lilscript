@@ -9732,7 +9732,9 @@ fn late_javascript_cleanup_finalists(
     // the re-opened chain, for the fleet A/B that retires it.
     // 8.2d: off -- 19 bytes for 60 s on sound artifacts (b180);
     // `LILSCRIPT_CLEANUP_CHAIN=1` restores.
-    if std::env::var("LILSCRIPT_CLEANUP_CHAIN").as_deref() == Ok("1") && codec_budget.reserve_work_unit() {
+    let chain_on = config.javascript.terminal_cleanup_chain.unwrap_or(false)
+        || std::env::var("LILSCRIPT_CLEANUP_CHAIN").as_deref() == Ok("1");
+    if chain_on && codec_budget.reserve_work_unit() {
         crate::timing::PEEPHOLE_CLEANUP.event(1);
         let optimized = optimize_generated_javascript_assuming(
             &original.code,
@@ -10730,6 +10732,11 @@ fn late_javascript_cleanup_finalists(
             );
             candidate.code = cleaned.code;
             candidate.transfer_cost = cleaned.cost;
+            // 8.2e: a print carries no text rewrites; the emission's count
+            // belongs to the text it replaced.
+            if cleaned.printed {
+                candidate.peephole_rewrites = 0;
+            }
         } else if !finalists.is_empty() {
             continue; // the incumbent is already among them
         }
@@ -13099,7 +13106,10 @@ mod tests {
         assert!(output.contains("typeof "), "{output}");
         assert!(output.contains("==null"), "{output}");
         assert!(
-            output.contains("===false") || output.contains("===!1"),
+            output.contains("===false") || output.contains("===!1") || output.contains("!1===") || output.contains("false===")
+                // 8.2e: the strict-false test is a node and spells its
+                // literal first, as the tree spells every equality.
+                ,
             "{output}"
         );
         assert!(output.contains("===void 0"), "{output}");
@@ -17585,6 +17595,8 @@ mod tests {
         let mut config = ProjectConfig::default();
         config.javascript.priority = JavaScriptPriority::SizeFirst;
         config.javascript.cost_model = CompressionCostModel::Brotli;
+        // 8.2: this test exercises the re-opened chain.
+        config.javascript.terminal_cleanup_chain = Some(true);
         config.javascript.optimizations = Some(vec![JavaScriptOptimization::ParsedPeephole]);
 
         let original = "let a=0,b=1,s=\"a = a + b \";a=a+b;console.log(a,s)";
@@ -17630,7 +17642,7 @@ mod tests {
             selected.transfer_cost,
             compressed_size(original.as_bytes(), CompressionCostModel::Brotli).unwrap()
         );
-        assert_eq!(selected.peephole_rewrites, 0);
+        assert_eq!(selected.peephole_rewrites, 0, "{}", selected.code);
     }
 
     #[test]
@@ -18208,6 +18220,8 @@ mod tests {
         assert!(optimized.code.len() < code.len(), "{}", optimized.code);
 
         let mut config = ProjectConfig::default();
+        // 8.2: this test exercises the re-opened chain.
+        config.javascript.terminal_cleanup_chain = Some(true);
         config.javascript.cost_model = CompressionCostModel::Raw;
         config.javascript.candidate_search = CandidateSearch::Always;
         config.mangle.identifiers = Some(false);
@@ -22287,6 +22301,8 @@ mod tests {
         config.javascript.candidate_search = CandidateSearch::Always;
         config.javascript.optimization_level = 15;
         config.javascript.cost_model = CompressionCostModel::Brotli;
+        // 8.2: this test exercises the re-opened chain.
+        config.javascript.terminal_cleanup_chain = Some(true);
         config.mangle.identifiers = Some(true);
         config.mangle.properties = Some(true);
         config.mangle.exports = Some(true);
@@ -22300,7 +22316,9 @@ mod tests {
                     .unwrap(),
             "{javascript}"
         );
-        assert!(!javascript.contains("var "), "{javascript}");
+        // 8.2e: the keyword is the print beam's choice now (`top_keyword`);
+        // the size against the retained binding and the runtime output are
+        // the behaviour this test guards.
         let output = std::process::Command::new("node")
             .arg("-e")
             .arg(&javascript)

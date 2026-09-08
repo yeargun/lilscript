@@ -1378,6 +1378,10 @@ pub struct JavaScriptConfig {
     /// the result when the codec says it is smaller. One emission per shape,
     /// admitted only on a win. `LILSCRIPT_TERMINAL_SHAPES=0|1` overrides it.
     pub terminal_shape_challengers: Option<bool>,
+    /// 8.2: the canonical peephole re-opened on each finalist's text in the
+    /// cleanup (off by default since 8.2d: 19 bytes for 60 s on ten ports).
+    #[serde(default)]
+    pub terminal_cleanup_chain: Option<bool>,
     /// Phase 7b of the migration: a candidate that differs from an emitted
     /// one only in the printer's fields (`string_quote`,
     /// `elide_call_chain_parentheses`, `compact_boolean_literals`) is a
@@ -1525,6 +1529,7 @@ impl Default for JavaScriptConfig {
             peephole_scope: None,
             peephole_plans: None,
             terminal_shape_challengers: None,
+            terminal_cleanup_chain: None,
             reprint_spellings: None,
             reprint_names: None,
             truthy_nullable_checks: None,

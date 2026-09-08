@@ -34365,7 +34365,11 @@ impl Renamer<'_> {
             let declared = self.tree.scopes[scope].declared.clone();
             let converging = matches!(order, RenameOrder::Converge | RenameOrder::ConvergeText);
             let text_rule = order == RenameOrder::ConvergeText || (converging && port_is_enabled("converge_text_rule"));
-            if declared.is_empty() || (converging && scope == 0) {
+            // 8.2: `LILSCRIPT_CONVERGE_MODULE=1` converges the module scope
+            // too (exports and host names are kept as mentions); the text
+            // convergence never did, the retired remaps and name search did.
+            let module_converges = std::env::var("LILSCRIPT_CONVERGE_MODULE").as_deref() == Ok("1");
+            if declared.is_empty() || (converging && scope == 0 && !module_converges) {
                 scopes_full += 1;
                 continue;
             }
