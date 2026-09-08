@@ -9323,6 +9323,36 @@ fn offer_print_beam(
             };
             converge(&mut base, &mut current, codec_budget, report)?;
             let converged_cost = current.2;
+            // 8.1: the finishing shapes as one bundle first -- the chain
+            // applies its folds together and wins where each alone loses
+            // to the codec's noise (remark's print: −206 as a bundle, none
+            // site by site); `LILSCRIPT_TREE_BUNDLE=0` skips it.
+            // Measured (8.1): the bundle loses where the chain wins on the
+            // same print (remark +81 against the chain's −206; markedlil's
+            // artifact +52) -- the chain's folds are not these shapes. Off;
+            // `LILSCRIPT_TREE_BUNDLE=1` turns it on.
+            if std::env::var("LILSCRIPT_TREE_BUNDLE").as_deref() == Ok("1") && codec_budget.remaining() >= 2 {
+                let mut bundle = TreeShapes::default();
+                for (_, add) in TreeShapes::finishing() {
+                    add(&mut bundle);
+                }
+                let (candidate, printed, _) = base.shaped_print(&tree.options, bundle, None);
+                if printed != current.1 && valid(&printed) {
+                    if let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? {
+                        report.scored += 1;
+                        if trace {
+                            eprintln!("[shape] tree finish bundle: {} -> {printed_cost}", current.2);
+                        }
+                        if let Some(prefix) = &dump_prefix {
+                            let _ = std::fs::write(format!("{prefix}.finish.bundle.{printed_cost}.js"), &printed);
+                        }
+                        if printed_cost < current.2 {
+                            current = (shapes, printed, printed_cost);
+                            base = candidate;
+                        }
+                    }
+                }
+            }
             'finishing: for (name, add) in TreeShapes::finishing() {
                 let mut step = TreeShapes::default();
                 add(&mut step);
@@ -9371,6 +9401,51 @@ fn offer_print_beam(
             }
             if current.2 != converged_cost {
                 converge(&mut base, &mut current, codec_budget, report)?;
+            }
+            // 8.1: the cleanup's single-letter remap on the table: the
+            // hottest single letters swapped with an unused `_` or `$`, each
+            // a print the codec rules on (`LILSCRIPT_TREE_LETTER_SWAPS=0`
+            // leaves it to the text remaps).
+            if tree.options.mangle_identifiers
+                && std::env::var("LILSCRIPT_TREE_LETTER_SWAPS").as_deref() != Ok("0")
+            {
+                if let (Ok(identifiers), Ok(counts)) = (
+                    single_character_identifiers(&current.1),
+                    single_character_identifier_use_counts(&current.1),
+                ) {
+                    let mut letters = identifiers.clone();
+                    letters.sort_unstable_by(|left, right| counts[*right as usize].cmp(&counts[*left as usize]).then_with(|| left.cmp(right)));
+                    'swaps: for replacement in [b'_', b'$'] {
+                        if identifiers.contains(&replacement) {
+                            continue;
+                        }
+                        let to = (replacement as char).to_string();
+                        for letter in letters.iter().copied().take(8) {
+                            if codec_budget.remaining() < 1 {
+                                break 'swaps;
+                            }
+                            let from = (letter as char).to_string();
+                            let (candidate, printed) = base.letter_swapped_print(&tree.options, &from, &to);
+                            if printed == current.1 || !valid(&printed) {
+                                continue;
+                            }
+                            let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                                break 'swaps;
+                            };
+                            report.scored += 1;
+                            if trace {
+                                eprintln!("[shape] tree finish letter swap {from}<->{to}: {} -> {printed_cost}", current.2);
+                            }
+                            if printed_cost < current.2 {
+                                current = (shapes, printed, printed_cost);
+                                base = candidate;
+                                // The letter is spent; the next replacement
+                                // looks at the next letters.
+                                continue 'swaps;
+                            }
+                        }
+                    }
+                }
             }
             if !members.iter().any(|member| member.1 == current.1) {
                 members.push(current);
@@ -9863,7 +9938,7 @@ fn late_javascript_cleanup_finalists(
     // neighborhood through parsed cleanup before the general cleanup beam can
     // spend this finalist's fair slice. Every attempted remap is charged
     // before repair/analysis and every valid leaf pays its exact-codec unit.
-    if std::env::var("LILSCRIPT_CLEANUP_REMAPS").as_deref() != Ok("0")
+    if std::env::var("LILSCRIPT_CLEANUP_REMAPS").as_deref() == Ok("1")
         && config.js_options().mangle_identifiers
         && config.entropy_aware_mangling_enabled()
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
@@ -10162,7 +10237,7 @@ fn late_javascript_cleanup_finalists(
     // neighborhood through parsed cleanup before the general cleanup beam can
     // spend this finalist's fair slice. Every attempted remap is charged
     // before repair/analysis and every valid leaf pays its exact-codec unit.
-    if std::env::var("LILSCRIPT_CLEANUP_REMAPS").as_deref() != Ok("0")
+    if std::env::var("LILSCRIPT_CLEANUP_REMAPS").as_deref() == Ok("1")
         && config.js_options().mangle_identifiers
         && config.entropy_aware_mangling_enabled()
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
@@ -10431,7 +10506,9 @@ fn late_javascript_cleanup_finalists(
     stage("before local rounds", &beam);
     // 8.0: `LILSCRIPT_LOCAL_ROUNDS=0` skips the local rounds, for the fleet
     // A/B that retires them.
-    let terminal_local_rounds = if std::env::var("LILSCRIPT_LOCAL_ROUNDS").as_deref() == Ok("0") { 0 } else { terminal_local_rounds };
+    // 8.1: the local rounds are off -- byte-identical without them on ten
+    // pool ports (b150); `LILSCRIPT_LOCAL_ROUNDS=1` puts them back.
+    let terminal_local_rounds = if std::env::var("LILSCRIPT_LOCAL_ROUNDS").as_deref() == Ok("1") { terminal_local_rounds } else { 0 };
     for round in 0..terminal_local_rounds {
         let previous_codes = beam
             .iter()

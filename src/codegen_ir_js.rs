@@ -28043,6 +28043,26 @@ impl ModuleTree {
         (tree, text, seen)
     }
 
+    /// 8.1: a copy of this tree with every bind spelled `from` respelled
+    /// `to` (and the other way round), and its print -- the cleanup's
+    /// single-letter remap (`_`/`$` for the hottest letter), on the table.
+    pub(crate) fn letter_swapped_print(&self, options: &IrJsOptions, from: &str, to: &str) -> (ModuleTree, String) {
+        let options = &print_options(options);
+        let tree = self.copy();
+        let binds = tree.table.len();
+        for index in 0..binds {
+            let bind = Bind(index as u32);
+            let spelling = tree.table.spelling(bind);
+            if spelling == from {
+                tree.table.respell(bind, to);
+            } else if spelling == to {
+                tree.table.respell(bind, from);
+            }
+        }
+        let text = tree.reprint(options);
+        (tree, text)
+    }
+
     pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
         let (render, statement) = printer_options(options);
         let mut block = self.block.clone();
