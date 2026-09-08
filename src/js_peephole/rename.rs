@@ -165,7 +165,13 @@ fn converge_names(
     // when it is free here, so this cannot collide; it makes the artifact's
     // repeated shapes repeat as text, which is what the codec pays for.
     // `LILSCRIPT_ROLE_NAMES=0` allocates per scope as before.
-    let role_names = std::env::var("LILSCRIPT_ROLE_NAMES").as_deref() != Ok("0");
+    // Measured neutral (b234 against b232: +10 on ten pool ports, jquerylil
+    // +127, mobxlil -83): the tree's own convergence already gives the same
+    // role the same letter -- our raw micromark spells `.consume(j)` 74 times
+    // of 101 -- so the text pass has nothing left to align. It was esbuild's
+    // re-mangling of the shipped bundle that varied, not our naming.
+    // `LILSCRIPT_ROLE_NAMES=1` turns it on.
+    let role_names = std::env::var("LILSCRIPT_ROLE_NAMES").as_deref() == Ok("1");
     let mut role = HashMap::<usize, String>::new();
 
     for (scope, start, end) in scopes {

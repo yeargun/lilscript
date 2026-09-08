@@ -29106,6 +29106,21 @@ impl ModuleTree {
             // 8.3: a function nothing reads or mentions goes (the text
             // chain's `remove_unused_standalone_vars`; remark's base
             // artifact dropped two the tree kept, 218 bytes).
+            let mut aliases = remove_dead_member_aliases(&mut self.block, &census);
+            for_each_function_body(&mut self.block, &mut |_, body| {
+                aliases += remove_dead_member_aliases(body, &census);
+            });
+            {
+                let mut closures = self.closures.borrow_mut();
+                for (_, body) in closures.values_mut() {
+                    if let JsFunctionBody::Block(block) = body {
+                        aliases += remove_dead_member_aliases(block, &census);
+                    }
+                }
+            }
+            if aliases > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!("[shape] {aliases} dead member aliases dropped");
+            }
             let dropped = remove_dead_functions(&mut self.block, &census);
             if dropped > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
                 eprintln!("[shape] {dropped} dead functions dropped");
@@ -33322,6 +33337,87 @@ fn read_inside_concise_body(block: &JsBlock, entries: &AHashMap<ClosureId, (JsHe
         JsFunctionBody::Block(inner) => in_block(inner, bind),
         JsFunctionBody::Concise(_) => false,
     })
+}
+
+/// 8.9: `var s=b.enter` where nothing reads `s` and `b.enter` is read
+/// again in the same block. Common subexpression elimination shares one
+/// value for a method looked up twice, the emitter names it because it has
+/// two uses, and then every call re-derives `b.enter` as a member call --
+/// so the name is never read and the property is read once more than the
+/// source asks for. Dropping the declarator removes a byte *and* a read;
+/// it is only taken when the same member text survives elsewhere in the
+/// block, so the read still happens.
+fn remove_dead_member_aliases(module: &mut JsBlock, census: &BindCensus) -> usize {
+    fn member_alias(declarator: &JsDeclarator, census: &BindCensus) -> Option<String> {
+        let bind = declarator.bind?;
+        if declarator.function.is_some()
+            || census.reads.get(&bind).copied().unwrap_or(0) != 0
+            || census.is_unsafe(Some(bind), &declarator.name)
+            || census.unsafe_names.contains(&declarator.name)
+        {
+            return None;
+        }
+        let value = declarator.value.as_ref()?;
+        if value.root != JsExpressionRoot::Member {
+            return None;
+        }
+        let [object, _] = value.operands.as_slice() else {
+            return None;
+        };
+        matches!(object.root, JsExpressionRoot::Name(_) | JsExpressionRoot::Atom)
+            .then(|| value.code.clone())
+    }
+    let text = module.clone().into_string();
+    let mut dropped = 0usize;
+    for emitted in module.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut |child: &mut JsBlock| {
+            dropped += remove_dead_member_aliases(child, census);
+        });
+        match &mut emitted.statement {
+            JsStatement::Declarators { declarators, .. } => {
+                let before = declarators.len();
+                declarators.retain(|declarator| {
+                    let Some(code) = member_alias(declarator, census) else {
+                        return true;
+                    };
+                    // The read must survive somewhere else in this block.
+                    text.matches(code.as_str()).count() > 1
+                });
+                dropped += before - declarators.len();
+                if declarators.is_empty() {
+                    emitted.statement = JsStatement::Empty;
+                }
+            }
+            // A bound SSA value is a `Binding`, which is where the emitter
+            // puts the aliases CSE created.
+            JsStatement::Binding { name, bind, value, .. } => {
+                let alias = bind.filter(|bind| {
+                    census.reads.get(bind).copied().unwrap_or(0) == 0
+                        && !census.is_unsafe(Some(*bind), name)
+                        && !census.unsafe_names.contains(name)
+                }).and_then(|_| {
+                    (value.root == JsExpressionRoot::Member
+                        && value
+                            .operands
+                            .first()
+                            .is_some_and(|object| matches!(object.root, JsExpressionRoot::Name(_) | JsExpressionRoot::Atom)))
+                    .then(|| value.code.clone())
+                });
+                if let Some(code) = alias {
+                    if text.matches(code.as_str()).count() > 1 {
+                        emitted.statement = JsStatement::Empty;
+                        dropped += 1;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if dropped > 0 {
+        module.statements.retain(|emitted| !matches!(emitted.statement, JsStatement::Empty));
+        settle_block_tail(module, false);
+    }
+    dropped
 }
 
 /// 8.3: module-level functions -- declarators holding a function, and
