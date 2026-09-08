@@ -5298,6 +5298,10 @@ impl JsExpression {
     #[track_caller]
     fn atom(code: impl Into<String>) -> Self {
         let code: String = code.into();
+        if std::env::var_os("LILSCRIPT_NAME_ATOM_SITES").is_some() && code.len() <= 2 && is_js_property_identifier(&code) && !is_js_reserved(&code) {
+            let site = std::panic::Location::caller();
+            eprintln!("[name-atom] {}:{} {code}", site.file(), site.line());
+        }
         if atom_sites_enabled() && matches!(code.as_bytes().first(), Some(b'[' | b'{')) {
             let site = std::panic::Location::caller();
             eprintln!("[atom-site] {}:{} {}", site.file(), site.line(), &code[..code.len().min(60)]);
@@ -13204,13 +13208,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.pending_capture_binds = capture_values
                 .iter()
                 .zip(&captures)
-                .map(|(value, text)| {
-                    context
-                        .value_binds
-                        .get(value)
-                        .filter(|_| context.value_names.get(value) == Some(text))
-                        .copied()
-                })
+                .map(|(value, text)| context.capture_bind(*value, text))
                 .collect();
         }
         let rendered = self.render_named_recursive_closure(function, &captures)?;
@@ -16294,6 +16292,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             block_compact_return_expression(&then_output),
                             block_compact_return_expression(&else_output),
                         ) {
+                            // 7.99: the returned conditional as a node
+                            // (`raw_nodes`): its arms' closures and names
+                            // are the tree's (jquerylil: 2,400 such returns
+                            // as raw text).
+                            if port_is_enabled("raw_nodes") {
+                                if let (Some(then_node), Some(else_node)) = (
+                                    block_compact_return_node(&then_output),
+                                    block_compact_return_node(&else_output),
+                                ) {
+                                    out.push_statement(JsStatement::Return {
+                                        value: Some(JsExpression::conditional(condition_tree.clone(), then_node, else_node)),
+                                    });
+                                    cache.clear();
+                                    return Ok(PathEnd::Terminated);
+                                }
+                            }
                             push_return_conditional(out, &condition, &then_ret, &else_ret);
                             cache.clear();
                             return Ok(PathEnd::Terminated);
@@ -19327,12 +19341,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             capture_binds.push(bind);
                         } else {
                             closure_captures.push(captures[index].clone());
-                            let outer = context
-                                .value_binds
-                                .get(&capture_values[index])
-                                .filter(|_| context.value_names.get(&capture_values[index]) == Some(&captures[index]))
-                                .copied();
-                            capture_binds.push(outer);
+                            capture_binds.push(context.capture_bind(capture_values[index], &captures[index]));
                         }
                     }
                     if port_is_enabled("capture_binds") {
@@ -19381,15 +19390,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if port_is_enabled("capture_binds") {
                     // The outer bind of each capture spelled by its own name
                     // (an inlined expression carries none).
+                    let trace = std::env::var_os("LILSCRIPT_NAME_ATOM_SITES").is_some();
                     self.pending_capture_binds = capture_values
                         .iter()
                         .zip(&captures)
                         .map(|(value, text)| {
-                            context
-                                .value_binds
-                                .get(value)
-                                .filter(|_| context.value_names.get(value) == Some(text))
-                                .copied()
+                            let bind = context.capture_bind(*value, text);
+                            if trace && bind.is_none() {
+                                eprintln!(
+                                    "[capture-unbound] fn {} capture `{text}` outer name {:?} outer bind {}",
+                                    context.function_id.0,
+                                    context.value_names.get(value),
+                                    context.value_binds.contains_key(value)
+                                );
+                            }
+                            bind
                         })
                         .collect();
                 }
@@ -23648,6 +23663,21 @@ fn block_compact_ternary_arm(block: &JsBlock) -> Option<String> {
         .map(|sequence| sequence.trim_end_matches(';').to_string())
 }
 
+/// 7.99: the one returned value of a block that is exactly `return v`,
+/// as a node (`raw_nodes`), where the text form would be taken.
+fn block_compact_return_node(block: &JsBlock) -> Option<JsExpression> {
+    let [only] = block.statements.as_slice() else {
+        return None;
+    };
+    match &only.statement {
+        JsStatement::Return { value: Some(value) } => {
+            let expression = strip_outer_parens(value.clone());
+            (!expression.is_empty() && !expression_has_top_level_statement_break(&expression)).then(|| value.clone())
+        }
+        _ => None,
+    }
+}
+
 fn block_compact_return_expression(block: &JsBlock) -> Option<String> {
     let [only] = block.statements.as_slice() else {
         return None;
@@ -26652,15 +26682,50 @@ impl LocalNames {
         let name = self.value_name(value)?;
         Ok(match self.value_binds.get(&value) {
             Some(bind) => JsExpression::name(*bind, name),
-            None => JsExpression::atom(name),
+            None => {
+                if std::env::var_os("LILSCRIPT_NAME_ATOM_SITES").is_some() {
+                    eprintln!("[unbound-value] fn {} value {} `{name}` params {}", self.function_id.0, value.0, self.parameter_values.len());
+                }
+                JsExpression::atom(name)
+            }
         })
+    }
+
+    /// 7.99: the bind a capture's text names in this context: the value's
+    /// own when the text is its name, else the value or local whose name
+    /// the text is (a copied value renders through its source's name).
+    fn capture_bind(&self, value: ValueId, text: &str) -> Option<Bind> {
+        if self.value_names.get(&value).is_some_and(|name| name == text) {
+            if let Some(bind) = self.value_binds.get(&value) {
+                return Some(*bind);
+            }
+        }
+        if !is_js_property_identifier(text) {
+            return None;
+        }
+        if let Some((other, _)) = self.value_names.iter().find(|(_, name)| name.as_str() == text) {
+            if let Some(bind) = self.value_binds.get(other) {
+                return Some(*bind);
+            }
+        }
+        if let Some((local, _)) = self.local_names.iter().find(|(_, name)| name.as_str() == text) {
+            if let Some(bind) = self.local_binds.get(local) {
+                return Some(*bind);
+            }
+        }
+        None
     }
 
     fn local_atom(&self, local: LocalId) -> Result<JsExpression, CodegenError> {
         let name = self.local_name(local)?;
         Ok(match self.local_binds.get(&local) {
             Some(bind) => JsExpression::name(*bind, name),
-            None => JsExpression::atom(name),
+            None => {
+                if std::env::var_os("LILSCRIPT_NAME_ATOM_SITES").is_some() {
+                    eprintln!("[unbound-local] fn {} local {} `{name}` params {}", self.function_id.0, local.0, self.parameter_values.len());
+                }
+                JsExpression::atom(name)
+            }
         })
     }
 
