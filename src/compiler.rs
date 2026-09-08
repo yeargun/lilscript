@@ -6857,7 +6857,8 @@ fn finalize_javascript_candidates_with_parallelism(
             // tree and none was emitted for it (katexlil: no print beam at
             // all, its whole end-state gap); `LILSCRIPT_PORTS=single_plan_tree`
             // emits one.
-            let emit_for_tree = contexts.plans_registered() > 1 || crate::codegen_ir_js::port_is_enabled("single_plan_tree");
+            let emit_for_tree = contexts.plans_registered() > 1
+                || (crate::codegen_ir_js::port_is_enabled("single_plan_tree") && candidate_limit > 1);
             let first_beam_for_context = contexts
                 .beamed_contexts
                 .lock()
@@ -6869,7 +6870,9 @@ fn finalize_javascript_candidates_with_parallelism(
             // it run when the terminal budget is spent (rehypelil at level
             // 12: no beam at all, +773 in the end state).
             let tree = if config.terminal_shape_challengers_enabled()
-                && (codec_budget.remaining() > 0 || crate::codegen_ir_js::port_is_enabled("beam_any_budget"))
+                && (codec_budget.remaining() > 0
+                    || (crate::codegen_ir_js::port_is_enabled("beam_any_budget")
+                        && config.javascript.terminal_codec_probe_limit != Some(0)))
                 && first_beam_for_context
             {
                 let registered = contexts.registered_plan_by_identity(selected.plan_identity);
@@ -9518,7 +9521,9 @@ fn late_javascript_cleanup_finalists(
     // 7.99: with `LILSCRIPT_PORTS=beam_any_budget` and a tree to print, the
     // cleanup opens on a spent terminal budget for the print beam's own
     // allowance (the text families then probe nothing).
-    let beam_any_budget = print_beam.is_some() && crate::codegen_ir_js::port_is_enabled("beam_any_budget");
+    let beam_any_budget = print_beam.is_some()
+        && crate::codegen_ir_js::port_is_enabled("beam_any_budget")
+        && config.javascript.terminal_codec_probe_limit != Some(0);
     if selected.has_explicit_lowering_obligations
         || (codec_budget.remaining() == 0 && !beam_any_budget)
         || !config.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole)
@@ -9598,7 +9603,9 @@ fn late_javascript_cleanup_finalists(
     // rejected for syntax: the best unparsed fallback may expose the same
     // large general rewrite only after plan selection.
     let mut canonical_peephole = None;
-    if codec_budget.reserve_work_unit() {
+    // 8.0: `LILSCRIPT_CLEANUP_CHAIN=0` leaves the finalist's text without
+    // the re-opened chain, for the fleet A/B that retires it.
+    if std::env::var("LILSCRIPT_CLEANUP_CHAIN").as_deref() != Ok("0") && codec_budget.reserve_work_unit() {
         crate::timing::PEEPHOLE_CLEANUP.event(1);
         let optimized = optimize_generated_javascript_assuming(
             &original.code,
@@ -9856,7 +9863,8 @@ fn late_javascript_cleanup_finalists(
     // neighborhood through parsed cleanup before the general cleanup beam can
     // spend this finalist's fair slice. Every attempted remap is charged
     // before repair/analysis and every valid leaf pays its exact-codec unit.
-    if config.js_options().mangle_identifiers
+    if std::env::var("LILSCRIPT_CLEANUP_REMAPS").as_deref() != Ok("0")
+        && config.js_options().mangle_identifiers
         && config.entropy_aware_mangling_enabled()
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
     {
@@ -10154,7 +10162,8 @@ fn late_javascript_cleanup_finalists(
     // neighborhood through parsed cleanup before the general cleanup beam can
     // spend this finalist's fair slice. Every attempted remap is charged
     // before repair/analysis and every valid leaf pays its exact-codec unit.
-    if config.js_options().mangle_identifiers
+    if std::env::var("LILSCRIPT_CLEANUP_REMAPS").as_deref() != Ok("0")
+        && config.js_options().mangle_identifiers
         && config.entropy_aware_mangling_enabled()
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
     {
@@ -10420,6 +10429,9 @@ fn late_javascript_cleanup_finalists(
     // return tails cover the shape), so the terminal local pass list is empty.
     const TERMINAL_LOCAL_PASSES: [LateJavaScriptCleanupPass; 0] = [];
     stage("before local rounds", &beam);
+    // 8.0: `LILSCRIPT_LOCAL_ROUNDS=0` skips the local rounds, for the fleet
+    // A/B that retires them.
+    let terminal_local_rounds = if std::env::var("LILSCRIPT_LOCAL_ROUNDS").as_deref() == Ok("0") { 0 } else { terminal_local_rounds };
     for round in 0..terminal_local_rounds {
         let previous_codes = beam
             .iter()

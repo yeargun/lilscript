@@ -19557,6 +19557,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         // an operand the tree sees.
                         let mut adapter = JsExpression::comma_unmerged(vec![JsExpression::atom("0"), callback]);
                         adapter.ungrouped = None;
+                        // Its code carries its own parens: primary, so no
+                        // use site doubles them (the class-fusing fold read
+                        // `((0,function..))` past its constructor call).
+                        adapter.precedence = JsPrecedence::Primary;
                         adapter
                     } else {
                         JsExpression::atom(format!(
@@ -28188,6 +28192,11 @@ fn print_options(options: &IrJsOptions) -> IrJsOptions {
 
 /// The convergence renames (`shapes.converge`), on a shaped tree.
 fn converge_names(tree: &mut ModuleTree, options: &IrJsOptions, shapes: TreeShapes) {
+    // 8.0: no convergence where the names are not mangled (the readable
+    // build keeps its source names).
+    if !options.mangle_identifiers {
+        return;
+    }
     if shapes.converge {
         // Migration 7.63: the plan's alphabet, measured: on markedlil the
         // converge print reads −20/−26 with it (parameters first), +105
