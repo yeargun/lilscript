@@ -16511,18 +16511,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             {
                                 // 8.1: `a=a||v` as nodes (`raw_nodes`), from
                                 // the block's own assignment statement.
-                                if port_is_enabled("raw_nodes") {
-                                    if let Some(node) = block_self_or_assign_node(&then_output, &target) {
-                                        out.push_statement(JsStatement::Expression { value: node });
-                                        cache.clear();
-                                        continue;
-                                    }
-                                }
+                                let node = port_is_enabled("raw_nodes")
+                                    .then(|| block_self_or_assign_node(&then_output, &target))
+                                    .flatten();
                                 out.push_statement(JsStatement::Expression {
-                                    value: JsExpression::raw(
-                                        format!("{target}={target}||{value}"),
-                                        JsPrecedence::Assignment,
-                                    ),
+                                    value: node.unwrap_or_else(|| {
+                                        JsExpression::raw(
+                                            format!("{target}={target}||{value}"),
+                                            JsPrecedence::Assignment,
+                                        )
+                                    }),
                                 });
                             } else {
                                 let method_condition = if condition_was_negated {
@@ -16623,18 +16621,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             {
                                 // 8.1: the run as a node (`raw_nodes`) when the
                                 // else block's sequence is one.
-                                if port_is_enabled("raw_nodes") {
-                                    if let Some(else_node) = block_compact_arm_node(&else_output, &else_expression) {
-                                        let value = if condition_was_negated {
+                                let run_node = port_is_enabled("raw_nodes")
+                                    .then(|| block_compact_arm_node(&else_output, &else_expression))
+                                    .flatten()
+                                    .map(|else_node| {
+                                        if condition_was_negated {
                                             JsExpression::binary(IrBinaryOp::And, negated_tree.clone(), else_node)
                                         } else {
                                             JsExpression::binary(IrBinaryOp::Or, condition_tree.clone(), else_node)
-                                        };
-                                        out.push_statement(JsStatement::Expression { value });
-                                        cache.clear();
-                                        continue;
-                                    }
-                                }
+                                        }
+                                    });
                                 let mut run = String::new();
                                 if condition_was_negated {
                                     push_logical_operand_text(&mut run, &negated_condition, IrBinaryOp::And);
@@ -16646,7 +16642,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     push_logical_operand_text(&mut run, &else_expression, IrBinaryOp::Or);
                                 }
                                 out.push_statement(JsStatement::Expression {
-                                    value: JsExpression::raw(run, JsPrecedence::LogicalOr),
+                                    value: run_node.unwrap_or_else(|| JsExpression::raw(run, JsPrecedence::LogicalOr)),
                                 });
                             } else {
                                 out.push_statement_with(
