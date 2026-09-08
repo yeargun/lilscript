@@ -1364,12 +1364,30 @@ fn port_is_skipped(name: &str) -> bool {
 /// `LILSCRIPT_PORTS=for_init,…` turns on a port that ships off: one the
 /// fleet measured as a loss in the emitter's hands while the text fold it
 /// replaces still runs (the owner's rule: a default flips on a measured win).
+/// Migration 8.0: the ports the end state ships with -- measured on ten
+/// pool ports at −29 against the text stages with 458 s against 532
+/// (7.99g); `LILSCRIPT_SKIP_PORTS=name,..` turns one off, `LILSCRIPT_PORTS`
+/// turns another on.
+const DEFAULT_PORTS: [&str; 7] = [
+    "cluster_tree",
+    "capture_binds",
+    "struct_node",
+    "snapshot_tree",
+    "single_plan_tree",
+    "beam_any_budget",
+    "raw_nodes",
+];
+
 pub(crate) fn port_is_enabled(name: &str) -> bool {
     static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    NAMES
-        .get_or_init(|| env_name_list("LILSCRIPT_PORTS"))
-        .iter()
-        .any(|enabled| enabled == name)
+    if port_is_skipped(name) {
+        return false;
+    }
+    DEFAULT_PORTS.contains(&name)
+        || NAMES
+            .get_or_init(|| env_name_list("LILSCRIPT_PORTS"))
+            .iter()
+            .any(|enabled| enabled == name)
 }
 
 impl StatementPolicy {
@@ -28434,7 +28452,19 @@ impl TreeShapes {
         // −56 with −8 s removed together (b122); they stay as finishing
         // steps, and `LILSCRIPT_PORTS=full_beam` or the filter naming them
         // puts them back.
-        const LEAN_OUT: [&str; 5] = ["negated_equalities", "or_assigns", "function_let", "guard_tails", "exit_guards"];
+        // Migration 8.0: the beam holds the chain-like shapes; the
+        // ladder-mirroring ones (`same_binding_equality`, `boolean_one_arm`,
+        // `return_tails`, `rebrace`, `negated_equalities`, `guard_tails`,
+        // `exit_guards`) are the tree finish's steps, site by site (7.97).
+        const LEAN_OUT: [&str; 7] = [
+            "negated_equalities",
+            "same_binding_equality",
+            "boolean_one_arm",
+            "return_tails",
+            "guard_tails",
+            "exit_guards",
+            "rebrace",
+        ];
         let full_beam = port_is_enabled("full_beam") || filter.is_some();
         rungs
             .into_iter()

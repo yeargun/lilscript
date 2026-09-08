@@ -5370,6 +5370,14 @@ fn terminal_scope_naming_options(
 /// the structural chain on stderr, `[ladder] Pass before -> after` and
 /// `[chain] .. before -> after`, for the census of what the tree's shapes
 /// still leave to the text (7.55).
+/// Migration 8.0: the text convergence is off -- the tree's convergence at
+/// the end of the print's finishing has its counts and its rule (7.97);
+/// `LILSCRIPT_TEXT_CONVERGE=1` or `LILSCRIPT_TEXT_STAGES=1` puts it back.
+fn text_convergence_enabled() -> bool {
+    std::env::var("LILSCRIPT_TEXT_CONVERGE").as_deref() == Ok("1")
+        || std::env::var("LILSCRIPT_TEXT_STAGES").as_deref() == Ok("1")
+}
+
 fn ladder_report() -> bool {
     std::env::var_os("LILSCRIPT_LADDER_REPORT").is_some()
 }
@@ -9249,7 +9257,7 @@ fn offer_print_beam(
     // the best member, greedily and codec-verified as the text ladder is,
     // then the tree's convergence under the text rule, last; the result
     // joins the cleanup beam as a print.
-    if std::env::var("LILSCRIPT_TREE_FINISH").is_ok_and(|value| value == "1") {
+    if std::env::var("LILSCRIPT_TREE_FINISH").map_or(true, |value| value != "0") {
         if let Some((shapes, text, cost)) = members
             .iter()
             .min_by(|left, right| (left.2, left.1.len()).cmp(&(right.2, right.1.len())))
@@ -9671,7 +9679,7 @@ fn late_javascript_cleanup_finalists(
     // retires it.
     if config.js_options().mangle_identifiers
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
-        && std::env::var("LILSCRIPT_TEXT_CONVERGE").map_or(true, |value| value != "0")
+        && text_convergence_enabled()
     {
         let sources = beam.clone();
         let source_count = sources.len();
@@ -9969,7 +9977,7 @@ fn late_javascript_cleanup_finalists(
     // retires it.
     if config.js_options().mangle_identifiers
         && !matches!(config.javascript.cost_model, CompressionCostModel::Raw)
-        && std::env::var("LILSCRIPT_TEXT_CONVERGE").map_or(true, |value| value != "0")
+        && text_convergence_enabled()
     {
         let sources = beam.clone();
         let source_count = sources.len();

@@ -3011,10 +3011,15 @@ impl LateJavaScriptCleanupPass {
                     .collect()
             });
         }
+        // Migration 8.0: the text ladder is off -- the tree finish applies
+        // its passes' rules site by site (7.97); `LILSCRIPT_TEXT_STAGES=1`
+        // puts the text ladder and the text convergence back.
         if std::env::var_os("LILSCRIPT_CLEANUP_TWINS").is_some() {
             &Self::LADDER_WITH_TWINS
-        } else {
+        } else if std::env::var("LILSCRIPT_TEXT_STAGES").as_deref() == Ok("1") {
             &Self::ALL
+        } else {
+            &[]
         }
     }
 
