@@ -1701,6 +1701,16 @@ fn render(
                 else_value.clone().at_least(JsPrecedence::Assignment)
             ))
         }
+        JsExpressionRoot::In => {
+            let [key, receiver] = operands else {
+                return None;
+            };
+            Some(format!(
+                "{} in {}",
+                key.clone().at_least(JsPrecedence::Relational),
+                receiver.clone().at_least(JsPrecedence::Relational)
+            ))
+        }
         JsExpressionRoot::Nullish => {
             let [lhs, rhs] = operands else {
                 return None;
@@ -1990,6 +2000,9 @@ enum JsExpressionRoot {
     Unary(JsUnary),
     Binary(IrBinaryOp),
     Nullish,
+    /// 8.1: `key in receiver` (the membership intrinsic), so the receiver
+    /// is a node the renamer sees.
+    In,
     Conditional,
     Call,
     Member,
@@ -2072,7 +2085,7 @@ impl JsExpressionRoot {
             Self::StrictEquality { .. } => Some(2),
             // `Member`'s second operand is the property name, which the
             // grammar makes a child (`MemberExpression . IdentifierName`).
-            Self::Binary(_) | Self::Nullish | Self::Index | Self::Member => Some(2),
+            Self::Binary(_) | Self::Nullish | Self::In | Self::Index | Self::Member => Some(2),
             Self::Conditional => Some(3),
             Self::Call | Self::Comma | Self::Array | Self::New | Self::Object => None,
         }
@@ -2097,7 +2110,7 @@ impl JsExpressionRoot {
             | Self::PrefixUpdate(_)
             | Self::Spread => 1,
             Self::Binary(_) | Self::StrictEquality { .. } => 2,
-            Self::Nullish | Self::Index | Self::Member => 2,
+            Self::Nullish | Self::In | Self::Index | Self::Member => 2,
             Self::Conditional => 3,
             Self::Assign => 2,
             Self::Update(_) => 1,
@@ -5786,6 +5799,22 @@ impl JsExpression {
     }
 
     /// `new C(a,b)` over its constructor and argument nodes.
+    /// 8.1: `key in receiver`.
+    fn membership(key: Self, receiver: Self) -> Self {
+        let operands = vec![key, receiver];
+        let code = render(JsExpressionRoot::In, &operands, JsRenderOptions::UNUSED).expect("render covers In");
+        Self {
+            code,
+            ungrouped: None,
+            precedence: JsPrecedence::Relational,
+            root: JsExpressionRoot::In,
+            optional_access_code: None,
+            origin: None,
+            facts: JsFacts::NONE,
+            operands,
+        }
+    }
+
     fn new_call(constructor: Self, arguments: Vec<Self>) -> Self {
         let mut operands = vec![constructor];
         operands.extend(arguments);
@@ -6123,6 +6152,7 @@ impl JsExpression {
             JsExpressionRoot::Unary(operator) => Self::unary(operator.as_str(), child(0)),
             JsExpressionRoot::Binary(op) => Self::binary(op, child(0), child(1)),
             JsExpressionRoot::Nullish => Self::nullish(child(0), child(1)),
+            JsExpressionRoot::In => Self::membership(child(0), child(1)),
             JsExpressionRoot::NullNormalized => Self::null_normalized(child(0)),
             JsExpressionRoot::Conditional => Self::conditional(child(0), child(1), child(2)),
             JsExpressionRoot::IntegerNormalization => Self::integer_normalization(child(0)),
@@ -20838,6 +20868,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         "JS.in requires one key",
                     ));
                 };
+                if port_is_enabled("raw_nodes") {
+                    let key = take_value(*key, context, cache)?;
+                    return Ok(JsExpression::membership(key, receiver));
+                }
                 return Ok(JsExpression::raw(
                     format!(
                         "{} in {}",

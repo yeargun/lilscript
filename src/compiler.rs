@@ -9422,8 +9422,13 @@ fn offer_print_beam(
             // hottest single letters swapped with an unused `_` or `$`, each
             // a print the codec rules on (`LILSCRIPT_TREE_LETTER_SWAPS=0`
             // leaves it to the text remaps).
+            // Off (8.1e): a swap respells the binds and not the letter inside
+            // raw text, and the print validates syntax only -- three unit
+            // tests and nine case-lanes ran `_`/`$` undeclared; the fleet read
+            // no gain from it either. `LILSCRIPT_TREE_LETTER_SWAPS=1` for the
+            // A/B once the swap is sound.
             if tree.options.mangle_identifiers
-                && std::env::var("LILSCRIPT_TREE_LETTER_SWAPS").as_deref() != Ok("0")
+                && std::env::var("LILSCRIPT_TREE_LETTER_SWAPS").as_deref() == Ok("1")
             {
                 if let (Ok(identifiers), Ok(counts)) = (
                     single_character_identifiers(&current.1),
