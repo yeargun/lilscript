@@ -20623,6 +20623,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     "false"
                 };
+                // 8.2: as a strict-equality node (`raw_nodes`; jquerylil's
+                // 17,000 raw `x===!1` texts kept their names by mention).
+                if port_is_enabled("raw_nodes") {
+                    return Ok(JsExpression::strict_equality(receiver, JsExpression::atom(false_literal), false));
+                }
                 return Ok(JsExpression::raw(
                     format!(
                         "{}==={false_literal}",
@@ -21346,7 +21351,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // Off: as a call node jquerylil read +226 (the raw text gave the
                 // emitter's own folds another shape); `LILSCRIPT_PORTS=minmax_call`
                 // turns the node on.
-                if !port_is_enabled("minmax_call") {
+                if !port_is_enabled("minmax_call") && !port_is_enabled("raw_nodes") {
                     let mut rendered = format!("Math.{method}({}", strip_outer_parens(receiver));
                     for arg in args {
                         rendered.push(',');
