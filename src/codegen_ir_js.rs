@@ -32946,10 +32946,15 @@ fn inline_single_use_declarator_functions(
                 }
             }
             if let Some((bind, spelled)) = name {
+                // 8.2: a spelling any text mentions is no candidate -- a
+                // by-bind census marks a declared bind unsafe only through
+                // a resolved mention, and an unresolved one (jquerylil's
+                // `(e,t)=>cs(e)`) kept calling a declarator the move took.
                 if plain
                     && census.reads.get(&bind).copied() == Some(1)
                     && census.writes.get(&bind).copied() == Some(1)
                     && !census.is_unsafe(Some(bind), &spelled)
+                    && !census.unsafe_names.contains(&spelled)
                     && !block_has_closure(body)
                 {
                     candidates.push((index, usize::MAX, bind, spelled, expression_head, JsFunctionBody::Block(body.clone())));
@@ -32965,6 +32970,7 @@ fn inline_single_use_declarator_functions(
                 if census.reads.get(&bind).copied() != Some(1)
                     || census.writes.get(&bind).copied() != Some(1)
                     || census.is_unsafe(Some(bind), &declarator.name)
+                    || census.unsafe_names.contains(&declarator.name)
                 {
                     continue;
                 }
