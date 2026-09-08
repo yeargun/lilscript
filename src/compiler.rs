@@ -5378,6 +5378,8 @@ fn text_convergence_enabled() -> bool {
         || std::env::var("LILSCRIPT_TEXT_STAGES").as_deref() == Ok("1")
 }
 
+use crate::codegen_ir_js::trace_prefix;
+
 fn ladder_report() -> bool {
     std::env::var_os("LILSCRIPT_LADDER_REPORT").is_some()
 }

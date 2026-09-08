@@ -4076,7 +4076,17 @@ fn collapse_declarator_list(
         };
         let mut reads_here = BindCensus::default();
         reads_here.expression(next_value, closures);
-        if reads_here.reads.get(&bind).copied() != Some(1) || !collapse_is_safe(bind, &value, next_value, census) {
+        // 8.1: the one read must be in the declarator's own tree, not inside
+        // a closure body the map holds -- the substitution reaches the tree
+        // only, and a concise node body (a read the text form hid) had its
+        // declarator dropped and its reference kept.
+        let mut direct = BindCensus::default();
+        let no_closures = RefCell::new(AHashMap::default());
+        direct.expression(next_value, &no_closures);
+        if reads_here.reads.get(&bind).copied() != Some(1)
+            || direct.reads.get(&bind).copied() != Some(1)
+            || !collapse_is_safe(bind, &value, next_value, census)
+        {
             index += 1;
             continue;
         }
@@ -4575,10 +4585,15 @@ fn collapse_block(
         // in a nested block of it (7.87: a loop head's first-evaluated tree
         // counts as the statement's own expression).
         let mut reads_here = BindCensus::default();
+        let mut direct = BindCensus::default();
+        let no_closures = RefCell::new(AHashMap::default());
         if let Some(expression) = collapse_target(next) {
             reads_here.expression(expression, closures);
+            direct.expression(expression, &no_closures);
         }
-        if reads_here.reads.get(&bind).copied() != Some(1) {
+        // 8.1: the one read in the statement's own tree, not inside a
+        // closure body (the substitution reaches the tree only).
+        if reads_here.reads.get(&bind).copied() != Some(1) || direct.reads.get(&bind).copied() != Some(1) {
             index += 1;
             continue;
         }
@@ -4599,9 +4614,9 @@ fn collapse_block(
             eprintln!(
                 "[collapse] bind {} = `{}` into `{}` -> `{}`",
                 bind.0,
-                &value.code[..value.code.len().min(60)],
-                &expression.code[..expression.code.len().min(100)],
-                &substituted.code[..substituted.code.len().min(100)]
+                trace_prefix(&value.code, 60),
+                trace_prefix(&expression.code, 100),
+                trace_prefix(&substituted.code, 100)
             );
         }
         *expression = substituted;
@@ -5349,7 +5364,7 @@ impl JsExpression {
         }
         if atom_sites_enabled() && matches!(code.as_bytes().first(), Some(b'[' | b'{')) {
             let site = std::panic::Location::caller();
-            eprintln!("[atom-site] {}:{} {}", site.file(), site.line(), &code[..code.len().min(60)]);
+            eprintln!("[atom-site] {}:{} {}", site.file(), site.line(), trace_prefix(&code, 60));
         }
         if crate::timing::enabled()
             && is_js_property_identifier(&code)
@@ -5431,7 +5446,7 @@ impl JsExpression {
             && (std::env::var("LILSCRIPT_RAW_SITES").as_deref() == Ok("all") || code.contains("function") || code.contains("=>") || code.starts_with("new "))
         {
             let site = std::panic::Location::caller();
-            eprintln!("[raw-site] {}:{} {}", site.file(), site.line(), &code[..code.len().min(70)].replace('\n', " "));
+            eprintln!("[raw-site] {}:{} {}", site.file(), site.line(), trace_prefix(&code, 70).replace('\n', " "));
         }
         if raw_sites_enabled() {
             let line = std::panic::Location::caller().line();
@@ -22117,8 +22132,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             Some((id, text)) if text == rendered => JsExpression::closure(id, rendered, precedence),
             other => {
                 if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
-                    let last = other.map(|(id, text)| format!("closure {} `{}`", id.0, &text[..text.len().min(50)]));
-                    eprintln!("[shape] closure_node raw: `{}` against {last:?}", &rendered[..rendered.len().min(50)]);
+                    let last = other.map(|(id, text)| format!("closure {} `{}`", id.0, trace_prefix(&text, 50)));
+                    eprintln!("[shape] closure_node raw: `{}` against {last:?}", trace_prefix(&rendered, 50));
                 }
                 JsExpression::raw(rendered, precedence)
             }
@@ -32196,8 +32211,8 @@ fn absorb_declarator_or_assigns(block: &mut JsBlock) {
             };
             if std::env::var_os("LILSCRIPT_DECL_OR_TRACE").is_some() {
                 let kind = match next {
-                    JsStatement::Expression { value } => format!("Expression {:?} `{}`", value.root, &value.code[..value.code.len().min(50)]),
-                    JsStatement::Binding { keyword, bind: b, name, value } => format!("Binding kw {keyword:?} bind {b:?} name {name} `{}`", &value.code[..value.code.len().min(50)]),
+                    JsStatement::Expression { value } => format!("Expression {:?} `{}`", value.root, trace_prefix(&value.code, 50)),
+                    JsStatement::Binding { keyword, bind: b, name, value } => format!("Binding kw {keyword:?} bind {b:?} name {name} `{}`", trace_prefix(&value.code, 50)),
                     other => format!("{}", std::mem::discriminant(other) == std::mem::discriminant(&JsStatement::Empty)).replace("true", "Empty").replace("false", "other"),
                 };
                 eprintln!("[decl-or] last `{}` bind {:?} next: {kind}", last.name, bind);
@@ -32348,7 +32363,7 @@ fn reduce_immediate_call(
     let (callee, args) = node.operands.split_first()?;
     let JsExpressionRoot::Closure(id) = callee.root else {
         if trace && callee.code.contains("=>") {
-            eprintln!("[shape] call on a non-closure callee root {:?}: {}", callee.root, &node.code[..node.code.len().min(80)]);
+            eprintln!("[shape] call on a non-closure callee root {:?}: {}", callee.root, trace_prefix(&node.code, 80));
         }
         return None;
     };
@@ -32907,11 +32922,17 @@ fn inline_single_use_declarator_functions(
                 }
             }
             if let Some((bind, spelled)) = name {
+                // 8.1: the one read must be in a statement's own tree,
+                // outside every function -- inside another declarator's
+                // function the moved closure's node keeps stale code and the
+                // declarator goes while the read stays (concise nodes show
+                // reads the text form hid).
                 if plain
                     && census.reads.get(&bind).copied() == Some(1)
                     && census.writes.get(&bind).copied() == Some(1)
                     && !census.is_unsafe(Some(bind), &spelled)
                     && !block_has_closure(body)
+                    && read_site_outside_functions(module, bind, false).is_some()
                 {
                     candidates.push((index, usize::MAX, bind, spelled, expression_head, JsFunctionBody::Block(body.clone())));
                 }
@@ -32926,6 +32947,7 @@ fn inline_single_use_declarator_functions(
                 if census.reads.get(&bind).copied() != Some(1)
                     || census.writes.get(&bind).copied() != Some(1)
                     || census.is_unsafe(Some(bind), &declarator.name)
+                    || read_site_outside_functions(module, bind, false).is_none()
                 {
                     continue;
                 }
@@ -33088,20 +33110,21 @@ fn inline_single_use_declarator_functions(
                 .unwrap_or(0),
         );
         let replacement = JsExpression::closure(id, code, JsPrecedence::Comma);
+        // 8.1: a read inside a concise node body is no target -- the moved
+        // closure's node keeps its stale code where the print's map has no
+        // entry for it, and the read stays while the declarator goes (the
+        // text form hid these reads; concise nodes show them).
+        if let Some(entry) = in_entry {
+            if matches!(entries.get(&entry), Some((_, JsFunctionBody::ConciseNode(_)))) {
+                if trace {
+                    eprintln!("[shape] declarator function {name}: its read is inside a concise body");
+                }
+                continue;
+            }
+        }
         let replaced = match in_entry {
             Some(entry) => match entries.get_mut(&entry) {
                 Some((_, JsFunctionBody::Block(block))) => replace_bind_reads_deep(block, bind, &replacement),
-                Some((_, JsFunctionBody::ConciseNode(node))) => {
-                    match rewrite_expression(node, &mut |candidate| {
-                        (candidate.root == JsExpressionRoot::Name(bind)).then(|| replacement.clone())
-                    }) {
-                        Some((rewritten, count)) => {
-                            *node = rewritten;
-                            count
-                        }
-                        None => 0,
-                    }
-                }
                 _ => 0,
             },
             None => replace_bind_reads_deep(module, bind, &replacement),
@@ -33758,6 +33781,15 @@ fn identifiers_in(text: &str, into: &mut AHashSet<String>) {
     identifier_bytes_in(text, into);
 }
 
+/// The first `chars` characters of `text`, for a trace (a byte slice on a
+/// non-ASCII text panics: micromarklil under `LILSCRIPT_RAW_SITES=all`).
+pub(crate) fn trace_prefix(text: &str, chars: usize) -> &str {
+    match text.char_indices().nth(chars) {
+        Some((index, _)) => &text[..index],
+        None => text,
+    }
+}
+
 /// Every identifier-shaped run of bytes in `text`.
 fn identifier_bytes_in(text: &str, into: &mut AHashSet<String>) {
     let bytes = text.as_bytes();
@@ -34173,7 +34205,7 @@ impl ScopeCollector<'_> {
                 let code = expression.code.as_str();
                 if is_js_property_identifier(code) && !is_js_reserved(code) {
                     if std::env::var_os("LILSCRIPT_CONVERGE_TRACE").is_some() {
-                        eprintln!("[converge-free] scope {scope} `{code}` in `{}`", &expression.code[..expression.code.len().min(60)]);
+                        eprintln!("[converge-free] scope {scope} `{code}` in `{}`", trace_prefix(&expression.code, 60));
                     }
                     self.tree.scopes[scope].free.insert(code.to_string());
                 } else if !is_js_property_identifier(code) {
