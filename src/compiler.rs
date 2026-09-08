@@ -5400,8 +5400,16 @@ fn terminal_scope_naming_options(
 /// the end of the print's finishing has its counts and its rule (7.97);
 /// `LILSCRIPT_TEXT_CONVERGE=1` or `LILSCRIPT_TEXT_STAGES=1` puts it back.
 fn text_convergence_enabled() -> bool {
-    std::env::var("LILSCRIPT_TEXT_CONVERGE").as_deref() == Ok("1")
-        || std::env::var("LILSCRIPT_TEXT_STAGES").as_deref() == Ok("1")
+    // 8.3f: on. The text convergence on the carried print reads −910 on
+    // ten pool ports against the tree's convergence alone (remark −567 to
+    // within 4 bytes of the base, micromark −343; the other eight ports
+    // byte-identical; wall 497 s against the base's 660): 254,496 against
+    // the base's 254,726, the first fleet below it. The tree's convergence
+    // keeps what a closure head's unbound parameters spell as text
+    // (`function(ev,iv,jv,..)`, the captured names); until it resolves
+    // them as the text does, this stage stays. `LILSCRIPT_TEXT_CONVERGE=0`
+    // turns it off; `LILSCRIPT_TEXT_STAGES=1` turns the ladder on too.
+    std::env::var("LILSCRIPT_TEXT_CONVERGE").as_deref() != Ok("0")
 }
 
 use crate::codegen_ir_js::trace_prefix;
