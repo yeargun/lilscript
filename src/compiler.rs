@@ -9350,6 +9350,8 @@ fn offer_print_beam(
                 let mut converged = TreeShapes::default();
                 converged.converge = true;
                 converged.converge_text = true;
+                // 8.4: a naming variant the codec accepted stays accepted.
+                converged.converge_variant = current.0.converge_variant;
                 let (candidate, printed, _) = base.shaped_print(&tree.options, current.0, converged, None);
                 if printed == current.1 || !valid(&printed) {
                     return Ok(false);
@@ -9380,6 +9382,50 @@ fn offer_print_beam(
                 Ok(true)
             };
             converge(&mut base, &mut current, codec_budget, report)?;
+            // 8.4: the naming variants. Which bindings get which names is a
+            // free choice among programs identical in every other respect,
+            // and the canonical sizes of those programs differ by tens of
+            // bytes (unifiedlil: 4,671..4,678 across four namings of one
+            // 14.5 KB program; the pre-migration pipeline reached 4,594 by
+            // scoring a far larger population). Each variant is one whole
+            // print and one canonical probe -- not a per-site probe against
+            // the encoder's noise, but a choice between whole artifacts,
+            // which is what the codec is for. Measured off (b222 against b221:
+            // **+64 on ten pool ports** -- unifiedlil -10 and markedlil -7,
+            // rehypelil +117): the variant is chosen before the finishing
+            // steps and before the text convergence, so its canonical score
+            // does not predict the finished artifact -- the same
+            // greedy-on-a-noisy-measure trap as the per-site probes, one
+            // level up. `LILSCRIPT_CONVERGE_VARIANTS=1`
+            // leaves the first naming alone.
+            if tree.options.mangle_identifiers
+                && std::env::var("LILSCRIPT_CONVERGE_VARIANTS").as_deref() == Ok("1")
+            {
+                for variant in 1..TreeShapes::CONVERGE_VARIANTS {
+                    if codec_budget.remaining() < 2 {
+                        break;
+                    }
+                    let mut converged = TreeShapes::default();
+                    converged.converge = true;
+                    converged.converge_text = true;
+                    converged.converge_variant = variant;
+                    let (candidate, printed, _) = base.shaped_print(&tree.options, current.0, converged, None);
+                    if printed == current.1 || !valid(&printed) {
+                        continue;
+                    }
+                    let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? else {
+                        break;
+                    };
+                    report.scored += 1;
+                    if trace {
+                        eprintln!("[shape] tree finish converge variant {variant}: {} -> {printed_cost}", current.2);
+                    }
+                    if printed_cost < current.2 {
+                        current = (current.0.or(converged), printed, printed_cost);
+                        base = candidate;
+                    }
+                }
+            }
             let converged_cost = current.2;
             if trace {
                 // 8.3d: the base tree printed with no step must be the

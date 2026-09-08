@@ -12160,46 +12160,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             && self.options.function_spelling == FunctionSpelling::Arrow
     }
 
-    /// 8.3f: the globals this function declares as its own -- first stored
-    /// here, never predeclared -- spelled from its local pool before its
-    /// names are fixed, so the `let`, every load in the function and every
-    /// capture into its closures agree on a short name. Spelled from the
-    /// module pool they kept two letters (remark's tokenizer states, `jv`)
-    /// and were forbidden in every scope beneath; the readers are all
-    /// nested, since the `let` is the function's (8.3e).
-    fn respell_globals_declared_by(&mut self, function: &ControlFlowFunction<'src>, mangler: &mut Mangler) {
-        if !self.options.mangle_identifiers || std::env::var("LILSCRIPT_LOCAL_GLOBAL_NAMES").as_deref() == Ok("0") {
-            return;
-        }
-        let mut seen = AHashSet::default();
-        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
-            let ControlFlowOp::StoreGlobal { global, .. } = instruction.op else {
-                continue;
-            };
-            if self.declared_globals.contains(&global)
-                || self.constant_global_strings.contains_key(&global)
-                || !seen.insert(global)
-            {
-                continue;
-            }
-            let Some(current) = self.global_names.get(&global).cloned() else {
-                continue;
-            };
-            let short = mangler.next_name();
-            if short.len() >= current.len() {
-                mangler.release(&short);
-                continue;
-            }
-            if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
-                eprintln!("[shape] global {} declared by function {} respelled `{current}` -> `{short}`", global.0, function.id.0);
-            }
-            if let Some(bind) = self.global_binds.get(&global).copied() {
-                self.bind_table.respell(bind, &short);
-            }
-            self.global_names.insert(global, short);
-        }
-    }
-
     fn direct_enclosing_functions(&self, child: FunctionId) -> Vec<FunctionId> {
         self.module
             .functions
@@ -12984,7 +12944,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
     ) -> Result<JsHead, CodegenError> {
         if !context.rest_formal_names.is_empty() {
-            return Ok(JsHead::text(format!("({})", context.rest_formal_names.join(","))));
+            let mut head = JsHead::text("(");
+            for (index, name) in context.rest_formal_names.iter().enumerate() {
+                if index != 0 {
+                    head.push_text(",");
+                }
+                head.push_name(context.rest_formal_binds.get(index).copied().flatten(), name);
+            }
+            head.push_text(")");
+            return Ok(head);
         }
         render_arrow_parameters(
             function,
@@ -13675,7 +13643,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 local_mangler.reserve(name);
             }
         }
-        self.respell_globals_declared_by(function, &mut local_mangler);
         let mut context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
@@ -13747,7 +13714,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .insert(function.id, context.binding_names());
         let mut params = JsHead::default();
         if !context.rest_formal_names.is_empty() {
-            params.push_text(context.rest_formal_names.join(","));
+            for (index, name) in context.rest_formal_names.iter().enumerate() {
+                if index != 0 {
+                    params.push_text(",");
+                }
+                params.push_name(context.rest_formal_binds.get(index).copied().flatten(), name);
+            }
         } else {
             for (index, param) in emitted_params.iter().enumerate() {
                 if index != 0 {
@@ -20227,7 +20199,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if rest_arguments_object(function, context, object) {
                 if let Some(slot) = rest_index_constant(function, index) {
                     if let Some(name) = context.rest_formal_names.get(slot) {
-                        return Ok(JsExpression::atom(name.clone()));
+                        return Ok(match context.rest_formal_binds.get(slot).copied().flatten() {
+                            Some(bind) => JsExpression::name(bind, name.clone()),
+                            None => JsExpression::atom(name.clone()),
+                        });
                     }
                 }
             }
@@ -21689,7 +21664,6 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             for capture in captures {
                 reserve_expression_identifiers(&mut wrapper_mangler, capture);
             }
-            self.respell_globals_declared_by(&function, &mut wrapper_mangler);
             let mut context = LocalNames::new(
                 &function,
                 self.integer_analysis.function(function.id),
@@ -24973,6 +24947,13 @@ struct LocalNames {
     rest_argument_local: Option<LocalId>,
     rest_argument_values: AHashSet<ValueId>,
     rest_formal_names: Vec<String>,
+    /// 8.3i: one bind per rest formal, shared by the values and locals it
+    /// stands for, so the head, the references and the renamer agree
+    /// (they were text: the `(0,function(jv,nv,..){..})` adapters kept the
+    /// module pool's two-letter names through every convergence).
+    rest_formal_binds: Vec<Option<Bind>>,
+    /// The bind table, for a rest formal's own bind.
+    binds: BindTable,
 }
 
 #[derive(Debug)]
@@ -25777,19 +25758,38 @@ fn bind_rest_index_formals(
     let original_local_binds = context.local_binds.clone();
     let original_parameter_values = context.parameter_values.clone();
     let original_declared_names = context.declared_names.borrow().clone();
+    let formal_binds = formals
+        .iter()
+        .map(|name| Some(context.binds.alloc(name)))
+        .collect::<Vec<Option<Bind>>>();
     for (dest, slot) in &index_dests {
         if let Some(name) = formals.get(*slot) {
             context.value_names.insert(*dest, name.clone());
-            context.value_binds.remove(dest);
+            match formal_binds.get(*slot).copied().flatten() {
+                Some(bind) => {
+                    context.value_binds.insert(*dest, bind);
+                }
+                None => {
+                    context.value_binds.remove(dest);
+                }
+            }
             context.parameter_values.insert(*dest);
         }
     }
     for (slot, local) in &alias_local {
         if let Some(name) = formals.get(*slot) {
             context.local_names.insert(*local, name.clone());
-            context.local_binds.remove(local);
+            match formal_binds.get(*slot).copied().flatten() {
+                Some(bind) => {
+                    context.local_binds.insert(*local, bind);
+                }
+                None => {
+                    context.local_binds.remove(local);
+                }
+            }
         }
     }
+    context.rest_formal_binds = formal_binds;
     context
         .declared_names
         .borrow_mut()
@@ -26928,6 +26928,8 @@ impl LocalNames {
             rest_argument_local: None,
             rest_argument_values: AHashSet::default(),
             rest_formal_names: Vec::new(),
+            rest_formal_binds: Vec::new(),
+            binds: mangler.binds.clone(),
         }
     }
 
@@ -28547,9 +28549,18 @@ fn converge_names(tree: &mut ModuleTree, options: &IrJsOptions, shapes: TreeShap
         // with the alphabet ordered by every byte of the print (`code`)
         // and +4/+27 ordered by identifier bytes only (`identifiers`, the
         // text convergence's rule). `LILSCRIPT_CONVERGE_ALPHABET` picks.
-        let dominant = match std::env::var("LILSCRIPT_CONVERGE_ALPHABET").as_deref() {
-            Ok("code") => Some(IdentifierAlphabet::for_code(&tree.reprint(options))),
-            Ok("identifiers") => {
+        let alphabet_choice = match shapes.converge_variant {
+            1 => "identifiers",
+            3 => "code",
+            _ => "",
+        };
+        let alphabet_choice = match std::env::var("LILSCRIPT_CONVERGE_ALPHABET") {
+            Ok(value) => value,
+            Err(_) => alphabet_choice.to_string(),
+        };
+        let dominant = match alphabet_choice.as_str() {
+            "code" => Some(IdentifierAlphabet::for_code(&tree.reprint(options))),
+            "identifiers" => {
                 let text = tree.reprint(options);
                 crate::js_peephole::lex_javascript(&text)
                     .ok()
@@ -28607,7 +28618,9 @@ fn converge_names(tree: &mut ModuleTree, options: &IrJsOptions, shapes: TreeShap
         };
         // 7.74: the text convergence's order; `LILSCRIPT_CONVERGE_ORDER=frequency`
         // keeps the earlier most-referenced-first order for the A/B.
-        let order = if std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() == Ok("frequency") {
+        let order = if std::env::var("LILSCRIPT_CONVERGE_ORDER").as_deref() == Ok("frequency")
+            || shapes.converge_variant == 2
+        {
             RenameOrder::Frequency
         } else if shapes.converge_text {
             RenameOrder::ConvergeText
@@ -28724,6 +28737,11 @@ pub(crate) struct TreeShapes {
     pub(crate) return_sequences: bool,
     /// 8.1: `var ..,a=X;a=a||Y` joined into the declarator.
     pub(crate) declarator_or: bool,
+    /// 8.4: which equivalent naming the convergence produces. Renaming is
+    /// a free choice among programs that differ in no other way, and their
+    /// canonical sizes differ by tens of bytes on a 15 KB artifact; the
+    /// terminal prints a few and lets the codec pick (`converge_variants`).
+    pub(crate) converge_variant: u8,
 }
 
 impl TreeShapes {
@@ -28755,8 +28773,14 @@ impl TreeShapes {
             unary_plus: self.unary_plus || other.unary_plus,
             return_sequences: self.return_sequences || other.return_sequences,
             declarator_or: self.declarator_or || other.declarator_or,
+            converge_variant: if self.converge_variant != 0 { self.converge_variant } else { other.converge_variant },
         }
     }
+
+    /// 8.4: the naming variants the terminal offers the codec. Each is a
+    /// different assignment of the same names to the same bindings -- the
+    /// program is identical in every other respect.
+    pub(crate) const CONVERGE_VARIANTS: u8 = 4;
 
     /// 8.3d: the render policies the accepted shapes imply, installed
     /// before a step's pass runs. A pass rebuilds the nodes it touches, and
