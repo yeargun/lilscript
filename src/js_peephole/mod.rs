@@ -2085,7 +2085,27 @@ pub fn dangling_free_identifiers(candidate: &str, baseline_free: &std::collectio
             continue;
         }
         let called = tokens.get(index + 1).is_some_and(|next| next.text == "(");
-        if called && matches!(resolution.resolve(index), crate::js_peephole::binding::Resolution::Free) {
+        // A method definition `name(..){` in a class body reads as a call
+        // to a free name; the brace after its parameter list tells.
+        let defines_method = called && {
+            let mut depth = 0usize;
+            let mut close = None;
+            for (offset, token) in tokens[index + 1..].iter().enumerate() {
+                match token.text {
+                    "(" => depth += 1,
+                    ")" => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close = Some(index + 1 + offset);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            close.is_some_and(|at| tokens.get(at + 1).is_some_and(|next| next.text == "{"))
+        };
+        if called && !defines_method && matches!(resolution.resolve(index), crate::js_peephole::binding::Resolution::Free) {
             dangling.insert(token.text.to_string());
         }
     }

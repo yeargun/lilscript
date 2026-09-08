@@ -107,6 +107,9 @@ fn main() {
             let short = free.iter().filter(|name| name.len() <= 3).cloned().collect::<Vec<_>>();
             println!("free identifiers: {} ({} short: {})", free.len(), short.len(), short.join(" "));
         }
+        if let Ok(dangling) = lilscript::js_peephole::dangling_free_identifiers(&source, &std::collections::BTreeSet::new()) {
+            println!("dangling callees: {} ({})", dangling.len(), dangling.join(" "));
+        }
         std::process::exit(0);
     }
 
