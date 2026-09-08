@@ -28398,6 +28398,8 @@ pub(crate) struct TreeShapes {
     pub(crate) bare_first: bool,
     pub(crate) unary_plus: bool,
     pub(crate) return_sequences: bool,
+    /// 8.1: `var ..,a=X;a=a||Y` joined into the declarator.
+    pub(crate) declarator_or: bool,
 }
 
 impl TreeShapes {
@@ -28445,6 +28447,7 @@ impl TreeShapes {
             ("or_assigns", |shapes| shapes.or_assigns = true),
             ("unary_plus", |shapes| shapes.unary_plus = true),
             ("bare_first", |shapes| shapes.bare_first = true),
+            ("declarator_or", |shapes| shapes.declarator_or = true),
         ]
     }
 
@@ -28832,6 +28835,9 @@ impl ModuleTree {
                 }
                 if shapes.return_sequences {
                     fuse_lone_return_sequences(block);
+                }
+                if shapes.declarator_or {
+                    absorb_declarator_or_assigns(block);
                 }
                 if shapes.guard_tails {
                     flatten_tail_guards(
@@ -31978,6 +31984,84 @@ fn reorder_bare_declarators(block: &mut JsBlock) {
     }
 }
 
+/// 8.1: `var ..,a=X;a=a||Y` is `var ..,a=X||Y` (the chain's join into the
+/// declarator): the assignment is the statement right after the list, its
+/// target the list's last declarator, the operator short-circuit, and `Y`
+/// reads no `a`; one site at a time.
+fn absorb_declarator_or_assigns(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut absorb_declarator_or_assigns);
+    }
+    let mut index = 0usize;
+    while index + 1 < block.statements.len() {
+        let joined = {
+            let (head, rest) = block.statements.split_at(index + 1);
+            let list = &head[index].statement;
+            let next = &rest[0].statement;
+            let JsStatement::Declarators { declarators, .. } = list else {
+                index += 1;
+                continue;
+            };
+            let Some(last) = declarators.last() else {
+                index += 1;
+                continue;
+            };
+            let (Some(bind), Some(initial)) = (last.bind, last.value.as_ref()) else {
+                index += 1;
+                continue;
+            };
+            let JsStatement::Expression { value } = next else {
+                index += 1;
+                continue;
+            };
+            let value = if value.root == JsExpressionRoot::Comma && value.operands.len() == 1 { &value.operands[0] } else { value };
+            let joined = (|| {
+                if value.root != JsExpressionRoot::Assign {
+                    return None;
+                }
+                let [target, assigned] = value.operands.as_slice() else {
+                    return None;
+                };
+                if target.root != JsExpressionRoot::Name(bind) {
+                    return None;
+                }
+                let JsExpressionRoot::Binary(op) = assigned.root else {
+                    return None;
+                };
+                if !matches!(op, IrBinaryOp::Or | IrBinaryOp::And) {
+                    return None;
+                }
+                let [read, rhs] = assigned.operands.as_slice() else {
+                    return None;
+                };
+                if read.root != JsExpressionRoot::Name(bind) || bind_reads(rhs, bind) > 0 || last.function.is_some() {
+                    return None;
+                }
+                Some(JsExpression::binary(op, initial.clone(), rhs.clone()))
+            })();
+            joined
+        };
+        let Some(joined) = joined else {
+            index += 1;
+            continue;
+        };
+        if !site_admit() {
+            index += 1;
+            continue;
+        }
+        if let JsStatement::Declarators { declarators, .. } = &mut block.statements[index].statement {
+            if let Some(last) = declarators.last_mut() {
+                last.value = Some(joined);
+            }
+        }
+        let gone = block.statements.remove(index + 1);
+        if index + 1 == block.statements.len() {
+            settle_block_tail(block, gone.dropped_semicolon);
+        }
+        index += 1;
+    }
+}
+
 /// 7.98: a lone guard whose block is expressions then a return -- no return
 /// after it -- returns the sequence: `if(c){E;return a}` is `if(c)return E,a`
 /// (the chain's fold), one site at a time.
@@ -31993,6 +32077,10 @@ fn fuse_lone_return_sequences(block: &mut JsBlock) {
             continue;
         };
         if then_branch.block.statements.len() < 2 {
+            continue;
+        }
+        // A bare `return` stays: `return E,void 0` is no gain (8.1).
+        if !matches!(then_branch.block.statements.last().map(|last| &last.statement), Some(JsStatement::Return { value: Some(_) })) {
             continue;
         }
         let Some(value) = statements_return_value(&then_branch.block.statements) else {

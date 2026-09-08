@@ -9271,7 +9271,7 @@ fn offer_print_beam(
             // take one candidate at a time, as the text passes do, keeping
             // the tree when the codec says so and moving on otherwise.
             let (mut base, _) = tree.frozen.thaw_reshaped(&tree.options, tree.rename, shapes, None);
-            const PER_SITE: [&str; 10] = [
+            const PER_SITE: [&str; 11] = [
                 "negated_equalities",
                 "same_binding_equality",
                 "boolean_one_arm",
@@ -9282,6 +9282,7 @@ fn offer_print_beam(
                 "for_init",
                 "or_assigns",
                 "unary_plus",
+                "declarator_or",
             ];
             // 7.99: the convergence first -- on micromarklil the text
             // convergence is worth 1,100 of the text lineage's 1,700 and
