@@ -28432,22 +28432,25 @@ impl TreeShapes {
     /// 7.97: the tree finish's steps -- the text ladder's remaining passes
     /// as shapes, one rule each -- for `LILSCRIPT_TREE_FINISH`.
     pub(crate) fn finishing() -> Vec<(&'static str, fn(&mut Self))> {
+        // 8.1: the cheap whole-tree steps and the chain's joins first --
+        // the per-site steps spend the allowance (`LILSCRIPT_FINISH_SITE_CAP`
+        // caps each) and the last steps never ran.
         vec![
-            ("negated_equalities", |shapes| shapes.negated_equalities = true),
-            ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
-            ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
+            ("bare_first", |shapes| shapes.bare_first = true),
+            ("declarator_or", |shapes| shapes.declarator_or = true),
+            ("for_init", |shapes| shapes.for_init = true),
+            ("or_assigns", |shapes| shapes.or_assigns = true),
             ("return_tails_plain", |shapes| shapes.return_tails_plain = true),
             ("return_tails_suffix", |shapes| shapes.return_tails_suffix = true),
             ("return_branches", |shapes| shapes.return_branches = true),
+            ("return_sequences", |shapes| shapes.return_sequences = true),
             ("guard_tails", |shapes| shapes.guard_tails = true),
             ("exit_guards", |shapes| shapes.exit_guards = true),
             ("rebrace", |shapes| shapes.rebrace = true),
-            ("return_sequences", |shapes| shapes.return_sequences = true),
-            ("for_init", |shapes| shapes.for_init = true),
-            ("or_assigns", |shapes| shapes.or_assigns = true),
+            ("negated_equalities", |shapes| shapes.negated_equalities = true),
+            ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
+            ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
             ("unary_plus", |shapes| shapes.unary_plus = true),
-            ("bare_first", |shapes| shapes.bare_first = true),
-            ("declarator_or", |shapes| shapes.declarator_or = true),
         ]
     }
 
@@ -32010,21 +32013,45 @@ fn absorb_declarator_or_assigns(block: &mut JsBlock) {
                 index += 1;
                 continue;
             };
-            let JsStatement::Expression { value } = next else {
-                index += 1;
-                continue;
-            };
-            let value = if value.root == JsExpressionRoot::Comma && value.operands.len() == 1 { &value.operands[0] } else { value };
-            let joined = (|| {
-                if value.root != JsExpressionRoot::Assign {
-                    return None;
-                }
-                let [target, assigned] = value.operands.as_slice() else {
-                    return None;
+            if std::env::var_os("LILSCRIPT_DECL_OR_TRACE").is_some() {
+                let kind = match next {
+                    JsStatement::Expression { value } => format!("Expression {:?} `{}`", value.root, &value.code[..value.code.len().min(50)]),
+                    JsStatement::Binding { keyword, bind: b, name, value } => format!("Binding kw {keyword:?} bind {b:?} name {name} `{}`", &value.code[..value.code.len().min(50)]),
+                    other => format!("{}", std::mem::discriminant(other) == std::mem::discriminant(&JsStatement::Empty)).replace("true", "Empty").replace("false", "other"),
                 };
-                if target.root != JsExpressionRoot::Name(bind) {
-                    return None;
+                eprintln!("[decl-or] last `{}` bind {:?} next: {kind}", last.name, bind);
+            }
+            // The assignment as an expression statement or as the
+            // emitter's binding statement (`a=a||Y` with no keyword).
+            let assigned: &JsExpression = match next {
+                JsStatement::Expression { value } => {
+                    let value = if value.root == JsExpressionRoot::Comma && value.operands.len() == 1 { &value.operands[0] } else { value };
+                    if value.root != JsExpressionRoot::Assign {
+                        index += 1;
+                        continue;
+                    }
+                    let [target, assigned] = value.operands.as_slice() else {
+                        index += 1;
+                        continue;
+                    };
+                    if target.root != JsExpressionRoot::Name(bind) {
+                        index += 1;
+                        continue;
+                    }
+                    assigned
                 }
+                JsStatement::Binding {
+                    keyword: None,
+                    bind: Some(target),
+                    value,
+                    ..
+                } if *target == bind => value,
+                _ => {
+                    index += 1;
+                    continue;
+                }
+            };
+            let joined = (|| {
                 let JsExpressionRoot::Binary(op) = assigned.root else {
                     return None;
                 };

@@ -9083,6 +9083,14 @@ fn print_beam_allowance() -> usize {
         .saturating_add(1)
         // The members' finished prints (7.61).
         .saturating_add(print_beam_width())
+        // 8.1: the tree finish's own probes (the convergence, the steps site
+        // by site); `LILSCRIPT_FINISH_ALLOWANCE` sets it, 32 by default.
+        .saturating_add(
+            std::env::var("LILSCRIPT_FINISH_ALLOWANCE")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(32),
+        )
 }
 
 /// Migration 7.56 (7′): the print beam, the cleanup's first family. The
@@ -9358,11 +9366,17 @@ fn offer_print_beam(
                 let mut step = TreeShapes::default();
                 add(&mut step);
                 let per_site = PER_SITE.contains(&name);
+                let site_cap = std::env::var("LILSCRIPT_FINISH_SITE_CAP").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(12);
                 let mut site = 0usize;
+                let mut probed = 0usize;
                 loop {
                     if codec_budget.remaining() < 2 {
                         break 'finishing;
                     }
+                    if per_site && probed >= site_cap {
+                        break;
+                    }
+                    probed += 1;
                     let (candidate, printed, seen) = base.shaped_print(&tree.options, step, per_site.then_some(site));
                     if per_site && seen <= site {
                         break;
