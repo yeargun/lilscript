@@ -13191,11 +13191,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
     ) -> Result<JsExpression, CodegenError> {
-        let captures = self
-            .exclusive_recursive_iife_capture_values(caller, function)
-            .into_iter()
-            .map(|capture| take_value(capture, context, cache).map(strip_outer_parens))
+        let capture_values = self.exclusive_recursive_iife_capture_values(caller, function);
+        let captures = capture_values
+            .iter()
+            .map(|capture| take_value(*capture, context, cache).map(strip_outer_parens))
             .collect::<Result<Vec<_>, _>>()?;
+        if port_is_enabled("capture_binds") {
+            self.pending_capture_binds = capture_values
+                .iter()
+                .zip(&captures)
+                .map(|(value, text)| {
+                    context
+                        .value_binds
+                        .get(value)
+                        .filter(|_| context.value_names.get(value) == Some(text))
+                        .copied()
+                })
+                .collect();
+        }
         let rendered = self.render_named_recursive_closure(function, &captures)?;
         if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
             eprintln!("[shape] closure path: recursive iife ({} bytes)", rendered.len());
@@ -19256,6 +19269,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     let mut closure_captures = Vec::with_capacity(target.capture_count);
                     let mut wrapper_parameters = Vec::new();
                     let mut wrapper_arguments = Vec::new();
+                    // 7.99: the wrapper's parameters as binds and the
+                    // captures' outer binds, for the closure's context
+                    // (`capture_binds`) and the wrapper as a tree node
+                    // (`snapshot_tree`).
+                    let snapshot_tree = port_is_enabled("snapshot_tree");
+                    let mut wrapper_binds = Vec::new();
+                    let mut wrapper_argument_nodes = Vec::new();
+                    let mut capture_binds = Vec::with_capacity(target.capture_count);
                     for (index, parameter) in
                         target.params[..target.capture_count].iter().enumerate()
                     {
@@ -19264,17 +19285,63 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 || loop_captured
                                 || rewritten_captures.contains(&index));
                         if snapshot {
-                            let name = mangler.next_name();
+                            let (bind, name) = if snapshot_tree {
+                                let (bind, name) = mangler.request();
+                                (Some(bind), name)
+                            } else {
+                                (None, mangler.next_name())
+                            };
                             closure_captures.push(name.clone());
                             wrapper_parameters.push(name);
+                            wrapper_binds.push(bind);
                             wrapper_arguments.push(captures[index].clone());
+                            if snapshot_tree {
+                                wrapper_argument_nodes.push(value(capture_values[index], cache)?);
+                            }
+                            capture_binds.push(bind);
                         } else {
                             closure_captures.push(captures[index].clone());
+                            let outer = context
+                                .value_binds
+                                .get(&capture_values[index])
+                                .filter(|_| context.value_names.get(&capture_values[index]) == Some(&captures[index]))
+                                .copied();
+                            capture_binds.push(outer);
                         }
+                    }
+                    if port_is_enabled("capture_binds") {
+                        self.pending_capture_binds = capture_binds;
                     }
                     let rendered = self.render_closure(*function, &closure_captures)?;
                     if wrapper_parameters.is_empty() {
                         return Ok(self.closure_node(rendered, JsPrecedence::Assignment));
+                    }
+                    if snapshot_tree {
+                        let inner = self.closure_node(rendered.clone(), JsPrecedence::Assignment);
+                        if inner.root != JsExpressionRoot::Raw {
+                            let mut head = JsHead::text("(");
+                            for (index, (name, bind)) in wrapper_parameters.iter().zip(&wrapper_binds).enumerate() {
+                                if index > 0 {
+                                    head.push_text(",");
+                                }
+                                head.push_name(*bind, name);
+                            }
+                            head.push_text(")=>");
+                            let body = JsFunctionBody::ConciseNode(inner);
+                            let id = ClosureId(self.next_closure_id.get());
+                            self.next_closure_id.set(id.0 + 1);
+                            self.closure_trees.borrow_mut().insert(id, (head.clone(), body.clone()));
+                            let wrapper = JsStatement::Function {
+                                head,
+                                body,
+                                terminated: false,
+                            }
+                            .render(JsStatementOptions {
+                                elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
+                            });
+                            let callee = JsExpression::closure(id, wrapper, JsPrecedence::Assignment);
+                            return Ok(JsExpression::call(callee, wrapper_argument_nodes));
+                        }
                     }
                     if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
                         eprintln!("[shape] closure path: snapshot wrapper ({} params, {} bytes)", wrapper_parameters.len(), rendered.len());
@@ -21371,12 +21438,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &self.loop_captured_closures,
                 &self.global_names,
             );
-            for (parameter, capture) in function.params[..function.capture_count]
+            for (index, (parameter, capture)) in function.params[..function.capture_count]
                 .iter()
                 .zip(captures)
+                .enumerate()
             {
                 context.value_names.insert(parameter.value, capture.clone());
-                context.value_binds.remove(&parameter.value);
+                match capture_binds.get(index).copied().flatten() {
+                    Some(bind) => {
+                        context.value_binds.insert(parameter.value, bind);
+                    }
+                    None => {
+                        context.value_binds.remove(&parameter.value);
+                    }
+                }
             }
             let mut rendered = render_arrow_parameters(
                 &function,
