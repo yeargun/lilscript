@@ -29258,6 +29258,24 @@ impl ModuleTree {
                     shape_block(block, braces, context);
                     previous.install();
                 }
+                // 8.3h: a fold that leaves a branch one statement re-decides
+                // its braces as the emission would have (a branch keeps the
+                // flag it was emitted with; the return-sequence candidates
+                // printed `{return E,x}` where the emission prints
+                // `if(c)return E,x`, and lost to the braces).
+                if shapes.return_tails
+                    || shapes.return_tails_plain
+                    || shapes.return_tails_suffix
+                    || shapes.return_branches
+                    || shapes.return_sequences
+                    || shapes.guard_tails
+                    || shapes.exit_guards
+                {
+                    let allow = StatementPolicy::current().braceless_control_bodies;
+                    if allow {
+                        recompact_branches(block);
+                    }
+                }
             }
         }
         if shapes.function_let {
@@ -29594,6 +29612,29 @@ fn loosen_same_binding_equality(node: &JsExpression) -> Option<JsExpression> {
 
 /// Every block a statement owns, to `visit`: branches, loop and function
 /// bodies, try clauses, switch cases, class members.
+/// 8.3h: every `if` branch in the block (and below) braceless where its
+/// content allows, as `JsBranch::compact`/`compact_before_else` decide at
+/// emission; braces are only ever dropped here.
+fn recompact_branches(block: &mut JsBlock) {
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut |child: &mut JsBlock| recompact_branches(child));
+        if let JsStatement::If { then_branch, else_branch, .. } = &mut emitted.statement {
+            if !then_branch.braceless {
+                then_branch.braceless = if else_branch.is_some() {
+                    block_is_braceless(&then_branch.block) && !block_can_absorb_else(&then_branch.block)
+                } else {
+                    block_is_braceless(&then_branch.block)
+                };
+            }
+            if let Some(else_branch) = else_branch {
+                if !else_branch.braceless {
+                    else_branch.braceless = block_is_braceless(&else_branch.block);
+                }
+            }
+        }
+    }
+}
+
 fn for_each_child_block(statement: &mut JsStatement, visit: &mut dyn FnMut(&mut JsBlock)) {
     match statement {
         JsStatement::If {
