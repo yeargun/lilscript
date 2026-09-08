@@ -13214,6 +13214,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .collect();
         }
         let rendered = self.render_named_recursive_closure(function, &captures)?;
+        // 7.99: the named recursive closure as its node (`raw_nodes`): the
+        // call site parenthesizes an assignment-precedence callee.
+        if port_is_enabled("raw_nodes") {
+            let node = self.closure_node(rendered.clone(), JsPrecedence::Assignment);
+            if node.root != JsExpressionRoot::Raw {
+                return Ok(node);
+            }
+        }
         if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
             eprintln!("[shape] closure path: recursive iife ({} bytes)", rendered.len());
         }
@@ -13244,6 +13252,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let result = self.emit_function_body(&function, String::new(), true, false, &mut rendered);
         self.loop_captured_closures = restored_loop_captures;
         result?;
+        // 7.99: the single-use function expression as a closure node
+        // (`raw_nodes`), from the function statement its body emitted (the
+        // clustered case stays text).
+        if helpers.is_empty() && port_is_enabled("raw_nodes") {
+            if let [only] = rendered.statements.as_slice() {
+                if let JsStatement::Function { head, body, .. } = &only.statement {
+                    let text = self.render_closure_statement(head.clone(), body.clone());
+                    let node = self.closure_node(text, JsPrecedence::Call);
+                    if node.root != JsExpressionRoot::Raw {
+                        return Ok(node);
+                    }
+                }
+            }
+        }
         let rendered = if helpers.is_empty() {
             rendered.into_string()
         } else {
