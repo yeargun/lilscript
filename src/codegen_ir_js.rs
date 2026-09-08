@@ -7291,6 +7291,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 closures: self.closure_trees,
                 table: self.bind_table,
                 literals: self.literal_table,
+                shaped: TreeShapes::default(),
             },
         ))
     }
@@ -28203,6 +28204,12 @@ pub(crate) struct ModuleTree {
     closures: RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     table: BindTable,
     literals: LiteralTable,
+    /// 8.3d: the shapes this tree was shaped under. A print installs the
+    /// policy they imply before its respell rebuilds a node: the finish's
+    /// candidates printed under whatever policy the thread last had (an
+    /// all-false one, 312 prints of 586 on markedlil), without the folds,
+    /// chain merges and braceless bodies the current print had, and lost.
+    shaped: TreeShapes,
 }
 
 impl ModuleTree {
@@ -28215,15 +28222,29 @@ impl ModuleTree {
             // a respelling in a copy (the letter swaps) reached the original.
             table: self.table.detached(),
             literals: self.literals.detached(),
+            shaped: self.shaped,
         }
+    }
+
+    /// The policy this tree prints and reshapes under: the plan's, with
+    /// what its shapes imply.
+    fn policy(&self, options: &IrJsOptions) -> StatementPolicy {
+        let mut policy = StatementPolicy::of(options);
+        self.shaped.overlay_policy(&mut policy);
+        policy
     }
 
     /// `reshape` under the print's own statement policy (live-16: the
     /// thread's last emission may have set another) with the site cursor
     /// installed; returns how many sites the per-site rules met.
-    fn reshape_under(&mut self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> usize {
+    fn reshape_under(&mut self, options: &IrJsOptions, under: TreeShapes, shapes: TreeShapes, site: Option<usize>) -> usize {
         let previous = StatementPolicy::current();
-        StatementPolicy::of(options).install();
+        self.shaped = self.shaped.or(under).or(shapes);
+        let policy = self.policy(options);
+        if std::env::var_os("LILSCRIPT_POLICY_TRACE").is_some() {
+            eprintln!("[policy] reshape_under installs: conditional_shapes {} boolean_arms {} boolean_one_arm {} negated_arms {} control_braces {} braceless {} self_assignment_chain {} comma_join {} ident_or {} (previous: conditional_shapes {} boolean_one_arm {})", policy.conditional_shapes, policy.boolean_arms, policy.boolean_one_arm, policy.negated_arms, policy.control_braces, policy.braceless_control_bodies, policy.self_assignment_chain, policy.comma_join, policy.ident_or, previous.conditional_shapes, previous.boolean_one_arm);
+        }
+        policy.install();
         let mut shapes = shapes;
         shapes.pristine_builtins = options.assume_pristine_builtins;
         FINISH_SITE.with(|cell| cell.set((site, 0)));
@@ -28240,15 +28261,15 @@ impl ModuleTree {
     /// 7.97: a copy of this tree shaped by `shapes` -- at one site of the
     /// per-site rules when `site` is set -- converged when asked, and its
     /// print: the finish's probe, whose tree is kept when the codec says so.
-    pub(crate) fn shaped_print(&self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
-        self.copy().shaped_print_owned(options, shapes, site)
+    pub(crate) fn shaped_print(&self, options: &IrJsOptions, under: TreeShapes, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
+        self.copy().shaped_print_owned(options, under, shapes, site)
     }
 
     /// `shaped_print` on this tree itself (8.3: the finish's batch prints
     /// its copies on the pool's cores).
-    pub(crate) fn shaped_print_owned(mut self, options: &IrJsOptions, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
+    pub(crate) fn shaped_print_owned(mut self, options: &IrJsOptions, under: TreeShapes, shapes: TreeShapes, site: Option<usize>) -> (ModuleTree, String, usize) {
         let options = &print_options(options);
-        let seen = self.reshape_under(options, shapes, site);
+        let seen = self.reshape_under(options, under, shapes, site);
         converge_names(&mut self, options, shapes);
         let text = self.reprint(options);
         (self, text, seen)
@@ -28285,6 +28306,19 @@ impl ModuleTree {
 
     pub(crate) fn reprint(&self, options: &IrJsOptions) -> String {
         let (render, statement) = printer_options(options);
+        // 8.3d: the print's policy is the tree's, not the thread's last.
+        let previous = StatementPolicy::current();
+        let policy = self.policy(options);
+        if std::env::var_os("LILSCRIPT_POLICY_TRACE").is_some() {
+            eprintln!("[policy] reprint under: conditional_shapes {} boolean_arms {} boolean_one_arm {} negated_arms {} control_braces {} braceless {} self_assignment_chain {} comma_join {} ident_or {} (thread had conditional_shapes {})", policy.conditional_shapes, policy.boolean_arms, policy.boolean_one_arm, policy.negated_arms, policy.control_braces, policy.braceless_control_bodies, policy.self_assignment_chain, policy.comma_join, policy.ident_or, previous.conditional_shapes);
+        }
+        policy.install();
+        let text = self.reprint_installed(options, render, statement);
+        previous.install();
+        text
+    }
+
+    fn reprint_installed(&self, _options: &IrJsOptions, render: JsRenderOptions, statement: JsStatementOptions) -> String {
         let mut block = self.block.clone();
         // The walk writes re-rendered closures back into the map it reads
         // from; a copy keeps this tree's own renderings intact.
@@ -28329,6 +28363,7 @@ impl FrozenModuleTree {
             closures: RefCell::new(self.closures.clone()),
             table: BindTable(std::sync::Arc::new(std::sync::RwLock::new(self.spellings.clone()))),
             literals: LiteralTable::from_contents(&self.literals),
+            shaped: TreeShapes::default(),
         }
     }
 
@@ -28415,7 +28450,7 @@ impl FrozenModuleTree {
             let (_, _, _, renamed) = renamer.rename(&AHashMap::default(), false, RenameOrder::Emission);
             crate::timing::RENAME_REPRINTS.event(renamed as u64);
         }
-        let seen = tree.reshape_under(options, shapes, site);
+        let seen = tree.reshape_under(options, shapes, shapes, site);
         (tree, seen)
     }
 }
@@ -28623,6 +28658,61 @@ pub(crate) struct TreeShapes {
 }
 
 impl TreeShapes {
+    /// 8.3d: both sets.
+    pub(crate) fn or(self, other: TreeShapes) -> TreeShapes {
+        TreeShapes {
+            collapse: self.collapse || other.collapse,
+            for_init: self.for_init || other.for_init,
+            negated_arms: self.negated_arms || other.negated_arms,
+            negated_equalities: self.negated_equalities || other.negated_equalities,
+            same_binding_equality: self.same_binding_equality || other.same_binding_equality,
+            loop_bounds: self.loop_bounds || other.loop_bounds,
+            boolean_one_arm: self.boolean_one_arm || other.boolean_one_arm,
+            or_assigns: self.or_assigns || other.or_assigns,
+            top_keyword: self.top_keyword || other.top_keyword,
+            function_let: self.function_let || other.function_let,
+            return_tails: self.return_tails || other.return_tails,
+            exit_guards: self.exit_guards || other.exit_guards,
+            guard_tails: self.guard_tails || other.guard_tails,
+            expression_bodies: self.expression_bodies || other.expression_bodies,
+            pristine_builtins: self.pristine_builtins || other.pristine_builtins,
+            rebrace: self.rebrace || other.rebrace,
+            converge: self.converge || other.converge,
+            converge_text: self.converge_text || other.converge_text,
+            return_tails_plain: self.return_tails_plain || other.return_tails_plain,
+            return_tails_suffix: self.return_tails_suffix || other.return_tails_suffix,
+            return_branches: self.return_branches || other.return_branches,
+            bare_first: self.bare_first || other.bare_first,
+            unary_plus: self.unary_plus || other.unary_plus,
+            return_sequences: self.return_sequences || other.return_sequences,
+            declarator_or: self.declarator_or || other.declarator_or,
+        }
+    }
+
+    /// 8.3d: the render policies the accepted shapes imply, installed
+    /// before a step's pass runs. A pass rebuilds the nodes it touches, and
+    /// `conditional()`, `comma()` and the block printer read the installed
+    /// policy: a step run under the plan's policy alone undid the one-arm
+    /// folds, or-absorptions and braces the current print had (remark's
+    /// whole candidates: 160-180 unrelated changes each, all losing).
+    pub(crate) fn overlay_policy(&self, policy: &mut StatementPolicy) {
+        if self.boolean_one_arm {
+            policy.conditional_shapes = true;
+            policy.boolean_arms = true;
+            policy.boolean_one_arm = true;
+        }
+        if self.rebrace {
+            policy.control_braces = true;
+            policy.braceless_control_bodies = true;
+        }
+        if self.or_assigns {
+            policy.self_assignment_chain = true;
+        }
+        if self.negated_arms {
+            policy.negated_arms = true;
+        }
+    }
+
     /// The print ladder's rungs in order, each adding one shape to the
     /// incumbent's set; the rename last, since it re-spells what the others
     /// shaped. `LILSCRIPT_SHAPE_LADDER=name,..` keeps the named rungs only.

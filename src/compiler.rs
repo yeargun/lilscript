@@ -9331,7 +9331,7 @@ fn offer_print_beam(
                 let mut converged = TreeShapes::default();
                 converged.converge = true;
                 converged.converge_text = true;
-                let (candidate, printed, _) = base.shaped_print(&tree.options, converged, None);
+                let (candidate, printed, _) = base.shaped_print(&tree.options, current.0, converged, None);
                 if printed == current.1 || !valid(&printed) {
                     return Ok(false);
                 }
@@ -9365,7 +9365,7 @@ fn offer_print_beam(
             if trace {
                 // 8.3d: the base tree printed with no step must be the
                 // current text; a drift here taxes every candidate.
-                let (_, noop, _) = base.shaped_print(&tree.options, TreeShapes::default(), None);
+                let (_, noop, _) = base.shaped_print(&tree.options, current.0, TreeShapes::default(), None);
                 if noop != current.1 {
                     let at = noop.bytes().zip(current.1.bytes()).take_while(|(a, b)| a == b).count();
                     eprintln!("[shape] tree finish: DRIFT -- the base's no-step print differs from the current text at byte {at} (lengths {} vs {}): base `{}` current `{}`", noop.len(), current.1.len(), noop.chars().skip(at.saturating_sub(30)).take(70).collect::<String>(), current.1.chars().skip(at.saturating_sub(30)).take(70).collect::<String>());
@@ -9389,7 +9389,7 @@ fn offer_print_beam(
                 for (_, add) in TreeShapes::finishing() {
                     add(&mut bundle);
                 }
-                let (candidate, printed, _) = base.shaped_print(&tree.options, bundle, None);
+                let (candidate, printed, _) = base.shaped_print(&tree.options, current.0, bundle, None);
                 if printed != current.1 && valid(&printed) {
                     if let Some(printed_cost) = codec_budget.compressed_size(printed.as_bytes(), cost_model)? {
                         report.scored += 1;
@@ -9461,7 +9461,7 @@ fn offer_print_beam(
                             cost
                         }
                     };
-                    let (candidate, printed, _) = base.shaped_print(&tree.options, step, None);
+                    let (candidate, printed, _) = base.shaped_print(&tree.options, current.0, step, None);
                     if printed != current.1 && valid(&printed) {
                         let cost_after = smooth_compressed_size(printed.as_bytes(), cost_model, smooth)
                             .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
@@ -9473,7 +9473,7 @@ fn offer_print_beam(
                             let _ = std::fs::write(format!("{prefix}.finish.{name}.whole.s{cost_after}.js"), &printed);
                         }
                         if cost_after < cost_before {
-                            current = (shapes, printed, current.2);
+                            current = (current.0.or(step), printed, current.2);
                             current_smooth = Some(cost_after);
                             base = candidate;
                             windowed = true;
@@ -9503,13 +9503,14 @@ fn offer_print_beam(
                         };
                         let copies = (0..batch).map(|_| base.copy()).collect::<Vec<_>>();
                         let options = &tree.options;
+                        let under = current.0;
                         let scored = {
                             use rayon::prelude::*;
                             copies
                                 .into_par_iter()
                                 .enumerate()
                                 .map(|(offset, copy)| {
-                                    let (candidate, printed, seen) = copy.shaped_print_owned(options, step, Some(site + offset));
+                                    let (candidate, printed, seen) = copy.shaped_print_owned(options, under, step, Some(site + offset));
                                     if seen <= site + offset || printed == current.1 || !valid(&printed) {
                                         return (candidate, printed, seen, None);
                                     }
@@ -9539,7 +9540,7 @@ fn offer_print_beam(
                                 continue;
                             }
                             if accepted == 0 {
-                                current = (shapes, printed, current.2);
+                                current = (under.or(step), printed, current.2);
                                 current_smooth = Some(cost_after);
                                 base = candidate;
                                 windowed = true;
@@ -9550,7 +9551,7 @@ fn offer_print_beam(
                             // tree the earlier ones made (its index moved
                             // down by the sites kept before it) and scored
                             // again there.
-                            let (candidate, printed, _) = base.shaped_print(options, step, Some(site + offset - accepted));
+                            let (candidate, printed, _) = base.shaped_print(options, under, step, Some(site + offset - accepted));
                             if printed == current.1 || !valid(&printed) {
                                 continue;
                             }
@@ -9558,7 +9559,7 @@ fn offer_print_beam(
                                 .map_err(|message| crate::codegen_js::CodegenError::new(Span::empty(0), message))?;
                             window_probes += 1;
                             if cost_again < current_smooth.unwrap_or(usize::MAX) {
-                                current = (shapes, printed, current.2);
+                                current = (under.or(step), printed, current.2);
                                 current_smooth = Some(cost_again);
                                 base = candidate;
                                 accepted += 1;
@@ -9576,7 +9577,7 @@ fn offer_print_beam(
                         break;
                     }
                     probed += 1;
-                    let (candidate, printed, seen) = base.shaped_print(&tree.options, step, per_site.then_some(site));
+                    let (candidate, printed, seen) = base.shaped_print(&tree.options, current.0, step, per_site.then_some(site));
                     if per_site && seen <= site {
                         break;
                     }
@@ -9640,7 +9641,7 @@ fn offer_print_beam(
                             let _ = std::fs::write(format!("{prefix}.finish.{name}.whole.s{cost_after}.js"), &printed);
                         }
                         if cost_after < cost_before {
-                            current = (shapes, printed, current.2);
+                            current = (current.0.or(step), printed, current.2);
                             current_smooth = Some(cost_after);
                             base = candidate;
                             windowed = true;
@@ -9658,7 +9659,7 @@ fn offer_print_beam(
                         let _ = std::fs::write(format!("{prefix}.finish.{name}.{site}.{printed_cost}.js"), &printed);
                     }
                     if printed_cost < current.2 {
-                        current = (shapes, printed, printed_cost);
+                        current = (current.0.or(step), printed, printed_cost);
                         base = candidate;
                         // The smooth cost is of the print this replaces
                         // (b193: every site after `rebrace` read +50).
