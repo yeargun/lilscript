@@ -5400,7 +5400,9 @@ impl JsExpression {
     #[track_caller]
     fn raw(code: impl Into<String>, precedence: JsPrecedence) -> Self {
         let code: String = code.into();
-        if std::env::var_os("LILSCRIPT_RAW_SITES").is_some() && (code.contains("function") || code.contains("=>") || code.starts_with("new ")) {
+        if std::env::var_os("LILSCRIPT_RAW_SITES").is_some()
+            && (std::env::var("LILSCRIPT_RAW_SITES").as_deref() == Ok("all") || code.contains("function") || code.contains("=>") || code.starts_with("new "))
+        {
             let site = std::panic::Location::caller();
             eprintln!("[raw-site] {}:{} {}", site.file(), site.line(), &code[..code.len().min(70)].replace('\n', " "));
         }
@@ -16507,6 +16509,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             if let Some((target, value)) =
                                 block_negated_self_or_assign(&condition, &then_output)
                             {
+                                // 8.1: `a=a||v` as nodes (`raw_nodes`), from
+                                // the block's own assignment statement.
+                                if port_is_enabled("raw_nodes") {
+                                    if let Some(node) = block_self_or_assign_node(&then_output, &target) {
+                                        out.push_statement(JsStatement::Expression { value: node });
+                                        cache.clear();
+                                        continue;
+                                    }
+                                }
                                 out.push_statement(JsStatement::Expression {
                                     value: JsExpression::raw(
                                         format!("{target}={target}||{value}"),
@@ -16610,6 +16621,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 })
                                 .flatten()
                             {
+                                // 8.1: the run as a node (`raw_nodes`) when the
+                                // else block's sequence is one.
+                                if port_is_enabled("raw_nodes") {
+                                    if let Some(else_node) = block_compact_arm_node(&else_output, &else_expression) {
+                                        let value = if condition_was_negated {
+                                            JsExpression::binary(IrBinaryOp::And, negated_tree.clone(), else_node)
+                                        } else {
+                                            JsExpression::binary(IrBinaryOp::Or, condition_tree.clone(), else_node)
+                                        };
+                                        out.push_statement(JsStatement::Expression { value });
+                                        cache.clear();
+                                        continue;
+                                    }
+                                }
                                 let mut run = String::new();
                                 if condition_was_negated {
                                     push_logical_operand_text(&mut run, &negated_condition, IrBinaryOp::And);
@@ -23892,6 +23917,38 @@ fn block_copy_through_temp_assign(block: &JsBlock) -> Option<(String, String)> {
     (!declare && trailing.is_empty() && copied == temp).then_some((target, value))
 }
 
+/// 8.1: the block's one assignment to `target` as the node `t=t||v`.
+fn block_self_or_assign_node(then_block: &JsBlock, target: &str) -> Option<JsExpression> {
+    let [only] = then_block.statements.as_slice() else {
+        return None;
+    };
+    let (target_node, value) = match &only.statement {
+        JsStatement::Binding {
+            keyword: None,
+            name,
+            bind,
+            value,
+        } if name == target => (
+            match bind {
+                Some(bind) => JsExpression::name(*bind, name.clone()),
+                None => JsExpression::atom(name.clone()),
+            },
+            value.clone(),
+        ),
+        JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => {
+            let [assigned, value] = value.operands.as_slice() else {
+                return None;
+            };
+            if assigned.code != target {
+                return None;
+            }
+            (assigned.clone(), value.clone())
+        }
+        _ => return None,
+    };
+    Some(JsExpression::assign(target_node.clone(), JsExpression::binary(IrBinaryOp::Or, target_node, value)))
+}
+
 fn block_negated_self_or_assign(condition: &str, then_block: &JsBlock) -> Option<(String, String)> {
     let target = condition.strip_prefix('!')?;
     if target.starts_with('!') || target.is_empty() || !target.bytes().all(is_js_identifier_byte) {
@@ -28432,25 +28489,26 @@ impl TreeShapes {
     /// 7.97: the tree finish's steps -- the text ladder's remaining passes
     /// as shapes, one rule each -- for `LILSCRIPT_TREE_FINISH`.
     pub(crate) fn finishing() -> Vec<(&'static str, fn(&mut Self))> {
-        // 8.1: the cheap whole-tree steps and the chain's joins first --
-        // the per-site steps spend the allowance (`LILSCRIPT_FINISH_SITE_CAP`
-        // caps each) and the last steps never ran.
+        // 8.1c: the order measured (b160 against b154 on ten pool ports):
+        // the equalities and boolean arms first, the return tails, the
+        // guards, then the rest -- the cheap steps first cost +223 (the
+        // return tails spent the allowance on losing probes).
         vec![
-            ("bare_first", |shapes| shapes.bare_first = true),
-            ("declarator_or", |shapes| shapes.declarator_or = true),
-            ("for_init", |shapes| shapes.for_init = true),
-            ("or_assigns", |shapes| shapes.or_assigns = true),
-            ("return_tails_plain", |shapes| shapes.return_tails_plain = true),
-            ("return_tails_suffix", |shapes| shapes.return_tails_suffix = true),
-            ("return_branches", |shapes| shapes.return_branches = true),
-            ("return_sequences", |shapes| shapes.return_sequences = true),
-            ("guard_tails", |shapes| shapes.guard_tails = true),
-            ("exit_guards", |shapes| shapes.exit_guards = true),
-            ("rebrace", |shapes| shapes.rebrace = true),
             ("negated_equalities", |shapes| shapes.negated_equalities = true),
             ("same_binding_equality", |shapes| shapes.same_binding_equality = true),
             ("boolean_one_arm", |shapes| shapes.boolean_one_arm = true),
+            ("return_tails_plain", |shapes| shapes.return_tails_plain = true),
+            ("return_tails_suffix", |shapes| shapes.return_tails_suffix = true),
+            ("return_branches", |shapes| shapes.return_branches = true),
+            ("guard_tails", |shapes| shapes.guard_tails = true),
+            ("exit_guards", |shapes| shapes.exit_guards = true),
+            ("rebrace", |shapes| shapes.rebrace = true),
+            ("return_sequences", |shapes| shapes.return_sequences = true),
+            ("for_init", |shapes| shapes.for_init = true),
+            ("or_assigns", |shapes| shapes.or_assigns = true),
             ("unary_plus", |shapes| shapes.unary_plus = true),
+            ("bare_first", |shapes| shapes.bare_first = true),
+            ("declarator_or", |shapes| shapes.declarator_or = true),
         ]
     }
 

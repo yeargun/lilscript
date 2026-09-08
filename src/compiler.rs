@@ -9089,7 +9089,8 @@ fn print_beam_allowance() -> usize {
             std::env::var("LILSCRIPT_FINISH_ALLOWANCE")
                 .ok()
                 .and_then(|value| value.parse::<usize>().ok())
-                .unwrap_or(32),
+                // Measured (b160): 32 reads −16 for +31 s; off.
+                .unwrap_or(0),
         )
 }
 
@@ -9366,7 +9367,7 @@ fn offer_print_beam(
                 let mut step = TreeShapes::default();
                 add(&mut step);
                 let per_site = PER_SITE.contains(&name);
-                let site_cap = std::env::var("LILSCRIPT_FINISH_SITE_CAP").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(12);
+                let site_cap = std::env::var("LILSCRIPT_FINISH_SITE_CAP").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(usize::MAX);
                 let mut site = 0usize;
                 let mut probed = 0usize;
                 loop {
