@@ -5377,7 +5377,11 @@ impl JsExpression {
 
     #[track_caller]
     fn raw(code: impl Into<String>, precedence: JsPrecedence) -> Self {
-        let code = code.into();
+        let code: String = code.into();
+        if std::env::var_os("LILSCRIPT_RAW_SITES").is_some() && (code.contains("function") || code.contains("=>") || code.starts_with("new ")) {
+            let site = std::panic::Location::caller();
+            eprintln!("[raw-site] {}:{} {}", site.file(), site.line(), &code[..code.len().min(70)].replace('\n', " "));
+        }
         if raw_sites_enabled() {
             let line = std::panic::Location::caller().line();
             RAW_SITES.with(|sites| sites.borrow_mut().push((line, code.clone())));
@@ -20314,6 +20318,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             return self.render_call(JsExpression::atom(callee), args, context, cache);
         }
+        if intrinsic == Intrinsic::JsSetTimeout && port_is_enabled("raw_nodes") {
+            let arguments = args
+                .iter()
+                .map(|arg| take_value(*arg, context, cache))
+                .collect::<Result<Vec<_>, _>>()?;
+            return Ok(JsExpression::call(JsExpression::atom("setTimeout"), arguments));
+        }
         if intrinsic == Intrinsic::JsSetTimeout {
             let mut rendered = String::from("setTimeout(");
             for (index, arg) in args.iter().enumerate() {
@@ -20547,6 +20558,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     .iter()
                     .map(|argument| take_value(*argument, context, cache))
                     .collect::<Result<Vec<_>, _>>()?;
+                // 7.99: the construction as a `New` node (`raw_nodes`): its
+                // arguments' closures and names are the tree's (katexlil's
+                // `new V(..)` raw texts kept 378 binds by mention).
+                if !arguments.is_empty() && port_is_enabled("raw_nodes") {
+                    return Ok(JsExpression::new_call(receiver, arguments));
+                }
                 let callee = receiver.at_least(JsPrecedence::Member);
                 if arguments.is_empty() && self.options.elide_new_parentheses {
                     return Ok(JsExpression::raw(
@@ -21453,7 +21470,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                 }
             }
-            let mut rendered = render_arrow_parameters(
+            let head = render_arrow_parameters(
                 &function,
                 &function.params[function.capture_count..],
                 &context,
@@ -21465,8 +21482,46 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .map_err(|mut e| {
                 e.message.push_str(" [site=wrapper-arrow-params]");
                 e
-            })?
-            .render();
+            })?;
+            // 7.99: the forwarding wrapper as a closure node (`raw_nodes`):
+            // `(p..)=>name(captures..,p..)` with the call a node whose
+            // captures carry their outer binds (jquerylil: 2,000 such
+            // wrappers as raw text).
+            if self.options.function_spelling != FunctionSpelling::Function && port_is_enabled("raw_nodes") {
+                let callee = match self.function_name_binds.get(&function.id) {
+                    Some(bind) => JsExpression::name(*bind, name.to_string()),
+                    None => JsExpression::atom(name.to_string()),
+                };
+                let mut arguments = Vec::with_capacity(function.params.len());
+                for (index, capture) in captures.iter().enumerate() {
+                    arguments.push(match capture_binds.get(index).copied().flatten() {
+                        Some(bind) => JsExpression::name(bind, capture.clone()),
+                        None => JsExpression::atom(capture.clone()),
+                    });
+                }
+                for param in &function.params[function.capture_count..] {
+                    arguments.push(context.value_atom(param.value).map_err(|mut e| {
+                        e.message.push_str(" [site=wrapper-forwarding-call]");
+                        e
+                    })?);
+                }
+                let body = JsFunctionBody::ConciseNode(JsExpression::call(callee, arguments));
+                let head = arrow_head(&head);
+                let id = ClosureId(self.next_closure_id.get());
+                self.next_closure_id.set(id.0 + 1);
+                self.closure_trees.borrow_mut().insert(id, (head.clone(), body.clone()));
+                let rendered = JsStatement::Function {
+                    head,
+                    body,
+                    terminated: false,
+                }
+                .render(JsStatementOptions {
+                    elide_block_terminal_semicolons: self.options.elide_block_terminal_semicolons,
+                });
+                *self.last_closure.borrow_mut() = Some((id, rendered.clone()));
+                return Ok(rendered);
+            }
+            let mut rendered = head.render();
             let mut call = String::new();
             call.push_str(name);
             call.push('(');
