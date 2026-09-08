@@ -15152,6 +15152,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             context,
             object,
             None,
+            None,
             predeclared,
             cache,
             &mut rendered,
@@ -15332,6 +15333,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     context,
                     *object,
                     written.as_deref(),
+                    Some(*value),
                     predeclared,
                     cache,
                     out,
@@ -15367,6 +15369,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     context,
                     *object,
                     Some(self.property_name(property)),
+                    Some(*value),
                     predeclared,
                     cache,
                     out,
@@ -15406,6 +15409,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     context,
                     *object,
                     written.as_deref(),
+                    Some(*value),
                     predeclared,
                     cache,
                     out,
@@ -15542,6 +15546,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context,
                 object,
                 property.as_deref(),
+                member_write_stored_value(&instruction.op),
                 predeclared,
                 cache,
                 out,
@@ -38373,10 +38378,17 @@ fn materialize_cache_before_callee_code(
     Ok(())
 }
 
+/// 8.9: the value this write stores, which must NOT be materialized: it is
+/// consumed by the write itself, and `o.p = <rhs reading o.p>` evaluates the
+/// read before the store exactly as `let t = <rhs>; o.p = t` does. Flushing
+/// it cost a named temporary and a declaration at every field update --
+/// `p.column = p.column + n` came out as `let t=p.column+n;p.column=t`
+/// where the whole fleet's upstream writes `p.column+=n`.
 fn materialize_cache_before_object_member_write(
     context: &LocalNames,
     object: ValueId,
     property: Option<&str>,
+    stored: Option<ValueId>,
     predeclared: bool,
     cache: &mut ExpressionCache,
     out: &mut JsBlock,
@@ -38385,9 +38397,12 @@ fn materialize_cache_before_object_member_write(
         return Ok(());
     };
     let name = name.clone();
+    let flushes = |value: &ValueId, expression: &JsExpression| {
+        Some(*value) != stored && js_expression_reads_member(&expression.code, &name, property)
+    };
     if !cache
-        .values()
-        .any(|expression| js_expression_reads_member(&expression.code, &name, property))
+        .iter()
+        .any(|(value, expression)| flushes(value, expression))
     {
         return Ok(());
     }
@@ -38395,7 +38410,7 @@ fn materialize_cache_before_object_member_write(
     values.sort_by_key(|(value, _)| value.0);
     let mut retained = Vec::new();
     for (value, expression) in values {
-        if !js_expression_reads_member(&expression.code, &name, property) {
+        if !flushes(&value, &expression) {
             retained.push((value, expression));
             continue;
         }
@@ -38412,6 +38427,16 @@ fn materialize_cache_before_object_member_write(
     }
     cache.extend(retained);
     Ok(())
+}
+
+/// 8.9: the value a member write stores, for the materializer's exemption.
+fn member_write_stored_value(op: &ControlFlowOp<'_>) -> Option<ValueId> {
+    match op {
+        ControlFlowOp::FieldSet { value, .. }
+        | ControlFlowOp::RecordFieldSet { value, .. }
+        | ControlFlowOp::IndexSet { value, .. } => Some(*value),
+        _ => None,
+    }
 }
 
 fn materialize_cache_before_binding_write(

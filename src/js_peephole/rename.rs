@@ -156,6 +156,17 @@ fn converge_names(
 
     let mut assigned = HashMap::<usize, String>::new();
     let mut rewrites = Vec::<(usize, usize, String)>::new();
+    // 8.9: the same head position takes the same name in every scope that
+    // can spare it. Each scope allocated from the front of the alphabet
+    // independently, so the parameter of a state closure got whatever its
+    // own blocked set left free -- micromarklil's tokenizer spells the code
+    // argument fifteen ways (`.consume(l)` 16, `(s)` 14, `(g)` 13, `(a)` 8)
+    // where Terser spells it `t` 128 times of 177. The name is only taken
+    // when it is free here, so this cannot collide; it makes the artifact's
+    // repeated shapes repeat as text, which is what the codec pays for.
+    // `LILSCRIPT_ROLE_NAMES=0` allocates per scope as before.
+    let role_names = std::env::var("LILSCRIPT_ROLE_NAMES").as_deref() != Ok("0");
+    let mut role = HashMap::<usize, String>::new();
 
     for (scope, start, end) in scopes {
         let declarations = resolution.declarations(scope);
@@ -270,7 +281,7 @@ fn converge_names(
         }
 
         let mut canonical = CanonicalNames::new(&alphabet);
-        for (_, _, declaration) in renameable {
+        for (rank, _, declaration) in renameable {
             if let Some(replacement) = preferred.remove(&declaration) {
                 assigned.insert(declaration, replacement.clone());
                 if replacement != tokens[declaration].text {
@@ -290,15 +301,28 @@ fn converge_names(
                 continue;
             }
             let name = tokens[declaration].text;
-            let replacement = loop {
-                let Some(candidate) = canonical.next_name() else {
-                    break None;
-                };
-                if is_reserved_word(&candidate) || blocked.contains(&candidate) {
-                    continue;
-                }
-                break Some(candidate);
+            // The role's established name, when this scope has it free.
+            let by_role = (role_names && rank != usize::MAX)
+                .then(|| role.get(&rank).cloned())
+                .flatten()
+                .filter(|candidate| !is_reserved_word(candidate) && !blocked.contains(candidate));
+            let replacement = match by_role {
+                Some(candidate) => Some(candidate),
+                None => loop {
+                    let Some(candidate) = canonical.next_name() else {
+                        break None;
+                    };
+                    if is_reserved_word(&candidate) || blocked.contains(&candidate) {
+                        continue;
+                    }
+                    break Some(candidate);
+                },
             };
+            if role_names && rank != usize::MAX {
+                if let Some(candidate) = &replacement {
+                    role.entry(rank).or_insert_with(|| candidate.clone());
+                }
+            }
             let Some(replacement) = replacement else {
                 blocked.insert(name.to_string());
                 assigned.insert(declaration, name.to_string());
