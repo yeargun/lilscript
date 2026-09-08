@@ -9730,7 +9730,9 @@ fn late_javascript_cleanup_finalists(
     let mut canonical_peephole = None;
     // 8.0: `LILSCRIPT_CLEANUP_CHAIN=0` leaves the finalist's text without
     // the re-opened chain, for the fleet A/B that retires it.
-    if std::env::var("LILSCRIPT_CLEANUP_CHAIN").as_deref() != Ok("0") && codec_budget.reserve_work_unit() {
+    // 8.2d: off -- 19 bytes for 60 s on sound artifacts (b180);
+    // `LILSCRIPT_CLEANUP_CHAIN=1` restores.
+    if std::env::var("LILSCRIPT_CLEANUP_CHAIN").as_deref() == Ok("1") && codec_budget.reserve_work_unit() {
         crate::timing::PEEPHOLE_CLEANUP.event(1);
         let optimized = optimize_generated_javascript_assuming(
             &original.code,

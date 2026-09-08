@@ -22115,6 +22115,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     fn closure_node(&self, rendered: String, precedence: JsPrecedence) -> JsExpression {
         match self.last_closure.borrow_mut().take() {
             Some((id, text)) if text == rendered => JsExpression::closure(id, rendered, precedence),
+            // 8.2: a closure rendered as its own name (a hoisted function
+            // referenced, not inlined) is that function's bound name
+            // (`raw_nodes`; jquerylil: 103,000 raw name mentions).
+            _ if port_is_enabled("raw_nodes")
+                && is_js_property_identifier(&rendered)
+                && self
+                    .function_names
+                    .iter()
+                    .any(|(id, name)| name == &rendered && self.function_name_binds.contains_key(id)) =>
+            {
+                let bind = self
+                    .function_names
+                    .iter()
+                    .find(|(_, name)| *name == &rendered)
+                    .and_then(|(id, _)| self.function_name_binds.get(id))
+                    .copied()
+                    .expect("a bound function name");
+                JsExpression::name(bind, rendered)
+            }
             other => {
                 if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
                     let last = other.map(|(id, text)| format!("closure {} `{}`", id.0, trace_prefix(&text, 50)));
