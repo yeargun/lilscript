@@ -1840,6 +1840,15 @@ fn render(
             let [target, value] = operands else {
                 return None;
             };
+            // 8.7 (measured, off): `x=x OP E` rendered as `x OP= E` at every
+            // site, not only as a whole statement, is sound and shorter per
+            // site -- and **+334 on ten pool ports** (rehypelil +202,
+            // jquerylil +231): the assignment shares `x=x` with its
+            // neighbours and the compound spelling breaks that run, which
+            // costs more than the byte it saves. It also broke the respell
+            // round trip, the compound text carrying the target once where
+            // the walk expects it twice. `compound_assignment_spelling` is
+            // kept for the statement-level fold only.
             Some(format!(
                 "{}={}",
                 target.code,
@@ -30484,6 +30493,31 @@ fn compound_assignment_operator(op: IrBinaryOp) -> Option<&'static str> {
         IrBinaryOp::UnsignedShiftRight => ">>>",
         _ => return None,
     })
+}
+
+/// 8.7: `x OP= E` for `x = x OP E`, when the target is a plain name (a
+/// member target would evaluate its object once instead of twice).
+fn compound_assignment_spelling(target: &JsExpression, value: &JsExpression) -> Option<String> {
+    if !matches!(target.root, JsExpressionRoot::Name(_) | JsExpressionRoot::Atom)
+        || !is_plain_identifier(&target.code)
+    {
+        return None;
+    }
+    let JsExpressionRoot::Binary(op) = value.root else {
+        return None;
+    };
+    let spelling = compound_assignment_operator(op)?;
+    let [read, rhs] = value.operands.as_slice() else {
+        return None;
+    };
+    if !same_name_node(target, read) {
+        return None;
+    }
+    Some(format!(
+        "{}{spelling}={}",
+        target.code,
+        rhs.clone().at_least(JsPrecedence::Assignment)
+    ))
 }
 
 /// `a=a OP b` spelled `a OP=b`: an assignment whose target is a name read
