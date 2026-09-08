@@ -103,6 +103,10 @@ fn main() {
             Ok(_) => println!("analyze ok"),
             Err(error) => println!("analyze: {error:?}"),
         }
+        if let Ok(free) = lilscript::js_peephole::free_identifiers(&source) {
+            let short = free.iter().filter(|name| name.len() <= 3).cloned().collect::<Vec<_>>();
+            println!("free identifiers: {} ({} short: {})", free.len(), short.len(), short.join(" "));
+        }
         std::process::exit(0);
     }
 

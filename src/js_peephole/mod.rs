@@ -2046,6 +2046,52 @@ fn visit_single_character_identifiers(tokens: &[Token<'_>], mut visit: impl FnMu
     }
 }
 
+/// 8.2: every identifier the resolver binds to nothing -- a global, an
+/// extern, or a dangling reference. The admission compares a candidate's set
+/// against the emission's: a short free name the emission never had is a
+/// declaration a rewrite dropped (rehypelil's artifact carried eleven from
+/// b136 to b169, past the syntax checks and the 292 case-lanes).
+pub fn free_identifiers(source: &str) -> Result<std::collections::BTreeSet<String>, JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let resolution = crate::js_peephole::binding::BindingResolution::new(&tokens);
+    let mut free = std::collections::BTreeSet::new();
+    for index in 0..tokens.len() {
+        if tokens[index].kind != TokenKind::Identifier || crate::js_peephole::rewrite::is_property_identifier(&tokens, index) {
+            continue;
+        }
+        if matches!(resolution.resolve(index), crate::js_peephole::binding::Resolution::Free) {
+            free.insert(tokens[index].text.to_string());
+        }
+    }
+    Ok(free)
+}
+
+/// 8.2: a candidate's free names the baseline lacks, short enough to be a
+/// mangled binding (a real global is longer, or on the list).
+pub fn dangling_free_identifiers(candidate: &str, baseline_free: &std::collections::BTreeSet<String>) -> Result<Vec<String>, JavaScriptParseError> {
+    const GLOBALS: [&str; 12] = ["$", "_", "self", "this", "NaN", "Map", "Set", "URL", "Date", "JSON", "Math", "Intl"];
+    // Callee positions only: a dropped declaration is a function's (the
+    // collapse mover's), and the resolver misses a `var` in a nested block
+    // (rehypelil's `f4`, `n`) that a value position would report.
+    let tokens = lex(candidate)?;
+    let resolution = crate::js_peephole::binding::BindingResolution::new(&tokens);
+    let mut dangling = std::collections::BTreeSet::new();
+    for index in 0..tokens.len() {
+        let token = &tokens[index];
+        if token.kind != TokenKind::Identifier || crate::js_peephole::rewrite::is_property_identifier(&tokens, index) {
+            continue;
+        }
+        if token.text.len() > 3 || GLOBALS.contains(&token.text) || baseline_free.contains(token.text) {
+            continue;
+        }
+        let called = tokens.get(index + 1).is_some_and(|next| next.text == "(");
+        if called && matches!(resolution.resolve(index), crate::js_peephole::binding::Resolution::Free) {
+            dangling.insert(token.text.to_string());
+        }
+    }
+    Ok(dangling.into_iter().collect())
+}
+
 pub fn single_character_identifiers(source: &str) -> Result<Vec<u8>, JavaScriptParseError> {
     let tokens = lex(source)?;
     let mut identifiers = Vec::new();

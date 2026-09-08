@@ -5129,12 +5129,35 @@ struct ScoredJavaScriptCandidate {
 #[derive(Debug, Clone)]
 struct JavaScriptArtifactAdmission {
     direct_source: Arc<str>,
+    /// 8.2: the direct source's free identifiers, for the dangling-reference
+    /// check (`dangling_free_identifiers`); computed once.
+    baseline_free: Arc<std::sync::OnceLock<std::collections::BTreeSet<String>>>,
     abi_manifest: Arc<crate::compilation_contract::JavaScriptAbiManifest>,
     lowering_obligations: usize,
     ecmascript: crate::js_syntax_target::EcmaScriptEdition,
 }
 
 impl JavaScriptArtifactAdmission {
+    /// 8.2: a candidate whose short free identifiers exceed the direct
+    /// source's has a declaration some rewrite dropped; refused, whatever the
+    /// codec says (`LILSCRIPT_DANGLING_CHECK=0` turns the check off).
+    fn refuse_dangling(&self, source: &str) -> Result<(), CompileError> {
+        if std::env::var("LILSCRIPT_DANGLING_CHECK").as_deref() == Ok("0") {
+            return Ok(());
+        }
+        let baseline = self
+            .baseline_free
+            .get_or_init(|| crate::js_peephole::free_identifiers(&self.direct_source).unwrap_or_default());
+        match crate::js_peephole::dangling_free_identifiers(source, baseline) {
+            Ok(dangling) if dangling.is_empty() => Ok(()),
+            Ok(dangling) => Err(CompileError::Codegen(crate::codegen_js::CodegenError::new(
+                Span::empty(0),
+                &format!("generated JavaScript references undeclared names: {}", dangling.join(" ")),
+            ))),
+            Err(_) => Ok(()),
+        }
+    }
+
     fn validate(&self, source: &str) -> Result<(), CompileError> {
         let outcome = self.validate_inner(source);
         if crate::timing::enabled() {
@@ -5151,6 +5174,7 @@ impl JavaScriptArtifactAdmission {
     fn validate_selected(&self, source: &str) -> Result<(), CompileError> {
         let outcome = validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)
+            .and_then(|()| self.refuse_dangling(source))
             .and_then(|()| validate_generated_javascript_with_standard_parser(source))
             .and_then(|()| {
                 validate_observed_javascript_artifact_allowing(
@@ -5170,6 +5194,7 @@ impl JavaScriptArtifactAdmission {
     fn validate_inner(&self, source: &str) -> Result<(), CompileError> {
         validate_generated_javascript_syntax_floor(source, self.ecmascript)
             .map_err(generated_javascript_parse_error)?;
+        self.refuse_dangling(source)?;
         validate_observed_javascript_artifact(
             source,
             &self.direct_source,
@@ -5237,6 +5262,7 @@ mod terminal_javascript_parser_tests {
 fn test_artifact_admission(source: &str) -> Arc<JavaScriptArtifactAdmission> {
     Arc::new(JavaScriptArtifactAdmission {
         direct_source: Arc::from(source),
+        baseline_free: Arc::new(std::sync::OnceLock::new()),
         abi_manifest: Arc::new(crate::compilation_contract::JavaScriptAbiManifest {
             world: "closed-application",
             exports: Vec::new(),
@@ -6390,6 +6416,7 @@ fn finalize_javascript_candidates_with_parallelism(
             .abi_manifest(context.baseline);
         let admission = Arc::new(JavaScriptArtifactAdmission {
             direct_source: Arc::from(direct_source.as_str()),
+            baseline_free: Arc::new(std::sync::OnceLock::new()),
             abi_manifest: Arc::new(abi_manifest),
             lowering_obligations,
             ecmascript: config.javascript.resolved_ecmascript(),
