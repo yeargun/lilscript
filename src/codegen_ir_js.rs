@@ -2473,6 +2473,18 @@ impl JsBlock {
     }
 
     fn push_statement(&mut self, statement: JsStatement) {
+        if let Ok(traced) = std::env::var("LILSCRIPT_TRACE_NAME") {
+            let hit = match &statement {
+                JsStatement::Binding { name, keyword, bind, .. } if *name == traced => Some(format!("Binding keyword {keyword:?} bind {}", bind.is_some())),
+                JsStatement::Declarators { keyword, declarators } if declarators.iter().any(|d| d.name == traced) => Some(format!("Declarators keyword {keyword:?} binds {:?}", declarators.iter().map(|d| (d.name.clone(), d.bind.is_some())).collect::<Vec<_>>())),
+                JsStatement::DeclarationGroup { names, binds, keyword, .. } if names.iter().any(|n| *n == traced) => Some(format!("DeclarationGroup keyword {keyword:?} binds {:?}", binds.iter().map(|b| b.is_some()).collect::<Vec<_>>())),
+                _ => None,
+            };
+            if let Some(hit) = hit {
+                eprintln!("[trace-name] {traced}: {hit}\n{}", std::backtrace::Backtrace::force_capture());
+            }
+        }
+
         self.push_statement_with(statement, JsStatementOptions::UNUSED);
     }
 
@@ -12148,6 +12160,46 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             && self.options.function_spelling == FunctionSpelling::Arrow
     }
 
+    /// 8.3f: the globals this function declares as its own -- first stored
+    /// here, never predeclared -- spelled from its local pool before its
+    /// names are fixed, so the `let`, every load in the function and every
+    /// capture into its closures agree on a short name. Spelled from the
+    /// module pool they kept two letters (remark's tokenizer states, `jv`)
+    /// and were forbidden in every scope beneath; the readers are all
+    /// nested, since the `let` is the function's (8.3e).
+    fn respell_globals_declared_by(&mut self, function: &ControlFlowFunction<'src>, mangler: &mut Mangler) {
+        if !self.options.mangle_identifiers || std::env::var("LILSCRIPT_LOCAL_GLOBAL_NAMES").as_deref() == Ok("0") {
+            return;
+        }
+        let mut seen = AHashSet::default();
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let ControlFlowOp::StoreGlobal { global, .. } = instruction.op else {
+                continue;
+            };
+            if self.declared_globals.contains(&global)
+                || self.constant_global_strings.contains_key(&global)
+                || !seen.insert(global)
+            {
+                continue;
+            }
+            let Some(current) = self.global_names.get(&global).cloned() else {
+                continue;
+            };
+            let short = mangler.next_name();
+            if short.len() >= current.len() {
+                mangler.release(&short);
+                continue;
+            }
+            if std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
+                eprintln!("[shape] global {} declared by function {} respelled `{current}` -> `{short}`", global.0, function.id.0);
+            }
+            if let Some(bind) = self.global_binds.get(&global).copied() {
+                self.bind_table.respell(bind, &short);
+            }
+            self.global_names.insert(global, short);
+        }
+    }
+
     fn direct_enclosing_functions(&self, child: FunctionId) -> Vec<FunctionId> {
         self.module
             .functions
@@ -13623,6 +13675,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 local_mangler.reserve(name);
             }
         }
+        self.respell_globals_declared_by(function, &mut local_mangler);
         let mut context = LocalNames::new(
             function,
             self.integer_analysis.function(function.id),
@@ -21626,7 +21679,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let function = function.clone();
         let calling_convention = self.js_calling_conventions.get(&function.id).copied();
         if !self.function_is_inlined(&function) {
-            let name = self.function_name(function.id)?;
+            let name = self.function_name(function.id)?.to_string();
+            let name = name.as_str();
             if captures.is_empty() {
                 return Ok(name.to_string());
             }
@@ -21635,6 +21689,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             for capture in captures {
                 reserve_expression_identifiers(&mut wrapper_mangler, capture);
             }
+            self.respell_globals_declared_by(&function, &mut wrapper_mangler);
             let mut context = LocalNames::new(
                 &function,
                 self.integer_analysis.function(function.id),
