@@ -1326,6 +1326,8 @@ struct StatementPolicy {
     /// 8.15: the collapse reads a definition's own value for its reads and
     /// lets a name be written more than once (`wide_single_use_collapse`).
     wide_collapse: bool,
+    /// 8.18: the late shape cleanups on the main emission path too.
+    late_cleanups: bool,
     /// Phase 6, G7: `var x=void 0` prints as `var x` where the store is dead
     /// (`fold_void_initializers_off_fresh_vars`), `let x=void 0` always.
     void_initializers: bool,
@@ -1423,6 +1425,7 @@ impl StatementPolicy {
         raw_return_tails: false,
         single_use_collapse: false,
         wide_collapse: false,
+        late_cleanups: false,
         void_initializers: false,
         declaration_merge: false,
         braceless_control_bodies: false,
@@ -1474,6 +1477,7 @@ impl StatementPolicy {
             // turns it on.
             single_use_collapse: options.single_use_collapse || port_off("single_use_collapse"),
             wide_collapse: options.wide_single_use_collapse || port_is_enabled("collapse_wide"),
+            late_cleanups: options.late_shape_cleanups || port_is_enabled("late_cleanups"),
             void_initializers: port("void_initializers"),
             declaration_merge: port("declaration_merge"),
             // The text fold dropped braces whatever the option said, so the
@@ -7498,6 +7502,27 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 crate::timing::VOID_INITIALIZERS_DROPPED.event(dropped as u64);
             }
         }
+        if policy.late_cleanups {
+            // 8.18: the prototype table of a downlevelled class re-reads
+            // `Ctor.prototype` before every method; the repeats go before the
+            // merge and the comma join see the run.
+            let mut repeats = drop_repeated_alias_statements(block);
+            repeats += rewrite_block_expressions_shallow(block, &mut drop_repeated_alias_reads);
+            for_each_function_body(block, &mut |_, body| {
+                repeats += drop_repeated_alias_statements(body);
+            });
+            {
+                let mut closures = self.closure_trees.borrow_mut();
+                for (_, body) in closures.values_mut() {
+                    if let JsFunctionBody::Block(inner) = body {
+                        repeats += drop_repeated_alias_statements(inner);
+                    }
+                }
+            }
+            if repeats > 0 {
+                crate::timing::REPEATED_ALIAS_READS_DROPPED.event(repeats as u64);
+            }
+        }
         if policy.declaration_merge {
             let merged = merge_block_declarations(block);
             if merged > 0 {
@@ -7524,7 +7549,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         policy.install();
         let mut out = self.build_module()?;
         self.prune_unreferenced_declarators(&mut out);
-        if policy.single_use_collapse || policy.void_initializers || policy.declaration_merge {
+        if policy.single_use_collapse
+            || policy.void_initializers
+            || policy.declaration_merge
+            || policy.late_cleanups
+        {
             self.collapse_single_uses(&mut out);
         }
         // Phase 6, G2/G5: the control shapes the text folds wrote last, on the
@@ -31731,6 +31760,10 @@ fn collapse_family(
         // 8.15: the repeated alias read and the branch under a literal-false
         // test, before the merge sees the declarations around them.
         rewrite_block_expressions_shallow(block, &mut drop_repeated_alias_reads);
+        let statements = drop_repeated_alias_statements(block);
+        if statements > 0 {
+            crate::timing::REPEATED_ALIAS_READS_DROPPED.event(statements as u64);
+        }
         let unreachable = drop_unreachable_branches(block);
         if unreachable > 0 {
             crate::timing::UNREACHABLE_BRANCHES_DROPPED.event(unreachable as u64);
@@ -33832,6 +33865,75 @@ fn inert_property_store(node: &JsExpression) -> Option<String> {
             | JsExpressionRoot::Name(_)
     );
     quiet.then(|| property.code.clone())
+}
+
+/// 8.18: the same repeated read, over a block's statements.
+///
+/// The emitter writes the prototype table of a downlevelled class as a run of
+/// expression statements, not as one comma node -- the join happens later --
+/// so the comma fold never sees it. mobxlil spells `ci=O.prototype;` before
+/// each of eighty-five methods across eight constructors: 1,140 characters,
+/// and the repetition is also what stops `fold_constructor_prototype_tables_to_classes`
+/// from seeing one run to fuse.
+fn drop_repeated_alias_statements(block: &mut JsBlock) -> usize {
+    fn alias_of(statement: &JsStatement) -> Option<(Bind, String, Vec<String>)> {
+        let JsStatement::Expression { value } = statement else {
+            return None;
+        };
+        if value.root != JsExpressionRoot::Assign {
+            return None;
+        }
+        let [target, assigned] = value.operands.as_slice() else {
+            return None;
+        };
+        if !matches!(target.root, JsExpressionRoot::Name(_))
+            || assigned.root != JsExpressionRoot::Member
+            || !is_pure_member_chain(assigned)
+        {
+            return None;
+        }
+        let mut read = Vec::new();
+        member_chain_properties(assigned, &mut read);
+        Some((name_bind(target), assigned.code.clone(), read))
+    }
+    fn inert_store(statement: &JsStatement) -> Option<String> {
+        let JsStatement::Expression { value } = statement else {
+            return None;
+        };
+        inert_property_store(value)
+    }
+    let mut dropped = 0usize;
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let Some((bind, code, read)) = alias_of(&block.statements[index].statement) else {
+            index += 1;
+            continue;
+        };
+        let mut ahead = index + 1;
+        while ahead < block.statements.len() {
+            if let Some(written) = inert_store(&block.statements[ahead].statement) {
+                if read.contains(&written) {
+                    break;
+                }
+                ahead += 1;
+                continue;
+            }
+            let repeat = alias_of(&block.statements[ahead].statement)
+                .is_some_and(|(other, text, _)| other == bind && text == code);
+            if !repeat {
+                break;
+            }
+            block.statements.remove(ahead);
+            dropped += 1;
+        }
+        index = ahead.max(index + 1);
+    }
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut |child| {
+            dropped += drop_repeated_alias_statements(child);
+        });
+    }
+    dropped
 }
 
 /// 8.15: `x=o.p,x.a=..,x=o.p,x.b=..` re-reads `o.p` before every store.

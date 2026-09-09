@@ -454,7 +454,14 @@ impl ProjectConfig {
                 .precise_cross_scope_shadowing
                 .unwrap_or(false),
             reserved_local_name_prefix: false,
-            local_name_reserve: self.javascript.local_name_reserve,
+            // 8.18: `LILSCRIPT_NAME_RESERVE` overrides the declared reserve, for
+            // the sweep that sizes the basin lottery on the ports the beam width
+            // does not reach. Measurement only.
+            local_name_reserve: std::env::var("LILSCRIPT_NAME_RESERVE")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .map(|value| value.min(256))
+                .unwrap_or(self.javascript.local_name_reserve),
             stable_local_names: self.javascript.stable_local_names,
             frequency_order_local_names: self
                 .javascript
