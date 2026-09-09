@@ -417,6 +417,8 @@ impl ProjectConfig {
                 .javascript
                 .rematerialize_member_reads
                 .unwrap_or(false),
+            wide_single_use_collapse: self.javascript.wide_single_use_collapse.unwrap_or(false),
+            late_shape_cleanups: self.javascript.late_shape_cleanups.unwrap_or(false),
             text_peephole: self
                 .javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole),
             // Off on the search's plans; the terminal shape challengers turn them on.
@@ -1464,6 +1466,30 @@ pub struct JavaScriptConfig {
     /// construction, and only pays when the un-hoisted spelling repeats often
     /// enough for the compressor to charge a back-reference instead of the text.
     pub rematerialize_member_reads: Option<bool>,
+    /// 8.15: the two conditions Terser's `collapse_vars` has and the emitter's
+    /// conservative collapse does not -- a definition whose value reads the
+    /// name it defines, and a name the function assigns more than once. Both
+    /// are safe for *this* definition; refusing them is what leaves 244
+    /// read-once bindings standing on micromarklil where Terser leaves 177.
+    ///
+    /// Off by default: it is a win on three of the ten pool ports and a loss
+    /// on three (059 8.15 -- remarklil -113, mobxlil -106, remark-gfmlil -39;
+    /// micromarklil +369, posthoglil +75, rehypelil +60), because collapsing
+    /// more moves the plan the search lands on. A port that has measured its
+    /// own artifact says so here.
+    pub wide_single_use_collapse: Option<bool>,
+    /// 8.15: two strictly smaller rewrites on the finished tree -- a branch
+    /// under a literal-false test goes, and a re-read of the same member chain
+    /// into the same alias goes (`x=o.p,x.a=..,x=o.p,x.b=..`, which is how a
+    /// downlevelled class writes its prototype: 1,140 of the fleet's 1,533
+    /// redundant characters are mobxlil's).
+    ///
+    /// Off by default. Both remove bytes at every site they fire on, and the
+    /// fleet still read +569 with them on (059 8.15) -- micromarklil alone
+    /// +366 -- because the plan search is sensitive enough to any change in
+    /// the emission that it lands in a different basin. A port that has
+    /// measured its own artifact says so here.
+    pub late_shape_cleanups: Option<bool>,
     pub public_aggregate_abi: PublicAggregateAbi,
     pub aggregate_layout: AggregateLayout,
     /// Allow representations that bypass ambient JavaScript constructor
@@ -1546,6 +1572,8 @@ impl Default for JavaScriptConfig {
             struct_method_shorthand: None,
             local_phi_expression_regions: None,
             rematerialize_member_reads: None,
+            wide_single_use_collapse: None,
+            late_shape_cleanups: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,

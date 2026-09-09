@@ -208,10 +208,16 @@ pub static PEEPHOLE_TERMINAL: Bucket = Bucket::new("peephole_terminal");
 pub static PEEPHOLE_CLEANUP: Bucket = Bucket::new("peephole_cleanup");
 /// Phase 6, G4/G5: bindings the single-use collapse folded into their read.
 pub static SINGLE_USE_COLLAPSED: Bucket = Bucket::new("single_use_collapsed");
+/// 8.14: `var f=function(){}` bindings respelled as function declarations.
+pub static FUNCTION_DECLARATIONS_SPELLED: Bucket = Bucket::new("function_declarations_spelled");
 /// Phase 6, G7: `var x=void 0` initializers dropped as dead stores.
 pub static VOID_INITIALIZERS_DROPPED: Bucket = Bucket::new("void_initializers_dropped");
 /// Phase 6, G7: adjacent declarations merged into one list on the tree.
 pub static DECLARATIONS_MERGED: Bucket = Bucket::new("declarations_merged");
+/// 8.15: repeated reads of the same member chain into the same alias.
+pub static REPEATED_ALIAS_READS_DROPPED: Bucket = Bucket::new("repeated_alias_reads_dropped");
+/// 8.15: branches under a literal-false test, dropped as unreachable.
+pub static UNREACHABLE_BRANCHES_DROPPED: Bucket = Bucket::new("unreachable_branches_dropped");
 /// Phase 6, G4/G5: concise closures called where they are built, reduced to
 /// their body with the arguments in place of the parameters.
 pub static IIFES_REDUCED: Bucket = Bucket::new("iifes_reduced");

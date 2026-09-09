@@ -125,6 +125,12 @@ pub struct IrJsOptions {
     /// duplicated text is short and evaluating it twice is a property read of a
     /// local -- not a call, not an index, and never order-sensitive.
     pub rematerialize_member_reads: bool,
+    /// 8.15: the wide single-use collapse (config `wide_single_use_collapse`).
+    /// Unlike `single_use_collapse` this is the port's answer, not the plan
+    /// search's: it is constant across every plan of a compile.
+    pub wide_single_use_collapse: bool,
+    /// 8.15: the late shape cleanups (config `late_shape_cleanups`).
+    pub late_shape_cleanups: bool,
     /// The text peephole is configured for this compile. Phase 6 moves the
     /// peephole's unconditional shapes into the emitter one chain head at a
     /// time; until each fold is deleted the emitter writes that shape only
@@ -354,6 +360,8 @@ impl Default for IrJsOptions {
             unused_catch_binding_elision: true,
             compact_generator_star: true,
             inline_single_use_functions: false,
+            wide_single_use_collapse: false,
+            late_shape_cleanups: false,
             rematerialize_member_reads: false,
             text_peephole: false,
             single_use_collapse: false,
@@ -1315,6 +1323,9 @@ struct StatementPolicy {
     /// (`fold_single_use_temporaries`, `fold_single_use_literal_bindings`,
     /// `fold_identifier_copies`, `fold_single_use_if_assigns`).
     single_use_collapse: bool,
+    /// 8.15: the collapse reads a definition's own value for its reads and
+    /// lets a name be written more than once (`wide_single_use_collapse`).
+    wide_collapse: bool,
     /// Phase 6, G7: `var x=void 0` prints as `var x` where the store is dead
     /// (`fold_void_initializers_off_fresh_vars`), `let x=void 0` always.
     void_initializers: bool,
@@ -1411,6 +1422,7 @@ impl StatementPolicy {
         ident_or: false,
         raw_return_tails: false,
         single_use_collapse: false,
+        wide_collapse: false,
         void_initializers: false,
         declaration_merge: false,
         braceless_control_bodies: false,
@@ -1461,6 +1473,7 @@ impl StatementPolicy {
             // off until that rendering is fixed. `LILSCRIPT_PORTS=single_use_collapse`
             // turns it on.
             single_use_collapse: options.single_use_collapse || port_off("single_use_collapse"),
+            wide_collapse: options.wide_single_use_collapse || port_is_enabled("collapse_wide"),
             void_initializers: port("void_initializers"),
             declaration_merge: port("declaration_merge"),
             // The text fold dropped braces whatever the option said, so the
@@ -4052,7 +4065,148 @@ fn expression_writes_memory_or_calls(node: &JsExpression) -> bool {
     here || node.operands.iter().any(expression_writes_memory_or_calls)
 }
 
-fn collapse_is_safe(bind: Bind, value: &JsExpression, next: &JsExpression, census: &BindCensus) -> bool {
+/// How many times `bind` is read inside `node`.
+fn bind_reads_in(
+    node: &JsExpression,
+    bind: Bind,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+) -> usize {
+    let mut census = BindCensus::default();
+    census.expression(node, closures);
+    census.reads.get(&bind).copied().unwrap_or(0)
+}
+
+/// Whether `bind` may be written by `node`.
+fn expression_writes_bind(node: &JsExpression, bind: Bind) -> bool {
+    let here = matches!(
+        node.root,
+        JsExpressionRoot::Assign | JsExpressionRoot::Update(_) | JsExpressionRoot::PrefixUpdate(_)
+    ) && node
+        .operands
+        .first()
+        .is_some_and(|target| target.root == JsExpressionRoot::Name(bind));
+    // A call could reach a closure that stores into it; the census answers
+    // that globally (`write_scope`), so here only the syntactic write counts.
+    here || node.operands.iter().any(|operand| expression_writes_bind(operand, bind))
+}
+
+/// 8.14: the counts a collapse candidate must satisfy.
+///
+/// The conservative core asks for one read and one write of the whole
+/// function, which refuses the two shapes Terser's `collapse_vars` accepts
+/// most often: a definition that reads the name it defines (`e=T(e);use(e)`,
+/// two reads), and a name the function assigns more than once (a parameter
+/// rebound in a guard, two writes). Neither is a hazard for *this*
+/// definition: what matters is that the value's own reads travel with it,
+/// that no other read survives, and that no other scope can write the bind
+/// between the definition and its read -- which `write_scope` answers.
+fn collapse_counts_are_safe(
+    bind: Bind,
+    value: &JsExpression,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    wide: bool,
+) -> bool {
+    let reads = census.reads.get(&bind).copied().unwrap_or(0);
+    let writes = census.writes.get(&bind).copied().unwrap_or(0);
+    if reads == 1 && writes == 1 {
+        return true;
+    }
+    if !wide {
+        return false;
+    }
+    // Every write in one scope: no closure of this function stores into the
+    // bind, so nothing the next statement calls can change it under us.
+    if !matches!(census.write_scope.get(&bind), Some(Some(_))) {
+        return false;
+    }
+    writes >= 1 && reads.saturating_sub(bind_reads_in(value, bind, closures)) == 1
+}
+
+/// 8.14: whether the one read of `bind` in `next` is reached having evaluated
+/// nothing but inert leaves -- literals, and names `value` cannot write.
+/// Reading such a leaf has no effect and no dependence on `value`, so the
+/// value may be evaluated at the read instead of before the statement.
+///
+/// Terser's `collapse_vars` walks the same prefix with a hazard list; this is
+/// the half of it the emitter can prove from its own tree. A read inside a
+/// branch that may not run at all (a short-circuit's right operand, a
+/// conditional's arms) is not this: moving an effect there drops it.
+fn read_prefix_is_inert(next: &JsExpression, bind: Bind, value: &JsExpression, wide: bool) -> bool {
+    enum Reached {
+        Read,
+        NotYet,
+        Blocked,
+    }
+    fn walk(node: &JsExpression, bind: Bind, value: &JsExpression) -> Reached {
+        match node.root {
+            JsExpressionRoot::Name(other) if other == bind => Reached::Read,
+            JsExpressionRoot::Name(other) => {
+                if expression_writes_bind(value, other) {
+                    Reached::Blocked
+                } else {
+                    Reached::NotYet
+                }
+            }
+            JsExpressionRoot::Atom | JsExpressionRoot::Str(_) | JsExpressionRoot::Bool(_) => Reached::NotYet,
+            JsExpressionRoot::Raw | JsExpressionRoot::Closure(_) => Reached::Blocked,
+            // Only the first operand of a short-circuit runs unconditionally.
+            JsExpressionRoot::Nullish | JsExpressionRoot::Conditional => match node.operands.first() {
+                Some(first) => match walk(first, bind, value) {
+                    Reached::Read => Reached::Read,
+                    _ => Reached::Blocked,
+                },
+                None => Reached::Blocked,
+            },
+            JsExpressionRoot::Binary(op) if matches!(op, IrBinaryOp::And | IrBinaryOp::Or) => {
+                match node.operands.first() {
+                    Some(first) => match walk(first, bind, value) {
+                        Reached::Read => Reached::Read,
+                        _ => Reached::Blocked,
+                    },
+                    None => Reached::Blocked,
+                }
+            }
+            // Anything that reads memory or calls out is not inert: it could
+            // see what `value` writes, or throw before it.
+            JsExpressionRoot::Member
+            | JsExpressionRoot::Index
+            | JsExpressionRoot::Call
+            | JsExpressionRoot::New
+            | JsExpressionRoot::Assign
+            | JsExpressionRoot::Update(_)
+            | JsExpressionRoot::PrefixUpdate(_) => {
+                // Its own first operand may still reach the read first.
+                match node.operands.first() {
+                    Some(first) => match walk(first, bind, value) {
+                        Reached::Read => Reached::Read,
+                        _ => Reached::Blocked,
+                    },
+                    None => Reached::Blocked,
+                }
+            }
+            _ => {
+                for operand in node.operands.iter() {
+                    match walk(operand, bind, value) {
+                        Reached::Read => return Reached::Read,
+                        Reached::NotYet => continue,
+                        Reached::Blocked => return Reached::Blocked,
+                    }
+                }
+                Reached::NotYet
+            }
+        }
+    }
+    wide && matches!(walk(next, bind, value), Reached::Read)
+}
+
+fn collapse_is_safe(
+    bind: Bind,
+    value: &JsExpression,
+    next: &JsExpression,
+    census: &BindCensus,
+    wide: bool,
+) -> bool {
     if expression_is_pure_literal(value) {
         return true;
     }
@@ -4062,15 +4216,20 @@ fn collapse_is_safe(bind: Bind, value: &JsExpression, next: &JsExpression, censu
         }
     }
     first_evaluated_leaf_of(next).is_some_and(|leaf| leaf.root == JsExpressionRoot::Name(bind))
+        || read_prefix_is_inert(next, bind, value, wide)
 }
 
 /// A declarator the collapse may fold into its one read.
-fn declarator_is_collapsible(declarator: &JsDeclarator, census: &BindCensus) -> Option<(Bind, JsExpression)> {
+fn declarator_is_collapsible(
+    declarator: &JsDeclarator,
+    census: &BindCensus,
+    closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    wide: bool,
+) -> Option<(Bind, JsExpression)> {
     let bind = declarator.bind?;
     let value = declarator.value.as_ref()?;
     (declarator.function.is_none()
-        && census.reads.get(&bind).copied() == Some(1)
-        && census.writes.get(&bind).copied() == Some(1)
+        && collapse_counts_are_safe(bind, value, census, closures, wide)
         && !census.is_unsafe(Some(bind), &declarator.name)
         && !expression_is_structural(value)
         && value_is_collapsible(value))
@@ -4103,11 +4262,12 @@ fn collapse_declarator_list(
     declarators: &mut Vec<JsDeclarator>,
     census: &BindCensus,
     closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    wide: bool,
 ) -> usize {
     let mut collapsed = 0usize;
     let mut index = 0usize;
     while index + 1 < declarators.len() {
-        let Some((bind, value)) = declarator_is_collapsible(&declarators[index], census) else {
+        let Some((bind, value)) = declarator_is_collapsible(&declarators[index], census, closures, wide) else {
             index += 1;
             continue;
         };
@@ -4118,7 +4278,10 @@ fn collapse_declarator_list(
         };
         let mut reads_here = BindCensus::default();
         reads_here.expression(next_value, closures);
-        if reads_here.reads.get(&bind).copied() != Some(1) || !collapse_is_safe(bind, &value, next_value, census) {
+        if reads_here.reads.get(&bind).copied() != Some(1)
+            || reads_here.writes.get(&bind).copied().unwrap_or(0) != 0
+            || !collapse_is_safe(bind, &value, next_value, census, wide)
+        {
             index += 1;
             continue;
         }
@@ -4560,11 +4723,12 @@ fn collapse_block(
     block: &mut JsBlock,
     census: &BindCensus,
     closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
+    wide: bool,
 ) {
     let mut index = 0usize;
     while index + 1 < block.statements.len() {
         if let JsStatement::Declarators { declarators, .. } = &mut block.statements[index].statement {
-            let collapsed = collapse_declarator_list(declarators, census, closures);
+            let collapsed = collapse_declarator_list(declarators, census, closures, wide);
             if collapsed > 0 {
                 crate::timing::SINGLE_USE_COLLAPSED.event(collapsed as u64);
             }
@@ -4578,8 +4742,7 @@ fn collapse_block(
                 bind: Some(bind),
                 value,
                 ..
-            } if census.reads.get(bind).copied() == Some(1)
-                && census.writes.get(bind).copied() == Some(1)
+            } if collapse_counts_are_safe(*bind, value, census, closures, wide)
                 && !census.is_unsafe(Some(*bind), name)
                 && !expression_is_structural(value)
                 && value_is_collapsible(value) =>
@@ -4592,8 +4755,7 @@ fn collapse_block(
             JsStatement::Expression { value } if value.root == JsExpressionRoot::Assign => match value.operands.as_slice() {
                 [target, assigned]
                     if matches!(target.root, JsExpressionRoot::Name(_))
-                        && census.reads.get(&name_bind(target)).copied() == Some(1)
-                        && census.writes.get(&name_bind(target)).copied() == Some(1)
+                        && collapse_counts_are_safe(name_bind(target), assigned, census, closures, wide)
                         && !census.is_unsafe(Some(name_bind(target)), &target.code)
                         && !expression_is_structural(assigned)
                         && value_is_collapsible(assigned) =>
@@ -4604,7 +4766,7 @@ fn collapse_block(
             },
             JsStatement::Declarators { declarators, .. } => declarators
                 .last()
-                .and_then(|declarator| declarator_is_collapsible(declarator, census))
+                .and_then(|declarator| declarator_is_collapsible(declarator, census, closures, wide))
                 .map(|(bind, value)| (bind, value, true)),
             _ => None,
         };
@@ -4620,13 +4782,16 @@ fn collapse_block(
         if let Some(expression) = collapse_target(&block.statements[index + 1].statement) {
             reads_here.expression(expression, closures);
         }
-        if reads_here.reads.get(&bind).copied() != Some(1) {
+        if reads_here.reads.get(&bind).copied() != Some(1)
+            || reads_here.writes.get(&bind).copied().unwrap_or(0) != 0
+        {
             index += 1;
             continue;
         }
         let target = index + 1;
         let next = &block.statements[target].statement;
-        let safe = collapse_target(next).is_some_and(|expression| collapse_is_safe(bind, &value, expression, census));
+        let safe =
+            collapse_target(next).is_some_and(|expression| collapse_is_safe(bind, &value, expression, census, wide));
         if !safe {
             index += 1;
             continue;
@@ -4681,35 +4846,35 @@ fn collapse_block(
                 else_branch,
                 ..
             } => {
-                collapse_block(&mut then_branch.block, census, closures);
+                collapse_block(&mut then_branch.block, census, closures, wide);
                 if let Some(else_branch) = else_branch {
-                    collapse_block(&mut else_branch.block, census, closures);
+                    collapse_block(&mut else_branch.block, census, closures, wide);
                 }
             }
-            JsStatement::Loop { body, .. } => collapse_block(&mut body.block, census, closures),
+            JsStatement::Loop { body, .. } => collapse_block(&mut body.block, census, closures, wide),
             JsStatement::Try {
                 body,
                 catch,
                 finally,
             } => {
-                collapse_block(body, census, closures);
+                collapse_block(body, census, closures, wide);
                 if let Some(catch) = catch {
-                    collapse_block(&mut catch.body, census, closures);
+                    collapse_block(&mut catch.body, census, closures, wide);
                 }
                 if let Some(finally) = finally {
-                    collapse_block(finally, census, closures);
+                    collapse_block(finally, census, closures, wide);
                 }
             }
             JsStatement::Switch { cases, .. } => {
                 for case in cases {
-                    collapse_block(&mut case.body, census, closures);
+                    collapse_block(&mut case.body, census, closures, wide);
                 }
             }
             JsStatement::Function {
                 body: JsFunctionBody::Block(body),
                 ..
-            } => collapse_block(body, census, closures),
-            JsStatement::Class { members, .. } => collapse_block(members, census, closures),
+            } => collapse_block(body, census, closures, wide),
+            JsStatement::Class { members, .. } => collapse_block(members, census, closures, wide),
             _ => {}
         }
     }
@@ -7258,6 +7423,53 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     /// first thing the next statement evaluates (then the value's effects
     /// happen exactly where they did). Terser's `collapse_vars` and Oxc's
     /// `substitute_single_use_symbol` (refs §J), the conservative core.
+    /// 8.14: `var f=function(){}` respelled as `function f(){}`, on the
+    /// finished tree -- the emitter still holds declarations while it shapes,
+    /// and binds them to names on the way out.
+    fn spell_declarations(&self, block: &mut JsBlock) -> usize {
+        let mut census = BindCensus {
+            opaque_for_heads: true,
+            by_spelling: true,
+            ..BindCensus::default()
+        };
+        census.block(block, &self.closure_trees);
+        census.resolve();
+        // The walk both reads the closures map (a declarator's value names an
+        // entry) and rewrites the bodies inside it, so it owns the map for the
+        // duration and gives it back after.
+        let mut trees = std::mem::take(&mut *self.closure_trees.borrow_mut());
+        let mut spelled = 0usize;
+        // A body pulled out of the map is walked where it lands, not in the
+        // map, so one sweep leaves the closures below it unvisited: sweep
+        // until a round finds nothing. The census stays true across rounds --
+        // respelling moves a binding, it does not add or remove one.
+        for _ in 0..4 {
+            let mut round = spell_function_declarations_in_lists(block, &census, &mut trees);
+            for_each_function_body(block, &mut |_, body| {
+                round += spell_function_declarations_in_lists(body, &census, &mut trees);
+            });
+            let ids: Vec<ClosureId> = trees.keys().copied().collect();
+            for id in ids {
+                let Some((head, mut body)) = trees.remove(&id) else {
+                    continue;
+                };
+                if let JsFunctionBody::Block(inner) = &mut body {
+                    round += spell_function_declarations_in_lists(inner, &census, &mut trees);
+                    for_each_function_body(inner, &mut |_, nested| {
+                        round += spell_function_declarations_in_lists(nested, &census, &mut trees);
+                    });
+                }
+                trees.insert(id, (head, body));
+            }
+            spelled += round;
+            if round == 0 {
+                break;
+            }
+        }
+        *self.closure_trees.borrow_mut() = trees;
+        spelled
+    }
+
     fn collapse_single_uses(&self, block: &mut JsBlock) {
         let policy = StatementPolicy::current();
         let mut census = BindCensus {
@@ -7272,7 +7484,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         census.resolve();
         if policy.single_use_collapse {
             let before = std::env::var_os("LILSCRIPT_SHAPE_TRACE").map(|_| block.clone().into_string());
-            collapse_block(block, &census, &self.closure_trees);
+            collapse_block(block, &census, &self.closure_trees, policy.wide_collapse);
             if let Some(before) = before {
                 let after = block.clone().into_string();
                 if before != after && before.contains("&1)") {
@@ -7320,6 +7532,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if policy.control_braces || policy.return_tails || policy.continue_tails || policy.early_exits
         {
             shape_block(&mut out, policy, ShapeContext::Module);
+        }
+        // 8.14: the function declarations the source wrote, spelled as
+        // declarations again (refs §J: the largest structural difference
+        // between our micromark and Terser's).
+        if port_is_enabled("function_declarations") {
+            let spelled = self.spell_declarations(&mut out);
+            if spelled > 0 {
+                crate::timing::FUNCTION_DECLARATIONS_SPELLED.event(spelled as u64);
+            }
         }
         if twin_witness_enabled() {
             self.witness_identity_respell(&out);
@@ -28415,6 +28636,8 @@ impl ModuleTree {
         policy.install();
         let mut shapes = shapes;
         shapes.pristine_builtins = options.assume_pristine_builtins;
+        shapes.wide_collapse = options.wide_single_use_collapse || port_is_enabled("collapse_wide");
+        shapes.late_cleanups = options.late_shape_cleanups || port_is_enabled("late_cleanups");
         FINISH_SITE.with(|cell| cell.set((site, 0)));
         self.reshape(shapes);
         let seen = FINISH_SITE.with(|cell| {
@@ -28816,6 +29039,13 @@ pub(crate) struct TreeShapes {
     /// The plan's `assume_pristine_builtins` (7.85): the array-from-pushes
     /// fold is equivalent only under it, as the text fold is.
     pub(crate) pristine_builtins: bool,
+    /// 8.15: the plan's `wide_single_use_collapse` -- the port's answer, carried
+    /// on the shapes so no pass reads it from a thread-local at print time.
+    pub(crate) wide_collapse: bool,
+    /// 8.15: the plan's `late_shape_cleanups` -- the unreachable-branch drop
+    /// and the repeated-alias-read drop, strictly smaller rewrites whose fleet
+    /// effect is below the plan search's sensitivity to any perturbation.
+    pub(crate) late_cleanups: bool,
     /// Migration 7.55: every branch's braces decided again after the other
     /// shapes changed what the branches hold (`SingleStatementControlBraces`).
     pub(crate) rebrace: bool,
@@ -28860,6 +29090,8 @@ impl TreeShapes {
             guard_tails: self.guard_tails || other.guard_tails,
             expression_bodies: self.expression_bodies || other.expression_bodies,
             pristine_builtins: self.pristine_builtins || other.pristine_builtins,
+            wide_collapse: self.wide_collapse || other.wide_collapse,
+            late_cleanups: self.late_cleanups || other.late_cleanups,
             rebrace: self.rebrace || other.rebrace,
             converge: self.converge || other.converge,
             converge_text: self.converge_text || other.converge_text,
@@ -29201,9 +29433,6 @@ impl ModuleTree {
                     }
                 }
             }
-            if aliases > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
-                eprintln!("[shape] {aliases} dead member aliases dropped");
-            }
             let dropped = remove_dead_functions(&mut self.block, &census);
             if dropped > 0 && std::env::var_os("LILSCRIPT_SHAPE_TRACE").is_some() {
                 eprintln!("[shape] {dropped} dead functions dropped");
@@ -29269,10 +29498,15 @@ impl ModuleTree {
                     // entered: the copies it holds were never propagated),
                     // innermost first, then this block.
                     // `LILSCRIPT_COLLAPSE_BODIES=0` keeps to this block, for the A/B.
+                    // 8.15: the port's answer, constant across the compile.
+                    let wide = shapes.wide_collapse;
+                    let late = shapes.late_cleanups;
                     if std::env::var("LILSCRIPT_COLLAPSE_BODIES").map_or(true, |value| value != "0") {
-                        for_each_function_body(block, &mut |_, body| collapse_family(body, &census, &snapshot, shapes.pristine_builtins));
+                        for_each_function_body(block, &mut |_, body| {
+                            collapse_family(body, &census, &snapshot, shapes.pristine_builtins, wide, late)
+                        });
                     }
-                    collapse_family(block, &census, &snapshot, shapes.pristine_builtins);
+                    collapse_family(block, &census, &snapshot, shapes.pristine_builtins, wide, late);
                     // 7.78: `x=E,x=x+R` is `x=E+R` (`fold_self_assignment_chains`).
                     for_each_function_body(block, &mut |_, body| {
                         fuse_self_assignment_chains(body);
@@ -31476,6 +31710,8 @@ fn collapse_family(
     census: &BindCensus,
     closures: &RefCell<AHashMap<ClosureId, (JsHead, JsFunctionBody)>>,
     pristine_builtins: bool,
+    wide: bool,
+    late_cleanups: bool,
 ) {
     // `LILSCRIPT_COPIES=0` skips the copies, for the A/B.
     if std::env::var("LILSCRIPT_COPIES").map_or(true, |value| value != "0") {
@@ -31485,12 +31721,21 @@ fn collapse_family(
             }
         }
     }
-    collapse_block(block, census, closures);
+    collapse_block(block, census, closures, wide);
     let reduced = rewrite_block_expressions_shallow(block, &mut |node| reduce_immediate_call(node, census, closures));
     if reduced > 0 {
         crate::timing::IIFES_REDUCED.event(reduced as u64);
     }
     drop_void_initializers(block, census);
+    if late_cleanups {
+        // 8.15: the repeated alias read and the branch under a literal-false
+        // test, before the merge sees the declarations around them.
+        rewrite_block_expressions_shallow(block, &mut drop_repeated_alias_reads);
+        let unreachable = drop_unreachable_branches(block);
+        if unreachable > 0 {
+            crate::timing::UNREACHABLE_BRANCHES_DROPPED.event(unreachable as u64);
+        }
+    }
     merge_block_declarations(block);
     // 7.79: `var ..,x,..;x=E` is `var ..,x=E` (the chain's
     // `fold_uninitialized_var_into_any_assign`).
@@ -33430,6 +33675,363 @@ fn read_inside_concise_body(block: &JsBlock, entries: &AHashMap<ClosureId, (JsHe
 /// source asks for. Dropping the declarator removes a byte *and* a read;
 /// it is only taken when the same member text survives elsewhere in the
 /// block, so the read still happens.
+/// 8.14: `var f=function(a){..}` -> `function f(a){..}`.
+///
+/// The port's source declares a function; the emitter binds the value to a
+/// name instead. That costs the `var ` and the `=`, but the bytes are not the
+/// point: a declaration puts `}function ` at every boundary between adjacent
+/// functions, and the codec matches that across the whole module. Terser's
+/// micromark spells 245 declarations and no bound function expressions; ours
+/// spelled 57 against 227, and its repeated-substring coverage at sixteen
+/// characters is 495% where ours is 443% (the largest structural difference
+/// between the two artifacts, refs §J).
+///
+/// Only a block's own statements, and only a name written once: a function
+/// declaration hoists, and inside a nested block it binds in that block
+/// rather than the function, which `var` did not.
+/// The head and body a function-valued declarator becomes as a declaration,
+/// when it can: `function(a,b)` with the declared name written into it.
+///
+/// The emitter holds a closure two ways -- as a declarator's own function, and
+/// as a `Closure` value whose tree lives in the closures map. micromark's
+/// final tree has 203 of the second and none of the first, so both are read
+/// here; taking the second out of the map is what removes its last reference.
+fn declarator_declaration_head(
+    declarator: &JsDeclarator,
+    census: &BindCensus,
+    closures: &AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
+) -> Option<(ClosureId, JsHead, JsFunctionBody)> {
+    let bind = declarator.bind?;
+    if census.writes.get(&bind).copied() != Some(1) || census.is_unsafe(Some(bind), &declarator.name) {
+        return None;
+    }
+    // `Closure(id)` marks a rendering of the map, so the id says which entry
+    // this declarator is the only reference to; a declarator that owns its
+    // function outright has no id, and none is taken.
+    let (id, head, body) = match (&declarator.function, &declarator.value) {
+        (Some(function), _) => (None, &function.0, &function.1),
+        (None, Some(value)) => match value.root {
+            JsExpressionRoot::Closure(id) => {
+                let (head, body) = closures.get(&id)?;
+                (Some(id), head, body)
+            }
+            _ => return None,
+        },
+        _ => return None,
+    };
+    let [JsHeadPiece::Text(text), rest @ ..] = head.pieces.as_slice() else {
+        return None;
+    };
+    let parameters = text.strip_prefix("function")?;
+    let (keyword, parameters) = match parameters.strip_prefix('*') {
+        Some(parameters) if parameters.starts_with('(') => ("function*", parameters),
+        _ if parameters.starts_with('(') => ("function ", parameters),
+        _ => return None,
+    };
+    let mut declaration = JsHead::default();
+    declaration.push_text(keyword);
+    declaration.pieces.push(JsHeadPiece::FunctionName(bind, declarator.name.clone()));
+    declaration.push_text(parameters);
+    for piece in rest {
+        declaration.pieces.push(piece.clone());
+    }
+    Some((id.unwrap_or(ClosureId(u32::MAX)), declaration, body.clone()))
+}
+
+/// 8.14: the declarators of `var f=function(){},g=function(){}` that may be
+/// spelled as declarations, given what the rest of the list reads. A
+/// declaration hoists, so a declarator that reads one of the names it is
+/// declared beside would see the function where it saw `undefined`; those
+/// names stay bound.
+fn hoistable_function_declarators(
+    declarators: &[JsDeclarator],
+    census: &BindCensus,
+    closures: &AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
+) -> Vec<usize> {
+    // A read inside a sibling's closure runs when that closure is called, not
+    // where it is built, so only immediate reads are a hazard: the walk is
+    // given no closure bodies to descend into. A spelling mentioned in raw
+    // text is already excluded, as the census marks its bind unsafe.
+    let empty = RefCell::new(AHashMap::default());
+    declarators
+        .iter()
+        .enumerate()
+        .filter(|(_, declarator)| declarator_declaration_head(declarator, census, closures).is_some())
+        .map(|(index, _)| index)
+        .filter(|index| {
+            let bind = declarators[*index].bind.expect("a candidate carries its bind");
+            // A declaration hoists in front of the list, so a declarator that
+            // ran *before* it would read the function where it read nothing.
+            !declarators[..*index].iter().any(|declarator| {
+                declarator
+                    .value
+                    .as_ref()
+                    .is_some_and(|value| bind_reads_in(value, bind, &empty) > 0)
+            })
+        })
+        .collect()
+}
+
+/// 8.14: the same respelling for a declarator list, which is where the
+/// emitter puts most of them (`var f=function(){},g=function(){}`): the
+/// function-valued declarators leave the list as declarations in front of
+/// what remains of it.
+/// Whether the expression is a chain of names and non-computed property
+/// reads: `o`, `o.p`, `o.p.q`. Nothing in such a chain can call out, so
+/// re-reading it is a pure operation whose answer only the writes below can
+/// change.
+fn is_pure_member_chain(node: &JsExpression) -> bool {
+    match node.root {
+        JsExpressionRoot::Name(_) => true,
+        JsExpressionRoot::Member => match node.operands.as_slice() {
+            [receiver, property] => {
+                matches!(property.root, JsExpressionRoot::Atom) && is_pure_member_chain(receiver)
+            }
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+/// The property names a pure member chain reads.
+fn member_chain_properties(node: &JsExpression, into: &mut Vec<String>) {
+    if node.root == JsExpressionRoot::Member {
+        if let [receiver, property] = node.operands.as_slice() {
+            into.push(property.code.clone());
+            member_chain_properties(receiver, into);
+        }
+    }
+}
+
+/// Whether `node` is a store into a property of a bare name -- `x.p=v` -- whose
+/// value cannot call out, and which therefore changes nothing a member chain
+/// reads except that one property of that one object.
+fn inert_property_store(node: &JsExpression) -> Option<String> {
+    if node.root != JsExpressionRoot::Assign {
+        return None;
+    }
+    let [target, value] = node.operands.as_slice() else {
+        return None;
+    };
+    if target.root != JsExpressionRoot::Member {
+        return None;
+    }
+    let [receiver, property] = target.operands.as_slice() else {
+        return None;
+    };
+    if !matches!(receiver.root, JsExpressionRoot::Name(_)) || !matches!(property.root, JsExpressionRoot::Atom) {
+        return None;
+    }
+    // Building a closure has no effect; calling one does.
+    let quiet = matches!(
+        value.root,
+        JsExpressionRoot::Closure(_)
+            | JsExpressionRoot::Atom
+            | JsExpressionRoot::Str(_)
+            | JsExpressionRoot::Bool(_)
+            | JsExpressionRoot::Name(_)
+    );
+    quiet.then(|| property.code.clone())
+}
+
+/// 8.15: `x=o.p,x.a=..,x=o.p,x.b=..` re-reads `o.p` before every store.
+///
+/// SSA destruction materialises the alias once per use, and the prototype
+/// tables a downlevelled class writes are a run of exactly this shape:
+/// mobxlil spells `ci=O.prototype,` eighteen times in a row for one class,
+/// 1,140 characters of the fleet's artifacts. The re-read answers the same as
+/// the first when nothing between it and the first can change what the chain
+/// reads -- only stores into a property the chain does not read, whose value
+/// is built rather than called.
+fn drop_repeated_alias_reads(node: &JsExpression) -> Option<JsExpression> {
+    if node.root != JsExpressionRoot::Comma {
+        return None;
+    }
+    let mut dropped = Vec::new();
+    let mut index = 0usize;
+    while index < node.operands.len() {
+        let alias = match node.operands[index].root {
+            JsExpressionRoot::Assign => match node.operands[index].operands.as_slice() {
+                [target, value]
+                    if matches!(target.root, JsExpressionRoot::Name(_))
+                        && is_pure_member_chain(value)
+                        && value.root == JsExpressionRoot::Member =>
+                {
+                    Some((name_bind(target), value.code.clone()))
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some((bind, code)) = alias else {
+            index += 1;
+            continue;
+        };
+        let mut read = Vec::new();
+        member_chain_properties(&node.operands[index].operands[1], &mut read);
+        // Walk forward while every operand is an inert store, dropping each
+        // re-read of the same chain.
+        let mut ahead = index + 1;
+        while ahead < node.operands.len() {
+            let operand = &node.operands[ahead];
+            if let Some(written) = inert_property_store(operand) {
+                if read.contains(&written) || expression_writes_bind(operand, bind) {
+                    break;
+                }
+                ahead += 1;
+                continue;
+            }
+            let repeat = operand.root == JsExpressionRoot::Assign
+                && matches!(operand.operands.as_slice(), [target, value]
+                    if matches!(target.root, JsExpressionRoot::Name(_))
+                        && name_bind(target) == bind
+                        && value.code == code);
+            if !repeat {
+                break;
+            }
+            dropped.push(ahead);
+            ahead += 1;
+        }
+        index = ahead.max(index + 1);
+    }
+    if dropped.is_empty() {
+        return None;
+    }
+    let kept: Vec<JsExpression> = node
+        .operands
+        .iter()
+        .enumerate()
+        .filter(|(at, _)| !dropped.contains(at))
+        .map(|(_, operand)| operand.clone())
+        .collect();
+    crate::timing::REPEATED_ALIAS_READS_DROPPED.event(dropped.len() as u64);
+    Some(JsExpression::comma_unmerged(kept))
+}
+
+/// 8.15: a branch under a literal-false test never runs, so it goes.
+///
+/// The loop lowering writes one where a back edge was proved dead
+/// (`if(!1){i=0,t=o;break}`), and nothing downstream reads the test. A branch
+/// that declares anything stays: `var` inside it is the function's binding
+/// whatever the test says.
+fn drop_unreachable_branches(block: &mut JsBlock) -> usize {
+    fn declares(branch: &JsBranch) -> bool {
+        branch.block.statements.iter().any(|emitted| {
+            matches!(
+                emitted.statement,
+                JsStatement::Declaration { .. }
+                    | JsStatement::Declarators { .. }
+                    | JsStatement::Binding { .. }
+                    | JsStatement::Function { .. }
+                    | JsStatement::Class { .. }
+            )
+        })
+    }
+    let mut dropped = 0usize;
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let JsStatement::If {
+            condition,
+            then_branch,
+            else_branch,
+            ..
+        } = &mut block.statements[index].statement
+        else {
+            index += 1;
+            continue;
+        };
+        if !matches!(condition.as_str(), "!1" | "false" | "0") || declares(then_branch) {
+            index += 1;
+            continue;
+        }
+        match else_branch.take() {
+            // `if(!1){..}else{..}` is the else branch, which does declare in
+            // its own right -- so it stays a statement rather than a splice.
+            Some(otherwise) => {
+                *condition = "!0".to_string();
+                *then_branch = otherwise;
+                if let JsStatement::If { condition_tree, .. } = &mut block.statements[index].statement {
+                    *condition_tree = None;
+                }
+                index += 1;
+            }
+            None => {
+                block.statements.remove(index);
+            }
+        }
+        dropped += 1;
+    }
+    for emitted in block.statements.iter_mut() {
+        for_each_child_block(&mut emitted.statement, &mut |child| {
+            dropped += drop_unreachable_branches(child);
+        });
+    }
+    dropped
+}
+
+fn spell_function_declarations_in_lists(
+    block: &mut JsBlock,
+    census: &BindCensus,
+    closures: &mut AHashMap<ClosureId, (JsHead, JsFunctionBody)>,
+) -> usize {
+    let mut spelled = 0usize;
+    let mut index = 0usize;
+    while index < block.statements.len() {
+        let JsStatement::Declarators { declarators, .. } = &block.statements[index].statement else {
+            index += 1;
+            continue;
+        };
+        let taken = hoistable_function_declarators(declarators, census, closures);
+        if taken.is_empty() {
+            index += 1;
+            continue;
+        }
+        let options = block.statements[index].options;
+        let built: Vec<(ClosureId, JsHead, JsFunctionBody)> = taken
+            .iter()
+            .map(|at| {
+                declarator_declaration_head(&declarators[*at], census, closures).expect("a candidate has a head")
+            })
+            .collect();
+        let declarations: Vec<EmittedStatement> = built
+            .into_iter()
+            .map(|(id, head, body)| {
+                // The declaration is now the only rendering of that closure.
+                closures.remove(&id);
+                EmittedStatement {
+                    statement: JsStatement::Function {
+                        head,
+                        body,
+                        terminated: false,
+                    },
+                    options,
+                    dropped_semicolon: false,
+                }
+            })
+            .collect();
+        spelled += declarations.len();
+        let JsStatement::Declarators { declarators, .. } = &mut block.statements[index].statement else {
+            unreachable!("the statement was a declarator list")
+        };
+        for at in taken.iter().rev() {
+            declarators.remove(*at);
+        }
+        let empty = declarators.is_empty();
+        let moved = declarations.len();
+        if empty {
+            let gone = block.statements.remove(index);
+            block.statements.splice(index..index, declarations);
+            if index + moved == block.statements.len() {
+                settle_block_tail(block, gone.dropped_semicolon);
+            }
+        } else {
+            block.statements.splice(index..index, declarations);
+        }
+        index += moved + usize::from(!empty);
+    }
+    spelled
+}
+
 fn remove_dead_member_aliases(module: &mut JsBlock, census: &BindCensus) -> usize {
     fn member_alias(declarator: &JsDeclarator, census: &BindCensus) -> Option<String> {
         let bind = declarator.bind?;
