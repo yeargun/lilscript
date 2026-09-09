@@ -302,6 +302,43 @@ fn strip_trailing_return_this(body: &str, aliases: &[&str]) -> String {
     body.to_string()
 }
 
+/// 8.17: the `new`-guard a downlevelled constructor carries is dead inside a
+/// class.
+///
+/// A port that transliterates *transpiled* upstream rather than upstream's own
+/// `class` writes the check the transpiler emitted --
+/// `if(this===void 0)throw new TypeError("Class constructor X cannot be invoked
+/// without 'new'")` -- and once this fold has made the constructor a class
+/// member the language enforces it: a class constructor cannot be reached
+/// without `new`, so `this` is never `undefined` there. unifiedlil and
+/// remarklil ship three each, 797 characters across the fleet.
+///
+/// The match is deliberately exact. Only the shape a transpiler emits is
+/// removed; anything else that tests `this` stays.
+fn strip_dead_new_guard(body: &str) -> String {
+    let mut out = String::with_capacity(body.len());
+    let mut rest = body;
+    while let Some(at) = rest.find("if(this===void 0)throw new TypeError(\"Class constructor ") {
+        let (before, tail) = rest.split_at(at);
+        // The guard ends at the first `)` that closes the `throw new TypeError(`
+        // call, which the message string cannot contain unescaped.
+        let Some(close) = tail.find("cannot be invoked without 'new'\")") else {
+            break;
+        };
+        let mut end = close + "cannot be invoked without 'new'\")".len();
+        if tail[end..].starts_with(';') {
+            end += 1;
+        }
+        out.push_str(before);
+        rest = &tail[end..];
+    }
+    if out.is_empty() {
+        return body.to_string();
+    }
+    out.push_str(rest);
+    out
+}
+
 fn is_ident_continue(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
 }
@@ -3023,6 +3060,8 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         if let Some(parent) = base {
             ctor_body = rewrite_super_call(&ctor_body, parent);
         }
+        // 8.17: the transpiler's `new` guard, which the class keyword enforces.
+        ctor_body = strip_dead_new_guard(&ctor_body);
         let pooled = pooled_identifier_strings(&tokens);
         let observed_name =
             observed_constructor_name(&tokens, &matching_close, scan, name, &pooled);
