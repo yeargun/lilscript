@@ -2008,6 +2008,14 @@ impl JavaScriptConfig {
     /// can always exceed this value: the arena raises its effective byte floor
     /// to retain that mandatory incumbent.
     pub fn effective_candidate_byte_budget(&self) -> usize {
+        // 8.20: `LILSCRIPT_CANDIDATE_BUDGET` overrides the declared budget, for
+        // the sweep that sizes the basin lottery. Measurement only.
+        if let Some(budget) = std::env::var("LILSCRIPT_CANDIDATE_BUDGET")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            return budget.max(1);
+        }
         let level_limit = match self.optimization_level {
             0..=2 => 64 * 1024,
             3..=4 => 128 * 1024,

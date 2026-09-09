@@ -14842,8 +14842,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         && op_is_member_read(&instruction.op)))
                     && member_read_object(&instruction.op).is_some_and(|object| {
                         cache.get(&object).is_some_and(|expression| {
-                            expression.code == "this"
-                                || is_js_property_identifier(expression.code.as_str())
+                            // 8.21: a short pure chain, not just a bare name.
+                            is_short_pure_receiver_text(expression.code.as_str(), 24)
                         })
                     });
                 if (!expression_only_op(&instruction.op)
@@ -39086,6 +39086,65 @@ fn member_read_object(op: &ControlFlowOp<'_>) -> Option<ValueId> {
         } => Some(*object),
         _ => None,
     }
+}
+
+/// 8.21: whether a rendered receiver is a short chain of names, literal
+/// indices and property reads -- `e`, `e[p]`, `e[p][1]`, `this.stack` --
+/// so re-emitting the read after it duplicates only that text.
+///
+/// The old rule asked for a bare name or `this`, which is why the option was
+/// inert on the whole pool (059 8.20: +0 on ten ports). micromark's repeated
+/// subexpressions are `e[p][1].end.offset`, and upstream repeats that phrase
+/// verbatim four times in one function where we name it: 636 more bytes the
+/// codec must spell out on `attention` alone, on 56 fewer raw bytes.
+fn is_short_pure_receiver_text(code: &str, budget: usize) -> bool {
+    if code.len() > budget {
+        return false;
+    }
+    if code == "this" || is_js_property_identifier(code) {
+        return true;
+    }
+    // A chain: an identifier root, then `.name` or `[index]` where the index
+    // is a number or a bare name. Anything else -- a call, an operator, a
+    // string key with escapes -- is not re-emitted.
+    let bytes = code.as_bytes();
+    let mut at = 0usize;
+    let ident = |bytes: &[u8], at: &mut usize| {
+        let start = *at;
+        while *at < bytes.len() && (bytes[*at].is_ascii_alphanumeric() || bytes[*at] == b'_' || bytes[*at] == b'$') {
+            *at += 1;
+        }
+        *at > start && !bytes[start].is_ascii_digit()
+    };
+    if !ident(bytes, &mut at) {
+        return false;
+    }
+    while at < bytes.len() {
+        match bytes[at] {
+            b'.' => {
+                at += 1;
+                if !ident(bytes, &mut at) {
+                    return false;
+                }
+            }
+            b'[' => {
+                at += 1;
+                let start = at;
+                while at < bytes.len() && bytes[at] != b']' {
+                    if !(bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_' || bytes[at] == b'$') {
+                        return false;
+                    }
+                    at += 1;
+                }
+                if at == start || at >= bytes.len() {
+                    return false;
+                }
+                at += 1;
+            }
+            _ => return false,
+        }
+    }
+    true
 }
 
 fn op_is_member_read(op: &ControlFlowOp<'_>) -> bool {
