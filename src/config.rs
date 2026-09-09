@@ -2025,6 +2025,13 @@ impl JavaScriptConfig {
     /// nonzero level inherited the level-15 width of twelve even when its
     /// candidate cap was intentionally small.
     pub fn effective_candidate_beam_width(&self) -> usize {
+        // 8.16: `LILSCRIPT_BEAM_WIDTH` overrides the declared width, for the
+        // sweep that sizes how much of an artifact is the search's choice of
+        // basin rather than its depth. Measurement only -- nothing reads it
+        // unless it is set.
+        if let Some(width) = std::env::var("LILSCRIPT_BEAM_WIDTH").ok().and_then(|w| w.parse::<usize>().ok()) {
+            return width.max(1);
+        }
         let level_limit = match self.optimization_level {
             0..=2 => 1,
             3..=4 => 2,
