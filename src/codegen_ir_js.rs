@@ -26870,8 +26870,36 @@ impl LocalNames {
                                     value,
                                     options.assume_pure_property_reads,
                                 )));
+                    // 8.29: the statement emitter's half of the rematerialisation.
+                    //
+                    // A value read more than once is named here, which is what
+                    // turns one repeated phrase into as many strings as there are
+                    // sites: jquerylil carries 1,155 statement separators against
+                    // the bar's 626 and 4,552 `=` against 3,067, on 6,472 fewer
+                    // characters (8.28). 8.22 removed the naming inside the
+                    // return-path folder, where cache membership proves every use
+                    // is local; here `cross_block` proves the same thing directly.
+                    //
+                    // Only a cheap pure read qualifies, and only off a receiver
+                    // that is itself named or a parameter, so the text duplicated
+                    // at each site is a name and a property.
+                    let rematerialize_here = options.rematerialize_member_reads
+                        && use_count > 1
+                        && use_count <= remat_use_window()
+                        && !cross_block.contains(&value)
+                        && !loop_capture_values.contains(&value)
+                        && !unstable_values.contains(&value)
+                        && (matches!(
+                            instruction.op,
+                            ControlFlowOp::FieldGet { .. } | ControlFlowOp::RecordFieldGet { .. }
+                        ) || (options.assume_pure_property_reads
+                            && op_is_member_read(&instruction.op)))
+                        && member_read_object(&instruction.op).is_some_and(|object| {
+                            function.params.iter().any(|parameter| parameter.value == object)
+                                || uses.get(&object).copied().unwrap_or(0) > 1
+                        });
                     if ((cross_block.contains(&value) && !structured_iteration_input)
-                        || (use_count > 1 && !structured_iteration_input)
+                        || (use_count > 1 && !structured_iteration_input && !rematerialize_here)
                         || (loop_capture_values.contains(&value)
                             && !matches!(
                                 instruction.op,
