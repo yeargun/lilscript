@@ -1702,3 +1702,74 @@ fn permits_a_module_generator_with_a_same_named_local_elsewhere() {
         analyze_generated_javascript(source).unwrap();
     }
 }
+
+/// The negated-equality flip replaces `!(..)`, and the `!` it removes was also
+/// separating the expression from whatever came before. Only the yoda form
+/// exposes it, because only then does the inverse begin with a name:
+/// `return!(null==e)` became `returnnull!=e`, which is a different program --
+/// a read of an undeclared `returnnull`. It parsed, so it shipped: unifiedlil
+/// and jquerylil both carried one in a released artifact.
+#[test]
+fn the_negated_equality_flip_keeps_its_keyword_separator() {
+    for (source, expected) in [
+        ("function R(e){return!(null==e)&&e.x}export{R}", "return null!=e"),
+        ("function R(e){return!(null===e)}export{R}", "return null!==e"),
+        ("function R(e){throw!(null==e)}export{R}", "throw null!=e"),
+        ("function R(e){return!(e==null)&&e.x}export{R}", "return e!=null"),
+        (
+            "function R(e){return!(null==e)&&\"object\"==typeof e&&\"href\" in e}export{R}",
+            "return null!=e",
+        ),
+        (
+            "function e(e){return!(null==e)&&\"object\"==typeof e&&\"href\" in e};export{e as probeUrl}",
+            "return null!=e",
+        ),
+    ] {
+        let out = optimize_generated_javascript(source).unwrap();
+        assert!(!out.code.contains("returnnull"), "lost the separator: {}", out.code);
+        // The compiler calls the `_assuming` entry, and the pristine-builtins
+        // lane is the one the ports run.
+        for pristine in [false, true] {
+            let assumed = optimize_generated_javascript_assuming(source, pristine).unwrap();
+            assert!(
+                !assumed.code.contains("returnnull"),
+                "lost the separator (assuming pristine={pristine}): {}",
+                assumed.code
+            );
+        }
+        assert!(!out.code.contains("thrownull"), "lost the separator: {}", out.code);
+        assert!(out.code.contains(expected), "expected `{expected}` in {}", out.code);
+    }
+}
+
+#[test]
+fn the_keyword_split_reaches_every_statement_position() {
+    for (source, expected) in [
+        ("function R(e){returnnull!=e}", "return null!=e"),
+        ("function R(e){e();returnnull!=e}", "return null!=e"),
+        ("function R(e){if(e)returnnull!=e;return 0}", "return null!=e"),
+        ("function R(e){if(e){}else returnnull!=e;return 0}", "return null!=e"),
+        ("function R(e){for(;;)returnnull!=e}", "return null!=e"),
+        ("function R(e){while(e)returnnull!=e}", "return null!=e"),
+        ("function R(e){throwtrue}", "throw true"),
+        ("function R(e){if(e)thrownew Error()}", "throw new Error()"),
+    ] {
+        let (out, _) = crate::js_peephole::folds::split_fused_keyword_identifiers(source)
+            .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        assert!(out.contains(expected), "{source}\n  got: {out}\n  want: {expected}");
+    }
+}
+
+#[test]
+fn the_keyword_split_leaves_real_names_alone() {
+    for source in [
+        "function R(){var returnnull=1;returnnull}",
+        "function R(o){return o.returnnull}",
+        "function returnnull(){}returnnull()",
+        "function R(){var returned=1;return returned}",
+    ] {
+        let (out, count) = crate::js_peephole::folds::split_fused_keyword_identifiers(source)
+            .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        assert_eq!(count, 0, "{source} was rewritten to {out}");
+    }
+}

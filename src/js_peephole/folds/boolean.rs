@@ -230,6 +230,25 @@ pub(crate) fn fold_negated_equalities(
         if equality_replacement_requires_grouping(&tokens, index, close) {
             inverse_expression = format!("({inverse_expression})");
         }
+        // The `!` being replaced was also separating this expression from
+        // whatever preceded it. `return!(null==e)` is legal because `!` cannot
+        // continue an identifier; `returnnull!=e` is not the same program --
+        // it reads a variable named `returnnull`. The compiler's own parser
+        // accepts it, so it shipped: unifiedlil and jquerylil both carry a
+        // `returnnull` in their released artifacts, and unifiedlil's suite
+        // fails on it with `returnnull is not defined`. Only the yoda form
+        // exposes this, because only then does the inverse begin with a name.
+        if source[..tokens[index].start]
+            .chars()
+            .next_back()
+            .is_some_and(|previous| previous.is_alphanumeric() || previous == '_' || previous == '$')
+            && inverse_expression
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_alphanumeric() || first == '_' || first == '$')
+        {
+            inverse_expression.insert(0, ' ');
+        }
         replacements.push((tokens[index].start, tokens[close].end, inverse_expression));
         index = close + 1;
     }

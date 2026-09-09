@@ -3,8 +3,8 @@ use crate::js_peephole::rewrite::{
 };
 use crate::js_peephole::scope::{enclosing_block_start, GeneratedBindingIndex};
 use crate::js_peephole::token::{
-    ascii_identifier_name_string, is_identifier_start, lex, lex_certainly, matching_closers, Token,
-    TokenKind,
+    ascii_identifier_name_string, is_identifier_start, lex, lex_certainly, matching_closers,
+    matching_openers, Token, TokenKind,
 };
 use crate::js_peephole::JavaScriptParseError;
 
@@ -219,6 +219,17 @@ pub(crate) fn elide_separating_keyword_spaces(
 
 const FUSED_OPERAND_KEYWORDS: &[&str] = &["return", "throw"];
 
+/// Reserved words that begin an expression. The split below asks whether the
+/// tail names a *binding*, so that `returned` is not cut into `return ed`; a
+/// tail that is one of these is not a binding and never will be, and refusing
+/// it is how `return null!=e` shipped as `returnnull!=e` -- a read of an
+/// undeclared `returnnull` -- in unifiedlil and jquerylil. The tail must be the
+/// whole of it: `returnthisX` is still one name.
+const FUSED_EXPRESSION_KEYWORDS: &[&str] = &[
+    "null", "true", "false", "this", "void", "typeof", "new", "function", "class", "delete",
+    "await", "yield", "super", "import",
+];
+
 /// `returna&&x` lexes as one identifier, not `return` plus `a`. A rewrite that
 /// dropped the separator after a statement keyword leaves a ReferenceError.
 /// Split only those fused names, and only in expression position: property
@@ -228,6 +239,7 @@ pub(crate) fn split_fused_keyword_identifiers(
 ) -> Result<(String, usize), JavaScriptParseError> {
     let tokens = lex(source)?;
     let mut matching_close = None;
+    let mut matching_open = None;
     let mut bindings = None;
     let mut replacements = Vec::<(usize, usize, String)>::new();
     for (index, token) in tokens.iter().enumerate() {
@@ -261,7 +273,26 @@ pub(crate) fn split_fused_keyword_identifiers(
         } else {
             false
         };
+        // A braceless control-flow body is a statement position as much as a
+        // block is: `if(e)return null` fuses the same way `{return null` does,
+        // and the shipped sites sat in exactly that position.
+        let control_flow_body = match previous {
+            Some(previous) if previous.text == ")" => {
+                let closers = matching_close.get_or_insert_with(|| matching_closers(&tokens));
+                let openers = matching_open.get_or_insert_with(|| matching_openers(closers));
+                openers
+                    .get(index - 1)
+                    .copied()
+                    .flatten()
+                    .and_then(|open| open.checked_sub(1))
+                    .and_then(|head| tokens.get(head))
+                    .is_some_and(|head| matches!(head.text, "if" | "while" | "for" | "with"))
+            }
+            Some(previous) => matches!(previous.text, "else" | "do"),
+            None => false,
+        };
         if !comma_statement_boundary
+            && !control_flow_body
             && previous.is_none_or(|previous| !matches!(previous.text, "{" | "}" | ";"))
         {
             continue;
@@ -272,8 +303,11 @@ pub(crate) fn split_fused_keyword_identifiers(
         }
         let bindings = bindings.as_ref().expect("binding index was initialized");
         let rest_starts_with_digit = rest.as_bytes().first().is_some_and(u8::is_ascii_digit);
+        let rest_is_expression_keyword = FUSED_EXPRESSION_KEYWORDS.contains(&rest);
         if bindings.name_is_visible(index, token.text)
-            || (!rest_starts_with_digit && !bindings.name_is_visible(index, rest))
+            || (!rest_starts_with_digit
+                && !rest_is_expression_keyword
+                && !bindings.name_is_visible(index, rest))
         {
             continue;
         }
