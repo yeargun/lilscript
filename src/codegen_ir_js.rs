@@ -22041,8 +22041,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // `function(p..){return name(..)}` or `(p..)=>name(..)`, by the
                 // plan's spelling.
                 let (head, body) = if self.options.function_spelling == FunctionSpelling::Function {
+                    // 8.24: the parameters must be parenthesised. An arrow head
+                    // with one parameter carries no parentheses -- `e=>..` -- so
+                    // extending `function` with it spelled `functione{..}`, which
+                    // is not JavaScript. katexlil stopped compiling under
+                    // `function_spelling = "function"` on exactly this: a curried
+                    // `a=>e=>he(a,e)`. The sibling path below already went through
+                    // `function_parameters`; this one did not.
                     let mut function_head = JsHead::text("function");
-                    function_head.extend(&head);
+                    function_head.extend(&parenthesized_parameters(&head));
                     let mut block = JsBlock::new();
                     block.push_statement(JsStatement::Return { value: Some(call) });
                     (function_head, JsFunctionBody::Block(block))
