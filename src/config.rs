@@ -1985,6 +1985,18 @@ impl JavaScriptConfig {
     }
 
     pub fn effective_candidate_limit(&self) -> usize {
+        // 8.42: `LILSCRIPT_CANDIDATE_LIMIT` overrides the declared limit, for the
+        // sweep that separates the search's *breadth* from its *depth*. 8.39
+        // measured a larger byte budget as a fleet loss (+652); the budget admits
+        // more search contexts while this limit stays fixed, so widening
+        // admission narrows every context's share. Measurement only -- nothing
+        // reads it unless it is set.
+        if let Some(limit) = std::env::var("LILSCRIPT_CANDIDATE_LIMIT")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            return limit.max(1);
+        }
         let level_limit = match self.optimization_level {
             0..=2 => 1,
             3..=4 => 16,
@@ -2126,6 +2138,20 @@ impl JavaScriptConfig {
         // `terminal_codec_probe_limit` is. Clamping it to the level tier meant a
         // config could ask for four times the proposals and silently receive
         // none of them. The search tier is a separate ceiling and stays hard.
+        // 8.42: `LILSCRIPT_PROPOSAL_LIMIT` overrides the declared proposal budget.
+        // This is the dial that is actually binding: 8.39 found every other one
+        // slack (a 4x candidate limit changed `emit_calls` by zero, a 4x terminal
+        // probe ledger changed the fleet by zero) because the default takes the
+        // *minimum* of the candidate limit and the artifact-scaled tier, and the
+        // artifact tier is always the smaller. The search is idea-limited, and
+        // this is the ideas. Behaves like a configured budget: honoured past the
+        // level's breadth, still clamped by the search tier.
+        if let Some(limit) = std::env::var("LILSCRIPT_PROPOSAL_LIMIT")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            return limit.max(1).min(self.candidate_proposal_tier_ceiling());
+        }
         self.candidate_proposal_limit.map_or_else(
             || self.effective_candidate_limit().min(artifact_limit),
             |configured| configured.min(self.candidate_proposal_tier_ceiling()),
