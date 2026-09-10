@@ -7819,7 +7819,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
             .collect::<AHashSet<_>>();
         for function in &self.module.functions {
-            if !javascript_exports.contains(&function.id) {
+            if !javascript_exports.contains(&function.id)
+                && !self.module.function_belongs_to_identity_class(function)
+            {
                 continue;
             }
             if let Some(parameter) = function.params.iter().find(|parameter| {
@@ -13007,6 +13009,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn function_has_public_abi(&self, function: FunctionId) -> bool {
+        if self.function(function).is_ok_and(|candidate| {
+            self.module.function_belongs_to_identity_class(candidate)
+        }) {
+            return true;
+        }
         self.module
             .exports
             .iter()
@@ -14020,7 +14027,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 params.push_name(context.value_bind(param.value), context.value_name(param.value)?);
                 if public_abi || self.callee_default_functions.contains(&function.id) {
-                    if let Some(default) = javascript_parameter_default(param) {
+                    // Public class methods retain source arity, including
+                    // optional null/undefined parameters. Omitting the formal
+                    // initializer changes Function.length and loses defaults
+                    // when a method is called directly by JavaScript.
+                    let default = if class_member {
+                        param.default.as_ref().filter(|default| {
+                            !matches!(default, crate::ir::IrParamDefault::CallerMaterialized)
+                        })
+                    } else {
+                        javascript_parameter_default(param)
+                    };
+                    if let Some(default) = default {
                         params.push_text("=");
                         params.push_text(render_param_default(
                             default,
@@ -48720,6 +48738,54 @@ print(scale.factor);
             !output.contains("Scale$init") && !output.contains("$init"),
             "identity-observed class must not keep the dissolved init: {output}"
         );
+    }
+
+    #[test]
+    fn public_class_defaults_preserve_omitted_calls_and_method_arity() {
+        let output = compile_module_with_options(
+            r#"
+class Counter {
+  int value;
+  init(int value = 7) { this.value = value; }
+  int add(int amount, bool enabled = true) {
+    if (enabled) { this.value += amount; }
+    return this.value;
+  }
+  int read(int? fallback = null) {
+    if (fallback != null) { return fallback; }
+    return this.value;
+  }
+  int ignored(int required, int other) { return this.value; }
+  JsValue missing(JsValue value = JS.undefined()) { return value; }
+}
+export constructor Counter;
+"#,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let result = run_javascript(&format!(
+            "{output};const c=new Counter();console.log(JSON.stringify([Counter.length,c.add.length,c.read.length,c.ignored.length,c.read(),c.add(2),c.add(5,false),c.read(3),c.read(undefined),c.missing.length,c.missing()===undefined]));"
+        ));
+        assert_eq!(result.trim(), "[0,1,0,2,7,9,9,3,9,0,true]", "{output}");
+    }
+
+    #[test]
+    fn public_class_rejects_caller_materialized_defaults() {
+        for source in [
+            "class Queue { init(int[] values=[]) {} } export constructor Queue;",
+            "class Queue { init() {} int size(int[] values=[]) { return values.length; } } export constructor Queue;",
+        ] {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            let semantics = analyze(&program).unwrap();
+            let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+            optimize_control_flow_for_module(&mut ir).unwrap();
+            let error = emit_optimized_ir_js_module(&ir).unwrap_err();
+            assert!(error.message.contains("typed LilScript caller"), "{error}");
+        }
     }
 
     #[test]

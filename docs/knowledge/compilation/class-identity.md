@@ -1,5 +1,13 @@
 # Class identity vs instance lowering
 
+Exported constructors and their methods use the public JavaScript calling
+convention. Their parameter defaults are emitted in the formal parameter list,
+including nullable defaults, and unused required parameters remain present.
+This preserves direct JavaScript calls and method `Function.length` without
+per-instance wrapper functions. A default that requires materialization by a
+typed caller is rejected on these public class members, just as it is on an
+exported function.
+
 Parent: [Compilation](README.md). Instance layouts:
 [aggregate lowering](aggregate-lowering.md). Search:
 [candidate search](candidate-search.md). ABI:
