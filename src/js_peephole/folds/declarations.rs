@@ -1992,7 +1992,7 @@ pub(crate) fn fold_void_initializers_off_fresh_vars(
             continue;
         }
         let scope_start = enclosing_function_span(&tokens, &matching_close, var_index)
-            .map(|(open, _)| open)
+            .map(|(body, _)| parameter_list_start(&tokens, &matching_open, body))
             .unwrap_or(0);
         let Some(semicolon) = top_level_stop(&tokens, var_index + 1, &[";"]) else {
             continue;
@@ -2020,6 +2020,38 @@ pub(crate) fn fold_void_initializers_off_fresh_vars(
         }
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Where a backward "has this name already been written?" scan has to start for
+/// a function body opening at `body`.
+///
+/// `var a` inside `function f(a)` declares nothing: the name is already bound to
+/// the parameter, which holds the argument. So `var a = void 0` there is a real
+/// assignment and dropping it leaves the argument in place -- a different
+/// program. The parameter list sits *before* the body brace, so a scan that
+/// starts at the brace cannot see it, which is how six ports shipped artifacts
+/// that failed their own suites. Start at the parameter list's `(` instead
+/// (or, for a concise arrow parameter, at the parameter token itself).
+fn parameter_list_start(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    body: usize,
+) -> usize {
+    let Some(before) = body.checked_sub(1) else {
+        return body;
+    };
+    match tokens[before].text {
+        ")" => matching_open[before].unwrap_or(body),
+        // `a => { .. }` carries its one parameter unparenthesised.
+        "=>" => before.checked_sub(1).map_or(body, |parameter| {
+            if tokens[parameter].text == ")" {
+                matching_open[parameter].unwrap_or(body)
+            } else {
+                parameter
+            }
+        }),
+        _ => body,
+    }
 }
 
 /// Whether the statement starting at `index` sits in a loop body somewhere
@@ -2145,4 +2177,40 @@ pub(crate) fn join_adjacent_declarations(
         index = next;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+#[cfg(test)]
+mod void_initializer_tests {
+    use super::fold_void_initializers_off_fresh_vars;
+
+    /// The fold's own contract: drop `= void 0` only when the binding is
+    /// `undefined` at that point anyway. A `var` that redeclares a *parameter*
+    /// is not fresh -- `var a` re-binds nothing, so the parameter keeps its
+    /// argument, and only the assignment sets it to `undefined`. The guard
+    /// scans backwards from the declaration to the enclosing function's opening
+    /// brace, and the parameter list sits before that brace, so it never sees it.
+    #[test]
+    fn keeps_the_initializer_when_the_var_redeclares_a_parameter() {
+        let source = "function f(a){var a=void 0;return a}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 0, "rewrote a parameter redeclaration: {out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn keeps_the_initializer_when_the_var_redeclares_a_later_parameter() {
+        let source = "function f(x,a){var a=void 0;return a}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 0, "rewrote a parameter redeclaration: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// The shape the fold exists for still folds.
+    #[test]
+    fn still_drops_a_genuinely_fresh_binding() {
+        let source = "function f(b){var a=void 0;return a}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert_eq!(out, "function f(b){var a;return a}");
+    }
 }

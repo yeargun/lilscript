@@ -2537,6 +2537,41 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
             config.javascript.function_spelling = Some(parsed.value);
         }
     }
+    // 8.79: the two knobs that trade raw bytes for repeated text. Both are
+    // per-port settings that only six ports have ever turned on, so the fleet
+    // has never measured them on the ports that never set them -- and 8.78
+    // measured the quantity they move (identifier occurrences) as the single
+    // predictor of every remaining loss, at r = +0.975. A sweep switch reaches
+    // every port without editing a single port config, which is what makes the
+    // answer a fleet measure rather than a per-port fit. `LILSCRIPT_REMAT_USES`
+    // already sweeps the use-count window these two share.
+    if let Some(on) = sweep_flag("LILSCRIPT_REMAT") {
+        config.javascript.rematerialize_member_reads = Some(on);
+    }
+    if let Some(on) = sweep_flag("LILSCRIPT_PURE_PROPS") {
+        config.javascript.assume_pure_property_reads = on;
+    }
+    // 8.80: running Terser over our *own* artifacts finds another 741 Brotli on
+    // micromarklil and 520 on katexlil -- 27% and 35% of what those two lose --
+    // and the roles it removes are declarators and returned temporaries, which is
+    // `collapse_vars`. `wide_single_use_collapse` is the emitter's answer to the
+    // two conditions 8.15 named, and neither of those ports sets it.
+    if let Some(on) = sweep_flag("LILSCRIPT_WIDE_COLLAPSE") {
+        config.javascript.wide_single_use_collapse = Some(on);
+    }
+    if let Some(on) = sweep_flag("LILSCRIPT_LATE_CLEANUPS") {
+        config.javascript.late_shape_cleanups = Some(on);
+    }
+}
+
+/// A sweep switch reads as off for `0`/`off`/`false` and on for anything else,
+/// and is absent when the variable is unset -- so an unset switch leaves the
+/// port's own configuration alone.
+fn sweep_flag(name: &str) -> Option<bool> {
+    match std::env::var(name).ok()?.as_str() {
+        "0" | "off" | "false" | "" => Some(false),
+        _ => Some(true),
+    }
 }
 
 #[derive(Deserialize)]
