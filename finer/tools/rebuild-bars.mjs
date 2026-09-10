@@ -57,7 +57,23 @@ for (const [port, spec] of Object.entries(baselines(repo))) {
   if (!existsSync(dir) || !existsSync(ours)) { rows.push({ port, note: "upstream package not installed" }); continue }
   let entry
   try { entry = entryOf(dir) } catch { rows.push({ port, note: "no entry point" }); continue }
-  const ext = externalsOf(ours).flatMap((e) => ["--external:" + e])
+  // Externals are what our artifact imports *plus* the port's peer dependencies.
+  // react-markdownlil imports nothing and lists `react` as a peer: the artifact
+  // does not carry React (none of `Invalid hook call`,
+  // `react.transitional.element`, `Objects are not valid as a React child`
+  // appear in it), so a bar that bundles React measures the larger program and
+  // reads ~2,800 Brotli *below* the honest bar. Reading the artifact's imports
+  // alone is not enough to find that out.
+  let peers = []
+  try {
+    peers = Object.keys(
+      JSON.parse(readFileSync(join(homedir(), port, "package.json"), "utf8")).peerDependencies ?? {},
+    ).filter((name) => !name.startsWith("@types/"))
+  } catch {}
+  const ext = [...new Set([...externalsOf(ours), ...peers])].flatMap((e) => [
+    "--external:" + e,
+    "--external:" + e + "/*",
+  ])
   const bundle = join(out, `${port}.bundle.js`), bar = join(out, `${port}.bar.js`)
   try {
     execFileSync(ESBUILD, [join(dir, entry), "--bundle", "--format=esm", ...ext, "--outfile=" + bundle], { stdio: "pipe" })
