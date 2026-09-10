@@ -2513,6 +2513,42 @@ impl std::fmt::Display for ConfigError {
 
 impl std::error::Error for ConfigError {}
 
+/// 8.54: the three declared settings that separate this fleet's winners from
+/// its losers -- all four winners are `optimization_level = 15`, and four of
+/// six losers are 13; `mobxlil` alone runs `realistic-performance-first`.
+/// Sweeping that needs per-port arms, and editing port tomls is unsafe while
+/// other sessions rebuild those trees, so these override the declared value the
+/// way `LILSCRIPT_BEAM_WIDTH` and `LILSCRIPT_CANDIDATE_BUDGET` already do.
+/// Measurement only: nothing reads them unless they are set.
+fn apply_sweep_overrides(config: &mut ProjectConfig) {
+    if let Some(level) = std::env::var("LILSCRIPT_OPT_LEVEL")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+    {
+        config.javascript.optimization_level = level.min(15);
+    }
+    if let Ok(priority) = std::env::var("LILSCRIPT_PRIORITY") {
+        if let Ok(parsed) = toml::from_str::<PriorityHolder>(&format!("value = \"{priority}\"")) {
+            config.javascript.priority = parsed.value;
+        }
+    }
+    if let Ok(spelling) = std::env::var("LILSCRIPT_FUNCTION_SPELLING") {
+        if let Ok(parsed) = toml::from_str::<SpellingHolder>(&format!("value = \"{spelling}\"")) {
+            config.javascript.function_spelling = Some(parsed.value);
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct PriorityHolder {
+    value: JavaScriptPriority,
+}
+
+#[derive(Deserialize)]
+struct SpellingHolder {
+    value: FunctionSpelling,
+}
+
 pub fn load_project_config(
     input: &Path,
     explicit: Option<&Path>,
@@ -2535,6 +2571,7 @@ pub fn load_project_config(
     config.config_dir = path
         .parent()
         .and_then(|directory| directory.canonicalize().ok());
+    apply_sweep_overrides(&mut config);
     config.validate().map_err(|message| ConfigError {
         path: path.clone(),
         message,
