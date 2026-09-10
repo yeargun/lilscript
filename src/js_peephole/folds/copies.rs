@@ -14,6 +14,75 @@ use crate::js_peephole::scope::{
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
+/// When the statement holding `at` is the unbraced body of an `if`, `else`,
+/// `for`, `while` or `do`, the index just past that statement.
+///
+/// A copy there runs conditionally, so reads after it cannot take the source
+/// name -- and because the body carries no brace of its own, the nearest
+/// enclosing brace belongs to something much larger. Returning the statement's
+/// own end keeps the fold's "reads beyond this still need the binding" test
+/// honest for that shape.
+fn braceless_branch_body_end(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    at: usize,
+) -> Option<usize> {
+    // Walk back to the head this statement hangs off, at depth zero. `else` and
+    // `do` are heads in their own right; a `)` at depth zero is one when it
+    // closes an `if`/`for`/`while` head. Anything else that ends a statement
+    // means this is an ordinary statement and not a branch body.
+    let mut start = at;
+    let mut depth = 0i32;
+    let mut head = None;
+    while start > 0 {
+        start -= 1;
+        let text = tokens[start].text;
+        if depth == 0 {
+            if matches!(text, "else" | "do") {
+                head = Some(text);
+                break;
+            }
+            if text == ")" {
+                let opens_condition = matching_open[start]
+                    .and_then(|open| open.checked_sub(1))
+                    .is_some_and(|keyword| matches!(tokens[keyword].text, "if" | "for" | "while"));
+                if opens_condition {
+                    head = Some("(");
+                    break;
+                }
+            }
+            if matches!(text, ";" | "{" | "}") {
+                break;
+            }
+        }
+        match text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => depth -= 1,
+            _ => {}
+        }
+    }
+    head?;
+    // The statement ends at its own `;`, or at the `}` that closes the body it
+    // sits in when it is the last one.
+    let mut index = at;
+    let mut depth = 0i32;
+    while index < tokens.len() {
+        match tokens[index].text {
+            "(" | "[" | "{" => {
+                index = matching_close.get(index).copied().flatten()? + 1;
+                continue;
+            }
+            ";" if depth == 0 => return Some(index + 1),
+            "}" if depth == 0 => return Some(index),
+            _ => {}
+        }
+        let _ = &mut depth;
+        index += 1;
+    }
+    Some(tokens.len())
+}
+
 pub(crate) fn fold_identifier_copies(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -84,7 +153,15 @@ pub(crate) fn fold_identifier_copies(
         // execute conditionally, so a use beyond the block cannot take the
         // source expression. But `var` hoists past the block, so any use out
         // there still needs the binding — it forbids the fold entirely.
-        let scope_end = enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len());
+        // live-21: `enclosing_block_end` finds the nearest enclosing *brace*, and a
+        // brace-less branch body has none -- so for `if (c) g = f; else h(f), g = d;`
+        // the "block" resolved out to the whole function, the conditional copy read
+        // as unconditional, and every later `g` became `d`. When `f` is the array
+        // the program then walks the empty fallback instead. micromarklil shipped
+        // that: its extension merge dropped every array-valued construct, so `\`
+        // never reached `characterEscape` -- 323 CommonMark cases.
+        let scope_end = braceless_branch_body_end(&tokens, &matching_close, &matching_open, cursor)
+            .unwrap_or_else(|| enclosing_block_end(&matching_close, cursor).unwrap_or(tokens.len()));
         let function_end = enclosing_function_span(&tokens, &matching_close, cursor)
             .map(|(_, end)| end)
             .unwrap_or(tokens.len());
@@ -1894,4 +1971,54 @@ fn expression_has_top_level(tokens: &[Token<'_>], stops: &[&str]) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod branch_copy_tests {
+    use super::fold_identifier_copies;
+
+    fn unchanged(source: &str) {
+        let (out, count) = fold_identifier_copies(source).unwrap();
+        assert_eq!(count, 0, "propagated a conditional copy: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// live-21: `g` takes the array from one branch and the fallback from the
+    /// other. Propagating the `else` branch's `g = d` over the reads after the
+    /// `if` walks the empty fallback whenever `f` really was an array.
+    /// micromarklil's extension merge is exactly this, and it dropped every
+    /// array-valued construct -- so `\` never reached `characterEscape`.
+    #[test]
+    fn does_not_propagate_a_copy_out_of_an_unbraced_else() {
+        unchanged(
+            "function z(f,d,s){var g;if(Array.isArray(f))g=f;else d.push(f),g=d;for(var a=0,n=g.length;a<n;a++)s(g[a])}",
+        );
+    }
+
+    #[test]
+    fn does_not_propagate_a_copy_out_of_an_unbraced_if() {
+        unchanged("function z(f,d,s){var g=d;if(f)g=f;s(g)}");
+    }
+
+    #[test]
+    fn does_not_propagate_a_copy_out_of_an_unbraced_loop_body() {
+        unchanged("function z(f,d,s){var g;for(var i=0;i<f;i++)g=d;s(g)}");
+    }
+
+    /// The braced form was already refused and stays refused.
+    #[test]
+    fn still_refuses_the_braced_form() {
+        unchanged(
+            "function z(f,d,s){var g;if(Array.isArray(f)){g=f}else{d.push(f);g=d}for(var a=0,n=g.length;a<n;a++)s(g[a])}",
+        );
+    }
+
+    /// An unconditional copy still folds -- that is what the fold is for.
+    #[test]
+    fn still_folds_an_unconditional_copy() {
+        let source = "function z(d,s){var g=d;s(g);s(g)}";
+        let (out, count) = fold_identifier_copies(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("s(d)"), "{out}");
+    }
 }
