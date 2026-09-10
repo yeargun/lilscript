@@ -2601,6 +2601,19 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
     // drops the winner, because it is only cheaper after terminal cleanup. That
     // is a property of the search, not of the port, so it is worth a fleet
     // measure rather than five per-port opinions.
+    // 8.90: our artifacts carry far more call sites than the bars -- remark-parselil
+    // has 1,078 callees against 591, and `call-arg` +533 with it -- which is the
+    // shape Terser's `inline` removes. The two thresholds that gate it default from
+    // the priority policy and have never been swept.
+    if let Some(limit) = sweep_number("LILSCRIPT_INLINE_INSTRUCTIONS") {
+        config.javascript.inline_instruction_limit = Some(limit);
+    }
+    if let Some(limit) = sweep_number("LILSCRIPT_INLINE_CONTROL_FLOW") {
+        config.javascript.inline_control_flow_limit = Some(limit);
+    }
+    if let Some(limit) = sweep_number("LILSCRIPT_INLINE_GROWTH") {
+        config.javascript.max_inline_growth = Some(limit);
+    }
     if let Some(on) = sweep_flag("LILSCRIPT_LOCAL_PHI_REGIONS") {
         config.javascript.local_phi_expression_regions = Some(on);
     }
@@ -2619,6 +2632,10 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
 /// A sweep switch reads as off for `0`/`off`/`false` and on for anything else,
 /// and is absent when the variable is unset -- so an unset switch leaves the
 /// port's own configuration alone.
+fn sweep_number(name: &str) -> Option<usize> {
+    std::env::var(name).ok()?.parse::<usize>().ok()
+}
+
 fn sweep_flag(name: &str) -> Option<bool> {
     match std::env::var(name).ok()?.as_str() {
         "0" | "off" | "false" | "" => Some(false),
