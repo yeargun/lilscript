@@ -39,6 +39,15 @@ export function baselines(repo) {
     remarklil: { artifact: "dist/remark.esm.js", terserBrotli: 32551 },
     unifiedlil: { artifact: "dist/unified.esm.js", terserBrotli: 4425 },
     "rehype-katexlil": { artifact: "dist/rehype-katex.esm.js", terserBrotli: 113063 },
-    "react-markdownlil": { artifact: "dist/react-markdown.esm.js", terserBrotli: 31092 },
+    // 8.68: the previous 31092 compared different programs -- status.md flagged it
+    // ("the committed artifact was React-external glue and the tree inlines it"),
+    // and it was never re-derived after the port grew to bundle the markdown
+    // stack. Rebuilt like-for-like on 2026-09-10: upstream `react-markdown` from
+    // npm, esbuild --bundle --format=esm with `react` and `react/jsx-runtime`
+    // external (exactly what our artifact imports), then Terser
+    // -c passes=3,pure_getters,unsafe -m --module. That is 143,566 raw / 40,297
+    // Brotli under lilscript-codec, against our 142,205 raw / 41,907 -- our raw is
+    // the smaller of the two. The gap is +1,610, not +10,815.
+    "react-markdownlil": { artifact: "dist/react-markdown.esm.js", terserBrotli: 40297 },
   }
 }
