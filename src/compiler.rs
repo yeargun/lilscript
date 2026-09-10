@@ -5755,7 +5755,17 @@ impl TerminalCodecProbeBudget {
         analyze_generated_javascript(source)
             .map_err(|error| format!("generated JavaScript admission failed: {error}"))?;
         self.codec_calls.fetch_add(1, Ordering::Relaxed);
-        compressed_size(bytes, model)
+        let cost = compressed_size(bytes, model)?;
+        // 8.44: the lowest exact cost any complete text reached in this compile.
+        // Every exact measurement in the pipeline passes through here, and each
+        // one has just been parsed, so this is the floor a perfect selection
+        // could have shipped. Comparing it against what *did* ship separates two
+        // very different defects: a selection that discards the best text it
+        // measured, and a generator that never produced a better one.
+        if !matches!(model, CompressionCostModel::Raw) {
+            LOWEST_MEASURED_COST.fetch_min(cost, Ordering::Relaxed);
+        }
+        Ok(cost)
     }
 
     fn measure_reserved_compile(
@@ -7205,6 +7215,20 @@ fn finalize_javascript_candidates_with_parallelism(
     // Last of all, and only on this exact artifact: see `apply_terminal_idiom_convergence`.
     let selected = apply_terminal_idiom_convergence(selected, config, codec_budget)?;
     let selected = apply_terminal_compound_assignments(selected, config, codec_budget)?;
+    // 8.44: `LILSCRIPT_FLOOR=1` reports what shipped against the lowest exact
+    // cost anything reached in this compile. A positive gap is selection
+    // discarding a text it had measured; zero means the generator never made a
+    // better one, and the search's problem is upstream of selection entirely.
+    if std::env::var("LILSCRIPT_FLOOR").as_deref() == Ok("1") {
+        if let Some(floor) = lowest_measured_cost() {
+            eprintln!(
+                "[floor] shipped {} floor {} gap {}",
+                selected.transfer_cost,
+                floor,
+                selected.transfer_cost as i64 - floor as i64
+            );
+        }
+    }
     let print_report = print_reports
         .iter()
         .find(|(context_id, _)| *context_id == selected.plan_identity.context_id)
@@ -12893,6 +12917,16 @@ fn validate_direct_javascript_artifact_inner(
     let lowering_obligations =
         ir.lowering_obligation_count(crate::ir::LoweringObligation::PreserveJavaScriptBitOrZero);
     validate_observed_javascript_artifact(source, source, &manifest, lowering_obligations)
+}
+
+/// See `measure_reserved`. Process-global because the measurement is spread
+/// across the parallel finalizers; a compile is one module, so this is its floor.
+static LOWEST_MEASURED_COST: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(usize::MAX);
+
+pub(crate) fn lowest_measured_cost() -> Option<usize> {
+    let value = LOWEST_MEASURED_COST.load(Ordering::Relaxed);
+    (value != usize::MAX).then_some(value)
 }
 
 fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
