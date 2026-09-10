@@ -2347,3 +2347,52 @@ mod braceless_loop_body_tests {
         assert_eq!(out, "function f(b){try{var c;h(c)}catch(e){}}");
     }
 }
+
+#[cfg(test)]
+mod implicit_binding_scope_tests {
+    use super::declare_implicit_assignment_bindings;
+
+    fn unchanged(source: &str) {
+        let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
+        assert_eq!(count, 0, "declared over an existing binding: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// live-19: a `catch (x)` parameter and a `function x(){}` declaration both
+    /// bind `x` in the enclosing function, and neither is a `var`. The scope
+    /// index recorded parameters, lexical declarations and function-wide `var`s
+    /// only, so a write to either from a nested function looked implicit and
+    /// got `var x` inserted beside it -- shadowing the binding the write was
+    /// meant for. micromarklil shipped that: 323 CommonMark cases.
+    #[test]
+    fn does_not_shadow_a_catch_parameter() {
+        unchanged("function o(){try{}catch(x){function i(){x=1}}}");
+    }
+
+    #[test]
+    fn does_not_shadow_an_outer_function_declaration() {
+        unchanged("function o(){function x(){}function i(){x=1}}");
+    }
+
+    #[test]
+    fn does_not_shadow_a_nested_function_declaration() {
+        unchanged("function o(){if(a){function x(){}}function i(){x=1}}");
+    }
+
+    /// The bindings it already saw stay refused.
+    #[test]
+    fn still_refuses_the_bindings_it_already_saw() {
+        unchanged("function o(){var x;function i(){x=1}i();return x}");
+        unchanged("function o(x){function i(){x=1}}");
+        unchanged("function o(){let x;function i(){x=1}}");
+    }
+
+    /// And a name with no binding anywhere still gets one.
+    #[test]
+    fn still_declares_a_name_with_no_binding() {
+        let source = "function o(){function i(){zz=1}}";
+        let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("var zz"), "{out}");
+    }
+}

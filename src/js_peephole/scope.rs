@@ -396,6 +396,23 @@ fn collect_generated_function_wide_var_bindings<'src>(
     let mut cursor = body + 1;
     while cursor < end {
         *work += 1;
+        // live-19: a `function NAME` declaration and a `catch (NAME)` parameter
+        // both bind `NAME` in this function, and neither is a `var`. Missing
+        // them let `declare_implicit_assignment_bindings` insert `var NAME`
+        // inside a nested function and shadow the outer binding, so a write
+        // meant for the enclosing `function x(){}` or the caught error landed
+        // on a fresh local instead. Recording a name here can only make the
+        // "already declared" tests answer yes, which is the refusing side.
+        if let Some(name) = function_declaration_name(tokens, cursor) {
+            bindings.insert(name);
+            cursor += 1;
+            continue;
+        }
+        if let Some(name) = catch_parameter_name(tokens, cursor) {
+            bindings.insert(name);
+            cursor += 1;
+            continue;
+        }
         if tokens[cursor].text != "var" {
             cursor += 1;
             continue;
@@ -914,6 +931,37 @@ pub(crate) fn simple_identifier_params(tokens: &[Token<'_>], from: usize, to: us
     !expect_name
 }
 
+/// A `function` keyword in statement position, whose name binds in the
+/// enclosing scope. A named function *expression* -- `var f = function g(){}`
+/// -- binds `g` only inside its own body, so it must not be recorded here.
+fn function_declaration_name<'src>(tokens: &[Token<'src>], at: usize) -> Option<&'src str> {
+    if tokens[at].text != "function" {
+        return None;
+    }
+    let statement_position = match at.checked_sub(1) {
+        None => true,
+        Some(previous) => matches!(tokens[previous].text, ";" | "{" | "}" | "else" | "do"),
+    };
+    if !statement_position {
+        return None;
+    }
+    tokens
+        .get(at + 1)
+        .filter(|token| token.kind == TokenKind::Identifier)
+        .map(|token| token.text)
+}
+
+/// The parameter of `catch (name)`, which binds in the block that catches.
+fn catch_parameter_name<'src>(tokens: &[Token<'src>], at: usize) -> Option<&'src str> {
+    if tokens[at].text != "catch" || tokens.get(at + 1).map(|token| token.text) != Some("(") {
+        return None;
+    }
+    tokens
+        .get(at + 2)
+        .filter(|token| token.kind == TokenKind::Identifier)
+        .map(|token| token.text)
+}
+
 pub(crate) fn function_binds_name(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -927,6 +975,16 @@ pub(crate) fn function_binds_name(
     }
     let mut cursor = body + 1;
     while cursor < end {
+        // live-19: the name of a nested `function NAME` binds in *this* scope,
+        // and a `catch (NAME)` parameter binds where it is caught. Both have to
+        // be read before the nested-function skip below jumps over the whole
+        // body, name and all. Treating a named function *expression* as a
+        // binding here too is conservative in the refusing direction.
+        if function_declaration_name(tokens, cursor) == Some(name)
+            || catch_parameter_name(tokens, cursor) == Some(name)
+        {
+            return true;
+        }
         if let Some(close) = nested_function_end(tokens, matching_close, cursor) {
             cursor = close + 1;
             continue;
