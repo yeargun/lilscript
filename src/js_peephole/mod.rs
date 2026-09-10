@@ -3535,3 +3535,21 @@ fn generated_identifier_is_binding(
     }
     previous == "," && assign_is_in_declaration(tokens, index)
 }
+
+#[cfg(test)]
+mod snippet_harness {
+    /// Run the whole peephole over one JavaScript snippet, so a wrong-program
+    /// shape can be bisected against `LILSCRIPT_ONLY_FOLDS` in milliseconds
+    /// instead of a seven-minute port build. `LILSCRIPT_SNIPPET` carries the
+    /// input; the optimized text is printed.
+    #[test]
+    fn snippet() {
+        let Ok(source) = std::env::var("LILSCRIPT_SNIPPET") else {
+            return;
+        };
+        match super::optimize_generated_javascript(&source) {
+            Ok(result) => println!("SNIPPET-OUT {}", result.code),
+            Err(error) => println!("SNIPPET-ERR {error:?}"),
+        }
+    }
+}

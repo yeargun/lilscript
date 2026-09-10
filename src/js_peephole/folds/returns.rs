@@ -19,6 +19,35 @@ use crate::js_peephole::rewrite::apply_token_rewrites;
 use crate::js_peephole::token::{lex, matching_closers, Token, TokenKind};
 use crate::js_peephole::JavaScriptParseError;
 
+/// Whether a `,` sits at depth zero anywhere in `from..=to`.
+///
+/// The declarator-list shape the fold supports -- `var a = 1, b = 2; return b`
+/// -- has its comma *before* the value, so this span stays clean; a sequence
+/// expression puts one inside it.
+fn top_level_comma_between(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    from: usize,
+    to: usize,
+) -> bool {
+    let mut index = from;
+    while index <= to && index < tokens.len() {
+        match tokens[index].text {
+            "(" | "[" | "{" => {
+                let Some(close) = matching_close.get(index).copied().flatten() else {
+                    return true;
+                };
+                index = close + 1;
+                continue;
+            }
+            "," => return true,
+            _ => {}
+        }
+        index += 1;
+    }
+    false
+}
+
 pub(crate) fn fold_returned_temporaries(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -77,6 +106,16 @@ pub(crate) fn fold_returned_temporaries(
                 && (*site > store.name || resolution.scope_index_at(*site) != binding_scope)
         });
         if escapes {
+            continue;
+        }
+        // live-22: the span from the assigned expression to the statement's end is
+        // the value only when the store *is* the statement. A comma sequence --
+        // `r = expr, exit();return r` -- puts more operations after it, and a
+        // comma expression yields its **last** operand, so `return expr, exit()`
+        // returns whatever `exit()` gives. remarklil's image serializer builds
+        // the string, runs its two exit callbacks, then returns; folded, every
+        // image serialized to `undefined`.
+        if top_level_comma_between(&tokens, &matching_close, store.value, index - 2) {
             continue;
         }
         // `index - 1` is the statement's own `;`, which is not part of the value.
@@ -717,5 +756,50 @@ mod declarator_list_tests {
         let (out, count) = fold_returned_temporaries(source).unwrap();
         assert_eq!(count, 0, "{out}");
         assert_eq!(out, source);
+    }
+}
+
+#[cfg(test)]
+mod returned_sequence_tests {
+    use super::fold_returned_temporaries;
+
+    /// live-22: a comma expression yields its **last** operand. `r = expr,
+    /// exit(); return r` therefore cannot become `return expr, exit()` -- that
+    /// returns `exit()`. remarklil's image serializer builds the string, runs
+    /// its two exit callbacks and returns; folded that way every image
+    /// serialized to `undefined`.
+    #[test]
+    fn does_not_absorb_a_store_that_is_part_of_a_sequence() {
+        let source = "function z(m,k){var r;r=m(1),k();return r}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 0, "absorbed a sequence: {out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn does_not_absorb_a_declarator_that_is_part_of_a_sequence() {
+        let source = "function z(m,k){var r=(m(1),k());return r}";
+        let (out, _) = fold_returned_temporaries(source).unwrap();
+        // Parenthesised, the whole sequence *is* the value and may be returned.
+        assert!(out.contains("return"), "{out}");
+    }
+
+    /// A store that is the whole statement still folds.
+    #[test]
+    fn still_absorbs_a_plain_store() {
+        let source = "function z(m){var r;r=m(1);return r}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("return m(1)"), "{out}");
+    }
+
+    /// And the declarator-list shape the fold documents: its comma sits before
+    /// the value, so the value span stays clean.
+    #[test]
+    fn still_absorbs_the_last_declarator_of_a_list() {
+        let source = "function z(m){var a=1,b=m(a);return b}";
+        let (out, count) = fold_returned_temporaries(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("return m(a)"), "{out}");
     }
 }
