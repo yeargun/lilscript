@@ -417,6 +417,10 @@ impl ProjectConfig {
                 .javascript
                 .rematerialize_member_reads
                 .unwrap_or(false),
+            rematerialize_cheap_expressions: self
+                .javascript
+                .rematerialize_cheap_expressions
+                .unwrap_or(false),
             wide_single_use_collapse: self.javascript.wide_single_use_collapse.unwrap_or(false),
             late_shape_cleanups: self.javascript.late_shape_cleanups.unwrap_or(false),
             text_peephole: self
@@ -1473,6 +1477,17 @@ pub struct JavaScriptConfig {
     /// construction, and only pays when the un-hoisted spelling repeats often
     /// enough for the compressor to charge a back-reference instead of the text.
     pub rematerialize_member_reads: Option<bool>,
+    /// Re-emit a twice-read arithmetic value at each use instead of binding it.
+    /// The same trade as `rematerialize_member_reads`, over the other shape the
+    /// emitter names: pure primitive computation.
+    ///
+    /// **Measured off (8.88).** Swept across all 22 ports it is **+155 Brotli**
+    /// and no port gains: jquerylil +106, mobxlil +85, micromarklil +45. The
+    /// member-read version pays because `a.b` is a phrase the codec has already
+    /// stored, so each copy costs a back-reference; an operator sequence is
+    /// novel text and the raw growth is charged in full. Kept as a knob because
+    /// the two shapes are priced differently and a future port may not be.
+    pub rematerialize_cheap_expressions: Option<bool>,
     /// 8.15: the two conditions Terser's `collapse_vars` has and the emitter's
     /// conservative collapse does not -- a definition whose value reads the
     /// name it defines, and a name the function assigns more than once. Both
@@ -1579,6 +1594,7 @@ impl Default for JavaScriptConfig {
             struct_method_shorthand: None,
             local_phi_expression_regions: None,
             rematerialize_member_reads: None,
+            rematerialize_cheap_expressions: None,
             wide_single_use_collapse: None,
             late_shape_cleanups: None,
             public_aggregate_abi: PublicAggregateAbi::Named,
@@ -2547,6 +2563,9 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
     // already sweeps the use-count window these two share.
     if let Some(on) = sweep_flag("LILSCRIPT_REMAT") {
         config.javascript.rematerialize_member_reads = Some(on);
+    }
+    if let Some(on) = sweep_flag("LILSCRIPT_REMAT_EXPRESSIONS") {
+        config.javascript.rematerialize_cheap_expressions = Some(on);
     }
     if let Some(on) = sweep_flag("LILSCRIPT_PURE_PROPS") {
         config.javascript.assume_pure_property_reads = on;

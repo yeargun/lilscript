@@ -125,6 +125,16 @@ pub struct IrJsOptions {
     /// duplicated text is short and evaluating it twice is a property read of a
     /// local -- not a call, not an index, and never order-sensitive.
     pub rematerialize_member_reads: bool,
+    /// Re-emit a twice-read *arithmetic* value at each use instead of binding it.
+    /// Every `IrBinaryOp` and `IrUnaryOp` is a pure primitive operation, so
+    /// re-evaluating one cannot be observed; the operands must already be cached
+    /// as short pure text so the duplicated spelling stays small. 8.79 measured
+    /// the trade this makes -- fewer identifier occurrences, more raw bytes --
+    /// at 0.83 Brotli per occurrence, and member reads were the only shape
+    /// eligible for it. 8.88 priced this one: **+155 fleet, no port gains** --
+    /// a repeated `a.b` is a phrase the codec already holds, an operator
+    /// sequence is not.
+    pub rematerialize_cheap_expressions: bool,
     /// 8.15: the wide single-use collapse (config `wide_single_use_collapse`).
     /// Unlike `single_use_collapse` this is the port's answer, not the plan
     /// search's: it is constant across every plan of a compile.
@@ -363,6 +373,7 @@ impl Default for IrJsOptions {
             wide_single_use_collapse: false,
             late_shape_cleanups: false,
             rematerialize_member_reads: false,
+            rematerialize_cheap_expressions: false,
             text_peephole: false,
             single_use_collapse: false,
             hoist_for_initializers: false,
@@ -14836,6 +14847,20 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // chosen when the rule only fired on `this.x`; the sweep decides it
                 // now that it reaches the shapes that matter.
                 let remat_uses = remat_use_window();
+                // A pure primitive computation is eligible on the same terms as a
+                // member read: bounded use count, and every operand already spelled
+                // as short pure text so the copy stays small.
+                let rematerialize_expression = self.options.rematerialize_cheap_expressions
+                    && use_count > 1
+                    && use_count <= remat_uses
+                    && cheap_pure_expression_operands(&instruction.op).is_some_and(|operands| {
+                        !operands.is_empty()
+                            && operands.iter().all(|operand| {
+                                cache.get(operand).is_some_and(|expression| {
+                                    is_short_pure_receiver_text(expression.code.as_str(), 12)
+                                })
+                            })
+                    });
                 let rematerialize_read = self.options.rematerialize_member_reads
                     && use_count > 1
                     && use_count <= remat_uses
@@ -14868,6 +14893,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             .get(&object)
                             .is_some_and(|expression| is_short_pure_receiver_text(expression.code.as_str(), 24))
                     });
+                let rematerialize_read = rematerialize_read || rematerialize_expression;
                 if (!expression_only_op(&instruction.op)
                     && !deferred_effect
                     && !inline_pure_call
@@ -26898,6 +26924,25 @@ impl LocalNames {
                             function.params.iter().any(|parameter| parameter.value == object)
                                 || uses.get(&object).copied().unwrap_or(0) > 1
                         });
+                    // The same trade over the other shape the emitter names: a pure
+                    // primitive computation. Every `IrBinaryOp`/`IrUnaryOp` is
+                    // arithmetic, bitwise, comparison or boolean over values that are
+                    // already evaluated, so recomputing one is unobservable; each
+                    // operand must itself be a parameter or a named binding so the
+                    // text duplicated at each site is a name and an operator.
+                    let rematerialize_expression_here = options.rematerialize_cheap_expressions
+                        && use_count > 1
+                        && use_count <= remat_use_window()
+                        && !cross_block.contains(&value)
+                        && !loop_capture_values.contains(&value)
+                        && !unstable_values.contains(&value)
+                        && cheap_pure_expression_operands(&instruction.op).is_some_and(|operands| {
+                            operands.iter().all(|operand| {
+                                function.params.iter().any(|parameter| parameter.value == *operand)
+                                    || uses.get(operand).copied().unwrap_or(0) > 1
+                            })
+                        });
+                    let rematerialize_here = rematerialize_here || rematerialize_expression_here;
                     if ((cross_block.contains(&value) && !structured_iteration_input)
                         || (use_count > 1 && !structured_iteration_input && !rematerialize_here)
                         || (loop_capture_values.contains(&value)
@@ -39214,6 +39259,17 @@ fn is_short_pure_receiver_text(code: &str, budget: usize) -> bool {
         }
     }
     true
+}
+
+/// The operands of a pure primitive computation, or `None` when the op is not
+/// one. Every `IrBinaryOp` and `IrUnaryOp` is arithmetic, bitwise, comparison or
+/// boolean over already-evaluated values, so recomputing it is unobservable.
+fn cheap_pure_expression_operands(op: &ControlFlowOp<'_>) -> Option<Vec<ValueId>> {
+    match op {
+        ControlFlowOp::Binary { lhs, rhs, .. } => Some(vec![*lhs, *rhs]),
+        ControlFlowOp::Unary { value, .. } => Some(vec![*value]),
+        _ => None,
+    }
 }
 
 fn op_is_member_read(op: &ControlFlowOp<'_>) -> bool {
