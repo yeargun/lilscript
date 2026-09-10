@@ -13009,9 +13009,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
     }
 
     fn function_has_public_abi(&self, function: FunctionId) -> bool {
-        if self.function(function).is_ok_and(|candidate| {
-            self.module.function_belongs_to_identity_class(candidate)
-        }) {
+        if self
+            .function(function)
+            .is_ok_and(|candidate| self.module.function_belongs_to_identity_class(candidate))
+        {
             return true;
         }
         self.module
