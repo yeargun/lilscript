@@ -448,8 +448,15 @@ same or a strictly better outcome — that distinction is called out per row.
   objective's stated pain point about long compile times — worth a dedicated hypothesis folder.
 - **#6 (quote-style granularity)** and **#13 (`Math.pow`→`**` for non-constant operands)** are the
   two genuine PARTIAL gaps found; both are small, bounded peephole additions if pursued.
-- **#8/#9** are honestly unverified rather than confirmed-absent; they'd need a few more targeted
-  greps (or a small compiled-output experiment) before claiming a gap.
+- **#8/#9** were honestly unverified rather than confirmed-absent. **Measured 2026-09-10 (ledger
+  8.76), by the compiled-output experiment this line asks for, and both are settled as *not worth
+  having*.** The shapes do occur: across 22 shipped artifacts, `String(` 116 times, `Number(` 10,
+  `Boolean(` 2, `new Array(` 7, `new Object(` 0 — including eight `String(<numeric literal>)` that
+  a constant fold would take. Applying the two unconditionally-safe rewrites (`new Array(x)` →
+  `Array(x)`, `String(<literal>)` → the string literal) to the artifacts saves raw bytes and
+  **costs compressed ones**: katexlil −20 raw / **+99 Brotli**, mobxlil −8 raw / **+9**. `new Array(`
+  is a phrase the codec already stores once, and deleting `new ` breaks the repeat. So #9 is N/A as
+  suspected, and #8's constant case is real but negative under the objective's own cost model.
 - Everything else checked (#1-5, #7, #10-12, #14-21) is not just present but in several cases
   (numeric-literal exponentiation spelling, `packed_string_array`'s multi-delimiter search,
   loop-weighted+entropy-aware property mangling, and above all the real-codec `cost_model` search)
