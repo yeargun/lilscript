@@ -26840,6 +26840,20 @@ impl LocalNames {
         let safe_int_array_reads = safe_int_array_reads(function, integer_facts);
         let in_range_string_indexes = proven_in_range_string_indexes(function, integer_facts);
         let cross_block = codegen_cross_block_values(function, &string_constants);
+        // 8.95: how often each cheap pure computation recurs in this function,
+        // keyed by op kind and operand identity. Rematerialising one is only
+        // refunded when its text is a phrase the codec has already stored, and a
+        // signature seen more than once is exactly that.
+        let mut recurring_expression_ops = AHashMap::<String, usize>::default();
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                if cheap_pure_expression_operands(&instruction.op).is_some() {
+                    *recurring_expression_ops
+                        .entry(expression_op_signature(&instruction.op))
+                        .or_insert(0) += 1;
+                }
+            }
+        }
         let operand_order_fusable = if options.operand_order_fusion {
             operand_order_fusable_values(
                 function,
@@ -26941,7 +26955,21 @@ impl LocalNames {
                                 function.params.iter().any(|parameter| parameter.value == *operand)
                                     || uses.get(operand).copied().unwrap_or(0) > 1
                             })
-                        });
+                        })
+                        // 8.95: 8.88 priced the unconditional version at +155 with no
+                        // port gaining, and named the reason: a repeated `a.b` is a
+                        // phrase the codec already holds, so each copy after the
+                        // first costs a back-reference, while a novel operator
+                        // sequence is charged in full. That makes the right test a
+                        // *corpus* property rather than a shape one -- does this text
+                        // already recur? The IR can answer it: an op whose kind and
+                        // operand shape appear more than once in the function will
+                        // render as a phrase the codec has seen.
+                        && recurring_expression_ops
+                            .get(&expression_op_signature(&instruction.op))
+                            .copied()
+                            .unwrap_or(0)
+                            > 1;
                     let rematerialize_here = rematerialize_here || rematerialize_expression_here;
                     if ((cross_block.contains(&value) && !structured_iteration_input)
                         || (use_count > 1 && !structured_iteration_input && !rematerialize_here)
@@ -39264,6 +39292,26 @@ fn is_short_pure_receiver_text(code: &str, budget: usize) -> bool {
 /// The operands of a pure primitive computation, or `None` when the op is not
 /// one. Every `IrBinaryOp` and `IrUnaryOp` is arithmetic, bitwise, comparison or
 /// boolean over already-evaluated values, so recomputing it is unobservable.
+/// A signature for a cheap pure computation: its operator and its operands'
+/// identities.
+///
+/// **This cannot express what it was written for, and the reason is the point.**
+/// 8.88 showed rematerialisation is refunded only when the duplicated text is a
+/// phrase the codec already holds, which makes the right test a corpus property:
+/// does this text recur? In SSA every instruction has unique operands, so two
+/// instructions never share this signature -- anything that did would already
+/// have been merged by common-subexpression elimination. The property is about
+/// the *rendered* text, and the text does not exist at the materialisation
+/// decision. Its home is therefore the terminal challenger slot, which sees the
+/// finished artifact and is codec-verified so it cannot regress (7.36).
+fn expression_op_signature(op: &ControlFlowOp<'_>) -> String {
+    match op {
+        ControlFlowOp::Binary { op, lhs, rhs } => format!("b{op:?}:{}:{}", lhs.0, rhs.0),
+        ControlFlowOp::Unary { op, value } => format!("u{op:?}:{}", value.0),
+        _ => String::new(),
+    }
+}
+
 fn cheap_pure_expression_operands(op: &ControlFlowOp<'_>) -> Option<Vec<ValueId>> {
     match op {
         ControlFlowOp::Binary { lhs, rhs, .. } => Some(vec![*lhs, *rhs]),
