@@ -1280,7 +1280,7 @@ pub(crate) fn fold_sequence_assignments_into_first_use(
 /// This replaces a hand-kept list of "inert" tokens that omitted identifiers,
 /// `&&`, `?`, and much else, so the fold stopped at the first ordinary
 /// expression and almost never fired.
-fn prefix_cannot_observe(tokens: &[Token<'_>], index: usize) -> bool {
+pub(crate) fn prefix_cannot_observe(tokens: &[Token<'_>], index: usize) -> bool {
     let token = &tokens[index];
     match token.kind {
         // A template can run `toString` on an interpolation.
@@ -1289,9 +1289,10 @@ fn prefix_cannot_observe(tokens: &[Token<'_>], index: usize) -> bool {
         // Reading a binding is pure. A property name is reached through `.`,
         // which is rejected below, so it never gets here.
         TokenKind::Identifier => true,
+        // `if` and `while` gate what follows them, exactly as `&&` does below.
         TokenKind::Keyword => matches!(
             token.text,
-            "return" | "typeof" | "void" | "if" | "while" | "true" | "false" | "null"
+            "return" | "typeof" | "void" | "true" | "false" | "null"
         ),
         TokenKind::Punct => match token.text {
             // Member access can run a getter.
@@ -1302,9 +1303,19 @@ fn prefix_cannot_observe(tokens: &[Token<'_>], index: usize) -> bool {
                     && !matches!(tokens[previous].text, ")" | "]")
             }),
             ")" => true,
+            // Short-circuits and conditional arms do not merely *evaluate*
+            // ahead of the read -- they decide whether it is evaluated at all.
+            // Moving `x=E` past one puts the assignment inside a branch, so on
+            // the other branch `E` never runs and every later read of `x` sees
+            // the wrong value. Terser refuses these for the same reason
+            // (`tighten-body.js:340-346, 893-904`) unless `x` is local and the
+            // read is its only other reference, which this predicate cannot
+            // see. 045 names closing this as the precondition for promoting any
+            // of these folds to canonical; the helper is unreferenced today, so
+            // the hazard was latent rather than shipped.
+            "&&" | "||" | "??" | "?" | ":" => false,
             "!" | "~" | "+" | "-" | "*" | "/" | "%" | "**" | "<<" | ">>" | ">>>" | "<" | "<="
-            | ">" | ">=" | "==" | "!=" | "===" | "!==" | "&" | "^" | "|" | "&&" | "||" | "??"
-            | "?" | ":" => true,
+            | ">" | ">=" | "==" | "!=" | "===" | "!==" | "&" | "^" | "|" => true,
             _ => false,
         },
     }

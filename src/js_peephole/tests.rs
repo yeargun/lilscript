@@ -1851,3 +1851,36 @@ fn the_template_quarantine_refuses_to_capture_a_substitution() {
         "a parameter was renamed to a quarantined spelling: {out}"
     );
 }
+
+#[test]
+fn a_moved_assignment_may_not_cross_a_branch_it_would_land_inside() {
+    // 045 flagged this as the precondition for promoting the declarator folds
+    // to canonical: the prefix rule counted `&&`, `||`, `??`, `?`, `:`, `if`
+    // and `while` as things a moved assignment may pass. They are not. They
+    // decide whether the read happens at all, so an assignment moved past one
+    // lands inside a branch and never runs on the other. Terser refuses the
+    // same shapes (`tighten-body.js:340-346, 893-904`).
+    let refuse = ["&&", "||", "??", "?", ":", "if", "while"];
+    for text in refuse {
+        let source = format!("a {text} b");
+        let tokens = crate::js_peephole::token::lex(&source).unwrap();
+        let index = tokens
+            .iter()
+            .position(|token| token.text == text)
+            .unwrap_or_else(|| panic!("{text} not lexed from {source}"));
+        assert!(
+            !crate::js_peephole::folds::prefix_cannot_observe(&tokens, index),
+            "`{text}` was treated as safe to move an assignment past"
+        );
+    }
+    // the pure operators are still fine to cross
+    for text in ["+", "*", "===", "|", "typeof"] {
+        let source = format!("a {text} b");
+        let tokens = crate::js_peephole::token::lex(&source).unwrap();
+        let index = tokens.iter().position(|token| token.text == text).unwrap();
+        assert!(
+            crate::js_peephole::folds::prefix_cannot_observe(&tokens, index),
+            "`{text}` should be crossable"
+        );
+    }
+}
