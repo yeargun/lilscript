@@ -283,15 +283,75 @@ pub(crate) fn expression_region_end(tokens: &[Token<'_>], start: usize) -> usize
     tokens.len()
 }
 
+/// An lvalue the compound spelling may rewrite: a name, or a chain of `.name`
+/// and `[name]`/`[literal]` over one. Nothing here can run code or throw
+/// differently for being evaluated once instead of twice, which is the whole
+/// difference between `a.b = a.b + 1` and `a.b += 1` -- the reference is
+/// computed once. A call or a computed index with an effect is excluded, so the
+/// two spellings are the same program.
+fn is_simple_lvalue(expression: &Expression<'_>) -> bool {
+    match expression {
+        Expression::Identifier(_) => true,
+        Expression::Member { object, property } => {
+            is_simple_lvalue(object)
+                && matches!(
+                    property.as_ref(),
+                    Expression::Identifier(_) | Expression::Literal(_)
+                )
+        }
+        _ => false,
+    }
+}
+
+/// Structural equality for the lvalues `is_simple_lvalue` admits.
+fn same_simple_lvalue(left: &Expression<'_>, right: &Expression<'_>) -> bool {
+    match (left, right) {
+        (Expression::Identifier(left), Expression::Identifier(right)) => left == right,
+        (Expression::Literal(left), Expression::Literal(right)) => left == right,
+        (
+            Expression::Member {
+                object: left_object,
+                property: left_property,
+            },
+            Expression::Member {
+                object: right_object,
+                property: right_property,
+            },
+        ) => {
+            same_simple_lvalue(left_object, right_object)
+                && same_simple_lvalue(left_property, right_property)
+        }
+        _ => false,
+    }
+}
+
 pub(crate) fn compound_assignment_rewrite(
     tokens: &[Token<'_>],
     region: &ParsedRegion<'_>,
+) -> Option<Rewrite> {
+    compound_assignment_rewrite_with(tokens, region, false)
+}
+
+/// `wide` admits a member lvalue (`a.b`, `a[0]`, `this.x.y`) as well as a bare
+/// name. It is off for the peephole and on only in the terminal slot: 8.7
+/// measured the compound spelling in the *emitter* at +334 on ten ports because
+/// it moves the search's plan choice, while the same rewrite on a finished
+/// artifact is -109 (8.43). Widening the fold the search runs would reproduce
+/// 8.7; widening the one the terminal slot runs cannot, because the codec
+/// accepts it per artifact or not at all.
+pub(crate) fn compound_assignment_rewrite_with(
+    tokens: &[Token<'_>],
+    region: &ParsedRegion<'_>,
+    wide: bool,
 ) -> Option<Rewrite> {
     let Expression::Assignment { operator, lhs, rhs } = &region.expression else {
         return None;
     };
     if *operator != "=" {
         return None;
+    }
+    if wide {
+        return wide_compound_assignment_rewrite(tokens, region, lhs, rhs);
     }
     let Expression::Identifier(assigned) = lhs.as_ref() else {
         return None;
@@ -344,6 +404,89 @@ pub(crate) fn compound_assignment_rewrite(
         identifier_start: identifier.start,
         identifier_end: identifier.end,
         operator,
+    })
+}
+
+/// The member-lvalue form. Offsets come from comparing *token spans*, never from
+/// searching for the operator's text: the narrow path looks for the first `+`
+/// after the `=`, which for `a[i+1]=a[i+1]+2` is the one inside the brackets.
+fn wide_compound_assignment_rewrite(
+    tokens: &[Token<'_>],
+    region: &ParsedRegion<'_>,
+    lhs: &Expression<'_>,
+    rhs: &Expression<'_>,
+) -> Option<Rewrite> {
+    if !is_simple_lvalue(lhs) {
+        return None;
+    }
+    let Expression::Binary {
+        operator,
+        lhs: binary_lhs,
+        ..
+    } = rhs
+    else {
+        return None;
+    };
+    // The parse already guarantees the rest: `binary_lhs` being the whole
+    // lvalue means this operator is the top of the right-hand side, so
+    // `x OP= REST` groups exactly as `x = x OP (REST)` did. `a=a-b-c` parses
+    // with `a-b` on the left and never reaches here.
+    if !same_simple_lvalue(lhs, binary_lhs.as_ref()) {
+        return None;
+    }
+    let operator = compound_assignment_operator_text(operator)?;
+
+    let region_tokens = &tokens[region.start_token..region.end_token];
+    let assignment_index = region_tokens.iter().position(|token| token.text == "=")?;
+    if assignment_index == 0 {
+        return None;
+    }
+    // The lvalue's tokens must reappear verbatim straight after the `=`, and the
+    // operator must be the token right after that run.
+    let lvalue = &region_tokens[..assignment_index];
+    let repeated = region_tokens.get(assignment_index + 1..assignment_index + 1 + lvalue.len())?;
+    if lvalue
+        .iter()
+        .zip(repeated)
+        .any(|(left, right)| left.text != right.text)
+    {
+        return None;
+    }
+    let operator_token = region_tokens.get(assignment_index + 1 + lvalue.len())?;
+    if operator_token.text != operator {
+        return None;
+    }
+    let rhs_first = region_tokens.get(assignment_index + 2 + lvalue.len())?;
+    let first = region_tokens.first()?;
+    let last = region_tokens.last()?;
+    Some(Rewrite {
+        start: first.start,
+        end: last.end,
+        rhs_start: rhs_first.start,
+        rhs_end: last.end,
+        identifier_start: first.start,
+        identifier_end: lvalue.last()?.end,
+        operator,
+    })
+}
+
+/// The operators whose compound spelling is one byte shorter and means the same
+/// thing. `&&`, `||` and `??` are deliberately absent: their compound forms
+/// short-circuit the *store*, which `x = x && y` does not.
+fn compound_assignment_operator_text(operator: &str) -> Option<&'static str> {
+    Some(match operator {
+        "+" => "+",
+        "-" => "-",
+        "*" => "*",
+        "/" => "/",
+        "%" => "%",
+        "&" => "&",
+        "|" => "|",
+        "^" => "^",
+        "<<" => "<<",
+        ">>" => ">>",
+        ">>>" => ">>>",
+        _ => return None,
     })
 }
 

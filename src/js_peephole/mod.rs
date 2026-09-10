@@ -4,7 +4,8 @@ use crate::js_peephole::binding::{BindingResolution, Resolution};
 pub(crate) use crate::js_peephole::folds::fold_constructor_prototype_tables_to_classes;
 use crate::js_peephole::folds::*;
 use crate::js_peephole::parse::{
-    compound_assignment_rewrite, parse_expression_regions, syntax_metrics,
+    compound_assignment_rewrite, compound_assignment_rewrite_with, parse_expression_regions,
+    syntax_metrics,
 };
 pub(crate) use crate::js_peephole::rename::{
     converge_local_names, converge_with_preferences, dominant_identifier_alphabet, idiom_conversion_groups,
@@ -2782,6 +2783,27 @@ fn optimize_generated_javascript_with(
 fn constructor_table_remains(source: &str) -> bool {
     source.contains(".prototype")
         && (source.contains("(0,function") || source.contains("=function("))
+}
+
+/// Every `x = x OP E` in a finished artifact, respelled `x OP= E`, including the
+/// member lvalues the peephole's own pass refuses. For the terminal slot, which
+/// keeps the result only when the exact codec says the whole artifact shrank --
+/// so this may be offered freely where the emitter-level spelling could not be
+/// (8.7 measured that at +334 on ten ports, because it moved plan choice; the
+/// same bytes on a finished artifact are -109).
+pub(crate) fn compound_assignment_conversions(
+    source: &str,
+) -> Result<(String, usize), JavaScriptParseError> {
+    let tokens = lex(source)?;
+    let parsed = parse_expression_regions(&tokens);
+    let mut compound = parsed
+        .iter()
+        .filter_map(|region| compound_assignment_rewrite_with(&tokens, region, true))
+        .collect::<Vec<_>>();
+    compound.sort_unstable_by_key(|rewrite| (rewrite.start, rewrite.end));
+    compound.dedup_by_key(|rewrite| (rewrite.start, rewrite.end));
+    let compound = non_overlapping_rewrites(compound);
+    Ok((apply_rewrites(source, &compound), compound.len()))
 }
 
 fn optimize_generated_javascript_pass(

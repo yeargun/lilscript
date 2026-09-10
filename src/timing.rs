@@ -243,6 +243,8 @@ pub static CLEANUP_SHAPED_REFUSED: Bucket = Bucket::new("cleanup_shaped_refused"
 pub static RENAME_CANDIDATES: Bucket = Bucket::new("rename_candidates");
 pub static IDIOM_CANDIDATES: Bucket = Bucket::new("idiom_candidates");
 pub static IDIOM_WON: Bucket = Bucket::new("idiom_won");
+pub static COMPOUND_ASSIGNMENTS_WON: Bucket = Bucket::new("compound_assignments_won");
+pub static COMPOUND_ASSIGNMENTS_LOST: Bucket = Bucket::new("compound_assignments_lost");
 pub static IDIOM_LOST: Bucket = Bucket::new("idiom_lost");
 pub static IDIOM_IDLE: Bucket = Bucket::new("idiom_idle");
 pub static RENAME_STARVED: Bucket = Bucket::new("rename_starved");
@@ -282,7 +284,7 @@ const BYTE_BUCKETS: [&Bucket; 18] = [
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
-const EVENT_BUCKETS: [&Bucket; 66] = [
+const EVENT_BUCKETS: [&Bucket; 68] = [
     &RENAME_REPRINTS,
     &EMISSION_PEEPHOLE_WON,
     &EMISSION_PEEPHOLE_LOST,
@@ -321,6 +323,8 @@ const EVENT_BUCKETS: [&Bucket; 66] = [
     &RENAME_WON,
     &IDIOM_CANDIDATES,
     &IDIOM_WON,
+    &COMPOUND_ASSIGNMENTS_WON,
+    &COMPOUND_ASSIGNMENTS_LOST,
     &IDIOM_LOST,
     &IDIOM_IDLE,
     &RENAME_LOST,

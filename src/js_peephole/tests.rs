@@ -1773,3 +1773,47 @@ fn the_keyword_split_leaves_real_names_alone() {
         assert_eq!(count, 0, "{source} was rewritten to {out}");
     }
 }
+
+#[test]
+fn the_compound_spelling_reaches_member_lvalues() {
+    for (source, expected) in [
+        ("function R(o,y){o.n=o.n+y;return o}", "o.n+=y"),
+        ("function R(o,y){o[0]=o[0]*y;return o}", "o[0]*=y"),
+        ("function R(o,y){o.a.b=o.a.b-y;return o}", "o.a.b-=y"),
+        ("function R(o,y){o[\"k\"]=o[\"k\"]|y;return o}", "o[\"k\"]|="),
+        ("function R(a,y){a=a>>>y;return a}", "a>>>=y"),
+        ("function R(o,i,y){o[i]=o[i]+y;return o}", "o[i]+=y"),
+        ("function R(o,y){o.a[0].b=o.a[0].b^y;return o}", "o.a[0].b^=y"),
+    ] {
+        let (out, count) =
+            crate::js_peephole::compound_assignment_conversions(source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
+        assert!(count > 0, "{source} was not rewritten");
+        assert!(out.contains(expected), "{source}\n  got: {out}\n  want: {expected}");
+    }
+}
+
+#[test]
+fn the_compound_spelling_refuses_what_it_would_change() {
+    for source in [
+        // left-associative: `a-b-c` has `a-b` on the left, so this is not `a-=b-c`
+        "function R(a,b,c){a=a-b-c;return a}",
+        "function R(a,b,c){a=a/b/c;return a}",
+        // the store must not become conditional
+        "function R(a,b){a=a&&b;return a}",
+        "function R(a,b){a=a||b;return a}",
+        // a call in the lvalue would be evaluated once instead of twice
+        "function R(f,y){f().n=f().n+y;return 0}",
+        "function R(o,f,y){o[f()]=o[f()]+y;return o}",
+        // a computed index that is itself an expression would be evaluated once
+        // instead of twice, so the lvalue restriction refuses it even though the
+        // arithmetic happens to be pure here
+        "function R(o,i,y){o[i+1]=o[i+1]+y;return o}",
+        // a different lvalue is not the same lvalue
+        "function R(o,y){o.n=o.m+y;return o}",
+        "function R(o,i,j,y){o[i]=o[j]+y;return o}",
+    ] {
+        let (out, count) =
+            crate::js_peephole::compound_assignment_conversions(source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
+        assert_eq!(count, 0, "{source} was rewritten to {out}");
+    }
+}

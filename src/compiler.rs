@@ -7204,6 +7204,7 @@ fn finalize_javascript_candidates_with_parallelism(
     let selected = apply_terminal_binding_coordinate_descent(selected, config, codec_budget)?;
     // Last of all, and only on this exact artifact: see `apply_terminal_idiom_convergence`.
     let selected = apply_terminal_idiom_convergence(selected, config, codec_budget)?;
+    let selected = apply_terminal_compound_assignments(selected, config, codec_budget)?;
     let print_report = print_reports
         .iter()
         .find(|(context_id, _)| *context_id == selected.plan_identity.context_id)
@@ -8646,6 +8647,79 @@ fn finish_terminal_idiom_convergence(
     selected.metrics = metrics;
     selected.code = code;
     selected.transfer_cost = cost;
+    Ok(selected)
+}
+
+/// `x = x OP E` respelled `x OP= E` on the finished artifact, all sites at once,
+/// kept only when the exact codec says the whole artifact shrank.
+///
+/// 8.7 measured this spelling in the *emitter*, at every site, at **+334 on ten
+/// ports**: the assignment shares `x=x` with its neighbours and the compound
+/// form breaks that run. But that number is plan choice, not the bytes -- the
+/// same rewrite applied to a finished artifact is **-109** across ten ports
+/// (8.43), a win on six and a loss on four. Offered here it can only take the
+/// wins: nothing downstream reads this text, so the result is strictly smaller
+/// or byte-identical.
+///
+/// One probe, not a hill climb. The per-site question is what the codec answers
+/// badly at this size -- a site that costs two bytes on its own can pay for
+/// itself through a run it completes -- and the whole-artifact comparison is the
+/// one that decides what ships.
+fn apply_terminal_compound_assignments(
+    mut selected: ScoredJavaScriptCandidate,
+    config: &ProjectConfig,
+    codec_budget: &mut TerminalCodecProbeBudget,
+) -> Result<ScoredJavaScriptCandidate, CompileError> {
+    // Decided before the ledger is touched: releasing a reserve is observable.
+    // Off by default and measured so: 8.43 read +0 on eight ports, firing once,
+    // because `parse_expression_regions` reaches few of these sites in module
+    // text and the ports that gain at bundle level ship esbuild's print anyway.
+    // Kept behind `LILSCRIPT_PORTS=terminal_compound_assigns` on 8.29's
+    // precedent -- correct, non-regressing, and it will pay for a port that
+    // ships what the compiler wrote once the region coverage is there.
+    if !crate::codegen_ir_js::port_is_enabled("terminal_compound_assigns")
+        || matches!(config.javascript.cost_model, CompressionCostModel::Raw)
+        || codec_budget.remaining() == 0
+    {
+        return Ok(selected);
+    }
+    let Ok((converted, sites)) =
+        crate::js_peephole::compound_assignment_conversions(&selected.code)
+    else {
+        return Ok(selected);
+    };
+    if sites == 0 || converted == selected.code {
+        return Ok(selected);
+    }
+    if !codec_budget.reserve_work_unit() {
+        return Ok(selected);
+    }
+    if analyze_generated_javascript(&converted).is_err()
+        || selected.admission.validate(&converted).is_err()
+    {
+        return Ok(selected);
+    }
+    let Some(trial) =
+        codec_budget.compressed_size(converted.as_bytes(), config.javascript.cost_model)?
+    else {
+        return Ok(selected);
+    };
+    if trial >= selected.transfer_cost {
+        crate::timing::COMPOUND_ASSIGNMENTS_LOST
+            .event(trial.saturating_sub(selected.transfer_cost) as u64);
+        return Ok(selected);
+    }
+    crate::timing::COMPOUND_ASSIGNMENTS_WON.event((selected.transfer_cost - trial) as u64);
+    let metrics =
+        analyze_generated_javascript(&converted).map_err(generated_javascript_parse_error)?;
+    selected.startup_score = metrics.startup_score(
+        config.javascript.startup.parse_weight,
+        config.javascript.startup.compile_weight,
+        config.javascript.startup.memory_weight,
+    );
+    selected.metrics = metrics;
+    selected.code = converted;
+    selected.transfer_cost = trial;
     Ok(selected)
 }
 
