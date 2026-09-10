@@ -2605,6 +2605,9 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
     // has 1,078 callees against 591, and `call-arg` +533 with it -- which is the
     // shape Terser's `inline` removes. The two thresholds that gate it default from
     // the priority policy and have never been swept.
+    if let Some(on) = sweep_flag("LILSCRIPT_TERMINAL_CHAIN") {
+        config.javascript.terminal_cleanup_chain = Some(on);
+    }
     if let Some(limit) = sweep_number("LILSCRIPT_INLINE_INSTRUCTIONS") {
         config.javascript.inline_instruction_limit = Some(limit);
     }
