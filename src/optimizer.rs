@@ -9097,6 +9097,14 @@ fn immutable_closed_record_values(function: &ControlFlowFunction<'_>) -> AHashSe
 fn closed_record_use_is_read_only(op: &ControlFlowOp<'_>, value: ValueId) -> bool {
     match op {
         ControlFlowOp::RecordFieldGet { object, .. } => *object == value,
+        // 8.92: reading a property off a record we allocated neither mutates nor
+        // aliases it, and these candidates are plain `Record`/`RecordSpread`
+        // literals, so no getter can run. The untyped lowering spells such a read
+        // as `HostFieldGet` rather than `RecordFieldGet` -- every property access
+        // in a `JsValue` transliteration does -- so leaving it out invalidated
+        // every record in those ports and shape inference found nothing. A write
+        // (`HostFieldSet`) is still a mutation and still disqualifies.
+        ControlFlowOp::HostFieldGet { object, .. } => *object == value,
         ControlFlowOp::RecordSpread(operands) => operands
             .iter()
             .all(|operand| !matches!(operand, RecordOperand::Entry(_, entry) if *entry == value)),
