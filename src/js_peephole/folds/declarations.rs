@@ -427,8 +427,32 @@ pub(crate) fn strip_unused_for_init_vars(
             continue;
         }
         let name = tokens[for_at + 3].text;
-        let scope_end = enclosing_block_end(&matching_close, for_at).unwrap_or(tokens.len());
-        if identifier_occurs(&tokens, for_at + 4, scope_end, name) {
+        // live-23: a `var` in a `for` head binds the whole **function**, not the
+        // block the loop sits in, and it binds from the function's first
+        // statement -- so a use after the enclosing block, or before the loop,
+        // still needs this declaration. Scoping the search to the block deleted
+        // the only declaration of a name the rest of the function goes on using:
+        //
+        //     if (a) { for (var b, c = 2, d = 0; d < c; d++) …; return e }
+        //     for (c = 0; c < 3; c++) b = a[c], f(b); return b
+        //
+        // lost `b` entirely and threw `ReferenceError: b is not defined`. That is
+        // why zodlil ships its dev config: its production config miscompiles.
+        // `let` really is block-scoped, so it keeps the narrower search.
+        let hoists = tokens[for_at + 2].text == "var";
+        let (scope_start, scope_end) = if hoists {
+            enclosing_function_span(&tokens, &matching_close, for_at)
+                .map(|(body, end)| (body + 1, end))
+                .unwrap_or((0, tokens.len()))
+        } else {
+            (
+                for_at + 4,
+                enclosing_block_end(&matching_close, for_at).unwrap_or(tokens.len()),
+            )
+        };
+        if identifier_occurs(&tokens, for_at + 4, scope_end, name)
+            || (hoists && identifier_occurs(&tokens, scope_start, for_at + 3, name))
+        {
             continue;
         }
         replacements.push((
@@ -2461,5 +2485,48 @@ mod shared_implicit_binding_tests {
         let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
         assert_eq!(count, 1, "{out}");
         assert!(out.contains("var zz"), "{out}");
+    }
+}
+
+#[cfg(test)]
+mod for_init_hoisting_tests {
+    use super::strip_unused_for_init_vars;
+
+    fn unchanged(source: &str) {
+        let (out, count) = strip_unused_for_init_vars(source).unwrap();
+        assert_eq!(count, 0, "stripped a declaration the function still uses: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// live-23: `var` in a `for` head binds the whole function. Searching only to
+    /// the end of the enclosing block missed the later use and deleted the only
+    /// declaration -- `ReferenceError: b is not defined`. zodlil ships its dev
+    /// config because its production config hit exactly this.
+    #[test]
+    fn keeps_a_var_used_after_the_enclosing_block() {
+        unchanged("function z(a,f){var e=0;if(a){for(var b,c=2,d=0;d<c;d++)e+=d;return e}for(c=0;c<3;c++)b=a[c],f(b);return b}");
+    }
+
+    #[test]
+    fn keeps_a_var_used_before_the_loop() {
+        unchanged("function z(a,f){b=a;for(var b,c=2,d=0;d<c;d++)f(d);return b}");
+    }
+
+    /// A `let` really is block-scoped, so the narrower search stays.
+    #[test]
+    fn still_strips_a_block_scoped_let() {
+        let source = "function z(f){if(1){for(let b,c=2,d=0;d<c;d++)f(d)}}";
+        let (out, count) = strip_unused_for_init_vars(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(!out.contains("let b,"), "{out}");
+    }
+
+    /// And a `var` nothing else in the function mentions still goes.
+    #[test]
+    fn still_strips_a_var_nothing_uses() {
+        let source = "function z(f){for(var b,c=2,d=0;d<c;d++)f(d)}";
+        let (out, count) = strip_unused_for_init_vars(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(!out.contains("var b,"), "{out}");
     }
 }
