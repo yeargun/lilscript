@@ -1199,6 +1199,19 @@ fn var_declaration_has_multiple_declarators(
     true
 }
 
+/// Whether `name` appears as an identifier anywhere outside `body..end`.
+/// Property positions do not count: `o.name` is not this binding.
+fn name_is_mentioned_outside(tokens: &[Token<'_>], body: usize, end: usize, name: &str) -> bool {
+    tokens.iter().enumerate().any(|(index, token)| {
+        (index < body || index >= end)
+            && token.kind == TokenKind::Identifier
+            && token.text == name
+            && !index
+                .checked_sub(1)
+                .is_some_and(|previous| matches!(tokens[previous].text, "." | "?."))
+    })
+}
+
 pub(crate) fn declare_implicit_assignment_bindings(
     source: &str,
 ) -> Result<(String, usize), JavaScriptParseError> {
@@ -1285,6 +1298,22 @@ pub(crate) fn declare_implicit_assignment_bindings(
         } else {
             continue;
         };
+        // live-20: shadowing an outer *declared* binding is this fold's purpose --
+        // a generated temp named `K` must not clobber a module `function K(){}`,
+        // and the outer binding survives because it is still declared. A name
+        // with **no** declaration anywhere is the opposite case: every mention of
+        // it shares one implicit binding, so declaring it inside this function
+        // splits that binding in two and the mentions elsewhere lose their value.
+        // micromarklil shipped that -- 18 sites, all comma-sequenced temps, and
+        // 323 CommonMark cases.
+        let (_, function_end) = bindings
+            .enclosing_function_span(at)
+            .unwrap_or((function_body, tokens.len()));
+        if !bindings.name_is_declared_in_any_scope(at, name)
+            && name_is_mentioned_outside(&tokens, function_body, function_end, name)
+        {
+            continue;
+        }
         replacements.push((insert_at, insert_at, format!("var {name};")));
         declared.push((function_body, name));
     }
@@ -2391,6 +2420,44 @@ mod implicit_binding_scope_tests {
     #[test]
     fn still_declares_a_name_with_no_binding() {
         let source = "function o(){function i(){zz=1}}";
+        let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("var zz"), "{out}");
+    }
+}
+
+#[cfg(test)]
+mod shared_implicit_binding_tests {
+    use super::declare_implicit_assignment_bindings;
+
+    /// live-20: an assignment to a name with no declaration anywhere creates a
+    /// binding the whole program shares. Declaring it inside the function that
+    /// writes it splits that binding, and every read elsewhere is left holding
+    /// `undefined` forever.
+    #[test]
+    fn does_not_localise_a_shared_undeclared_binding() {
+        let source = "function o(){function i(){zz=1}i();return zz}";
+        let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
+        assert_eq!(count, 0, "localised a shared binding: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// Shadowing a name that *is* declared outside stays allowed -- that is what
+    /// the fold exists for, and the outer binding survives because it is still
+    /// declared. `shadows_module_function_helpers_used_as_inner_temps` runs the
+    /// same shape through node.
+    #[test]
+    fn still_shadows_a_declared_outer_binding() {
+        let source = "function k(a){return a}function step(f){k=!!f;return k}";
+        let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert!(out.contains("var k"), "{out}");
+    }
+
+    /// A temp confined to one function still gets its declaration.
+    #[test]
+    fn still_declares_a_temp_used_only_here() {
+        let source = "function o(){function i(){zz=1;return zz}return i()}";
         let (out, count) = declare_implicit_assignment_bindings(source).unwrap();
         assert_eq!(count, 1, "{out}");
         assert!(out.contains("var zz"), "{out}");

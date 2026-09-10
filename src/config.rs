@@ -2574,6 +2574,20 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
     if let Some(on) = sweep_flag("LILSCRIPT_EXTERN_FIELDS") {
         config.mangle.extern_fields = Some(on);
     }
+    // 8.85: the only two boolean knobs that default to false and that no port has
+    // ever set. Everything else under `[optimization]` is on by default through
+    // the `Maximum` preset; these two sit outside it.
+    // 8.85: the config's own note on `local_phi_expression_regions` says the
+    // candidate search carries both states but a beam that ranks mid-pipeline
+    // drops the winner, because it is only cheaper after terminal cleanup. That
+    // is a property of the search, not of the port, so it is worth a fleet
+    // measure rather than five per-port opinions.
+    if let Some(on) = sweep_flag("LILSCRIPT_LOCAL_PHI_REGIONS") {
+        config.javascript.local_phi_expression_regions = Some(on);
+    }
+    if let Some(on) = sweep_flag("LILSCRIPT_REGION_OUTLINING") {
+        config.optimization.region_outlining = Some(on);
+    }
     if let Ok(mode) = std::env::var("LILSCRIPT_INTERNAL_PROPS") {
         config.mangle.internal_properties = match mode.as_str() {
             "all" => Some(InternalProperties::All),
