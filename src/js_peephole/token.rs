@@ -512,6 +512,59 @@ pub(crate) fn template_has_substitution(text: &str) -> bool {
     false
 }
 
+/// Every identifier-shaped word inside a template's `${...}` substitutions.
+///
+/// `scan_template` swallows a template whole, so a binding referenced inside a
+/// substitution is invisible to the resolver. The rename used to answer that by
+/// refusing the entire artifact, which on motionlil -- 113 templates, every one
+/// with a substitution -- disabled the pass over 188 KB. These names are the
+/// exact hazard, so quarantining them is enough: nothing may be renamed *to*
+/// one, and a binding already spelled as one is left alone.
+///
+/// Deliberately over-approximate. Property names, keywords and the words inside
+/// nested strings all land in the set; each one only costs the alphabet a
+/// spelling, while missing one would be a miscompile.
+pub(crate) fn template_substitution_words(text: &str) -> Vec<&str> {
+    let bytes = text.as_bytes();
+    let mut words = Vec::new();
+    let mut cursor = 0usize;
+    let mut depth = 0usize;
+    let mut word_start: Option<usize> = None;
+    while cursor < bytes.len() {
+        let byte = bytes[cursor];
+        if depth == 0 {
+            match byte {
+                b'\\' => cursor += 2,
+                b'$' if bytes.get(cursor + 1) == Some(&b'{') => {
+                    depth = 1;
+                    cursor += 2;
+                }
+                _ => cursor += 1,
+            }
+            continue;
+        }
+        let is_word = byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$';
+        match word_start {
+            Some(start) if !is_word => {
+                words.push(&text[start..cursor]);
+                word_start = None;
+            }
+            None if is_word && !byte.is_ascii_digit() => word_start = Some(cursor),
+            _ => {}
+        }
+        match byte {
+            b'{' => depth += 1,
+            b'}' => depth -= 1,
+            _ => {}
+        }
+        cursor += 1;
+    }
+    if let Some(start) = word_start {
+        words.push(&text[start..]);
+    }
+    words
+}
+
 pub(crate) fn scan_template(bytes: &[u8], start: usize) -> Result<usize, JavaScriptParseError> {
     let mut cursor = start + 1;
     while cursor < bytes.len() {

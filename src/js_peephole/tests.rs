@@ -1817,3 +1817,37 @@ fn the_compound_spelling_refuses_what_it_would_change() {
         assert_eq!(count, 0, "{source} was rewritten to {out}");
     }
 }
+
+#[test]
+fn the_template_quarantine_renames_around_a_substitution() {
+    // A substitution is invisible to the resolver, so the two spellings it
+    // mentions must survive verbatim -- and every other scope must still
+    // converge. Before 8.71 one such template refused the whole artifact.
+    let source = concat!(
+        "function R(alpha,beta){return `x${alpha}y${beta}z`}",
+        "function S(gamma,delta){return gamma+delta}"
+    );
+    let (out, renamed) = crate::js_peephole::converge_local_names(source).unwrap();
+    assert!(out.contains("${alpha}"), "the substitution was renamed: {out}");
+    assert!(out.contains("${beta}"), "the substitution was renamed: {out}");
+    assert!(out.contains("alpha"), "its binding lost its spelling: {out}");
+    assert!(renamed > 0, "the artifact was refused outright: {out}");
+    assert!(!out.contains("gamma"), "an unrelated scope was refused: {out}");
+}
+
+#[test]
+fn the_template_quarantine_refuses_to_capture_a_substitution() {
+    // Nothing may be renamed *to* a name a substitution speaks: `${outer}`
+    // resolves lexically, so a local renamed to `outer` would capture it.
+    let source = concat!(
+        "var outer=1;",
+        "function R(someParameter,another){return someParameter+another+outer}",
+        "function S(){return `v${outer}w`}"
+    );
+    let (out, _) = crate::js_peephole::converge_local_names(source).unwrap();
+    assert!(out.contains("${outer}"), "the substitution moved: {out}");
+    assert!(
+        !out.contains("(outer,") && !out.contains(",outer)"),
+        "a parameter was renamed to a quarantined spelling: {out}"
+    );
+}

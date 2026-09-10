@@ -26,7 +26,9 @@
 
 use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{apply_token_rewrites, is_property_identifier};
-use crate::js_peephole::token::{lex, template_has_substitution, Token, TokenKind};
+use crate::js_peephole::token::{
+    lex, template_has_substitution, template_substitution_words, Token, TokenKind,
+};
 use crate::js_peephole::JavaScriptParseError;
 use std::collections::{HashMap, HashSet};
 
@@ -92,15 +94,27 @@ fn converge_names(
     // on katexlil: 24 template literals, **none** holding a substitution, and
     // all 522 function scopes refused across 250 KB, on a port whose whole
     // remaining gap is how its identifiers are spelled (053, 056).
-    let templates = tokens
-        .iter()
-        .filter(|token| {
-            token.kind == TokenKind::Template && template_has_substitution(token.text)
-        })
-        .count();
+    //
+    // 8.71: refusing the artifact is more than the hazard needs. The names a
+    // substitution can capture are exactly the words written inside it, so
+    // quarantining those is sufficient: nothing is renamed *to* one, and a
+    // binding already spelled as one keeps its spelling. Everything else in the
+    // artifact renames as usual. motionlil has 113 templates and every one
+    // carries a substitution, so the whole-artifact rule disabled the pass over
+    // 188 KB on the fleet's largest loss.
+    let mut quarantine = HashSet::<String>::new();
+    let mut templates = 0usize;
+    for token in tokens.iter() {
+        if token.kind != TokenKind::Template || !template_has_substitution(token.text) {
+            continue;
+        }
+        templates += 1;
+        for word in template_substitution_words(token.text) {
+            quarantine.insert(word.to_string());
+        }
+    }
     if templates > 0 {
         crate::timing::RENAME_TEMPLATED.event(templates as u64);
-        return Ok((source.to_string(), 0));
     }
     // Converging on a spelling the artifact does not already use trades one
     // kind of repetition for another and loses. Measured on jQuery: renaming to
@@ -186,8 +200,10 @@ fn converge_names(
             .find(|(_, token)| token.text == "{" || token.text == "=>")
             .map_or(start, |(index, _)| index);
 
-        // Names this scope may not take.
-        let mut blocked = HashSet::<String>::new();
+        // Names this scope may not take. The template quarantine is global: a
+        // substitution's `${name}` resolves lexically wherever it sits, so a
+        // binding renamed to that spelling anywhere could capture it.
+        let mut blocked = quarantine.clone();
         for index in start..end.min(tokens.len()) {
             if tokens[index].kind != TokenKind::Identifier || is_property_identifier(&tokens, index)
             {
@@ -247,7 +263,12 @@ fn converge_names(
             };
             let keeps_its_name = resolution.scope_index_at(declaration) == 0
                 || !resolution.name_is_unambiguous(scope, name)
-                || names_a_function_or_class(&tokens, declaration);
+                || names_a_function_or_class(&tokens, declaration)
+                // The other half of the template quarantine: a substitution
+                // mentioning this spelling is invisible to the resolver, so
+                // renaming the binding would leave that occurrence pointing at
+                // a name that no longer exists.
+                || quarantine.contains(name);
             if keeps_its_name {
                 blocked.insert(name.to_string());
                 assigned.insert(declaration, name.to_string());
