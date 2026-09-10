@@ -32,22 +32,33 @@ export function baselines(repo) {
     "remark-parselil": { artifact: "dist/remark-parse.esm.js", terserBrotli: 23283 },
     "remark-rehypelil": { artifact: "dist/remark-rehype.esm.js", terserBrotli: 5061 },
     "remark-gfmlil": { artifact: "dist/remark-gfm.esm.js", terserBrotli: 11238 },
-    "remark-mathlil": { artifact: "dist/remark-math.esm.js", terserBrotli: 2150 },
+    // 8.73: rebuilt like-for-like on 2026-09-10 and the pinned 2150 was *generous
+    // to us* by 53 -- corrected against our own interest, for the same reason
+    // react-markdownlil's was corrected in its favour: a bar nobody can
+    // reconstruct is not a bar. Upstream `remark-math` from npm, esbuild
+    // --bundle --format=esm (our artifact imports nothing, so neither does the
+    // bar), then Terser `-c passes=3 -m --module` -- compress defaults, since
+    // 013 records the baseline has `pure_getters` off and `unsafe` is not
+    // eligible. 2,097 Brotli under lilscript-codec against our 2,248; scopes
+    // verified equal, one named export each, mathFlow 29 occurrences both
+    // sides, mathText 17. The gap is +151, not +98.
+    "remark-mathlil": { artifact: "dist/remark-math.esm.js", terserBrotli: 2097 },
     "remark-breakslil": { artifact: "dist/remark-breaks.esm.js", terserBrotli: 1198 },
     "rehype-stringifylil": { artifact: "dist/rehype-stringify.esm.js", terserBrotli: 9886 },
     rehypelil: { artifact: "dist/rehype.esm.js", terserBrotli: 55080 },
     remarklil: { artifact: "dist/remark.esm.js", terserBrotli: 32551 },
     unifiedlil: { artifact: "dist/unified.esm.js", terserBrotli: 4425 },
     "rehype-katexlil": { artifact: "dist/rehype-katex.esm.js", terserBrotli: 113063 },
-    // 8.68: the previous 31092 compared different programs -- status.md flagged it
-    // ("the committed artifact was React-external glue and the tree inlines it"),
-    // and it was never re-derived after the port grew to bundle the markdown
-    // stack. Rebuilt like-for-like on 2026-09-10: upstream `react-markdown` from
-    // npm, esbuild --bundle --format=esm with `react` and `react/jsx-runtime`
-    // external (exactly what our artifact imports), then Terser
-    // -c passes=3,pure_getters,unsafe -m --module. That is 143,566 raw / 40,297
-    // Brotli under lilscript-codec, against our 142,205 raw / 41,907 -- our raw is
-    // the smaller of the two. The gap is +1,610, not +10,815.
-    "react-markdownlil": { artifact: "dist/react-markdown.esm.js", terserBrotli: 40297 },
+    // 8.68/8.73: the previous 31092 compared different programs -- status.md
+    // flagged it ("the committed artifact was React-external glue and the tree
+    // inlines it") and it was never re-derived after the port grew to bundle the
+    // markdown stack. Rebuilt like-for-like 2026-09-10: upstream `react-markdown`
+    // from npm, esbuild --bundle --format=esm with `react` and `react/jsx-runtime`
+    // external (exactly what our artifact imports), then Terser `-c passes=3 -m
+    // --module`. Compress defaults deliberately: 013 records that the baseline
+    // has `pure_getters` off, and `unsafe` is not eligible -- with both on this
+    // reads 40,297, so the construction is worth ~50 bytes and has to be stated.
+    // 144,305 raw / 40,348 Brotli under lilscript-codec against our 41,721.
+    "react-markdownlil": { artifact: "dist/react-markdown.esm.js", terserBrotli: 40348 },
   }
 }
