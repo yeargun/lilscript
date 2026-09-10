@@ -2054,26 +2054,60 @@ fn parameter_list_start(
     }
 }
 
+/// Whether the statement or construct starting at `index` is itself the unbraced
+/// body of a loop -- `while (c) <here>`, `for (..) <here>`, `do <here> while`.
+fn is_braceless_loop_body(
+    tokens: &[Token<'_>],
+    matching_open: &[Option<usize>],
+    index: usize,
+) -> bool {
+    let Some(previous) = index.checked_sub(1) else {
+        return false;
+    };
+    if tokens[previous].text == "do" {
+        return true;
+    }
+    if tokens[previous].text == ")" {
+        if let Some(open) = matching_open[previous] {
+            return open
+                .checked_sub(1)
+                .is_some_and(|keyword| matches!(tokens[keyword].text, "while" | "for"));
+        }
+    }
+    false
+}
+
+/// From an `else` or a `finally`, the index of the `if` or `try` it continues.
+/// Scans backwards at brace depth zero; `None` when the head is not found,
+/// which callers must read as "assume a loop".
+fn construct_head(tokens: &[Token<'_>], from: usize, keyword: &str) -> Option<usize> {
+    let mut index = from;
+    let mut depth = 0i32;
+    while index > 0 {
+        index -= 1;
+        match tokens[index].text {
+            ")" | "]" | "}" => depth += 1,
+            "(" | "[" | "{" => {
+                if depth == 0 {
+                    return None;
+                }
+                depth -= 1;
+            }
+            text if depth == 0 && text == keyword => return Some(index),
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Whether the statement starting at `index` sits in a loop body somewhere
 /// below its enclosing function: walk outwards through the unmatched openers,
 /// stopping at a function body. Conservative on anything it does not
 /// recognise, in the direction of "yes, a loop".
 fn statement_runs_in_loop(tokens: &[Token<'_>], matching_open: &[Option<usize>], index: usize) -> bool {
     // A brace-less body: `while(c)var x=void 0;` or `do var x=void 0;while(c)`.
-    if let Some(previous) = index.checked_sub(1) {
-        if tokens[previous].text == "do" {
-            return true;
-        }
-        if tokens[previous].text == ")" {
-            if let Some(open) = matching_open[previous] {
-                if open
-                    .checked_sub(1)
-                    .is_some_and(|keyword| matches!(tokens[keyword].text, "while" | "for"))
-                {
-                    return true;
-                }
-            }
-        }
+    if is_braceless_loop_body(tokens, matching_open, index) {
+        return true;
     }
     let mut cursor = index;
     loop {
@@ -2114,7 +2148,21 @@ fn statement_runs_in_loop(tokens: &[Token<'_>], matching_open: &[Option<usize>],
                 };
                 match head.checked_sub(1).map(|keyword| tokens[keyword].text) {
                     Some("while" | "for") => return true,
-                    Some("if" | "switch" | "catch") => {}
+                    Some("if" | "switch" | "catch") => {
+                        // The construct can itself be a loop's unbraced body:
+                        // `for (k in o) if (p) { var c = void 0; .. }` runs the
+                        // `if`, and everything inside it, once per pass, so `c`
+                        // is not fresh. The brace-less check above only sees the
+                        // case where the declaration *is* the body; with a brace
+                        // in between there is no `{` for the loop, so the walk
+                        // stepped straight past it to the function. That is
+                        // live-18, and react-markdownlil shipped it.
+                        if let Some(keyword) = head.checked_sub(1) {
+                            if is_braceless_loop_body(tokens, matching_open, keyword) {
+                                return true;
+                            }
+                        }
+                    }
                     _ => {
                         if function_header_precedes_parameters(tokens, head) {
                             return false;
@@ -2122,7 +2170,28 @@ fn statement_runs_in_loop(tokens: &[Token<'_>], matching_open: &[Option<usize>],
                     }
                 }
             }
-            "else" | "try" | "finally" => {}
+            "try" => {
+                if let Some(keyword) = before.checked_sub(0) {
+                    if is_braceless_loop_body(tokens, matching_open, keyword) {
+                        return true;
+                    }
+                }
+            }
+            // `else` and `finally` continue a construct that begins earlier, so
+            // the brace-less test has to be applied at that head. When it cannot
+            // be found the answer is "yes, a loop" -- the conservative direction
+            // this function documents.
+            "else" | "finally" => {
+                let opening = if tokens[before].text == "else" { "if" } else { "try" };
+                match construct_head(tokens, before, opening) {
+                    Some(head) => {
+                        if is_braceless_loop_body(tokens, matching_open, head) {
+                            return true;
+                        }
+                    }
+                    None => return true,
+                }
+            }
             _ => return true,
         }
         cursor = open;
@@ -2212,5 +2281,69 @@ mod void_initializer_tests {
         let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
         assert_eq!(count, 1, "{out}");
         assert_eq!(out, "function f(b){var a;return a}");
+    }
+}
+
+#[cfg(test)]
+mod braceless_loop_body_tests {
+    use super::fold_void_initializers_off_fresh_vars;
+
+    /// live-18, from react-markdownlil: the loop's body is unbraced and the
+    /// declaration sits inside an `if` block within it, so the outward walk
+    /// found the `if`, stepped past it, and reached the function without ever
+    /// seeing a loop. `c` is reset on every pass and the initializer is live.
+    #[test]
+    fn keeps_the_initializer_inside_an_if_under_an_unbraced_for_in() {
+        let source = "function f(a,b){for(var r in b)if(g(b,r)){var c=void 0;h(c)}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 0, "folded inside a loop: {out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn keeps_the_initializer_inside_an_if_under_an_unbraced_while() {
+        let source = "function f(b){while(b--)if(b){var c=void 0;h(c)}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 0, "folded inside a loop: {out}");
+        assert_eq!(out, source);
+    }
+
+    #[test]
+    fn keeps_the_initializer_in_an_else_under_an_unbraced_loop() {
+        let source = "function f(b){for(var r in b)if(r){h(r)}else{var c=void 0;h(c)}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 0, "folded inside a loop: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// The same shape with the loop body braced was already refused; it must
+    /// stay refused.
+    #[test]
+    fn keeps_the_initializer_inside_a_braced_loop() {
+        let source = "function f(b){for(var r in b){if(r){var c=void 0;h(c)}}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 0, "folded inside a loop: {out}");
+        assert_eq!(out, source);
+    }
+
+    /// And an `if` that is not under a loop still folds.
+    #[test]
+    fn still_folds_inside_an_if_outside_any_loop() {
+        let source = "function f(b){if(b){var c=void 0;h(c)}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(source).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert_eq!(out, "function f(b){if(b){var c;h(c)}}");
+    }
+
+    /// A `try` under an unbraced loop, and one outside any loop.
+    #[test]
+    fn handles_try_bodies_on_both_sides_of_the_rule() {
+        let inside = "function f(b){for(var r in b)try{var c=void 0;h(c)}catch(e){}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(inside).unwrap();
+        assert_eq!(count, 0, "folded inside a loop: {out}");
+        let outside = "function f(b){try{var c=void 0;h(c)}catch(e){}}";
+        let (out, count) = fold_void_initializers_off_fresh_vars(outside).unwrap();
+        assert_eq!(count, 1, "{out}");
+        assert_eq!(out, "function f(b){try{var c;h(c)}catch(e){}}");
     }
 }

@@ -2562,6 +2562,25 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
     if let Some(on) = sweep_flag("LILSCRIPT_LATE_CLEANUPS") {
         config.javascript.late_shape_cleanups = Some(on);
     }
+    // 8.80: the Closure ADVANCED lever. Every port sets `properties = true` and
+    // then `extern_fields = true`, and `internal_properties` is only consulted
+    // when `extern_fields` is false -- so the derived-externs mode has never run
+    // on any port, and property mangling produces almost nothing. The ceiling
+    // measured by renaming every property in the shipped artifacts is -3,910 on
+    // micromarklil, -2,930 on katexlil and -1,847 on jquerylil, each of which is
+    // larger than that port's whole gap. A sweep switch measures it fleet-wide;
+    // the port test suites are the gate, because getting the externs wrong here
+    // breaks the program rather than growing it.
+    if let Some(on) = sweep_flag("LILSCRIPT_EXTERN_FIELDS") {
+        config.mangle.extern_fields = Some(on);
+    }
+    if let Ok(mode) = std::env::var("LILSCRIPT_INTERNAL_PROPS") {
+        config.mangle.internal_properties = match mode.as_str() {
+            "all" => Some(InternalProperties::All),
+            "underscore-suffix" => Some(InternalProperties::UnderscoreSuffix),
+            _ => config.mangle.internal_properties,
+        };
+    }
 }
 
 /// A sweep switch reads as off for `0`/`off`/`false` and on for anything else,
