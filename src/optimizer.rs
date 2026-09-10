@@ -2507,6 +2507,34 @@ fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> Optimiza
             continue;
         }
 
+        // 8.97: a known-shape read was only folded inside the block that
+        // allocated the object, so an object built in one block and read in the
+        // next kept its `HostFieldGet`. The `Record` path already allows the
+        // shape to be used "in blocks dominated by the allocation", and the same
+        // argument holds here: any write or phi on the object makes it unsafe
+        // below, so the shape is fixed for its whole lifetime, and dominance
+        // guarantees the allocation ran and its operands are in scope. This is
+        // the shape that matters for code that keeps its objects local.
+        //
+        // **Measured +0 on all 22 ports (8.97), and the trace says why**: on
+        // remark-mathlil the pass sees 4,161 candidate plain objects and
+        // disqualifies every one. Block-locality was never the binding
+        // constraint -- a transliteration hands each object straight to a helper
+        // call, so the `_ => !used` arm rejects it however the dominance question
+        // is answered. The extension is still correct, and is what a typed port
+        // that keeps an object local would need.
+        let predecessors = cfg_predecessors(function);
+        let reachable = reachable_blocks(function);
+        let dominators = compute_dominators(function.entry.0 as usize, &predecessors, &reachable);
+        let dominated_by_allocation = |object: &ValueId, block: BlockId| {
+            object_blocks.get(object).is_some_and(|allocation| {
+                *allocation == block
+                    || dominators
+                        .get(block.0 as usize)
+                        .is_some_and(|set| set.contains(&(allocation.0 as usize)))
+            })
+        };
+
         let mut unsafe_objects = AHashSet::default();
         for block in &function.blocks {
             for phi in &block.phis {
@@ -2519,7 +2547,7 @@ fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> Optimiza
             for instruction in &block.instructions {
                 for object in objects.keys().copied().collect::<Vec<_>>() {
                     let used = control_flow_used_values(&instruction.op).contains(&object);
-                    let safe = if object_blocks.get(&object).copied() != Some(block.id) {
+                    let safe = if !dominated_by_allocation(&object, block.id) {
                         !used
                     } else {
                         match &instruction.op {
