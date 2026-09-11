@@ -658,3 +658,44 @@ compilation units are a contract with each other: `contrib/mhchem` calls
 compilations rename independently. Closure writes a property map in one
 compilation and reads it in the next; we preserve the other units' vocabulary
 instead, which is the cheap version of the same idea.
+
+## 8.107 the key reachability rule only asked half its question
+
+`names_reachable_from_program_strings` keeps a property name when the name occurs
+*inside* some string the program holds, on the ground that a computed access
+could slice it out. That is sound and it is half the rule. A name the program
+could build by *joining* a held string to something else was renamed.
+
+katex reads ``svgData[`widehat${numChars}`]``. `widehat1` occurs in no string the
+program holds; `widehat` does. The table was renamed, the lookup returned
+undefined, no `<svg>` was emitted, and `\widehat{abc}` rendered as an empty box.
+Nothing threw, no warning appeared, and the artifact was smaller. The only check
+that notices is a 40 KB markup diff against the official build -- which is the
+general shape of this whole class and the reason it survived: a renamed table
+does not fail, it answers `undefined`.
+
+A name beginning or ending with a held string of three characters or more is now
+reachable. Three is where a shared prefix stops being coincidence; two would let
+`"id"` preserve every name ending in `id`.
+
+The test of the rule is that it replaces judgement with derivation. katexlil
+needed 45 hand-declared names -- `widehat1`..`4`, `widecheck1`..`4`,
+`tilde1`..`4`, `svgData`, `staticSvg`, `pathName`, `positionData` -- to reach
+20 of 21 tests passing under `internal_properties = "all"`. With this rule it
+needs none of them and reaches the same 20, at -880 Brotli rather than -1,022.
+The hand-written file is deleted; what remains undecidable is smaller than it
+looked.
+
+The fleet cannot move on this, and the reason is worth stating rather than
+measuring: the function is called only under `owned_js_properties == All`, and no
+port ships that. The change buys safety in a mode nothing uses yet, which is
+exactly the prerequisite for something using it.
+
+katexlil's last failure is not a missing name. Under mangling it renders a
+stacked `\left(` delimiter without its `delimsizing mult` span, and the code for
+that branch is present and correct in the artifact -- the branch is not taken.
+The test imports `dist/contrib/mhchem.mjs`, a separate compilation unit whose
+macros the main parser invokes, so the suspicion is the unit boundary again
+rather than the vocabulary. Left open: the prize is +251 and still a loss, so it
+is not worth a four-minute-per-trial bisect ahead of the per-receiver analysis
+8.106 names, which would subsume it.
