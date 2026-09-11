@@ -40858,6 +40858,15 @@ fn js_member_key_values_in_op(op: &ControlFlowOp<'_>) -> Vec<ValueId> {
 /// This over-preserves: `text` occurs inside plenty of unrelated strings. It
 /// over-preserves in the safe direction, and it decides the whole question from
 /// the constant pool without an interprocedural analysis.
+///
+/// The rule above is the *slicing* half -- a name that occurs inside a held
+/// string could be cut out of it. Concatenation is the other half and was
+/// missing. katex reads its SVG path tables as ``svgData[`widehat${numChars}`]``,
+/// so `widehat1` occurs in no string the program holds while `widehat` does, and
+/// the renamed table simply stopped answering: the lookup returned undefined,
+/// no `<svg>` was emitted, and `\widehat{abc}` rendered as an empty box with
+/// nothing thrown anywhere. A name that *begins or ends with* a held string is
+/// therefore reachable too.
 fn names_reachable_from_program_strings(module: &ControlFlowModule<'_>) -> AHashSet<String> {
     let mut strings = module
         .functions
@@ -40884,12 +40893,28 @@ fn names_reachable_from_program_strings(module: &ControlFlowModule<'_>) -> AHash
     candidates
         .into_iter()
         .filter(|name| {
-            strings
-                .iter()
-                .any(|text| text.len() >= name.len() && text.contains(name.as_str()))
+            strings.iter().any(|text| {
+                // Slicing: the name occurs inside a string the program holds.
+                (text.len() >= name.len() && text.contains(name.as_str()))
+                    // Concatenation: the program holds one end of the name and
+                    // can build the rest from anything at all.
+                    || (text.len() >= CONCATENATED_KEY_FRAGMENT_FLOOR
+                        && text.len() < name.len()
+                        && (name.starts_with(text.as_str()) || name.ends_with(text.as_str())))
+            })
         })
         .collect()
 }
+
+/// How much of a name a held string has to account for before the name is
+/// treated as something the program could concatenate.
+///
+/// Two characters would make `"id"` preserve every name ending in `id`, and a
+/// one-character string would preserve nearly everything. Three is the point
+/// where a shared prefix stops being a coincidence; a name that genuinely is
+/// built from a two-character literal is rare, and the cost of being wrong in
+/// the other direction is a table that silently answers `undefined`.
+const CONCATENATED_KEY_FRAGMENT_FLOOR: usize = 3;
 
 /// String constants the program uses as *values*: every use is not a member key,
 /// so the text can reach a computed access, be sliced, split or concatenated.
