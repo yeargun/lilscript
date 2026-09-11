@@ -969,3 +969,69 @@ require the same *binding*, with the duplicate-`var` and ambiguous-scope cases
 handled explicitly. All 22 ports are byte-identical afterwards, so it buys no
 bytes and closes a class of wrong program that the 037 fix addressed only for the
 alias assignment and never for the calls.
+
+## 8.113 live-26 fixed, and the assignment census that explains the gap
+
+**live-26.** `strip_dangling_set_prototype_of` -- one of fifteen sub-passes the
+class fold calls, none of them reachable by `LILSCRIPT_SKIP_FOLDS`, which is why
+8.112 could not find it -- decides whether a `setPrototypeOf`'s parent alias is
+usable from *textual position*. unifiedlil emits the VFileMessage factory as a
+hoisted declaration above `c=h.prototype`, so the alias looked unassigned and the
+call was deleted out of the factory. A hoisted body runs when it is called, after
+all module-level assignment, however the text is ordered.
+
+Fixed by asking the narrow question -- does the parent resolve *as a binding* to a
+real `X.prototype` alias anywhere in the module -- rather than the blunt one,
+refuse inside any function body. The blunt version is also sound and costs **+163
+Brotli**; the narrow one costs **+3**. Gate **19/22, up from 18/22**: remarklil's
+closed-world check passes now. unifiedlil goes 2 failures to 0 under
+`pool_strings = false`.
+
+Three things that made it hard, all worth keeping:
+
+1. `cargo test` does not relink `target/release/lilscript`, so three checks of the
+   "fixed" compiler ran the old binary and reported the bug unfixed.
+2. The fold-name bisect used a prefix regex and silently missed stages like
+   `reuse_dead_var_binding`; and fifteen sub-passes are called directly inside one
+   fold, so no bisect over the pipeline's named stages could reach the culprit.
+3. The peephole driver runs the whole pass twice when `constructor_table_remains`,
+   which sent the hunt after a second pass that was not involved.
+
+**The assignment census.** Why motionlil is +42% identifier occurrences on the
+same program, by node type, against its bar:
+
+| assignment shape | ours | bar | delta |
+|---|---|---|---|
+| `name = member` | **629** | **22** | +607 |
+| `name = literal` | 336 | 6 | +330 |
+| `name = call` | 385 | 72 | +313 |
+| `name = name` | 252 | 42 | +210 |
+| `name = operator` | 177 | 18 | +159 |
+| `name = object` | 169 | 12 | +157 |
+| total `=` | 3,828 | 1,285 | **+2,543** |
+
+We name almost every value; the bar uses it in place. That is the whole raw
+excess. `inline-price.mjs` in 8.78 measured this at about nothing and was looking
+at the wrong thing: it priced once-read *declarators*, and our emitter hoists
+`var` to the top of a function and then *assigns*, so nearly every materialization
+is a bare `x = expr` that tool never saw.
+
+Priced properly, with per-occurrence liveness (a module-wide read count is
+useless -- the emitter reuses a small pool of short names, so `a` has dozens of
+reads and writes per function): 93 sites, raw -314, **Brotli +292**.
+
+That is the thirteenth transform this phase to cut raw and raise Brotli, and the
+pattern is now the finding. Our artifacts are *more repetitive* than the bars --
+unifiedlil raw +8% against Brotli +4.7% -- so the repetition is load-bearing: the
+codec stores each `a=b.c` for almost nothing, and every rewrite that removes one
+makes the remainder less uniform. Pushing the other way does not work either:
+clustering hoisted declarations by normalised shape is +56 on mobxlil, +41 on
+rehypelil, +20 on motionlil, and emit order stays ≈0 as `search-is-saturated`
+records.
+
+So beating these bars needs *fewer operations*, not fewer bytes per operation.
+And operations are already close: static member reads are 4,609 against 4,652,
+declarations 864 against 935, parameters 1,094 against 964. The one real excess is
+computed member access, 1,107 against 476, which is string pooling putting keys in
+variables -- the thing `LILSCRIPT_POOL_STRINGS=0` measures at **-226** and cannot
+ship until the zodlil fault in that path is found.
