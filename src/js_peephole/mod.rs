@@ -647,6 +647,50 @@ pub fn generated_javascript_export_witnesses(
     Ok(witnesses)
 }
 
+/// Carry a checked source contract across the ESM boundary. Resolve each call
+/// to its exported binding: spelling alone would also annotate shadowing
+/// parameters, or a same-named property on an unrelated object.
+pub(crate) fn annotate_pure_export_calls(
+    source: &str,
+    pure_exports: &std::collections::BTreeSet<String>,
+) -> Result<String, JavaScriptParseError> {
+    if pure_exports.is_empty() {
+        return Ok(source.to_owned());
+    }
+    let tokens = lex(source)?;
+    let matching_close = matching_closers(&tokens);
+    let resolution = BindingResolution::new(&tokens);
+    let mut declarations = std::collections::BTreeSet::new();
+    for (local, name) in generated_export_pairs(&tokens, &matching_close, source)? {
+        if pure_exports.contains(&name) {
+            if let Resolution::Bound(declaration) = resolution.resolve(local) {
+                declarations.insert(declaration);
+            }
+        }
+    }
+    let mut output = source.to_owned();
+    for (index, token) in tokens.iter().enumerate().rev() {
+        if tokens.get(index + 1).is_none_or(|next| next.text != "(")
+            || index
+                .checked_sub(1)
+                .is_some_and(|previous| tokens[previous].text == "new")
+            || matching_close
+                .get(index + 1)
+                .copied()
+                .flatten()
+                .is_some_and(|close| tokens.get(close + 1).is_some_and(|next| next.text == "{"))
+        {
+            continue;
+        }
+        if let Resolution::Bound(declaration) = resolution.resolve(index) {
+            if index != declaration && declarations.contains(&declaration) {
+                output.insert_str(token.start, "/*@__PURE__*/");
+            }
+        }
+    }
+    Ok(output)
+}
+
 fn generated_export_pairs(
     tokens: &[Token<'_>],
     matching_close: &[Option<usize>],
@@ -1207,12 +1251,13 @@ fn generated_import_error(
     message: &'static str,
     source: &str,
 ) -> JavaScriptParseError {
-    JavaScriptParseError {
+    let error = JavaScriptParseError {
         offset,
         message,
         context: None,
-    }
-    .with_source(source)
+    };
+    dump_rejected_generated_javascript(source, &error);
+    error.with_source(source)
 }
 
 fn generated_export_name<'src>(token: &Token<'src>) -> Option<&'src str> {

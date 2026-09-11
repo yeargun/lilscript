@@ -357,6 +357,7 @@ fn compile_path_explained_inner(
         .map_err(|error| module_compile_error(&modules, CompileError::Semantic(error)))?;
     let ir = lower_to_control_flow(&linked, &semantics)
         .map_err(|error| module_compile_error(&modules, CompileError::Lower(error)))?;
+    let pure_exports = declared_pure_exports(&ir);
     let contract = config.javascript_compilation_contract(module_output);
     let abi_manifest = contract.abi_manifest(&ir);
     let selected = optimize_and_select_javascript(ir, config, module_output)
@@ -371,7 +372,7 @@ fn compile_path_explained_inner(
         ));
     }
     let javascript = if module_output {
-        finish_javascript_module(selected.javascript, config)
+        finish_javascript_module(selected.javascript, config, &pure_exports)
             .map_err(|error| module_compile_error(&modules, error))?
     } else {
         selected.javascript
@@ -1450,8 +1451,24 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let ir = lower_to_control_flow(program, &semantics)?;
+    let pure_exports = declared_pure_exports(&ir);
     let selected = optimize_and_select_javascript(ir, config, true)?;
-    finish_javascript_module(selected.javascript, config)
+    finish_javascript_module(selected.javascript, config, &pure_exports)
+}
+
+fn declared_pure_exports(ir: &ControlFlowModule<'_>) -> std::collections::BTreeSet<String> {
+    ir.exports
+        .iter()
+        .filter_map(|export| {
+            let crate::ir::ExportBinding::Function(id) = export.binding else {
+                return None;
+            };
+            ir.functions
+                .get(id.0 as usize)
+                .filter(|function| function.declared_pure)
+                .map(|_| export.name.to_owned())
+        })
+        .collect()
 }
 
 /// The last step of a single-bundle module: `javascript.function_scope`
@@ -1463,19 +1480,31 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 fn finish_javascript_module(
     javascript: String,
     config: &ProjectConfig,
+    pure_exports: &std::collections::BTreeSet<String>,
 ) -> Result<String, CompileError> {
-    if config.javascript.function_scope != Some(true) {
-        return Ok(javascript);
-    }
-    match crate::js_peephole::wrap_module_internals_in_function_scope(&javascript) {
-        Ok(Ok(wrapped)) => Ok(wrapped),
-        Ok(Err(_reason)) => Ok(javascript),
-        Err(error) => Err(CompileError::Codegen(
-            crate::codegen_js::CodegenError::new(
+    let javascript = if config.javascript.function_scope == Some(true) {
+        match crate::js_peephole::wrap_module_internals_in_function_scope(&javascript) {
+            Ok(Ok(wrapped)) => wrapped,
+            Ok(Err(_reason)) => javascript,
+            Err(error) => {
+                return Err(CompileError::Codegen(crate::codegen_js::CodegenError::new(
+                    Span::empty(0),
+                    format!("function_scope wrapper produced an unparseable module: {error}"),
+                )))
+            }
+        }
+    } else {
+        javascript
+    };
+    if config.javascript.emit_pure_annotations {
+        crate::js_peephole::annotate_pure_export_calls(&javascript, pure_exports).map_err(|error| {
+            CompileError::Codegen(crate::codegen_js::CodegenError::new(
                 Span::empty(0),
-                format!("function_scope wrapper produced an unparseable module: {error}"),
-            ),
-        )),
+                format!("pure export annotation failed: {error}"),
+            ))
+        })
+    } else {
+        Ok(javascript)
     }
 }
 
@@ -23336,6 +23365,34 @@ mod function_scope_tests {
             }
         }
         out
+    }
+
+    #[test]
+    fn checked_pure_exports_carry_call_annotations_after_selection() {
+        let arena = Bump::new();
+        let program = parse_source(&arena,
+            "export pure func()->float factory(float value){return()=>value;}export func()->float callback=factory(7.0);").unwrap();
+        let mut config = ProjectConfig::default();
+        config.javascript.optimization_level = 0;
+        config.javascript.emit_pure_annotations = true;
+        config.optimization.inlining = Some(false);
+        let code = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(code.contains("/*@__PURE__*/"), "{code}");
+        let url = format!(
+            "data:text/javascript;base64,{}",
+            base64_encode(code.as_bytes())
+        );
+        let script = format!("import({url:?}).then(m=>process.stdout.write(String(m.callback())))");
+        let result = std::process::Command::new("node")
+            .args(["--input-type=module", "-e", &script])
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&result.stdout), "7");
     }
 
     #[test]

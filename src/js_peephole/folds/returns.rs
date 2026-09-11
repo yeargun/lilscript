@@ -81,6 +81,9 @@ pub(crate) fn fold_returned_temporaries(
         let Some(sites) = uses.get(&declaration) else {
             continue;
         };
+        if resolution.has_opaque_reference(&tokens, declaration) {
+            continue;
+        }
         let Some(statement) = preceding_statement(&tokens, &matching_close, index) else {
             continue;
         };
@@ -407,6 +410,9 @@ pub(crate) fn fold_single_use_temporaries(
         let Some(sites) = uses.get(&declaration) else {
             continue;
         };
+        if resolution.has_opaque_reference(&tokens, declaration) {
+            continue;
+        }
         let reads = sites
             .iter()
             .filter(|site| **site != declaration)

@@ -1362,6 +1362,10 @@ pub struct JavaScriptConfig {
     /// body has run, which only an import cycle can observe. A port turns it on
     /// against its own measure.
     pub function_scope: Option<bool>,
+    /// Preserve checked `pure` export contracts as call annotations for a
+    /// downstream JavaScript bundler. Added after candidate rewriting so
+    /// annotations cannot migrate to a different call during a fold.
+    pub emit_pure_annotations: bool,
     /// Phase 7a of the migration: every candidate the search scores is the
     /// text the pipeline would ship -- each emission passes the text
     /// peephole, codec-verified, before anything measures it. Off by
@@ -1573,6 +1577,7 @@ impl Default for JavaScriptConfig {
             stable_local_names: true,
             local_name_coalescing: true,
             function_scope: None,
+            emit_pure_annotations: false,
             emission_peephole: None,
             peephole_scope: None,
             peephole_plans: None,

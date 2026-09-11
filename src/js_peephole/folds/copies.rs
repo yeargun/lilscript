@@ -196,8 +196,12 @@ pub(crate) fn fold_identifier_copies(
         // merely end the read scan: reads collected before it may re-execute
         // after the write inside a loop, and removing the copy assignment
         // would orphan the surviving uses. The whole fold must be abandoned.
-        let mut name_rebound = false;
+        let mut name_rebound = tokens[binding_scope_start..function_end].iter().any(|token| {
+            token.kind == TokenKind::Template
+                && super::super::token::template_may_reference(token.text, name)
+        });
         let mut stopped_at = None;
+        let mut nested_copy_read = false;
         while scan < scope_end {
             if let Some(close) = nested_function_end(&tokens, &matching_close, scan) {
                 if nested_function_assigns_captured_name(
@@ -222,6 +226,10 @@ pub(crate) fn fold_identifier_copies(
                     stopped_at = Some(scan);
                     break;
                 }
+                // This scan only substitutes immediate reads. A closure still
+                // reading the copy needs its assignment even when immediate
+                // reads were found before the closure.
+                nested_copy_read |= identifier_occurs(&tokens, scan, close + 1, name);
                 scan = close + 1;
                 continue;
             }
@@ -300,7 +308,7 @@ pub(crate) fn fold_identifier_copies(
                 probe += 1;
             }
         }
-        if name_rebound {
+        if name_rebound || (nested_copy_read && !reads.is_empty()) {
             cursor += 1;
             continue;
         }
@@ -758,6 +766,17 @@ fn collect_binding_uses(
     scope_start: usize,
     scope_end: usize,
 ) -> Option<Vec<usize>> {
+    // Template substitutions are opaque to this token scan. A callback used
+    // only in `${callback(value)}` must not appear single-use at its preceding
+    // guard: removing its declaration can silently bind that call to an outer
+    // variable with the same name. Refuse rematerialization until every use is
+    // visible, including textual mentions in nested templates.
+    if tokens[scope_start..scope_end].iter().any(|token| {
+        token.kind == TokenKind::Template
+            && crate::js_peephole::token::template_may_reference(token.text, name)
+    }) {
+        return None;
+    }
     let prior =
         collect_unbound_name_uses(tokens, matching_close, name, scope_start, name_at, name_at)
             .into_iter()

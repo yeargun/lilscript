@@ -939,6 +939,37 @@ fn keeps_call_argument_member_copies_after_the_receiver_is_rebound() {
 }
 
 #[test]
+fn preserves_returned_store_observed_by_a_template_closure() {
+    let source = "var reader;function f(){var value=0;reader=()=>`${value}`;value=7;return value}console.log(f(),reader());";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(
+        run_node(&optimized.code),
+        run_node(source),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn preserves_member_alias_used_as_a_callee_inside_a_template() {
+    for body in [
+        "var d=model.transform;if(d)return `${d(value)}`;return 'missing'",
+        "var d;d=model.transform;if(d)return `${d(value)}`;return 'missing'",
+        "var d=model.transform;return d?`${d(value)}`:'missing'",
+        "var d;d=model.transform;return d?`${d(value)}`:'missing'",
+    ] {
+        let source = format!("let unrelated=0,make=model=>{{var d={{wrong:true}};return value=>{{{body}}}}};console.log(make({{transform:value=>value+1}})(7));");
+        let optimized = optimize_generated_javascript(&source).unwrap();
+        assert_eq!(
+            run_node(&optimized.code),
+            run_node(&source),
+            "{}",
+            optimized.code
+        );
+    }
+}
+
+#[test]
 fn rematerializes_stable_receiver_call_argument_members() {
     let source = "function f(b,i){var d=b.href;return i(d,b.title)}";
     let optimized = optimize_generated_javascript(source).unwrap();
@@ -3331,4 +3362,14 @@ fn run_node(source: &str) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8(output.stdout).expect("node stdout must be UTF-8")
+}
+
+#[test]
+fn preserves_identifier_copy_observed_by_a_later_closure() {
+    let source = "function make(d){var a,e;a=d;e=a.red;return()=>{return a.red+e}}console.log(make({red:7})());";
+    let (code, _) = super::fold_identifier_copies(source).unwrap();
+    assert_eq!(run_node(&code), run_node(source), "{code}");
+    let source = "function make(d){var a,e;a=d;e=a.red;return()=>`${a.red+e}`}console.log(make({red:7})());";
+    let (code, _) = super::fold_identifier_copies(source).unwrap();
+    assert_eq!(run_node(&code), run_node(source), "{code}");
 }

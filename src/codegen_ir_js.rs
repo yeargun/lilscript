@@ -3611,6 +3611,17 @@ impl BindCensus {
         if !self.by_spelling {
             if let Ok(tokens) = crate::js_peephole::lex_javascript(text) {
                 for (index, token) in tokens.iter().enumerate() {
+                    if token.kind == crate::js_peephole::JsTokenKind::Template {
+                        // The lexer keeps substitutions inside one opaque token.
+                        // Their bindings must stay live and keep their spelling.
+                        let mut names = AHashSet::default();
+                        identifier_bytes_in(token.text, &mut names);
+                        for name in names {
+                            self.mentions.push((name.clone(), self.scope));
+                            self.unsafe_names.insert(name);
+                        }
+                        continue;
+                    }
                     if token.kind != crate::js_peephole::JsTokenKind::Identifier {
                         continue;
                     }
@@ -9756,6 +9767,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         if !function.live
             || self.is_imported_extern(function)
+            // Identity-observed members are emitted inside a native class,
+            // not through the function wrapper that owns a private cluster.
+            // Their helpers must keep bindings outside that class body.
+            || self.module.function_belongs_to_identity_class(function)
             || self.inline_pure_helpers.contains(&root)
             || self.inline_fresh_empty_array_factories.contains(&root)
             || self.js_host_alias_spelling(root).is_some()
@@ -44030,6 +44045,21 @@ mod tests {
     }
 
     #[test]
+    fn reshape_census_preserves_callback_captures_in_templates() {
+        let mut census = BindCensus::default();
+        census.declare("callback", Bind(0));
+        census.scope = 1;
+        census.parents = vec![None, Some(0)];
+        census.declare("callback", Bind(1));
+        census.declare("value", Bind(2));
+        census.text("`${callback(value)}`");
+        census.resolve();
+        assert!(census.is_unsafe(Some(Bind(1)), "callback"));
+        assert!(census.is_unsafe(Some(Bind(2)), "value"));
+        assert!(!census.is_unsafe(Some(Bind(0)), "callback"));
+    }
+
+    #[test]
     fn expression_node_stays_small() {
         // The node is cloned and moved on every render; 16 bytes more cost
         // 19% of emit time when the origin and fact word first landed.
@@ -51228,6 +51258,95 @@ run();
             "let seen=null;function consume(value){{seen=value}};{output};process.stdout.write(String(seen.call({{}})))"
         ));
         assert_eq!(trace, "10", "{output}");
+    }
+
+    #[test]
+    fn public_class_members_do_not_strand_private_helper_bindings() {
+        let source = r#"
+            int h1(int x) { if (x < 0) { return 0; } return x + 1; }
+            int h2(int x) { if (x < 0) { return 0; } return x + 2; }
+            int h3(int x) { if (x < 0) { return 0; } return x + 3; }
+            int h4(int x) { if (x < 0) { return 0; } return x + 4; }
+            class Handle {
+                int value;
+                init(int x) { this.value = h1(x) + h2(x) + h3(x) + h4(x); }
+                int read() { return this.value; }
+            }
+            export constructor Handle;
+        "#;
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            true,
+        )
+        .unwrap();
+        let js_options = IrJsOptions {
+            mangle_identifiers: true,
+            iife_private_callee_clusters: true,
+            local_name_reserve: 48,
+            ..IrJsOptions::default()
+        };
+        let mut emitter = IrJsEmitter::new(&ir, true, js_options.clone());
+        emitter.prepare();
+        let constructor = ir
+            .functions
+            .iter()
+            .find(|function| matches!(function.kind, FunctionKind::Constructor { class: "Handle" }))
+            .unwrap()
+            .id;
+        let helpers = ir
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.name.is_some_and(|name| name.starts_with('h'))
+                    && matches!(function.kind, FunctionKind::Function)
+            })
+            .map(|function| function.id)
+            .collect::<Vec<_>>();
+        assert!(!helpers.is_empty());
+        // Search may select this intermediate ownership before native-class
+        // emission. The release step must restore usable helper bindings.
+        emitter
+            .private_callee_clusters
+            .insert(constructor, helpers.clone());
+        for helper in &helpers {
+            emitter.function_names.remove(helper);
+        }
+        emitter.reconcile_clustered_helpers();
+        emitter.release_stranded_cluster_helpers();
+        assert!(!emitter.private_callee_clusters.contains_key(&constructor));
+        assert!(helpers
+            .iter()
+            .all(|helper| emitter.function_names.contains_key(helper)));
+        let output = emit_optimized_ir_js_module_with_options(&ir, &js_options).unwrap();
+        assert_javascript_module_parses(&output);
+        let trace = run_javascript(&format!(
+            "const ns=await import('data:text/javascript,'+encodeURIComponent({output:?}));console.log(new ns.Handle(7).read())"
+        ));
+        assert_eq!(trace, "38\n", "{output}");
+    }
+
+    #[test]
+    fn type_annotations_do_not_emit_runtime_validation() {
+        let output = compile_module(
+            "export float add(float a,float b){return a+b;}export string label(string value){return value;}export bool flag(bool value){return value;}export bool checked(JsValue value){return value is float;}"
+        );
+        // Only the explicit `is float` expression requests a runtime check.
+        assert_eq!(output.matches("typeof").count(), 1, "{output}");
+        assert!(!output.contains("Array.isArray"), "{output}");
+        assert!(!output.contains("Number("), "{output}");
+        let trace = run_javascript(&format!(
+            "const ns=await import('data:text/javascript,'+encodeURIComponent({output:?}));console.log(ns.add(2,3),ns.label('x'),ns.flag(true),ns.checked(3),ns.checked('3'))"
+        ));
+        assert_eq!(trace, "5 x true true false\n", "{output}");
     }
 
     #[test]

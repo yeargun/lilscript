@@ -126,6 +126,16 @@ impl<'src> BindingResolution<'src> {
             .unwrap_or(Resolution::Unresolved)
     }
 
+    /// A use inside a template substitution is not represented by an
+    /// identifier token, so token-based use counts cannot prove it absent.
+    pub(crate) fn has_opaque_reference(&self, tokens: &[Token<'_>], declaration: usize) -> bool {
+        let scope = &self.scopes[self.scope_index_at(declaration)];
+        tokens[scope.start..scope.end].iter().any(|token| {
+            token.kind == TokenKind::Template
+                && super::token::template_may_reference(token.text, tokens[declaration].text)
+        })
+    }
+
     /// Every function scope as `(index, start, end)`, outermost first.
     pub(crate) fn function_scopes(&self) -> Vec<(usize, usize, usize)> {
         self.scopes
@@ -595,6 +605,7 @@ fn declarator_names(
     let mut names = Vec::new();
     let mut cursor = index + 1;
     let mut expect_name = true;
+    let mut in_initializer = false;
     while cursor < tokens.len() {
         match tokens[cursor].text {
             ";" => break,
@@ -607,6 +618,7 @@ fn declarator_names(
             ")" | "]" | "}" => break,
             "," => {
                 expect_name = true;
+                in_initializer = false;
                 cursor += 1;
             }
             "(" | "[" | "{" => {
@@ -618,12 +630,13 @@ fn declarator_names(
             }
             "=" => {
                 expect_name = false;
+                in_initializer = true;
                 cursor += 1;
             }
-            "in" => break,
+            "in" if !in_initializer => break,
             // `of` is contextual: it ends `for (var value of values)`, but it
             // is also a valid generated binding in `var ...,of=...`.
-            "of" if !expect_name => break,
+            "of" if !expect_name && !in_initializer => break,
             _ => {
                 if expect_name && is_binding_identifier(&tokens[cursor]) {
                     names.push(cursor);
@@ -916,4 +929,3 @@ mod tests {
         }
     }
 }
-
