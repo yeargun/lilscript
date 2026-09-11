@@ -2648,10 +2648,38 @@ fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), Java
                     index = close + 1;
                     continue;
                 }
+                // live-26: `parent_alias_is_unusable_prototype` decides from
+                // textual position -- does a `name=X.prototype` appear *before*
+                // this call, and is `name` assigned something else *after* it.
+                // That reasoning only holds where text order is execution order,
+                // which is module top level. Inside a function body it is simply
+                // wrong: the body runs when the function is called, after all
+                // module-level initialisation, however the text is arranged.
+                // unifiedlil emits the message factory as a hoisted declaration
+                // *before* `c=h.prototype`, so the alias looked unassigned, a
+                // later unrelated `c=` of the same spelling looked like a
+                // clobber, and `Object.setPrototypeOf(e,c)` was deleted out of
+                // the factory -- `message instanceof VFileMessage` false.
                 if tokens
                     .get(parent_at)
                     .is_some_and(|token| token.kind == TokenKind::Identifier)
                     && parent_at + 1 == close
+                    // ...and the parent is not a real prototype alias of the
+                    // binding it names. `class_for_proto_alias` is given the whole
+                    // token stream rather than "before this call", because a
+                    // function declaration is hoisted: its body runs when called,
+                    // after every module-level assignment, however the text is
+                    // ordered. unifiedlil emits the message factory *above*
+                    // `c=h.prototype`, so a position-ordered check called the
+                    // alias unassigned.
+                    && class_for_proto_alias(
+                        &proto_aliases,
+                        &resolution,
+                        parent_at,
+                        tokens[parent_at].text,
+                        tokens.len(),
+                    )
+                    .is_none()
                     && parent_alias_is_unusable_prototype(
                         &tokens,
                         tokens[parent_at].text,
