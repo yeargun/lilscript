@@ -1112,3 +1112,31 @@ emits. With 8.110 (every local lever priced, all under 150 or negative) and 8.11
 available moves is now closed, and the only direction left is the emitter's
 materialization strategy: 3,828 assignments against the bar's 1,285 on motionlil,
 `name = member` 629 against 22.
+
+## 8.116 the emitter direction is closed too
+
+8.113 named the emitter's materialization strategy as the one direction left, on
+the strength of 3,828 assignments against the bar's 1,285. It is not a lever
+either, and the correction is worth recording because the first measurement of it
+was mine and was wrong.
+
+That measurement required the single read to be the *first* thing evaluated in the
+next statement, which rejects the commonest shape of all -- `x=f(a); g(x)` ->
+`g(f(a))`, where the callee `g` is evaluated before the argument. So it found 93
+sites and could not see the `name = call` row at all (385 ours against 72).
+
+Redone with the weaker, still sound condition -- everything evaluated before the
+read in that statement must be inert, an identifier, a literal, or a member read
+off an identifier -- it finds 156 sites and measures **raw -544, Brotli +329**.
+Worse, and worse per site than before.
+
+So the extra assignments are not removable. Where a read is local enough to inline,
+doing it costs Brotli for the same reason every other raw cut did; where it is not
+local, the transform does not apply. 2,543 extra assignments, and the reachable
+fraction is 156 of them.
+
+That is the fifteenth transform in this phase to cut raw and raise Brotli, and it
+closes the last direction this phase had left. The set of moves available without
+new information is now empty: every local lever priced (8.110), the repetition
+shown to be load-bearing (8.113), the bars shown fair (8.115), and the emitter
+direction measured negative here.
