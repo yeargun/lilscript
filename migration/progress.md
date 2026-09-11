@@ -699,3 +699,52 @@ macros the main parser invokes, so the suspicion is the unit boundary again
 rather than the vocabulary. Left open: the prize is +251 and still a loss, so it
 is not worth a four-minute-per-trial bisect ahead of the per-receiver analysis
 8.106 names, which would subsume it.
+
+## 8.108 the property-key dimension is smaller than the chain suggested
+
+Two hypotheses tested and both refused, which between them close the
+property-key branch of the root-cause chain.
+
+**Escape conservatism is not the constraint.** `analyze_escapes` marks the
+*container* as escaping when a read or write goes through a `Record<JsValue>`,
+while the allocation arms for the same type mark only the elements -- the two
+rules disagree, and in a `JsValue`-typed port the access rule escapes every
+object on its first use. Gated behind
+`LILSCRIPT_DYNAMIC_RECORD_CONTAINERS=0` and measured: **-115 Brotli** over 22
+ports, inside the noise floor, with katexlil, markedlil and react-markdownlil
+byte-identical. On remark-mathlil the switch moves `local-only 0 keys` to
+`local-only 1 key / 4 bytes` and leaves `key-opaque receivers 43` untouched. The
+analysis got more precise and nothing followed.
+
+**Key opacity does not predict the standings.** The obvious next suspect was the
+747 key-opaque receivers katexlil carries, on the theory that a port which
+indexes its objects by computed key can never privatise a property name. The
+trace says that is true and that it does not matter:
+
+| port | JsValue | untyped keys | key-opaque receivers | standing |
+|---|---|---|---|---|
+| markedlil | 84 | 1 key / 25 bytes | **101** | WIN -822 |
+| remark-mathlil | 232 | 10 keys / 99 bytes | 43 | LOSS +141 |
+| unifiedlil | 358 | 38 keys / 466 bytes | 28 | LOSS +217 |
+
+markedlil wins while carrying more key-opaque receivers than either loser. The
+whole dimension is 25 to 466 bytes of key text per port, and the six mangling
+arms of 8.106 confirm it does not convert: unifiedlil's 466 bytes of untyped keys
+came to -13 Brotli.
+
+So the chain's final link is not property keys at all. What separates markedlil
+from unifiedlil in that table is `JsValue` density -- 84 against 358 in sources
+of comparable size -- and that is the one correlation this phase has not been
+able to argue away. It is also the only lever with positive evidence behind it
+(`typed-ports-win`), and it is port work rather than compiler work, which is why
+it has been deferred all phase.
+
+Also recorded: thirteen switches swept one at a time on the two nearest losses
+(remark-mathlil +141, unifiedlil +217), each priced per port because the fleet
+cannot resolve anything under ~400 bytes. `REMAT`, `REMAT_EXPRESSIONS`,
+`WIDE_COLLAPSE`, `LATE_CLEANUPS` and `TERMINAL_CHAIN` are all exactly inert on
+both. `REGION_OUTLINING` costs +2/+45, `LOCAL_PHI_REGIONS` +2/+5,
+`idiom-converged` +8/+11, and the inline thresholds +0 to +15. Exactly one arm
+landed below zero -- `frequency-desc` on remark-mathlil at -6 -- which is noise.
+The effort dials were declared saturated in `search-is-saturated`; this is that
+conclusion holding on the two ports closest to flipping.
