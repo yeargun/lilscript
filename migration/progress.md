@@ -1035,3 +1035,42 @@ declarations 864 against 935, parameters 1,094 against 964. The one real excess 
 computed member access, 1,107 against 476, which is string pooling putting keys in
 variables -- the thing `LILSCRIPT_POOL_STRINGS=0` measures at **-226** and cannot
 ship until the zodlil fault in that path is found.
+
+## 8.114 live-27: one module name, two bindings, under a different name assignment
+
+zodlil's 18 failures under `pool_strings = false` are a **name collision**, not the
+reuse of a dead binding. Module-level `h` is:
+
+    let h = _("ZodEmail", Z)                            // a schema
+    h = {datetime:Vl, date:Wl, time:Yl, duration:...}   // later, a format table
+
+and `.pick()`/`.omit()` call `h(f,b)`. Counting uses of that one name: **called as a
+function 3 times, used as an object 80 times, 230 other occurrences.** In the
+shipping pooled build the function those three sites want is a separate binding,
+`r = (0,function(a,b){return Fd(a,b)})`; in the failing build the two forwarding
+wrappers that exist are named `s` and `t`, and nothing is bound to `h` that is
+callable. So three references were spelled with a name that belongs to a different
+binding.
+
+Not the reuse fold: `LILSCRIPT_SKIP_FOLDS=reuse_dead_var_binding` leaves the
+artifact byte-identical, still with six multiply-bound module names including
+`h x2`. And multiple bindings per name is *normal* -- the shipping pooled build has
+`f x3` and `g x2` and works, because the emitter legitimately reuses a module
+variable whose previous value is dead. What is wrong here is that the live ranges
+overlap: the wrapper is still read by closures after the table is assigned.
+
+Reproducer:
+
+    LILSCRIPT_POOL_STRINGS=0 lilscript ~/zodlil/src/entry.lil \
+      --target js-module --config lilscript.toml -o /tmp/z.js
+    # then count uses of the name `h`: 3 calls against 80 member reads
+
+This is the same family as live-16 ("print decisions live on the tree"): a closure's
+text is rendered when the closure is built, and the module re-spell has to reach it.
+`prune_unreferenced_declarators` already carries a comment about exactly that
+hazard. Not fixed.
+
+It keeps `LILSCRIPT_POOL_STRINGS=0` and its **-226** unshippable, which is the only
+positive lever left standing after 8.110 and 8.113. Worth stating plainly: even
+with it landed, no port flips -- zodlil -178 and markedlil -57 make two existing
+wins bigger, motionlil -90 of a 7,754 gap, react-markdownlil -28 of 1,483.
