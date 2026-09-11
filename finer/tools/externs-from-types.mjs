@@ -13,6 +13,16 @@
 // (`dataFootnotes`, `dataFootnoteRef`, `dataFootnoteBackref`) are hast property
 // names that reach HTML as `data-` attributes.
 //
+// SCOPE. The first version harvested every `.d.ts` under the port's
+// `node_modules`, which on zodlil is 680 files and 8,419 names -- vitest's
+// matchers and @types/node's entire surface included. That is not the port's
+// contract, it is the contract of its test runner, and preserving it forfeits
+// most of what property renaming is worth. The contract is the *wrapped*
+// package's own declarations, plus the type packages those declarations import
+// (one level): a remark port really does receive `node.type` and
+// `node.children` from @types/mdast, and that vocabulary is as public as its
+// own. Everything else is a build-time dependency the artifact never meets.
+//
 //   node finer/tools/externs-from-types.mjs <port> [--toml]
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
@@ -24,6 +34,9 @@ if (!port) {
   process.exit(1)
 }
 const asToml = process.argv.includes("--toml")
+// `--list` is the newline-delimited form `LILSCRIPT_PRESERVE_PROPERTIES_FILE`
+// reads, so the pool can carry one list per port through a single arm.
+const asList = process.argv.includes("--list")
 
 function declarationFiles(dir, out = [], depth = 0) {
   if (depth > 4 || !existsSync(dir)) return out
@@ -43,8 +56,92 @@ function declarationFiles(dir, out = [], depth = 0) {
 // costs bytes.
 const MEMBER = /(?:^|[\s;{(,|])(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*\??\s*[:(]/gm
 
+// The package the port wraps: `zodlil` -> `zod`, `hast-util-to-htmllil` ->
+// `hast-util-to-html`. Verified against the installed tree rather than assumed,
+// and `package.json` is consulted when the directory name does not map.
+const modules = join(homedir(), port, "node_modules")
+function wrappedPackage() {
+  const stripped = port.replace(/lil$/, "")
+  // `solidlil` wraps `solid-js`; `micromarklil` does not install `micromark`
+  // itself but does install `micromark-util-types`, which is where that
+  // package's construct vocabulary is declared.
+  const candidates = [stripped, `${stripped}-js`, `@types/${stripped}`, `${stripped}-util-types`]
+  for (const candidate of candidates) {
+    if (existsSync(join(modules, candidate))) return candidate
+  }
+  const manifest = join(homedir(), port, "package.json")
+  if (existsSync(manifest)) {
+    const json = JSON.parse(readFileSync(manifest, "utf8"))
+    const declared = { ...json.dependencies, ...json.devDependencies, ...json.peerDependencies }
+    for (const name of Object.keys(declared)) {
+      if (name.replace(/^@[^/]+\//, "") === stripped) return name
+    }
+  }
+  return null
+}
+// One level of type closure: a package named by an `import`/`export ... from`
+// in the wrapped package's own declarations contributes its vocabulary too.
+function typeImports(files) {
+  const out = new Set()
+  const FROM = /\bfrom\s*["']([^"'.][^"']*)["']/g
+  for (const file of files) {
+    let text
+    try { text = readFileSync(file, "utf8") } catch { continue }
+    FROM.lastIndex = 0
+    let match
+    while ((match = FROM.exec(text))) {
+      const specifier = match[1]
+      const pkg = specifier.startsWith("@")
+        ? specifier.split("/").slice(0, 2).join("/")
+        : specifier.split("/")[0]
+      if (existsSync(join(modules, pkg))) out.add(pkg)
+      const typed = "@types/" + pkg.replace(/^@/, "").replace("/", "__")
+      if (existsSync(join(modules, typed))) out.add(typed)
+    }
+  }
+  return out
+}
+
+// The port's own published declarations are the contract by construction: they
+// are what a consumer compiles against. They are a root whether or not the
+// upstream package is installed -- several ports (rehype-katexlil,
+// remark-breakslil) test against their own dist and never install it.
+// A type-only package is installed *because* the port exchanges its vocabulary:
+// `remark-breakslil` publishes four member names of its own and reads mdast
+// nodes all day, and `@types/mdast` is the only place `children` and `position`
+// are written down. `@types/node` is excluded -- it describes the runtime, not
+// this port's contract, and the runtime surface is `js_externs::NOT_OURS`'s job.
+function vocabularyPackages() {
+  const out = new Set()
+  if (!existsSync(modules)) return out
+  for (const entry of readdirSync(modules)) {
+    if (entry.endsWith("-types") && entry !== "undici-types") out.add(entry)
+  }
+  const typed = join(modules, "@types")
+  if (existsSync(typed)) {
+    for (const entry of readdirSync(typed)) {
+      if (entry !== "node") out.add(`@types/${entry}`)
+    }
+  }
+  return out
+}
+
+const wrapped = wrappedPackage()
+const published = declarationFiles(join(homedir(), port, "dist"))
+if (!wrapped && published.length === 0) {
+  console.error(
+    `${port}: no contract to harvest -- neither an installed upstream nor published declarations`,
+  )
+  process.exit(1)
+}
 const names = new Set()
-const files = declarationFiles(join(homedir(), port, "node_modules"))
+const own = [...(wrapped ? declarationFiles(join(modules, wrapped)) : []), ...published]
+const roots = new Set([
+  ...(wrapped ? [wrapped] : []),
+  ...typeImports(own),
+  ...vocabularyPackages(),
+])
+const files = [...new Set([...published, ...[...roots].flatMap((pkg) => declarationFiles(join(modules, pkg)))])]
 for (const file of files) {
   let text
   try { text = readFileSync(file, "utf8") } catch { continue }
@@ -53,13 +150,22 @@ for (const file of files) {
   while ((match = MEMBER.exec(text))) names.add(match[1])
 }
 const sorted = [...names].sort()
-if (asToml) {
+if (asList) {
+  console.log(`# generated by finer/tools/externs-from-types.mjs for ${port}`)
+  console.log(`# roots: ${[...roots].sort().join(", ") || "(published only)"}`)
+  for (const name of sorted) console.log(name)
+} else if (asToml) {
   console.log("# generated by finer/tools/externs-from-types.mjs -- the upstream")
-  console.log(`# package's own type declarations, harvested from ${files.length} .d.ts files.`)
+  console.log(`# package's own type declarations: ${[...roots].sort().join(", ") || "(published only)"}`)
+  console.log(`# harvested from ${files.length} .d.ts files.`)
   console.log("preserve_properties = [")
   for (const name of sorted) console.log(`  ${JSON.stringify(name)},`)
   console.log("]")
 } else {
-  console.error(`${port}: ${files.length} .d.ts files, ${sorted.length} member names`)
+  console.error(
+    `${port}: wraps ${wrapped ?? "(none installed)"}; published ${published.length}; ` +
+      `roots ${[...roots].sort().join(", ") || "(published only)"}; ` +
+      `${files.length} .d.ts files, ${sorted.length} member names`,
+  )
   console.log(JSON.stringify(sorted))
 }
