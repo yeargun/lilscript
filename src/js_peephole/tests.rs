@@ -1022,6 +1022,31 @@ fn rejects_duplicate_generated_export_names() {
 }
 
 #[test]
+fn pure_export_annotations_follow_bindings_and_keep_argument_evaluations() {
+    let source = "function f(x){return()=>x}let value=f(effect());function shadow(f){f()}let obj={f(){effect()}};obj.f();new f();export{f as factory,value,shadow}";
+    let pure = std::collections::BTreeSet::from(["factory".to_owned()]);
+    let output = super::annotate_pure_export_calls(source, &pure).unwrap();
+    assert_eq!(output.matches("/*@__PURE__*/").count(), 1);
+    assert!(output.contains("value=/*@__PURE__*/f(effect())"));
+    assert!(output.contains("shadow(f){f()}"));
+    assert!(output.contains("obj.f();new f()"));
+    analyze_generated_javascript(&output).unwrap();
+}
+
+#[test]
+fn export_binding_after_initializer_using_of_or_in_is_observed() {
+    for source in [
+        "var of=()=>false,guard=x=>x&&!of(),press=(a,b,c)=>a;export{press}",
+        "var object={},has='key' in object,press=(a,b,c)=>a;export{press}",
+    ] {
+        let witnesses = generated_javascript_export_witnesses(source).unwrap();
+        assert_eq!(witnesses.len(), 1);
+        assert_eq!(witnesses[0].name, "press");
+        assert_eq!(witnesses[0].arity, Some(3));
+    }
+}
+
+#[test]
 fn observes_generated_export_callable_shapes() {
     let witnesses = generated_javascript_export_witnesses(
         "class B{base(a){}}function f(a,b=1){}class C extends B{constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",

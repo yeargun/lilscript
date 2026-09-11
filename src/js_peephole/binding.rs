@@ -595,6 +595,7 @@ fn declarator_names(
     let mut names = Vec::new();
     let mut cursor = index + 1;
     let mut expect_name = true;
+    let mut in_initializer = false;
     while cursor < tokens.len() {
         match tokens[cursor].text {
             ";" => break,
@@ -607,6 +608,7 @@ fn declarator_names(
             ")" | "]" | "}" => break,
             "," => {
                 expect_name = true;
+                in_initializer = false;
                 cursor += 1;
             }
             "(" | "[" | "{" => {
@@ -618,12 +620,13 @@ fn declarator_names(
             }
             "=" => {
                 expect_name = false;
+                in_initializer = true;
                 cursor += 1;
             }
-            "in" => break,
+            "in" if !in_initializer => break,
             // `of` is contextual: it ends `for (var value of values)`, but it
             // is also a valid generated binding in `var ...,of=...`.
-            "of" if !expect_name => break,
+            "of" if !expect_name && !in_initializer => break,
             _ => {
                 if expect_name && is_binding_identifier(&tokens[cursor]) {
                     names.push(cursor);
@@ -916,4 +919,3 @@ mod tests {
         }
     }
 }
-

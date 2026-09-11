@@ -57,6 +57,7 @@ function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
 local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
 stable_local_names = true # preserve source-local affinity across generated kernels
 local_name_coalescing = true # reuse bindings for SSA values with disjoint live ranges
+# emit_pure_annotations = false # retain checked pure-export contracts for downstream ESM tree shaking
 # function_scope = true # single-bundle internals inside one function scope; exports assigned outside (V8 context slots instead of module cells)
 # truthy_nullable_checks = false # `x!==null` instead of `x` for always-truthy nullables; default off under the performance priorities
 # function_spelling = "arrow" # arrow | function; see public-ABI note below
@@ -682,6 +683,13 @@ colors using non-semantic source-local affinity, with deterministic definition
 order as the fallback. It does not alter liveness or the number of slots; it
 makes duplicated numerical and generated kernels retain similar local
 spellings for transport compression.
+`emit_pure_annotations = true` adds `/*@__PURE__*/` to direct calls bound to
+checked `export pure` functions in the final single-module JavaScript. The pass
+resolves bindings, including export aliases, and leaves shadowed names and
+property calls alone. Argument evaluation remains observable. The default is
+false. This is optimization metadata; type annotations still add no runtime
+validation. Explicit source casts and type tests retain their semantics.
+
 `function_scope = true` wraps a single-bundle module's internal bindings in one
 function scope and assigns the export bindings outside it (`var a,b;(function(){…;a=x;b=y})();export{a as x,b as y}`).
 V8 reaches a module-scope binding through a module cell — several dependent loads — and a
