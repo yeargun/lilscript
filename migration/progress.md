@@ -748,3 +748,71 @@ both. `REGION_OUTLINING` costs +2/+45, `LOCAL_PHI_REGIONS` +2/+5,
 landed below zero -- `frequency-desc` on remark-mathlil at -6 -- which is noise.
 The effort dials were declared saturated in `search-is-saturated`; this is that
 conclusion holding on the two ports closest to flipping.
+
+## 8.109 live-25, and the nearest two losses priced to exhaustion
+
+**live-25.** `declarator_names` stopped at `in` unconditionally. That is right for
+`for (var k in o)` and wrong in an initialiser: in
+`let a=1,b=e=>"m" in e,f=g=>b(g)` the `in` is a relational operator and `f` stops
+being a declarator. `of` on the next arm already carries that distinction. Hidden
+because the `function` spelling gives each function its own statement, so chains
+are short; under `function_spelling = "arrow"` the emitter writes a module as one
+`let` chain and one `in` leaves every later declarator unbound. unifiedlil's
+vfile unit failed its own export self-check at every level including 8.
+
+The resolver is shared with the folds, so every declarator after an `in` was
+reported `Unresolved` to them too -- conservative rather than wrong, since that
+makes a fold refuse, but refusing was costing bytes. Fleet: **-139 Brotli**, the
+same as the arm without it, so neutral on default output. `LILSCRIPT_DUMP_GENERATED`
+came out of the diagnosis: the self-checks reject a source nothing else ever
+sees, and the candidate search validates 524 emissions for that one unit.
+
+One process note worth keeping: `cargo test` does not rebuild
+`target/release/lilscript`. Three checks of the "fixed" compiler were run against
+a stale binary and reported the bug as unfixed.
+
+**The nearest two losses, priced.** remark-mathlil is +141 and unifiedlil +217 --
+both below what a fleet measure resolves, so each arm was priced per port.
+
+| lever | unifiedlil | remark-mathlil | fleet |
+|---|---|---|---|
+| 13 sweep switches, one at a time | +0 to +45 | +0 to +45 | — |
+| `function_spelling = "arrow"` | raw -437, **brotli +38** | (already arrow) | — |
+| `optimization_level = 15` | +13 | (already 15) | — |
+| property mangling | -13 | -33, 46 tests fail | -2,060 |
+| class ceremony removed entirely | -97 | none | **-120** |
+| doubled property writes | -38 ceiling, **+41 actual** | none | -61 ceiling |
+
+Five switches (`REMAT`, `REMAT_EXPRESSIONS`, `WIDE_COLLAPSE`, `LATE_CLEANUPS`,
+`TERMINAL_CHAIN`) are exactly inert on both. One arm of thirteen landed below
+zero, at -6.
+
+Two corrections to earlier estimates. The class-extension feature was priced at
+-229 fleet in 8.45; splicing the whole ceremony out of the shipped artifacts --
+new-guards and their messages, `setPrototypeOf` pairs, `defineProperty(name)` --
+is **-120 across four ports**, and it flips none of them (unifiedlil -97 of 217).
+It is not worth a multi-file language feature, and the experiment that lifted
+`internal and extern classes cannot inherit from each other` is reverted: the
+next wall is that an extern class cannot declare `init`, so `super(message)`
+fails, and a half-lifted restriction gives a worse error than the clear one.
+
+And the doubled property write is the owner's "maybe the rewritten codes are
+weird", confirmed exactly. vfile writes each field twice:
+
+    message["ancestors"] = JS.undefined();
+    if (ancestors.truthy()) message["ancestors"] = ancestors;
+
+where the bar writes `this.ancestors=r.ancestors||void 0`. Seven fields in one
+constructor. A text fold cannot do this -- a setter observes two writes where one
+should happen -- and the IR cannot prove the receiver is fresh, because every
+`JsValue` record escapes on first write (8.108). Rewriting the port to assign a
+local once and store it measured **+41**, not the -38 the splice predicted: the
+printer does not turn that phi into a ternary. The reprint-baseline trap again,
+and the language has no ternary operator at all, which is why the port is written
+this way. But the bars use only six more conditionals than unifiedlil's artifact
+(62 vs 56), so a ternary is not the missing lever either.
+
+Every top-level declaration in unifiedlil is 80-100% structurally uncovered by
+the bar. The remaining gap is not an idiom; it is the whole program being shaped
+differently, and the sum of every lever measured above is about -90 of the 217
+needed.
