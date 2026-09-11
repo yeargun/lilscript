@@ -6,6 +6,73 @@ use crate::ir::{
 };
 use crate::semantic::{EscapeState, Type};
 
+type InheritedFieldAliases<'src> = Vec<Vec<(&'src str, usize)>>;
+
+// A field inherited by a derived class is the same storage slot when read
+// through either nominal type. Join writes/defaults and untyped boundaries
+// before using these summaries to fold branches or remove integer coercions.
+fn inherited_field_aliases<'src>(module: &ControlFlowModule<'src>) -> InheritedFieldAliases<'src> {
+    let mut groups = AHashMap::<u32, Vec<(&str, usize)>>::default();
+    for (field, slot) in crate::optimizer::aggregate_field_slot_ids(module) {
+        groups.entry(slot).or_default().push(field);
+    }
+    groups
+        .into_values()
+        .filter(|fields| fields.len() > 1)
+        .collect()
+}
+
+fn share_inherited_finite_values(
+    fields: &mut AHashMap<String, AHashMap<usize, FiniteSummary>>,
+    aliases: &InheritedFieldAliases<'_>,
+) {
+    for group in aliases {
+        let mut shared = FiniteSummary::Bottom;
+        for (owner, index) in group {
+            if let Some(value) = fields.get(*owner).and_then(|fields| fields.get(index)) {
+                shared = shared.join(value);
+            }
+        }
+        for (owner, index) in group {
+            join_finite_field(fields, owner, *index, shared.clone());
+        }
+    }
+}
+
+fn share_inherited_integer_ranges(
+    fields: &mut AHashMap<String, AHashMap<usize, I32Range>>,
+    aliases: &InheritedFieldAliases<'_>,
+    unsafe_owners: &AHashSet<String>,
+) {
+    for group in aliases {
+        if group
+            .iter()
+            .any(|(owner, _)| unsafe_owners.contains(*owner))
+        {
+            for (owner, index) in group {
+                if let Some(owner_fields) = fields.get_mut(*owner) {
+                    owner_fields.remove(index);
+                }
+            }
+            continue;
+        }
+        let shared = group
+            .iter()
+            .filter_map(|(owner, index)| {
+                fields
+                    .get(*owner)
+                    .and_then(|fields| fields.get(index))
+                    .copied()
+            })
+            .reduce(I32Range::join);
+        if let Some(shared) = shared {
+            for (owner, index) in group {
+                join_field(fields, owner, *index, shared);
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct I32Range {
     pub min: i64,
@@ -286,7 +353,9 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
         })
         .collect::<Vec<_>>();
     let mut return_ranges = vec![None; module.functions.len()];
+    let aliases = inherited_field_aliases(module);
     let mut field_ranges = default_class_field_ranges(module, &unsafe_fields);
+    share_inherited_integer_ranges(&mut field_ranges, &aliases, &unsafe_fields);
     loop {
         let next_facts = module
             .functions
@@ -332,6 +401,7 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
             );
         }
 
+        share_inherited_integer_ranges(&mut proposed_fields, &aliases, &unsafe_fields);
         let mut changed = false;
         for (current, proposed) in parameter_ranges.iter_mut().zip(proposed_parameters) {
             for (current, proposed) in current.iter_mut().zip(proposed) {
@@ -413,7 +483,9 @@ pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnaly
             }
         })
         .collect::<Vec<_>>();
+    let aliases = inherited_field_aliases(module);
     let mut field_values = default_class_field_values(module, &unsafe_fields);
+    share_inherited_finite_values(&mut field_values, &aliases);
 
     loop {
         let next_facts = module
@@ -473,6 +545,7 @@ pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnaly
                 );
             }
         }
+        share_inherited_finite_values(&mut proposed_fields, &aliases);
         changed |= join_finite_field_summaries(&mut field_values, proposed_fields);
         if !changed {
             break;
