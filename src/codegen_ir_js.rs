@@ -51254,9 +51254,13 @@ run();
         let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
         optimize_control_flow_with_options(
             &mut ir,
-            &OptimizationOptions { inlining: false, ..OptimizationOptions::default() },
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
             true,
-        ).unwrap();
+        )
+        .unwrap();
         let js_options = IrJsOptions {
             mangle_identifiers: true,
             iife_private_callee_clusters: true,
@@ -51265,22 +51269,37 @@ run();
         };
         let mut emitter = IrJsEmitter::new(&ir, true, js_options.clone());
         emitter.prepare();
-        let constructor = ir.functions.iter().find(|function| {
-            matches!(function.kind, FunctionKind::Constructor { class: "Handle" })
-        }).unwrap().id;
-        let helpers = ir.functions.iter().filter(|function| {
-            function.live && function.name.is_some_and(|name| name.starts_with('h'))
-                && matches!(function.kind, FunctionKind::Function)
-        }).map(|function| function.id).collect::<Vec<_>>();
+        let constructor = ir
+            .functions
+            .iter()
+            .find(|function| matches!(function.kind, FunctionKind::Constructor { class: "Handle" }))
+            .unwrap()
+            .id;
+        let helpers = ir
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.name.is_some_and(|name| name.starts_with('h'))
+                    && matches!(function.kind, FunctionKind::Function)
+            })
+            .map(|function| function.id)
+            .collect::<Vec<_>>();
         assert!(!helpers.is_empty());
         // Search may select this intermediate ownership before native-class
         // emission. The release step must restore usable helper bindings.
-        emitter.private_callee_clusters.insert(constructor, helpers.clone());
-        for helper in &helpers { emitter.function_names.remove(helper); }
+        emitter
+            .private_callee_clusters
+            .insert(constructor, helpers.clone());
+        for helper in &helpers {
+            emitter.function_names.remove(helper);
+        }
         emitter.reconcile_clustered_helpers();
         emitter.release_stranded_cluster_helpers();
         assert!(!emitter.private_callee_clusters.contains_key(&constructor));
-        assert!(helpers.iter().all(|helper| emitter.function_names.contains_key(helper)));
+        assert!(helpers
+            .iter()
+            .all(|helper| emitter.function_names.contains_key(helper)));
         let output = emit_optimized_ir_js_module_with_options(&ir, &js_options).unwrap();
         assert_javascript_module_parses(&output);
         let trace = run_javascript(&format!(

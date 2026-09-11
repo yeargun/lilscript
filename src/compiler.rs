@@ -23378,10 +23378,20 @@ mod function_scope_tests {
         config.optimization.inlining = Some(false);
         let code = compile_program_to_js_module_configured(&program, &config).unwrap();
         assert!(code.contains("/*@__PURE__*/"), "{code}");
-        let url = format!("data:text/javascript;base64,{}", base64_encode(code.as_bytes()));
+        let url = format!(
+            "data:text/javascript;base64,{}",
+            base64_encode(code.as_bytes())
+        );
         let script = format!("import({url:?}).then(m=>process.stdout.write(String(m.callback())))");
-        let result = std::process::Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
-        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+        let result = std::process::Command::new("node")
+            .args(["--input-type=module", "-e", &script])
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
         assert_eq!(String::from_utf8_lossy(&result.stdout), "7");
     }
 
