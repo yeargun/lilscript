@@ -2867,9 +2867,28 @@ fn elide_stringify_in_op(
             intrinsic,
             receiver,
             ..
-        } if stringify_elision_intrinsic_receiver(*intrinsic) => receiver
-            .as_mut()
-            .is_some_and(|receiver| rewrite_stringify_slot(receiver, stringify, consumed)),
+        } if stringify_elision_intrinsic_receiver(*intrinsic) => {
+            // live-24: the receiver of a string method is the one slot in this
+            // pass that does not ToString its own input. `"5".replace(..)` is a
+            // call; `(5).replace` is `undefined`. Every other arm here rewrites
+            // an operand only once something else proves a string is involved --
+            // the method coerces internally, or the other side of a `+` is a
+            // known string. This arm had no such test, so it dropped the one
+            // coercion that made the member access legal.
+            //
+            // Elision stays available where it is genuinely redundant: a port
+            // that spells `JS.string(x)` on a value already proven to be a
+            // string still pays nothing for it. zodlil's
+            // `a.replace(new RegExp(jf,"g"),"\\$&")` reached a site guarded by
+            // `"number"==typeof a`, which is where this was caught.
+            receiver.as_mut().is_some_and(|receiver| {
+                stringify
+                    .get(receiver)
+                    .copied()
+                    .is_some_and(|inner| known_strings.contains(&inner))
+                    && rewrite_stringify_slot(receiver, stringify, consumed)
+            })
+        }
         ControlFlowOp::Binary {
             op: IrBinaryOp::Add,
             lhs,

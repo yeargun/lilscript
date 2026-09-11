@@ -5802,6 +5802,20 @@ impl JsExpression {
         }
     }
 
+    /// Drop a trailing `+""` from an expression.
+    ///
+    /// live-24: only legal in a position that performs ToString on its own
+    /// input -- string concatenation, `removeAttribute`, `parseInt`/`parseFloat`
+    /// /`encodeURI*`, and the needle of `RegExp.prototype.test`/`exec`. It is a
+    /// *wrong program* on the **receiver** of a string method. The coercion is
+    /// there because `JsStringify` found the value was not provably a `String`
+    /// (it returns the receiver untouched when it is), so a `+""` that reaches
+    /// a receiver is always the thing that makes the member access legal:
+    /// `(5).replace` is `undefined`. The strip used to be licensed by the
+    /// receiver's IR type being `String` -- which it is *because of* the `+""`,
+    /// so the premise did not survive the rewrite. zodlil inlined
+    /// `a=>a.replace(new RegExp(jf,"g"),"\\$&")+""` into a site guarded by
+    /// `"number"==typeof a` and emitted `a.replace(...)`.
     fn without_explicit_tostring(self) -> Self {
         if self.root == JsExpressionRoot::Binary(IrBinaryOp::Add) {
             if let Some((lhs, rhs)) = self.binary_operands() {
@@ -20932,34 +20946,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             )
         })?;
         let mut receiver = take_value(receiver_id, context, cache)?;
-        if matches!(
-            intrinsic,
-            Intrinsic::JsStringSlice
-                | Intrinsic::JsStringIndexOf
-                | Intrinsic::JsStringReplace
-                | Intrinsic::JsStringMatch
-                | Intrinsic::JsStringSplit
-                | Intrinsic::StringCharAt
-                | Intrinsic::StringCharCodeAt
-                | Intrinsic::StringIncludes
-                | Intrinsic::StringIndexOf
-                | Intrinsic::StringLastIndexOf
-                | Intrinsic::StringRepeat
-                | Intrinsic::StringStartsWith
-                | Intrinsic::StringEndsWith
-                | Intrinsic::StringToUpperCase
-                | Intrinsic::StringToLowerCase
-                | Intrinsic::StringTrim
-                | Intrinsic::StringTrimStart
-                | Intrinsic::StringTrimEnd
-                | Intrinsic::StringSearch
-                | Intrinsic::StringSlice
-                | Intrinsic::StringReplace
-                | Intrinsic::StringSplit
-                | Intrinsic::StringCodePointLength
-        ) {
-            receiver = receiver.without_explicit_tostring();
-        }
+        // live-24: the string-method families used to have a trailing `+""`
+        // stripped off their receiver here. That is a wrong program.
+        // `JsStringify` already returns its receiver untouched when the value
+        // is a proven `String`, so a `+""` that survives to a receiver is
+        // exactly the coercion that makes the member access legal --
+        // `(5).replace` is `undefined`. The strip was licensed by the
+        // receiver's IR type being `String`, which it is *because of* the
+        // `+""`; the rewrite destroyed its own premise. It only became
+        // reachable once the receiver and the coercion landed in the same
+        // expression, which is what inlining the helper does.
         match intrinsic {
             Intrinsic::RegexTest | Intrinsic::JsRegexExec => {
                 let [needle] = args else {
@@ -21196,44 +21192,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 };
                 let source_property = static_identifier_property(*key, &context.string_constants);
                 let property = source_property.map(|name| self.property_name(name));
-                let receiver = if source_property.is_some_and(|name| {
-                    matches!(
-                        name,
-                        "charAt"
-                            | "charCodeAt"
-                            | "concat"
-                            | "endsWith"
-                            | "includes"
-                            | "indexOf"
-                            | "lastIndexOf"
-                            | "localeCompare"
-                            | "match"
-                            | "matchAll"
-                            | "normalize"
-                            | "padEnd"
-                            | "padStart"
-                            | "repeat"
-                            | "replace"
-                            | "replaceAll"
-                            | "search"
-                            | "slice"
-                            | "split"
-                            | "startsWith"
-                            | "substr"
-                            | "substring"
-                            | "toLowerCase"
-                            | "toUpperCase"
-                            | "trim"
-                            | "trimEnd"
-                            | "trimStart"
-                            | "trimLeft"
-                            | "trimRight"
-                    )
-                }) {
-                    receiver.without_explicit_tostring()
-                } else {
-                    receiver
-                };
+                // live-24: this list used to strip a trailing `+""` off the
+                // receiver of a string method reached through `JS.invoke`. Same
+                // wrong program as the intrinsic receiver above: `(5).trim` is
+                // `undefined`, and the `+""` is the coercion that makes the
+                // call legal rather than a redundant spelling of it.
                 let callee = if let Some(property) = property {
                     JsExpression::member(
                         receiver,
@@ -50671,20 +50634,37 @@ run();
         assert_eq!(trace, "1\n", "{output}");
     }
 
+    /// live-24. This test used to assert the opposite of what it asserts now: an
+    /// untyped receiver's `+""` was dropped before a string method, on the
+    /// theory that a string method implies a string receiver. It does not --
+    /// `(5).replace` is `undefined`, and `read()` returns a `JsValue`. The
+    /// coercion is the thing that makes the call legal, so it has to survive;
+    /// what may still go is a coercion whose operand is already a string.
     #[test]
-    fn elides_stringify_before_string_methods_and_keeps_returned_stringify() {
+    fn keeps_stringify_before_string_methods_on_an_untyped_receiver() {
         let replace = compile(
             "extern JsValue read();Regex re=new Regex(\"a\");print(JS.stringReplace(JS.string(read()),re,\"\"));",
         );
-        assert!(!replace.contains("+\"\""), "{replace}");
+        assert!(replace.contains("+\"\""), "{replace}");
         assert!(replace.contains(".replace("), "{replace}");
 
         let lower = compile("extern JsValue read();print(JS.string(read()).toLowerCase());");
-        assert!(!lower.contains("+\"\""), "{lower}");
+        assert!(lower.contains("+\"\""), "{lower}");
         assert!(lower.contains(".toLowerCase("), "{lower}");
 
         let returned = compile("extern JsValue read();print(JS.string(read()));");
         assert!(returned.contains("+\"\""), "{returned}");
+    }
+
+    /// The other half of live-24: a coercion whose operand is already a proven
+    /// string is redundant, and eliding it is still free. `text()` is declared
+    /// to return `string`, so `JS.string` of it adds nothing and the pass is
+    /// not merely disabled.
+    #[test]
+    fn elides_stringify_before_string_methods_on_a_proven_string() {
+        let lower = compile("extern string text();print(JS.string(text()).toLowerCase());");
+        assert!(!lower.contains("+\"\""), "{lower}");
+        assert!(lower.contains(".toLowerCase("), "{lower}");
     }
 
     #[test]
