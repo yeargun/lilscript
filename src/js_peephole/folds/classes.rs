@@ -1,3 +1,4 @@
+use crate::js_peephole::binding::{BindingResolution, Resolution};
 use crate::js_peephole::rewrite::{
     apply_token_rewrites, is_property_identifier, rewrite_identifier_span, top_level_stop,
 };
@@ -2178,18 +2179,32 @@ fn split_two_arg_call(tokens: &[Token<'_>], open: usize) -> Option<(usize, usize
     Some((open + 1, comma, comma + 1, close))
 }
 
+/// Whether a `setPrototypeOf` call's first argument is this class's own prototype.
+///
+/// live-26: the alias arm compared spellings. `Object.setPrototypeOf(a,i)` inside
+/// an unrelated factory, where `a` was a fresh `new Error`, matched a class whose
+/// prototype alias happened also to be spelled `a`, so the fold consumed the call
+/// into the class it was building and unifiedlil shipped VFileMessage instances
+/// with no prototype link. The occurrence must be the same *binding* as the alias
+/// assignment, not the same text.
 fn child_is_class_prototype(
     tokens: &[Token<'_>],
     child_at: usize,
     comma: usize,
     name: &str,
-    proto_alias: Option<&str>,
+    proto_alias: Option<(&str, usize)>,
+    resolution: Option<&BindingResolution<'_>>,
 ) -> bool {
     if match_name_prototype(tokens, child_at, Some(name)).is_some() {
         return true;
     }
-    proto_alias.is_some_and(|alias| {
-        tokens.get(child_at).map(|token| token.text) == Some(alias) && child_at + 1 == comma
+    proto_alias.is_some_and(|(alias, alias_at)| {
+        tokens.get(child_at).map(|token| token.text) == Some(alias)
+            && child_at + 1 == comma
+            // With no resolver there is no proof, and swallowing an effectful
+            // call is not a rewrite to make on a guess.
+            && resolution
+                .is_some_and(|resolution| same_alias_binding(resolution, child_at, alias_at))
     })
 }
 
@@ -2296,13 +2311,14 @@ fn match_set_prototype_of<'a>(
     tokens: &'a [Token<'a>],
     scan: usize,
     name: &str,
-    proto_alias: Option<&str>,
+    proto_alias: Option<(&str, usize)>,
+    resolution: Option<&BindingResolution<'_>>,
     base_alias: Option<(&'a str, &'a str)>,
     wrappers: &std::collections::HashSet<&str>,
 ) -> Option<(&'a str, usize)> {
     let open = set_prototype_of_open(tokens, scan, wrappers)?;
     let (_, comma, parent_at, close) = split_two_arg_call(tokens, open)?;
-    if !child_is_class_prototype(tokens, open + 1, comma, name, proto_alias) {
+    if !child_is_class_prototype(tokens, open + 1, comma, name, proto_alias, resolution) {
         return None;
     }
     let parent = resolve_set_prototype_parent(tokens, parent_at, close, base_alias)?;
@@ -2313,12 +2329,13 @@ fn consume_set_prototype_of(
     tokens: &[Token<'_>],
     scan: usize,
     name: &str,
-    proto_alias: Option<&str>,
+    proto_alias: Option<(&str, usize)>,
+    resolution: Option<&BindingResolution<'_>>,
     wrappers: &std::collections::HashSet<&str>,
 ) -> Option<usize> {
     let open = set_prototype_of_open(tokens, scan, wrappers)?;
     let (_, comma, _, close) = split_two_arg_call(tokens, open)?;
-    if child_is_class_prototype(tokens, open + 1, comma, name, proto_alias) {
+    if child_is_class_prototype(tokens, open + 1, comma, name, proto_alias, resolution) {
         return Some(close);
     }
     None
@@ -2448,6 +2465,7 @@ fn call_child_class<'a>(
     child_at: usize,
     comma: usize,
     proto_aliases: &[(usize, &'a str, &'a str)],
+    resolution: &BindingResolution<'_>,
     call_at: usize,
 ) -> Option<&'a str> {
     if let Some((origin, last)) = match_name_prototype(tokens, child_at, None) {
@@ -2460,7 +2478,13 @@ fn call_child_class<'a>(
         .is_some_and(|token| token.kind == TokenKind::Identifier)
         && child_at + 1 == comma
     {
-        return class_for_proto_alias(proto_aliases, tokens[child_at].text, call_at);
+        return class_for_proto_alias(
+            proto_aliases,
+            resolution,
+            child_at,
+            tokens[child_at].text,
+            call_at,
+        );
     }
     None
 }
@@ -2488,12 +2512,13 @@ fn strip_redundant_set_prototype_of(source: &str) -> Result<(String, usize), Jav
         return Ok((source.to_string(), 0));
     }
     let proto_aliases = prototype_alias_assignments(&tokens);
+    let resolution = BindingResolution::new(&tokens);
     let mut replacements = Vec::new();
     let mut index = 0usize;
     while index + 2 < tokens.len() {
         if let Some(open) = set_prototype_of_open(&tokens, index, &wrappers) {
             if let Some((_, comma, _, close)) = split_two_arg_call(&tokens, open) {
-                if call_child_class(&tokens, open + 1, comma, &proto_aliases, index)
+                if call_child_class(&tokens, open + 1, comma, &proto_aliases, &resolution, index)
                     .is_some_and(|name| extended.contains(name))
                 {
                     strip_set_prototype_of_call(&tokens, index, close, &mut replacements);
@@ -2606,6 +2631,7 @@ fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), Java
     let matching_close = matching_closers(&tokens);
     let wrappers = set_prototype_of_wrappers(&tokens, &matching_close);
     let proto_aliases = prototype_alias_assignments(&tokens);
+    let resolution = BindingResolution::new(&tokens);
     let bare_classes = class_sites(&tokens, &matching_close)
         .into_iter()
         .filter(|site| !site.has_extends)
@@ -2616,7 +2642,7 @@ fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), Java
     while index + 2 < tokens.len() {
         if let Some(open) = set_prototype_of_open(&tokens, index, &wrappers) {
             if let Some((_, comma, parent_at, close)) = split_two_arg_call(&tokens, open) {
-                if call_child_class(&tokens, open + 1, comma, &proto_aliases, index)
+                if call_child_class(&tokens, open + 1, comma, &proto_aliases, &resolution, index)
                     .is_some_and(|name| bare_classes.contains(name))
                 {
                     index = close + 1;
@@ -2654,6 +2680,8 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
     let tokens = lex(source)?;
     let matching_close = matching_closers(&tokens);
     let set_proto_wrappers = set_prototype_of_wrappers(&tokens, &matching_close);
+    // live-26: the alias matchers need bindings, not spellings.
+    let resolution = BindingResolution::new(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut cursor = 0usize;
     while cursor + 6 < tokens.len() {
@@ -2705,7 +2733,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         let mut scan = skip_separators(&tokens, end + 1);
         let mut methods = Vec::<Method>::new();
         let mut fields = Vec::<Field>::new();
-        let mut proto_alias: Option<&str> = None;
+        let mut proto_alias: Option<(&str, usize)> = None;
         let mut proto_alias_keyword: Option<&str> = None;
         let mut base: Option<&str> = None;
         let mut base_alias: Option<(&str, &str)> = None;
@@ -2715,7 +2743,10 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         let mut restored_lengths = Vec::<(&str, i32)>::new();
         loop {
             if let Some((alias, last)) = match_proto_assign(&tokens, scan, name) {
-                proto_alias = Some(alias);
+                proto_alias = Some((
+                    alias,
+                    if matches!(tokens[scan].text, "var" | "let" | "const") { scan + 1 } else { scan },
+                ));
                 if matches!(tokens[scan].text, "var" | "let" | "const") {
                     proto_alias_keyword = Some(tokens[scan].text);
                 }
@@ -2757,6 +2788,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 scan,
                 name,
                 proto_alias,
+                Some(&resolution),
                 base_alias,
                 &set_proto_wrappers,
             ) {
@@ -2767,7 +2799,11 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 continue;
             }
             if let Some(last) =
-                consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
+                consume_set_prototype_of(
+                    &tokens, scan, name, proto_alias,
+                    Some(&resolution),
+                    &set_proto_wrappers,
+                )
             {
                 // Swallowing `setPrototypeOf` here lets later methods fold into
                 // the class, but it is not itself proof of `extends`. If the
@@ -2794,12 +2830,12 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 scan = skip_separators(&tokens, last + 1);
                 continue;
             }
-            if let Some(last) = match_constructor_restore(&tokens, scan, name, proto_alias) {
+            if let Some(last) = match_constructor_restore(&tokens, scan, name, proto_alias.map(|(alias, _)| alias)) {
                 fused_end = tokens[last].end;
                 scan = skip_separators(&tokens, last + 1);
                 continue;
             }
-            let alias = proto_alias.unwrap_or("");
+            let alias = proto_alias.map_or("", |(alias, _)| alias);
             if let Some((field, last)) =
                 take_proto_literal_field(source, &tokens, scan, alias, name)
             {
@@ -3043,12 +3079,17 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                     scan,
                     name,
                     proto_alias,
+                    Some(&resolution),
                     base_alias,
                     &set_proto_wrappers,
                 )
                 .map(|(_, last)| last)
                 .or_else(|| {
-                    consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
+                    consume_set_prototype_of(
+                    &tokens, scan, name, proto_alias,
+                    Some(&resolution),
+                    &set_proto_wrappers,
+                )
                 }) {
                     fused_end = tokens[last].end;
                     scan = skip_separators(&tokens, last + 1);
@@ -3082,7 +3123,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
         // is not that check: it never sees a hoisted function declared before the
         // constructor, and that false negative shipped a module that throws on
         // import (037). Both are consulted; either keeps the assignment.
-        let emit_proto_alias = proto_alias.is_some_and(|alias| {
+        let emit_proto_alias = proto_alias.is_some_and(|(alias, _)| {
             identifier_is_read_after(&tokens, &matching_close, alias, scan)
                 || binding_is_observed_outside_span(
                     &tokens,
@@ -3101,7 +3142,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             &methods,
             &[],
             &fields,
-            proto_alias,
+            proto_alias.map(|(alias, _)| alias),
             proto_alias_keyword,
             matches!(tokens[decl_at].text, "var" | "let" | "const").then_some(tokens[decl_at].text),
             observed_name,
@@ -4530,16 +4571,74 @@ fn identifier_bound_before(tokens: &[Token<'_>], name: &str, before: usize) -> b
     false
 }
 
+/// Which class an `alias=Name.prototype` binding belongs to.
+///
+/// live-26: this matched on the alias's *spelling*, and
+/// `prototype_alias_assignments` scans the whole token stream with no scopes. A
+/// local that happens to share a name with a module-level prototype alias then
+/// resolved to that alias's class, and the caller deleted the
+/// `Object.setPrototypeOf` call around it -- unifiedlil lost
+/// `Object.setPrototypeOf(a,i)` from inside a factory, where `a` was a fresh
+/// `new Error` being given VFileMessage's prototype, and
+/// `message instanceof VFileMessage` became false.
+///
+/// The alias occurrence and the assignment must resolve to the *same binding*.
+/// `Free` and `Unresolved` are both refusals: a rewrite that deletes an
+/// effectful call has to prove the call is the one the class subsumes, and
+/// spelling is not a proof.
 fn class_for_proto_alias<'a>(
     assignments: &[(usize, &'a str, &'a str)],
+    resolution: &BindingResolution<'_>,
+    alias_at: usize,
     alias: &str,
     before: usize,
 ) -> Option<&'a str> {
+    // The two occurrences must resolve the same way. Both `Free` is the ordinary
+    // case and is fine: the emitter writes these aliases as module-level names
+    // with no enclosing declaration, and a name that is free at both sites is
+    // the same global. What has to be refused is a *mismatch* -- the assignment
+    // free at module level while the use is bound to a local of the same
+    // spelling, which is exactly the shadowing that cost unifiedlil its
+    // prototype link. `Unresolved` refuses either way, because the scanner is
+    // telling us it could not account for the scope.
     assignments
         .iter()
         .rev()
-        .find(|(at, name, _)| *at < before && *name == alias)
+        .find(|(at, name, _)| {
+            *at < before && *name == alias && same_alias_binding(resolution, alias_at, *at)
+        })
         .map(|(_, _, class)| *class)
+}
+
+/// Whether two occurrences of one spelling are the same binding.
+///
+/// Both free is the ordinary case and is the same binding: the emitter writes
+/// these aliases as module-level names with no enclosing declaration. Two
+/// declarations in the same scope under the same name are also one binding --
+/// `var e=[]` and a later `var e=C.prototype` are one hoisted `e`, and a
+/// duplicate `let` would not have parsed. What must be refused is free against
+/// bound, which is a local shadowing the module-level alias, and anything the
+/// scanner reports as `Unresolved`.
+fn same_alias_binding(resolution: &BindingResolution<'_>, left: usize, right: usize) -> bool {
+    match (resolution.resolve(left), resolution.resolve(right)) {
+        (Resolution::Free, Resolution::Free) => true,
+        (Resolution::Bound(left), Resolution::Bound(right)) => {
+            left == right
+                || resolution.scope_index_at(left) == resolution.scope_index_at(right)
+        }
+        // A name declared more than once in one scope reads as ambiguous rather
+        // than bound -- `var e=[]` and a later `var e=C.prototype` are one
+        // hoisted `e`, and the scanner will not pick between the two
+        // declarations. Two occurrences in the same sound scope are still one
+        // binding. Occurrences in *different* scopes are refused, which is the
+        // shadowing case: unifiedlil's factory had a local `a` while the
+        // module-level alias of the same spelling belonged to another class.
+        _ => {
+            let left = resolution.scope_index_at(left);
+            let right = resolution.scope_index_at(right);
+            left == right && resolution.scope_is_sound(left)
+        }
+    }
 }
 
 fn fold_define_property_accessors_into_classes(
@@ -4553,6 +4652,7 @@ fn fold_define_property_accessors_into_classes(
     }
     let aliases = define_property_aliases(&tokens, &matching_close);
     let proto_aliases = prototype_alias_assignments(&tokens);
+    let resolution = BindingResolution::new(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut class_inserts = std::collections::HashMap::<usize, String>::new();
     let mut cursor = 0usize;
@@ -4594,7 +4694,7 @@ fn fold_define_property_accessors_into_classes(
             && tokens.get(open + 2).map(|token| token.text) == Some(",")
         {
             let Some(class_name) =
-                class_for_proto_alias(&proto_aliases, tokens[open + 1].text, open)
+                class_for_proto_alias(&proto_aliases, &resolution, open + 1, tokens[open + 1].text, open)
             else {
                 cursor += 1;
                 continue;
@@ -4875,6 +4975,7 @@ fn absorb_prototype_members_into_classes(
         return Ok((source.to_string(), 0));
     }
     let proto_aliases = prototype_alias_assignments(&tokens);
+    let resolution = BindingResolution::new(&tokens);
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut class_inserts = std::collections::HashMap::<usize, String>::new();
     for (class_name, class_close) in &classes {
@@ -4971,7 +5072,8 @@ fn absorb_prototype_members_into_classes(
                     }
                     break;
                 }
-                let Some(owner) = class_for_proto_alias(&proto_aliases, alias, scan) else {
+                let Some(owner) = class_for_proto_alias(&proto_aliases, &resolution, scan, alias, scan)
+                else {
                     break;
                 };
                 if owner != *class_name {
@@ -5044,7 +5146,8 @@ fn absorb_prototype_members_into_classes(
                     break;
                 }
                 let alias = tokens[scan].text;
-                let Some(owner) = class_for_proto_alias(&proto_aliases, alias, scan) else {
+                let Some(owner) = class_for_proto_alias(&proto_aliases, &resolution, scan, alias, scan)
+                else {
                     break;
                 };
                 if owner != *class_name {

@@ -1924,3 +1924,4 @@ fn a_moved_assignment_may_not_cross_a_branch_it_would_land_inside() {
     }
 }
 
+
