@@ -816,3 +816,69 @@ Every top-level declaration in unifiedlil is 80-100% structurally uncovered by
 the bar. The remaining gap is not an idiom; it is the whole program being shaped
 differently, and the sum of every lever measured above is about -90 of the 217
 needed.
+
+## 8.110 every local lever, priced by splice, and the predictor that survives
+
+Eight transforms priced the same way: an AST-guided byte splice on the shipped
+artifact, so no printer enters the measurement and the baseline is exactly what
+ships. Ceilings, not proposals.
+
+| transform | fleet Brotli | sites |
+|---|---|---|
+| property mangling (`internal_properties = "all"`) | -2,060 | — |
+| class ceremony removed entirely | -120 | 4 ports |
+| **object literalization** (`var X={};X.a=1,X.b=2` -> `{a:1,b:2}`) | **-101** | 10 objects, 83 fields |
+| dynamic-container escape precision | -115 (noise) | — |
+| doubled property writes | -61 ceiling, **+41 actual** | 21 |
+| `if_return` (`if(C)return X;return Y` -> `return C?X:Y`) | **+106** | 77 |
+| merging duplicated ternary arms (`a?S:b?S:r` -> `a\|\|b?S:r`) | **+268** | 23 |
+| 13 knobs / spelling / level / plan spread | ~0, best -14 per port | — |
+
+The object literalization row is the one that matters, because it is the phase's
+root-cause claim -- "4,161 `JsPlainObject` candidates, all disqualified, no
+`Record` ops in the IR" -- priced for the first time. Ten objects across the
+whole fleet match `var X={}` followed by its own field writes, and collapsing all
+of them is **-101**. The idiom the chain is named after is worth a hundred bytes.
+
+The two positive rows are the more useful finding. `if_return` and ternary-arm
+merging both *reduce raw* and *increase Brotli* (+106 and +268 on -541 and -139
+raw). We already emit `if_return` nearly everywhere -- 77 residual sites fleet-wide
+-- and converting the rest costs bytes. This is the general rule of the phase,
+and it explains the shape of every loss: our artifacts are **more repetitive**
+than the bars, raw +8% against Brotli +4.7% on unifiedlil. Every transform that
+makes the text cleverer makes it less repetitive, and Brotli was already paying
+almost nothing for the repetition.
+
+**What the gap actually is.** motionlil, the worst loss at +15.8%:
+
+| | ours | bar |
+|---|---|---|
+| identifier occurrences | **35,086** | **24,771** |
+| mean identifier length | **3.31** | 3.89 |
+| one-character occurrences | 17,827 | 10,989 |
+| declarations | 864 | 935 |
+| parameters | 1,094 | 964 |
+| `this` | 184 | 1,334 |
+
+Our naming is *better* -- shorter names, more one-character names -- and we emit
+42% more identifier occurrences for the same program. At 3.31 characters each
+that is the entire +42,063 raw excess. Declarations and parameters are near-equal,
+so it is not temporaries and not the explicit-receiver convention of 8.60.
+
+And the hypothesis that would have explained it is dead. `JsValue` density
+against relative gap across all 22 ports is **r = +0.102**. motionlil is the most
+typed port in the fleet (15 `JsValue` against 39 typed declarations) and the worst
+relative loss; rehypelil is entirely untyped and wins by 8.4%.
+`typed-ports-win` has been corrected in memory rather than left standing.
+
+Two bars checked for comparability while here. motionlil's is
+`motion/dist/motion.js`, a UMD bundle with zero ESM exports against our 326 --
+but all 312 names motion's own ESM entry exports appear in it, so the surfaces
+match and the comparison is fair. unifiedlil's reconstructs at 4,347 against the
+pinned 4,425, so the pinned bar is 78 bytes *generous* to us.
+
+One harness note. The spread sweep measured +41 on arms that cannot change
+anything (`LILSCRIPT_IDIOM_GROUP` is inert without `idiom-converged`), because
+`--no-sync` left the workers holding a source edit that had been reverted
+locally. A no-op arm must measure exactly zero; it now does, and that control
+should run first whenever `--no-sync` is used.
