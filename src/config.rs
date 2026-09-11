@@ -2671,6 +2671,31 @@ fn apply_preserve_properties_file(config: &mut ProjectConfig) {
     );
 }
 
+/// `LILSCRIPT_DYNAMIC_RECORD_CONTAINERS=0` stops a read or write *through* a
+/// dynamically-typed container from marking the container itself as escaping to
+/// the untyped boundary.
+///
+/// The escape analysis already disagrees with itself here. The allocation arms
+/// (`Record`, `RecordSpread`, `Array`, `ArraySpread`) mark only the elements of a
+/// `Record<JsValue>`, because holding a dynamic value says nothing about the
+/// container. The access arms (`IndexGet`, `IndexSet`, `RecordFieldSet`) mark the
+/// container as well. In a port written in `JsValue` -- which is every untyped
+/// transliteration, and every port that loses -- each record is
+/// `Record<JsValue>`, so the first read or write escapes an object that was
+/// allocated two instructions earlier and never left the function. That is the
+/// last link of the chain behind `4,161 JsPlainObject` candidates with no
+/// survivors and not one module-private property key on the fleet.
+///
+/// Whether the container actually reaches untyped code is decided by the rules
+/// that watch calls, returns, globals and host fields, and those still run. This
+/// switch is how the claim gets measured before anything is flipped.
+pub(crate) fn dynamic_record_containers_escape() -> bool {
+    !matches!(
+        std::env::var("LILSCRIPT_DYNAMIC_RECORD_CONTAINERS").as_deref(),
+        Ok("0") | Ok("off") | Ok("false")
+    )
+}
+
 /// A sweep switch reads as off for `0`/`off`/`false` and on for anything else,
 /// and is absent when the variable is unset -- so an unset switch leaves the
 /// port's own configuration alone.

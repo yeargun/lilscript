@@ -7595,6 +7595,8 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
         .collect::<AHashMap<_, _>>();
     let mut states = AHashMap::<EscapeNode, EscapeState>::default();
     let mut edges = AHashMap::<EscapeNode, AHashSet<EscapeNode>>::default();
+    // Read once: the access arms below are the innermost loop in the pass.
+    let containers_escape = crate::config::dynamic_record_containers_escape();
 
     for global in &module.globals {
         let node = EscapeNode::Global(global.symbol);
@@ -7778,7 +7780,14 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
                             .get(object)
                             .is_some_and(type_contains_untyped_js_value) =>
                     {
-                        for value in [*object, *index] {
+                        // The key and the result are dynamic; whether the
+                        // container is depends on where the container goes, not
+                        // on what it holds. See `dynamic_record_containers_escape`.
+                        for value in if containers_escape {
+                            vec![*object, *index]
+                        } else {
+                            vec![*index]
+                        } {
                             mark_escape_node(
                                 &mut states,
                                 value_node(value),
@@ -7838,7 +7847,11 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
                         .get(object)
                         .is_some_and(type_contains_untyped_js_value) =>
                     {
-                        for value in [*object, *index, *value] {
+                        for value in if containers_escape {
+                            vec![*object, *index, *value]
+                        } else {
+                            vec![*index, *value]
+                        } {
                             mark_escape_node(
                                 &mut states,
                                 value_node(value),
@@ -8016,7 +8029,14 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
                             matches!(ty, Type::Record(element) if type_contains_untyped_js_value(element))
                         }) =>
                     {
-                        for value in [*object, *value] {
+                        // `ControlFlowOp::Record` above marks only the entries of
+                        // the very same type, which is the rule this one should
+                        // have had.
+                        for value in if containers_escape {
+                            vec![*object, *value]
+                        } else {
+                            vec![*value]
+                        } {
                             mark_escape_node(
                                 &mut states,
                                 value_node(value),
@@ -8035,7 +8055,11 @@ pub(crate) fn analyze_escapes(module: &mut ControlFlowModule<'_>) -> Optimizatio
                             )
                         }) =>
                     {
-                        for value in [*object, *value] {
+                        for value in if containers_escape {
+                            vec![*object, *value]
+                        } else {
+                            vec![*value]
+                        } {
                             mark_escape_node(
                                 &mut states,
                                 value_node(value),
