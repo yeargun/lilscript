@@ -7447,7 +7447,7 @@ enum EscapeNode {
     AggregateField(u32),
 }
 
-fn aggregate_field_slot_ids<'src>(
+pub(crate) fn aggregate_field_slot_ids<'src>(
     module: &ControlFlowModule<'src>,
 ) -> AHashMap<(&'src str, usize), u32> {
     let layouts = module
@@ -15215,6 +15215,51 @@ mod tests {
 
         assert!(output.contains("\"D\""), "{output}");
         assert!(!output.contains("===\"dark\""), "{output}");
+    }
+
+    #[test]
+    fn inherited_field_summaries_preserve_subclass_hooks_and_integer_overflow() {
+        for inlining in [false, true] {
+            let arena = Bump::new();
+            let program = parse_source(&arena, r#"
+                class Base {
+                    (func()->float)? hook;
+                    int count;
+                    string label;
+                    init() { this.hook = null; this.count = 1; this.label = "base"; }
+                    float sample() {
+                        (func()->float)? callback = this.hook;
+                        if (callback != null) { return callback(); }
+                        return -1.0;
+                    }
+                    int next() { return this.count + 1; }
+                    string name() { return this.label; }
+                }
+                class Child extends Base {
+                    init() { super(); this.hook = () => 42.0; this.count = 2147483647; this.label = "child"; }
+                }
+                class Grandchild extends Child { init() { super(); } }
+                Base plain = new Base();
+                Grandchild derived = new Grandchild();
+                print(plain.sample()); print(derived.sample());
+                print(plain.next()); print(derived.next());
+                print(plain.name()); print(derived.name());
+            "#).unwrap();
+            let semantics = analyze(&program).unwrap();
+            let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+            let options = OptimizationOptions {
+                inlining,
+                scalar_replacement: false,
+                ..OptimizationOptions::default()
+            };
+            optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+            let output = crate::codegen_ir_js::emit_optimized_ir_js(&ir).unwrap();
+            assert_eq!(
+                run_javascript(&output),
+                "-1\n42\n2\n-2147483648\nbase\nchild\n",
+                "{output}"
+            );
+        }
     }
 
     #[test]
