@@ -2630,6 +2630,45 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
             _ => config.mangle.internal_properties,
         };
     }
+    apply_preserve_properties_file(config);
+}
+
+/// `LILSCRIPT_PRESERVE_PROPERTIES_FILE=<path>` adds the newline-delimited names
+/// in that file to `mangle.preserve_properties`. `internal_properties = "all"`
+/// is only shippable alongside the list of names the library exchanges with code
+/// the compiler never sees, and that list is derived per port (from the wrapped
+/// package's own TypeScript declarations) rather than written by hand -- so the
+/// pool needs to run one arm across every port with a *different* list each,
+/// which a config key alone cannot express. Blank lines and `#` comments are
+/// skipped so a generated file can say where it came from. The names are added
+/// to whatever the port's config already preserves, never replacing it.
+fn apply_preserve_properties_file(config: &mut ProjectConfig) {
+    let Ok(path) = std::env::var("LILSCRIPT_PRESERVE_PROPERTIES_FILE") else {
+        return;
+    };
+    if path.is_empty() {
+        return;
+    }
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => {
+            // Loud, because silently renaming a library's public vocabulary
+            // ships a broken artifact that still passes the size measurement.
+            eprintln!("LILSCRIPT_PRESERVE_PROPERTIES_FILE: cannot read `{path}`: {error}");
+            return;
+        }
+    };
+    let names = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'));
+    let preserved = config.mangle.preserve_properties.get_or_insert_with(Vec::new);
+    let existing = preserved.iter().cloned().collect::<std::collections::HashSet<_>>();
+    preserved.extend(
+        names
+            .filter(|name| !existing.contains(*name))
+            .map(str::to_string),
+    );
 }
 
 /// A sweep switch reads as off for `0`/`off`/`false` and on for anything else,
