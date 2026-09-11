@@ -236,6 +236,26 @@ function otherUnitNames() {
   }
   return out
 }
+// A port may declare names no harvest can derive. The case that forces it is a
+// key built at run time: katex looks up SVG path data as `path[`widehat${n}`]`,
+// so `widehat1`..`widehat4` appear nowhere in any source as literals and the
+// renamed table silently stops answering -- the artifact is smaller and the
+// arrow is blank. The compiler's own answer to this is per-receiver: a receiver
+// indexed by a non-constant key should keep all of its keys. Until it can say
+// that, the port says it.
+function declaredExterns() {
+  const path = join(homedir(), port, "lilscript-externs.txt")
+  if (!existsSync(path)) return new Set()
+  return new Set(
+    readFileSync(path, "utf8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#")),
+  )
+}
+const declared = declaredExterns()
+for (const name of declared) names.add(name)
+
 const otherUnits = otherUnitNames()
 for (const name of otherUnits) names.add(name)
 
@@ -271,7 +291,8 @@ if (asList) {
   console.error(
     `${port}: wraps ${wrapped ?? "(none installed)"}; published ${published.length}; ` +
       `roots ${[...roots].sort().join(", ") || "(published only)"}; ` +
-      `${files.length} .d.ts + ${interop.length} interop js + ${otherUnits.size} other-unit, ` +
+      `${files.length} .d.ts + ${interop.length} interop js + ${otherUnits.size} other-unit` +
+      `${declared.size ? ` + ${declared.size} declared` : ""}, ` +
       `${sorted.length} member names`,
   )
   console.log(JSON.stringify(sorted))
