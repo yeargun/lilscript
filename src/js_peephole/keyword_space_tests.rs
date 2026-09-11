@@ -939,6 +939,30 @@ fn keeps_call_argument_member_copies_after_the_receiver_is_rebound() {
 }
 
 #[test]
+fn preserves_returned_store_observed_by_a_template_closure() {
+    let source = "var reader;function f(){var value=0;reader=()=>`${value}`;value=7;return value}console.log(f(),reader());";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(
+        run_node(&optimized.code),
+        run_node(source),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
+fn preserves_member_alias_used_as_a_callee_inside_a_template() {
+    let source = "function make(model){var d={wrong:true};return value=>{var d=model.transform;if(d)return `${d(value)}`;return 'missing'}}console.log(make({transform:value=>value+1})(7));";
+    let optimized = optimize_generated_javascript(source).unwrap();
+    assert_eq!(
+        run_node(&optimized.code),
+        run_node(source),
+        "{}",
+        optimized.code
+    );
+}
+
+#[test]
 fn rematerializes_stable_receiver_call_argument_members() {
     let source = "function f(b,i){var d=b.href;return i(d,b.title)}";
     let optimized = optimize_generated_javascript(source).unwrap();

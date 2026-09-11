@@ -758,6 +758,17 @@ fn collect_binding_uses(
     scope_start: usize,
     scope_end: usize,
 ) -> Option<Vec<usize>> {
+    // Template substitutions are opaque to this token scan. A callback used
+    // only in `${callback(value)}` must not appear single-use at its preceding
+    // guard: removing its declaration can silently bind that call to an outer
+    // variable with the same name. Refuse rematerialization until every use is
+    // visible, including textual mentions in nested templates.
+    if tokens[scope_start..scope_end].iter().any(|token| {
+        token.kind == TokenKind::Template
+            && crate::js_peephole::token::template_may_reference(token.text, name)
+    }) {
+        return None;
+    }
     let prior =
         collect_unbound_name_uses(tokens, matching_close, name, scope_start, name_at, name_at)
             .into_iter()

@@ -126,6 +126,16 @@ impl<'src> BindingResolution<'src> {
             .unwrap_or(Resolution::Unresolved)
     }
 
+    /// A use inside a template substitution is not represented by an
+    /// identifier token, so token-based use counts cannot prove it absent.
+    pub(crate) fn has_opaque_reference(&self, tokens: &[Token<'_>], declaration: usize) -> bool {
+        let scope = &self.scopes[self.scope_index_at(declaration)];
+        tokens[scope.start..scope.end].iter().any(|token| {
+            token.kind == TokenKind::Template
+                && super::token::template_may_reference(token.text, tokens[declaration].text)
+        })
+    }
+
     /// Every function scope as `(index, start, end)`, outermost first.
     pub(crate) fn function_scopes(&self) -> Vec<(usize, usize, usize)> {
         self.scopes
