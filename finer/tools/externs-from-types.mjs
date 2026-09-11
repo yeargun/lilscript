@@ -67,11 +67,28 @@ const MEMBER = /(?:^|[\s;{(,|])(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*\??\s*[:(]/g
 // holds *our* output, so harvesting it would read back the mangled spellings and
 // preserve them, which looks like a pass and means nothing.
 const JS_MEMBER = /\.([A-Za-z_$][\w$]*)\b|(?:^|[\s;{(,])([A-Za-z_$][\w$]*)\s*:|\[\s*["']([A-Za-z_$][\w$]*)["']\s*\]/gm
-const JS_SKIP = new Set(["node_modules", "dist", ".git", "target", "build"])
+// `site/` and `_site/` join `dist/` for the same reason: a demo page bundles the
+// library to run it, so both hold a vendored copy of the upstream bar *and* a
+// copy of our own output. Harvesting remark-parselil's `_site/official.js`
+// (182 KB) added the whole upstream vocabulary, which preserved everything and
+// made `internal_properties = "all"` rename nothing at all.
+const JS_SKIP = new Set([
+  "node_modules", "dist", ".git", "target", "build", "site", "_site", "coverage",
+])
+// `--ship-only` drops the directories that verify the port rather than ship with
+// it. A test reaches for whatever it wants, internals included, so harvesting
+// `test/` preserves names that are genuinely private: with tests in, katexlil's
+// list covers every property in the artifact and `internal_properties = "all"`
+// renames nothing at all (fleet +24, i.e. exactly the unmangled arm). What
+// *ships* -- `cli.js`, `contrib/` -- is the contract, and the suites then judge
+// whether that was the whole of it.
+const SHIP_SKIP = new Set(["test", "tests", "__tests__", "scripts", "bench", "benchmarks", "fixtures", "examples"])
+const shipOnly = process.argv.includes("--ship-only")
 function interopFiles(dir, out = [], depth = 0) {
   if (depth > 5 || !existsSync(dir)) return out
   for (const entry of readdirSync(dir)) {
     if (JS_SKIP.has(entry) || entry.startsWith(".")) continue
+    if (shipOnly && SHIP_SKIP.has(entry)) continue
     const path = join(dir, entry)
     let stat
     try { stat = statSync(path) } catch { continue }
@@ -174,6 +191,54 @@ for (const file of files) {
   let match
   while ((match = MEMBER.exec(text))) names.add(match[1])
 }
+// Separate compilation units inside the same port. katexlil builds each
+// `contrib/*/*.lil` with its own `compileLil(..)` call, and
+// `contrib/mhchem` calls `macroExpander.consumeArgs(..)` on an object that came
+// out of the main bundle. Two independent compilations rename properties
+// independently, so every name crossing between them is a contract neither one
+// can see -- `e.consumeArgs is not a function`, compiled clean and shipped.
+// Closure's answer is a property map shared between compilations; until we have
+// one, the vocabulary of the units outside the entry's own source tree is
+// preserved in all of them.
+function otherUnitNames() {
+  const out = new Set()
+  const root = join(homedir(), port)
+  const manifest = join(root, "package.json")
+  let entryDir = "src"
+  if (existsSync(manifest)) {
+    try {
+      const json = JSON.parse(readFileSync(manifest, "utf8"))
+      if (typeof json.lilscript?.entry === "string") entryDir = json.lilscript.entry.split("/")[0]
+    } catch {}
+  }
+  const MEMBERS = /\.([A-Za-z_$][\w$]*)\b|["']([A-Za-z_$][\w$]*)["']/g
+  const walk = (dir, depth = 0) => {
+    if (depth > 5 || !existsSync(dir)) return
+    for (const entry of readdirSync(dir)) {
+      if (JS_SKIP.has(entry) || entry.startsWith(".")) continue
+      const path = join(dir, entry)
+      let stat
+      try { stat = statSync(path) } catch { continue }
+      if (stat.isDirectory()) walk(path, depth + 1)
+      else if (entry.endsWith(".lil")) {
+        let text
+        try { text = readFileSync(path, "utf8") } catch { continue }
+        MEMBERS.lastIndex = 0
+        let match
+        while ((match = MEMBERS.exec(text))) out.add(match[1] ?? match[2])
+      }
+    }
+  }
+  for (const entry of existsSync(root) ? readdirSync(root) : []) {
+    if (entry === entryDir || JS_SKIP.has(entry) || entry.startsWith(".")) continue
+    const path = join(root, entry)
+    try { if (statSync(path).isDirectory()) walk(path) } catch {}
+  }
+  return out
+}
+const otherUnits = otherUnitNames()
+for (const name of otherUnits) names.add(name)
+
 // Hand-written JS in the port, unless `--types-only` asks for the declarations
 // alone (useful for seeing how much of the contract the types actually state).
 let interop = []
@@ -206,7 +271,8 @@ if (asList) {
   console.error(
     `${port}: wraps ${wrapped ?? "(none installed)"}; published ${published.length}; ` +
       `roots ${[...roots].sort().join(", ") || "(published only)"}; ` +
-      `${files.length} .d.ts + ${interop.length} interop js, ${sorted.length} member names`,
+      `${files.length} .d.ts + ${interop.length} interop js + ${otherUnits.size} other-unit, ` +
+      `${sorted.length} member names`,
   )
   console.log(JSON.stringify(sorted))
 }
