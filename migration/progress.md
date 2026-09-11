@@ -521,3 +521,78 @@ another's tree (5.3); the receiver parameter's bind leaked into `Name(bind,"this
 5. **End-state measurement**: interim on one worker (7.49): wall −5%, the ports' own walls
    −19%, the text layer −95% CPU, Brotli −701 over 20 ports. Repeat when 7′ lands; then the
    remaining clean ports (jquerylil, mobxlil, posthoglil, cnlil).
+
+## 8.104 live-24: a receiver's ToString is not a redundant spelling of itself
+
+Two places dropped `JS.string(x)` when the value went straight into a string
+method -- `elide_stringify_in_op` in the optimizer and
+`without_explicit_tostring` on the receiver in codegen -- and both were licensed
+by the same circular argument. The receiver's IR type is `String`, so the
+coercion looks redundant; but the type is `String` *because of* the coercion.
+The rewrite destroys the premise that permitted it.
+
+The optimizer's own neighbours show what the missing test was. The needle of
+`RegExp.prototype.test`/`exec`, the first argument of `parseInt`, `parseFloat`,
+`encodeURI`, `encodeURIComponent` and `removeAttribute` all ToString their
+input, and both `+` arms check that the other operand is a known string before
+rewriting. Only the receiver arm rewrote unconditionally. It now requires the
+value underneath the coercion to be a known string -- the same proof, applied to
+the same kind of slot -- so a port that spells `JS.string(x)` on something
+already proven to be a string still pays nothing.
+
+Reproduced on zodlil with one config line, `name_ordering = "idiom-converged"`.
+Naming is a phase-5.3 rename and cannot change a coercion; what it changes is
+the plan the candidate search lands on, and that plan inlines
+`Mb=a=>a.replace(new RegExp(jf,"g"),"\\$&")+""` into a site guarded by
+`"number"==typeof a`. `(5).replace` is `undefined`. Three further sites in the
+same artifact had lost `toStr()` as well: `b.prefix.replace(..)` where the
+source reads `invoke2(JS.string(toStr(cdef["prefix"])), "replace", ..)`.
+
+Both arms were independently reachable, which is worth recording because it
+nearly went unnoticed: after fixing codegen alone, all 1,623 lib tests still
+passed, *including* the one asserting the coercion was elided -- the optimizer
+was doing it in that test. A fix that leaves the old assertion green is not
+evidence the bug is gone.
+`elides_stringify_before_string_methods_and_keeps_returned_stringify` asserted
+the wrong program; it is now a pair, one for the untyped receiver keeping its
+coercion and one for a `string`-declared receiver still eliding, so the pass is
+narrowed rather than switched off.
+
+Price: 22 ports on the pool, **-39 Brotli / +149 raw** against the shipped
+dists. Gate 18/22, the same four pre-existing failures (two pinned `site.test`
+byte figures at 88,325 vs 87,483 and 89,641 vs 87,764, remarklil's closed-world
+check, mobxlil's Node 22 iterator helpers). 1,624 lib tests pass. A live
+wrong-program class removed for free.
+
+Also: `elide_safe_string_coercions` has no consumer. It is declared in
+`IrJsOptions`, defaulted, asserted about six times in config tests and named in
+`decision_registry`, and no emission path reads it. Left alone, recorded here,
+because a decision-registry field nothing reads will eventually be believed.
+
+## 8.105 the externs list was missing the keys the engine reads
+
+`internal_properties = "all"` is worth -5,531 Brotli and broke 17 of 22 ports,
+and 8.93 put that down to technique. It was not. Two separate lists were wrong.
+
+The port-side list: `externs-from-types.mjs` harvested every `.d.ts` under a
+port's `node_modules` -- 680 files and 8,419 names on zodlil, most of them
+vitest matchers and @types/node. That is the test runner's contract, not the
+library's. Scoped to three roots (the wrapped package when installed, the port's
+own published declarations, and the type-only packages beside them, because a
+remark plugin reads `node.children` off an mdast node and @types/mdast is where
+that is written down), zodlil goes 8,419 -> 1,326 and every baselined port
+resolves a contract.
+
+The compiler-side list: `js_externs::NOT_OURS` had every platform *method* and
+was missing the keys the engine looks up on a plain object the program hands it.
+zodlil emitted `Object.defineProperty(a,b,{value:c,c:!0,b:!0,a:!0})`:
+`writable`, `enumerable`, `configurable` were simply absent. So were `next` and
+`done` -- the iteration protocol -- plus `return`, `throw`, `lastIndex`,
+`index`, `groups`, `indices`, `stack`, `cause`, `errors`, the ES2025 Set
+methods and the Intl option bag. 41 names added, 551 -> 592. The asymmetry the
+file already states decides the judgement calls: a missing name is a wrong
+program, a surplus one is a few bytes.
+
+`LILSCRIPT_PRESERVE_PROPERTIES_FILE` carries a per-port list through one pool
+arm; a config key cannot, because the 22 ports need 22 different lists. Relative
+paths resolve against the port directory, where the build already runs.
