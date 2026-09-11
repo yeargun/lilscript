@@ -2630,6 +2630,9 @@ fn apply_sweep_overrides(config: &mut ProjectConfig) {
             _ => config.mangle.internal_properties,
         };
     }
+    if let Some(on) = sweep_flag("LILSCRIPT_POOL_STRINGS") {
+        config.mangle.pool_strings = Some(on);
+    }
     apply_preserve_properties_file(config);
 }
 
