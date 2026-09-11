@@ -596,3 +596,65 @@ program, a surplus one is a few bytes.
 `LILSCRIPT_PRESERVE_PROPERTIES_FILE` carries a per-port list through one pool
 arm; a config key cannot, because the 22 ports need 22 different lists. Relative
 paths resolve against the port directory, where the build already runs.
+
+## 8.106 property mangling, priced honestly, and the one thing it is waiting on
+
+Six pool arms, 22 ports each, all gated against the ports' own suites. The
+summary is that the lever is real, it is bigger than anything else measured this
+phase, and it is not bankable yet -- and the reason is a single missing analysis
+rather than a pile of per-port facts.
+
+Arms, each the previous one plus one correction:
+
+| list derived from | fleet Brotli | suites passing |
+|---|---|---|
+| wrapped package's `.d.ts` | **-1,989** | 5/22 |
+| + port's hand-written JS, sites included | +24 | (vacuous) |
+| + sites excluded | -1,830 | 7/22 |
+| + other compilation units | -2,060 | 10/22 |
+| + SVG externs in the compiler | -1,765 | 10/22 |
+
+The +24 row is the one to remember. It looked like a clean result -- every list
+covered every property, every suite passed -- because the harvest was reading
+`_site/official.js`, a 182 KB vendored copy of the upstream bar, and
+`_site/<port>.js`, a copy of our own output. `internal_properties = "all"` then
+renamed nothing at all. A measurement that passes everything and moves nothing
+is the signature of an oracle reading its own answer.
+
+Three wrong-program classes came out of it, all in the compiler and all generic:
+the property-descriptor and iteration-protocol keys (8.105), the SVG attribute
+surface (`viewBox` -> `Sa`, which throws nothing and draws nothing), and
+live-24 on the way in.
+
+What it is worth, on the current 11W/11L scoreboard: katexlil +1,483 -> **+251**,
+react-markdownlil +1,483 -> +990, jquerylil +453 -> +351, motionlil -150,
+remark-gfmlil -123. It flips nothing, and it *costs* posthoglil's 16-byte win by
++34, which is why the mangled scoreboard reads 10W/12L. So it is not enabled on
+any port. The honest statement is that the largest single effect measured this
+phase does not move the standings until it is sound enough to enable on the
+ports where it is worth thousands.
+
+The blocker is one analysis. `owns_js_property` decides on the name alone:
+
+    OwnedJsProperties::All => name != "__proto__" && name.len() > 1
+        && is_js_property_identifier(name)
+        && !crate::js_externs::is_platform_property(name)
+
+No receiver in hand, so it cannot know that katex reads
+`svgData[`widehat${n}`]` or that micromark reads a 2,125-key entity table by
+parsed text. Both are the same shape: **a receiver indexed with a non-constant
+key must keep every one of its keys.** The compiler already computes key-opaque
+receivers for the escape analysis -- katexlil has 747 of them (8.9x) -- and
+`All` is precisely the switch that ignores that work. Wiring the two together
+is the next piece, and it should also retire most of katexlil's
+`lilscript-externs.txt` and micromarklil's 26 failures at once.
+
+Two smaller notes. katexlil with 45 declared externs passes 20 of 21 tests; the
+survivor is a stacked `\left(` delimiter that stops being stacked, still
+unidentified among 185 renamed names, and not worth bisecting at four minutes a
+trial when the best case is +251 and still a loss. And a port's separate
+compilation units are a contract with each other: `contrib/mhchem` calls
+`macroExpander.consumeArgs(..)` across a unit boundary, and two independent
+compilations rename independently. Closure writes a property map in one
+compilation and reads it in the next; we preserve the other units' vocabulary
+instead, which is the cheap version of the same idea.
