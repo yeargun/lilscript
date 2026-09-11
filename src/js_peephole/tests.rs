@@ -1021,6 +1021,45 @@ fn rejects_duplicate_generated_export_names() {
         .contains("duplicate generated export name"));
 }
 
+/// live-25: arrow spelling emits a module as one `let` chain, and an exported
+/// declarator late in that chain was reported as
+/// `unresolved generated export binding`. Narrowed from unifiedlil's vfile unit:
+/// the chain runs through arrow bodies whose own commas are what the binding
+/// resolver has to step over.
+#[test]
+fn resolves_an_exported_declarator_after_an_arrow_body_with_commas() {
+    let witnesses = generated_javascript_export_witnesses(
+        "let a=1,b=(c,d)=>{var e=c,f=d;return e},g=h=>b(h,h);export{g as made}",
+    )
+    .unwrap();
+    assert_eq!(witnesses.len(), 1);
+    assert_eq!(witnesses[0].name, "made");
+}
+
+/// The minimum: a `var` inside one declarator's arrow body, and a later
+/// declarator in the same `let` chain. vfile's chain has
+/// `y=()=>{var a=globalThis.process;...}` eight declarators before the export.
+#[test]
+fn resolves_a_let_chain_across_a_nested_var() {
+    let witnesses = generated_javascript_export_witnesses(
+        "let a=1,b=()=>{var c=1;return c},d=2;export{d as made}",
+    )
+    .unwrap();
+    assert_eq!(witnesses.len(), 1);
+}
+
+/// The same chain with a statement body that declares with `var`, which is the
+/// shape vfile's `y=()=>{var a=globalThis.process;...}` takes.
+#[test]
+fn resolves_an_exported_declarator_after_an_arrow_body_with_a_var() {
+    let witnesses = generated_javascript_export_witnesses(
+        "let a=\"/\",b=()=>{var c=globalThis.process;return c&&\"function\"==typeof c.cwd?c.cwd()+\"\":a},d=e=>!e||\"object\"!=typeof e?!1:\"message\" in e,f=g=>d(g)?g:new Object(g);export{f as made}",
+    )
+    .unwrap();
+    assert_eq!(witnesses.len(), 1);
+    assert_eq!(witnesses[0].name, "made");
+}
+
 #[test]
 fn observes_generated_export_callable_shapes() {
     let witnesses = generated_javascript_export_witnesses(
@@ -1884,3 +1923,4 @@ fn a_moved_assignment_may_not_cross_a_branch_it_would_land_inside() {
         );
     }
 }
+

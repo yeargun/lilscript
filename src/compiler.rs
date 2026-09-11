@@ -12707,6 +12707,34 @@ fn validate_observed_javascript_artifact(
 /// candidate in the search, and relaxing it globally admits a different
 /// portfolio: measured on micromarklil that settles 826 Brotli *worse*. Only the
 /// one call that re-checks an already-selected artifact passes `true`.
+/// `LILSCRIPT_DUMP_GENERATED=<dir>` writes the module this function is about to
+/// check, before it can reject it.
+///
+/// Every self-check here reports a rejection against a source nothing else ever
+/// sees: the compile fails, no `-o` file is written, and the message carries
+/// about a hundred characters of context. Diagnosing
+/// `unresolved generated export binding` then means guessing which declaration
+/// is missing from a file that was never kept. This writes it out.
+fn dump_generated_javascript_for_debugging(source: &str, direct_source: &str) {
+    let Some(directory) = std::env::var_os("LILSCRIPT_DUMP_GENERATED") else {
+        return;
+    };
+    let directory = std::path::PathBuf::from(directory);
+    if std::fs::create_dir_all(&directory).is_err() {
+        return;
+    }
+    // One file per call. The candidate search validates many emissions, and
+    // overwriting hid which of them was rejected.
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let sequence = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    for (name, text) in [
+        (format!("generated.{sequence:04}.js"), source),
+        (format!("generated.{sequence:04}.direct.js"), direct_source),
+    ] {
+        let _ = std::fs::write(directory.join(name), text);
+    }
+}
+
 fn validate_observed_javascript_artifact_allowing(
     source: &str,
     direct_source: &str,
@@ -12714,6 +12742,7 @@ fn validate_observed_javascript_artifact_allowing(
     expected_bit_or_zero: usize,
     allow_class_constructor: bool,
 ) -> Result<(), CompileError> {
+    dump_generated_javascript_for_debugging(source, direct_source);
     let observed =
         generated_javascript_export_names(source).map_err(generated_javascript_parse_error)?;
     let export_witnesses =

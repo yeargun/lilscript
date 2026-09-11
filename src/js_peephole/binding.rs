@@ -595,6 +595,17 @@ fn declarator_names(
     let mut names = Vec::new();
     let mut cursor = index + 1;
     let mut expect_name = true;
+    // live-25: `in` ends a declaration only in a `for` head. `for (var k in o)`
+    // is the reason the check exists; `let a=1,b=e=>"m" in e,f=g=>b(g)` is what
+    // it also caught, and there `f` stopped being a declarator at all. The
+    // emitter writes a whole module as one `let` chain under
+    // `function_spelling = "arrow"`, so one `in` inside any initialiser left
+    // every later declarator unbound -- unifiedlil's vfile unit failed its own
+    // export self-check with `unresolved generated export binding`. `of` on the
+    // next arm already carries this distinction; `in` never did.
+    let in_for_head = index >= 2
+        && tokens[index - 1].text == "("
+        && tokens[index - 2].text == "for";
     while cursor < tokens.len() {
         match tokens[cursor].text {
             ";" => break,
@@ -620,7 +631,7 @@ fn declarator_names(
                 expect_name = false;
                 cursor += 1;
             }
-            "in" => break,
+            "in" if in_for_head => break,
             // `of` is contextual: it ends `for (var value of values)`, but it
             // is also a valid generated binding in `var ...,of=...`.
             "of" if !expect_name => break,
