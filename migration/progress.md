@@ -927,3 +927,45 @@ remark-parselil -14, against rehypelil +139 and remark-gfmlil +23. It flips no
 port. Four of the six winners pass their suites with it; none of them ship it,
 because the path is known to miscompile elsewhere and a passing suite is not a
 proof when the failure mode is a silent prototype link.
+
+## 8.112 live-26, narrowed: the deletion is downstream of the fold
+
+Where the hunt stands, so the next attempt starts from here rather than from the
+top.
+
+**The wrong program.** `LILSCRIPT_POOL_STRINGS=0` on unifiedlil's vfile unit loses
+`Object.setPrototypeOf(e,c)` from inside the message factory, where `e` is a fresh
+`new Error` and `c` is VFileMessage's prototype. Four calls go in, two come out:
+
+    IN   setPrototypeOf(e,c)              <- lost, load-bearing
+    IN   setPrototypeOf(h,Error)          <- kept
+    IN   setPrototypeOf(c,Error.prototype) <- kept
+    IN   setPrototypeOf(p,Object.prototype) <- removed, correctly: `class VFile extends Object`
+
+**What it is not.** Bisected across all 96 named folds: only
+`fold_constructor_prototype_tables_to_classes` restores the call when skipped, and
+`LILSCRIPT_ONLY_FOLDS` on it alone still loses it. But instrumenting that fold
+shows it matches a `setPrototypeOf` exactly once -- `name=d alias=p child=p`, the
+legitimate one -- and pushes exactly one replacement, a 508-byte span containing
+exactly one `setPrototypeOf`. `strip_redundant_set_prototype_of` stubbed out
+changes nothing. So the fold removes one call and something after it removes the
+other, and that something is not a fold: the cleanup and re-print stages do not
+honour `LILSCRIPT_SKIP_FOLDS`, which is why skipping the fold hides it -- no class,
+nothing for the later stage to trigger on.
+
+**Where to look next.** A stage that runs after the folds, sees
+`class VFile extends Object`, and concludes a `setPrototypeOf` is redundant. The
+`LILSCRIPT_SKIP_FOLDS` bisect cannot reach it; it needs either a skip switch for
+the post-fold stages or a bisect on the re-print. The in-harness reproducer is
+two lines: compile `~/unifiedlil/src/vfile.lil` at `LILSCRIPT_OPT_LEVEL=8` with
+`LILSCRIPT_POOL_STRINGS=0` to get a file with all four calls, then run
+`optimize_generated_javascript` over it and count.
+
+**What came out of the hunt anyway.** The alias matching in that fold was
+spelling-based in five places, which is wrong independently of live-26: a local
+sharing a spelling with a module-level `alias=Name.prototype` looked like that
+class's plumbing, and the fold deletes what it matches. Both consumers now
+require the same *binding*, with the duplicate-`var` and ambiguous-scope cases
+handled explicitly. All 22 ports are byte-identical afterwards, so it buys no
+bytes and closes a class of wrong program that the 037 fix addressed only for the
+alias assignment and never for the calls.
