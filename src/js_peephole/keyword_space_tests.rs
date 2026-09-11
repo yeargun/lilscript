@@ -952,14 +952,21 @@ fn preserves_returned_store_observed_by_a_template_closure() {
 
 #[test]
 fn preserves_member_alias_used_as_a_callee_inside_a_template() {
-    let source = "function make(model){var d={wrong:true};return value=>{var d=model.transform;if(d)return `${d(value)}`;return 'missing'}}console.log(make({transform:value=>value+1})(7));";
-    let optimized = optimize_generated_javascript(source).unwrap();
-    assert_eq!(
-        run_node(&optimized.code),
-        run_node(source),
-        "{}",
-        optimized.code
-    );
+    for body in [
+        "var d=model.transform;if(d)return `${d(value)}`;return 'missing'",
+        "var d;d=model.transform;if(d)return `${d(value)}`;return 'missing'",
+        "var d=model.transform;return d?`${d(value)}`:'missing'",
+        "var d;d=model.transform;return d?`${d(value)}`:'missing'",
+    ] {
+        let source = format!("let unrelated=0,make=model=>{{var d={{wrong:true}};return value=>{{{body}}}}};console.log(make({{transform:value=>value+1}})(7));");
+        let optimized = optimize_generated_javascript(&source).unwrap();
+        assert_eq!(
+            run_node(&optimized.code),
+            run_node(&source),
+            "{}",
+            optimized.code
+        );
+    }
 }
 
 #[test]
@@ -3355,4 +3362,14 @@ fn run_node(source: &str) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8(output.stdout).expect("node stdout must be UTF-8")
+}
+
+#[test]
+fn preserves_identifier_copy_observed_by_a_later_closure() {
+    let source = "function make(d){var a,e;a=d;e=a.red;return()=>{return a.red+e}}console.log(make({red:7})());";
+    let (code, _) = super::fold_identifier_copies(source).unwrap();
+    assert_eq!(run_node(&code), run_node(source), "{code}");
+    let source = "function make(d){var a,e;a=d;e=a.red;return()=>`${a.red+e}`}console.log(make({red:7})());";
+    let (code, _) = super::fold_identifier_copies(source).unwrap();
+    assert_eq!(run_node(&code), run_node(source), "{code}");
 }

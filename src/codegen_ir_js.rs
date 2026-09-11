@@ -3611,6 +3611,17 @@ impl BindCensus {
         if !self.by_spelling {
             if let Ok(tokens) = crate::js_peephole::lex_javascript(text) {
                 for (index, token) in tokens.iter().enumerate() {
+                    if token.kind == crate::js_peephole::JsTokenKind::Template {
+                        // The lexer keeps substitutions inside one opaque token.
+                        // Their bindings must stay live and keep their spelling.
+                        let mut names = AHashSet::default();
+                        identifier_bytes_in(token.text, &mut names);
+                        for name in names {
+                            self.mentions.push((name.clone(), self.scope));
+                            self.unsafe_names.insert(name);
+                        }
+                        continue;
+                    }
                     if token.kind != crate::js_peephole::JsTokenKind::Identifier {
                         continue;
                     }
@@ -44031,6 +44042,21 @@ mod tests {
         JsStatement::Expression {
             value: JsExpression::raw(text, JsPrecedence::Assignment),
         }
+    }
+
+    #[test]
+    fn reshape_census_preserves_callback_captures_in_templates() {
+        let mut census = BindCensus::default();
+        census.declare("callback", Bind(0));
+        census.scope = 1;
+        census.parents = vec![None, Some(0)];
+        census.declare("callback", Bind(1));
+        census.declare("value", Bind(2));
+        census.text("`${callback(value)}`");
+        census.resolve();
+        assert!(census.is_unsafe(Some(Bind(1)), "callback"));
+        assert!(census.is_unsafe(Some(Bind(2)), "value"));
+        assert!(!census.is_unsafe(Some(Bind(0)), "callback"));
     }
 
     #[test]
