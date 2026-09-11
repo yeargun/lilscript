@@ -1074,3 +1074,41 @@ It keeps `LILSCRIPT_POOL_STRINGS=0` and its **-226** unshippable, which is the o
 positive lever left standing after 8.110 and 8.113. Worth stating plainly: even
 with it landed, no port flips -- zodlil -178 and markedlil -57 make two existing
 wins bigger, motionlil -90 of a 7,754 gap, react-markdownlil -28 of 1,483.
+
+## 8.115 the bars are fair, and that closes the last open route
+
+8.94 found `mm4-bar.js` exporting 53 names against our 5 and discounted
+micromarklil's rows for it. That check was never run on the other losses. Run now,
+comparing public surface and bundled dependencies for all eleven:
+
+| port | delta | our exports | bar exports | verdict |
+|---|---|---|---|---|
+| mobxlil | +2,120 | 78 | 78 | comparable |
+| katexlil | +1,483 | 14 | 14 | comparable |
+| mdast-util-from-markdownlil | +2,148 | 1 | 1 | comparable |
+| remark-parselil | +2,260 | 1 | 1 | comparable |
+| unifiedlil | +217 | 1 | 1 | comparable |
+| react-markdownlil | +1,483 | 4 | 4 | comparable, same 2 externals |
+| jquerylil | +453 | 3 | "187" | heuristic artifact |
+| motionlil | +7,754 | 326 | "552" | heuristic artifact |
+| remarklil | +3,513 | 1 | 1 | rebuild artifact |
+
+The three non-"comparable" rows are all faults in the audit, not the bars.
+jquerylil's and motionlil's bars are UMD scripts with no ESM exports, so the
+property-assignment fallback counted internal assignments; motionlil's bar was
+already verified by hand to carry all 312 names `motion`'s own ESM entry exports.
+And remarklil's `externals differ` is `rebuild-bars.mjs` failing, not the pinned
+bar: it marked `mdast-util-from-markdown`, `mdast-util-to-markdown` and `unified`
+external and produced a **515-byte** file, which is why it reported NOT COMPARABLE
+in the first place. The pinned 32,551 bundles them.
+
+micromarklil's and remark-mathlil's bars have no file to audit -- the upstream is
+not installed, so the pinned number cannot be re-derived either way.
+
+So the scoreboard is honest. No loss on it is a measurement artifact, which
+removes the last route to a flip that does not require changing what the compiler
+emits. With 8.110 (every local lever priced, all under 150 or negative) and 8.113
+(the repetition is load-bearing; thirteen raw cuts all raised Brotli), the set of
+available moves is now closed, and the only direction left is the emitter's
+materialization strategy: 3,828 assignments against the bar's 1,285 on motionlil,
+`name = member` 629 against 22.
