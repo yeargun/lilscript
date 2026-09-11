@@ -882,3 +882,48 @@ anything (`LILSCRIPT_IDIOM_GROUP` is inert without `idiom-converged`), because
 `--no-sync` left the workers holding a source edit that had been reverted
 locally. A no-op arm must measure exactly zero; it now does, and that control
 should run first whenever `--no-sync` is used.
+
+## 8.111 live-26: the class fold deletes a `setPrototypeOf` that is not its own
+
+`fold_constructor_prototype_tables_to_classes` converts a constructor plus its
+prototype table into a `class`, which legitimately removes the
+`Object.setPrototypeOf` plumbing that class syntax now expresses. On unifiedlil's
+vfile unit it also removes one that belongs to nobody's class: the
+`Object.setPrototypeOf(a,i)` inside the factory, where `a=new Error` is a fresh
+object being given VFileMessage's prototype. Without it
+`message instanceof VFileMessage` is false, and two of the port's tests say so.
+
+Reproducer, one command:
+
+    LILSCRIPT_POOL_STRINGS=0 lilscript ~/unifiedlil/src/vfile.lil \
+      --target js-module --config lilscript.toml -o /tmp/x.js
+    grep -c setPrototypeOf /tmp/x.js    # 2; pooling on gives 4
+
+Bisected: level 8 has four calls and no class, level 13 has two and one class, and
+`LILSCRIPT_SKIP_FOLDS=fold_constructor_prototype_tables_to_classes` restores all
+four. The class it forms is `class VFile extends Object`; the call it eats belongs
+to `VFileMessage`, so this is cross-talk between two constructors in one module.
+Four isolated snippets of the shape -- two constructors, a prototype alias read
+inside a function, the `new` guard, a constructor forwarding to a factory -- all
+fold correctly, so it needs the whole module's context and is not reducible to a
+snippet by inspection. Not fixed.
+
+It is latent today for one reason: `pool_strings = true` turns `"setPrototypeOf"`
+into a pooled variable, so the literal never reaches the peephole, and every port
+that has this shape pools strings. `[mangle] pool_strings` is a documented
+option, so a user who turns it off gets a wrong program with no diagnostic.
+
+The comment at `classes.rs:3070` is about this same bug class from 037 --
+react-markdownlil shipped `var Xa=void 0,Ma=class VFile extends Object{...}` with
+`Xa` read by an accessor installer further down, throwing on import. That fix
+added two independent read checks for the *alias*. This one is about a *call*,
+and the same question was never asked of it: which `setPrototypeOf` calls does
+the class actually subsume, and which merely mention a name it touched.
+
+Price of the switch, for whenever the fold is fixed: pooling off is **-226
+Brotli / +1,697 raw** across 22 ports on a same-compiler A/B -- zodlil -178,
+motionlil -90, markedlil -57, react-markdownlil -28, rehype-stringifylil -17,
+remark-parselil -14, against rehypelil +139 and remark-gfmlil +23. It flips no
+port. Four of the six winners pass their suites with it; none of them ship it,
+because the path is known to miscompile elsewhere and a passing suite is not a
+proof when the failure mode is a silent prototype link.
