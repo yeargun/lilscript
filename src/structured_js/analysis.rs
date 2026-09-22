@@ -701,6 +701,8 @@ pub(super) fn transfer(
             }
         }
         Expr::Host(_) => result.effects = Effects::THROW.union(Effects::FOREIGN),
+        // A fresh object from a checked literal: no code runs.
+        Expr::Regex(_) => {}
         Expr::This => {}
         Expr::ToInt32(value) => {
             let operand = child(*value);

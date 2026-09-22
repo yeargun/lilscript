@@ -421,6 +421,23 @@ impl Buffer<'_, '_> {
         bytes[at..].rotate_right(1);
         self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
     }
+    /// A `/` ending at `at` followed by the `/` that opens a regular
+    /// expression literal would read as a comment: separate them.
+    fn separate_slash(&mut self, at: usize) {
+        if !matches!(
+            (self.text.as_bytes().get(at.wrapping_sub(1)), self.text.as_bytes().get(at)),
+            (Some(b'/'), Some(b'/'))
+        ) {
+            return;
+        }
+        self.push_str(" ");
+        if self.error.is_some() {
+            return;
+        }
+        let mut bytes = std::mem::take(&mut self.text).into_bytes();
+        bytes[at..].rotate_right(1);
+        self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
+    }
     /// A keyword printed just before `at` needs a space only when the
     /// following token would otherwise continue its word.
     fn separate_word(&mut self, at: usize) {
@@ -911,6 +928,11 @@ impl<'a> Printer<'a, '_, '_> {
                     InferredName::Known(inferred) => name.as_unicode() == Some(inferred),
                     InferredName::Computed => false,
                 };
+                if !matches && self.names.self_named(*function) {
+                    // `function name(){…}` owns its name wherever it stands.
+                    self.named_function_expression(*function, name);
+                    return;
+                }
                 if !matches {
                     // A sequence suppresses accidental named evaluation and
                     // produces a value, never a property reference receiver.
@@ -992,6 +1014,13 @@ impl<'a> Printer<'a, '_, '_> {
             },
             Expr::Binding(symbol) => self.text(self.names.get(*symbol)),
             Expr::Host(name) => self.text(name),
+            Expr::Regex(literal) => {
+                // `a/ /x/`: a division before the literal would otherwise
+                // open a comment.
+                let at = self.output.text.len();
+                self.text(literal);
+                self.output.separate_slash(at);
+            }
             Expr::This => self.text("this"),
             Expr::Unary { op, value } => {
                 self.text(match op {
@@ -1303,6 +1332,17 @@ impl<'a> Printer<'a, '_, '_> {
         if parens {
             self.text(")");
         }
+    }
+
+    fn named_function_expression(&mut self, id: FunctionId, name: &StringValue) {
+        let function = &self.module.functions[id.index()];
+        self.text(match function.suspension {
+            Suspension::None => "function ",
+            Suspension::Async => "async function ",
+            Suspension::Generator => "function*",
+        });
+        self.text(name.as_unicode().expect("a self-named function has an identifier name"));
+        self.function(id);
     }
 
     fn function_expression(&mut self, id: FunctionId) {

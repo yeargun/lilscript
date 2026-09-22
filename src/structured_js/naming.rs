@@ -19,13 +19,24 @@ pub struct Plan {
     pub style: Style,
     /// Lexical names retained as a compression choice, not a semantic pin.
     pub source_names: Vec<BindingId>,
+    /// Print each function that is not an arrow and has an exact name as
+    /// `function name(){…}`, so the binding holding it takes a short name.
+    /// The name then costs once instead of at every reference: always fewer
+    /// raw bytes, but a repeated long name is nearly free under a codec, so it
+    /// is a choice rather than a rule.
+    pub self_named: bool,
 }
 
 impl Plan {
     pub fn new(style: Style) -> Self {
+        Self::with_self_named(style, false)
+    }
+
+    pub fn with_self_named(style: Style, self_named: bool) -> Self {
         Self {
             style,
             source_names: vec![],
+            self_named,
         }
     }
 
@@ -159,6 +170,18 @@ pub(super) struct Basis<'a> {
     preferred: Vec<Option<&'a str>>,
     hosts: Vec<&'a str>,
     references: Vec<(ExprId, ScopeId)>,
+    /// Functions that can print as named expressions, `function name(){…}`:
+    /// their exact name owns itself, so under a self-named plan the binding
+    /// holding one takes a short name instead of that spelling. Indexed by
+    /// function.
+    self_named: Vec<bool>,
+    /// `preferred` without the self-named functions' bindings, and `hosts`
+    /// with their names reserved: what a self-named plan uses.
+    preferred_self: Vec<Option<&'a str>>,
+    hosts_self: Vec<&'a str>,
+    /// `let`/assignment initializers holding a function with an exact name,
+    /// resolved into `preferred` once `self_named` is known.
+    preferences: Vec<(BindingId, FunctionId, &'a str)>,
     direct_eval: bool,
     scoped: OnceLock<Scoped>,
     source_candidates: OnceLock<Vec<BindingId>>,
@@ -187,6 +210,10 @@ impl<'a> Basis<'a> {
             preferred: budget.filled(Retained, module.bindings.len(), None)?,
             hosts: budget.vector(Retained, 2)?,
             references: Vec::new(),
+            self_named: budget.filled(Retained, module.functions.len(), false)?,
+            preferred_self: Vec::new(),
+            hosts_self: Vec::new(),
+            preferences: Vec::new(),
             direct_eval: false,
             scoped: OnceLock::new(),
             source_candidates: OnceLock::new(),
@@ -295,6 +322,7 @@ impl<'a> Basis<'a> {
                 .ok_or(AllocationError::Capacity)?,
         )?;
         basis.hosts.dedup();
+        basis.settle_function_names(budget)?;
         Ok(basis)
     }
 
@@ -340,9 +368,65 @@ impl<'a> Basis<'a> {
             if let Some(name) = extract::function_name(self.module, function, self.choices)
                 .and_then(StringValue::as_unicode)
             {
-                self.preferred[binding.index()].get_or_insert(name);
+                self.preferences.push((binding, function, name));
             }
         }
+    }
+
+    /// A function that is not an arrow can carry its exact name itself as a
+    /// named expression, which costs the name once rather than at every
+    /// reference to the binding holding it. Its name then binds inside its own
+    /// body, so it must not be a spelling any reference there could print:
+    /// not a host name, not a required spelling, and never allocated (it joins
+    /// the reserved hosts). The remaining functions keep the old preference:
+    /// the binding takes the exact name when it is free.
+    fn settle_function_names(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), OutputError> {
+        let module = self.module;
+        let mut required: Vec<&str> = self.required.iter().flatten().copied().collect();
+        budget.work(WorkKind::Analysis, required.len() as u64 + 1)?;
+        required.sort_unstable();
+        let mut named = Vec::new();
+        for (index, function) in module.functions.iter().enumerate() {
+            budget.work(WorkKind::Analysis, 1)?;
+            if function.arrow {
+                continue;
+            }
+            let Some(name) = extract::function_name(module, FunctionId::new(index), self.choices)
+                .and_then(StringValue::as_unicode)
+            else {
+                continue;
+            };
+            budget.work(WorkKind::Analysis, name.len() as u64)?;
+            if name.is_empty()
+                || !identifier(name)
+                || matches!(name, "eval" | "arguments" | "undefined")
+                || self.hosts.binary_search(&name).is_ok()
+                || required.binary_search(&name).is_ok()
+            {
+                continue;
+            }
+            self.self_named[index] = true;
+            named.push(name);
+        }
+        self.preferred_self = budget.filled(AllocationClass::Retained, module.bindings.len(), None)?;
+        for &(binding, function, name) in &self.preferences {
+            budget.work(WorkKind::Analysis, 1)?;
+            self.preferred[binding.index()].get_or_insert(name);
+            if !self.self_named[function.index()] {
+                self.preferred_self[binding.index()].get_or_insert(name);
+            }
+        }
+        budget.extend_copy(AllocationClass::Retained, &mut self.hosts_self, &self.hosts)?;
+        if !named.is_empty() {
+            budget.extend_copy(AllocationClass::Retained, &mut self.hosts_self, &named)?;
+            budget.work(WorkKind::Analysis, sort_work(self.hosts_self.len(), 16)?)?;
+            self.hosts_self.sort_unstable();
+            self.hosts_self.dedup();
+        }
+        Ok(())
     }
 
     fn scoped_in(&self, budget: &mut AllocationBudget<'_>) -> Result<&Scoped, OutputError> {
@@ -443,13 +527,17 @@ impl<'a> Basis<'a> {
                 return Err("naming choice conflicts with required spelling".into());
             }
         }
-        let count = self
-            .hosts
+        let (hosts, preferred_names) = if plan.self_named {
+            (&self.hosts_self, &self.preferred_self)
+        } else {
+            (&self.hosts, &self.preferred)
+        };
+        let count = hosts
             .len()
             .checked_add(required.len())
             .ok_or(AllocationError::Capacity)?;
         let mut reserved = budget.vector(Scratch, count)?;
-        budget.extend_copy(Scratch, &mut reserved, &self.hosts)?;
+        budget.extend_copy(Scratch, &mut reserved, hosts)?;
         for name in required.iter().flatten() {
             budget.work(WorkKind::Render, 1)?;
             reserved.push(*name);
@@ -470,9 +558,14 @@ impl<'a> Basis<'a> {
             budget.work(WorkKind::Render, 1)?;
             bindings.push(String::new());
         }
+        let mut self_named = budget.vector(Scratch, self.self_named.len())?;
+        if plan.self_named {
+            budget.extend_copy(Scratch, &mut self_named, &self.self_named)?;
+        }
         let mut names = Names {
             bindings,
             by_scope: NameIndex::new(module.bindings.len(), budget)?,
+            self_named,
         };
         let mut global = if scoped.is_none() {
             Some(NameIndex::new(module.bindings.len(), budget)?)
@@ -491,7 +584,7 @@ impl<'a> Basis<'a> {
             let preferred = if plan.style == Style::Source && binding.source_symbol.is_some() {
                 Some(binding.spelling.as_str())
             } else {
-                self.preferred[symbol.index()]
+                preferred_names[symbol.index()]
             };
             let name = if let Some(name) = required[symbol.index()] {
                 // Required names may intentionally repeat in separate scopes.
@@ -723,6 +816,7 @@ impl NameIndex {
 pub(super) struct Names {
     bindings: Vec<String>,
     by_scope: NameIndex,
+    self_named: Vec<bool>,
 }
 impl Names {
     pub fn new(module: &Module, policy: PrintPolicy) -> Result<Self, String> {
@@ -743,6 +837,10 @@ impl Names {
     }
     pub fn get(&self, id: BindingId) -> &str {
         &self.bindings[id.index()]
+    }
+    /// Whether this function prints as `function name(){…}`.
+    pub fn self_named(&self, function: FunctionId) -> bool {
+        self.self_named.get(function.index()).copied().unwrap_or(false)
     }
     fn resolve_in(
         &self,

@@ -8,3 +8,16 @@
  export number clampToRange(
    JsValue value,
    number min,
+diff -ru a/test/api.test.mjs b/test/api.test.mjs
+--- a/test/api.test.mjs
++++ b/test/api.test.mjs
+@@ -85,7 +85,8 @@
+   it("keeps every public kernel name exact in the compiler output", () => {
+     const exports = source.match(/export\{[^}]+\}/)?.[0] ?? ""
+     for (const name of names) {
+-      assert.match(exports, new RegExp(` as ${name}[},]`), `export ${name}`)
++      // Exact either as `binding as name` or as a binding already named so.
++      assert.match(exports, new RegExp(`(?:[{,]| as )${name}[},]`), `export ${name}`)
+     }
+   })
+ 

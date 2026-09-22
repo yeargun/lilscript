@@ -11,6 +11,10 @@ fn compile(source: &str) -> String {
 }
 
 fn compile_with(source: &str, config: &str) -> String {
+    compile_plan(source, config, Plan::new(Style::Global))
+}
+
+fn compile_plan(source: &str, config: &str, plan: Plan) -> String {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source)
         .unwrap_or_else(|error| panic!("parse: {error:?}\n{source}"));
@@ -44,7 +48,7 @@ fn compile_with(source: &str, config: &str) -> String {
         .unwrap();
     let result = compilation
         .with_javascript_output(candidate, &policy, |output| {
-            let artifact = output.render(&Plan::new(Style::Global))?;
+            let artifact = output.render(&plan)?;
             output.take_artifact(artifact)
         })
         .and_then(|result| result)
@@ -304,6 +308,99 @@ fn forwarding_wrappers_become_their_builtins_and_stores_fold_into_the_literal() 
         run(&javascript, SHOW),
         "{\"kind\":\"tag\",\"size\":0,\"text\":\"null\",\"none\":true}\n{\"kind\":\"tag\",\"size\":8,\"text\":\"4\"}\n"
     );
+}
+
+#[test]
+fn redundant_operators_and_conversions_leave_no_residue() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern JsValue Math;
+        extern JsValue Number;
+        bool isUndef(JsValue value) { return JS.isUndefined(value); }
+        number trunc(number value) { return JS.number(JS.invoke(Math, "trunc", value)); }
+        bool isInteger(number value) { return JS.invoke(Number, "isInteger", value).truthy(); }
+        string toStr(JsValue value) { return JS.string(value); }
+        JsValue orEmpty(JsValue value) {
+            if (isUndef(value) || JS.isNullish(value)) { return JS.object(); }
+            return value;
+        }
+        export JsValue probe(JsValue a, number b) {
+            bool present = !isUndef(a) && !JS.isNullish(a);
+            JsValue label = JS.add("n=", toStr(trunc(b)));
+            return JS.array(orEmpty(a), present, trunc(b), isInteger(b), label);
+        }
+        show(probe(null, 2.5));
+        show(probe(JS.object(), -3));
+        "#,
+        PRISTINE,
+    );
+    // `isUndef(x)||x==null` is `x==null`; `Math.trunc` is already a number
+    // and `Number.isInteger` a boolean; `"n="+(v+"")` converts `v` once.
+    assert!(!javascript.contains("===void 0"), "{javascript}");
+    assert!(!javascript.contains(",+Math.") && !javascript.contains("+ +Math."), "{javascript}");
+    assert!(!javascript.contains("!!Number."), "{javascript}");
+    assert!(!javascript.contains("+\"\")"), "{javascript}");
+    assert_eq!(
+        run(&javascript, SHOW),
+        "[{},false,2,false,\"n=2\"]\n[{},true,-3,true,\"n=-3\"]\n"
+    );
+}
+
+#[test]
+fn constant_regex_constructors_become_literals_only_when_valid() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export JsValue probe(string text) {
+            Regex slash = new Regex("a/b", "g");
+            Regex letters = new Regex("[\\p{L}]+", "u");
+            Regex named = new Regex("(?<word>b+)\\k<word>", "");
+            return JS.array(slash.test(text), letters.test(text), named.test(text));
+        }
+        export JsValue broken() {
+            Regex never = new Regex("(", "");
+            return never.test("x");
+        }
+        show(probe("xa/bbbé"));
+        "#,
+        PRISTINE,
+    );
+    assert!(javascript.contains("/a\\/b/g"), "{javascript}");
+    assert!(javascript.contains("/[\\p{L}]+/u"), "{javascript}");
+    assert!(javascript.contains("/(?<word>b+)\\k<word>/"), "{javascript}");
+    // An invalid pattern stays a constructor: it throws when evaluated,
+    // never while the module loads.
+    assert!(javascript.contains("RegExp(\"(\",\"\")"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "[true,true,true]\n");
+}
+
+#[test]
+fn a_raw_plan_names_functions_themselves_and_keeps_their_names_exact() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue describeTheValue(JsValue value) {
+            return JS.array(JS.string(value), JS.isNullish(value));
+        }
+        export JsValue describeTwice(JsValue value) {
+            return JS.array(describeTheValue(value), describeTheValue(value));
+        }
+        extern JsValue nameOf(JsValue function);
+        show(describeTwice(3));
+        show(JS.array(nameOf(describeTheValue), nameOf(describeTwice)));
+    "#;
+    let named = compile_plan(source, PRISTINE, Plan::with_self_named(Style::Global, true));
+    // The binding takes a short name; the exact name is spelled once.
+    assert!(named.contains("function describeTheValue("), "{named}");
+    assert_eq!(named.matches("describeTheValue").count(), 2, "{named}");
+    let host = "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.nameOf=f=>f.name;";
+    assert_eq!(
+        run(&named, host),
+        "[[\"3\",false],[\"3\",false]]\n[\"describeTheValue\",\"describeTwice\"]\n"
+    );
+    let bound = compile_plan(source, PRISTINE, Plan::new(Style::Global));
+    assert!(!bound.contains("function describeTheValue("), "{bound}");
+    assert_eq!(run(&bound, host), run(&named, host));
 }
 
 #[test]

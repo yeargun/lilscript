@@ -690,10 +690,15 @@ fn form_with_demand(
             .iter()
             .map(|alternative| alternative.expression())
             .collect();
+        let numeric_lengths = formation.contract.assumptions.numeric_lengths;
+        let es2018 = formation.contract.ecmascript.year() >= 2018;
         let inlined = inlined.and_then(|()| {
             formation
                 .module
-                .fold_literal_operations(&protected, formation.budget)
+                .fold_literal_operations(&protected, formation.budget)?;
+            formation
+                .module
+                .simplify_operators(numeric_lengths, es2018, &protected, formation.budget)
                 .map(|_| ())
         });
         if let Err(error) = inlined {
@@ -719,6 +724,10 @@ fn form_with_demand(
                     formation.module.forward_single_uses(formation.budget)?;
                 }
                 formation.module.drop_double_negations(formation.budget)?;
+                // Forwarding and folds bring operators next to each other.
+                formation
+                    .module
+                    .simplify_operators(numeric_lengths, es2018, &protected, formation.budget)?;
                 if prunes {
                     formation.module.drop_unreferenced_functions(formation.budget)?;
                 }

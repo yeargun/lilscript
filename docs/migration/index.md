@@ -1545,6 +1545,35 @@ The tasks below fix general mechanisms. Each names its owner, its reproduction, 
 
 Order: T4's regex slice and T5 first (small, measured, and needed to know where markedlil and zodlil stand). Then T1, which T2 and T3 need. T6 runs alongside, one module per batch. A task closes on its reproduction and negative cases, not on a byte target. A byte that does not move is still reported.
 
+### 013 batch 3: exact operator folds, regex literals, raw-objective function names (2026-09-22)
+
+The owner set the six-port goal the same day: katexlil, markedlil, motionlil, zodlil, posthoglil and jquerylil must each compile smaller than the original. That means Brotli under the Brotli objective and raw under the raw objective. The bars and standings are kept in the [six-port scoreboard](../../benchmarks/migration-results/2026-09-22-six-ports/README.md). Three generic mechanisms landed:
+
+- **Exact operator folds** ([simplify.rs](../../src/structured_js/simplify.rs)), after literal folding and again at the end of target compaction. Each rule keeps operands, evaluation order and effects.
+  - `!(a==b)` becomes `a!=b`, and likewise for the other equalities.
+  - `x===void 0||x==null` becomes `x==null`, and `x!==void 0&&x!=null` becomes `x!=null`, for one binding.
+  - `+e`, `!!e` and `e+""` become `e` when `e` already has that primitive type. The types come from numeric operators and comparisons, and, under pristine builtins, from a spec-derived table of `Math`, `Number`, `Date.now`, `parseInt`, `String`, `encodeURIComponent` and `Object.prototype.toString.call` results, spelled as named or literal-keyed members.
+  - `s+(e+"")` becomes `s+e` for a string `s`, since both convert `e` once, at the same point.
+  - `x.length|0` becomes `x.length` under the numeric-length assumption.
+
+  These are the conversions the ports' `JsValue` wrappers write, such as `JS.number(JS.invoke(Math,"trunc",x))` and `isUndef(v)||JS.isNullish(v)`.
+- **Regex literals.** Under pristine builtins, `new RegExp("p","f")` of literal strings prints as `/p/f` (`Expr::Regex`, never copied or shared, since each evaluation is a fresh object). A pattern outside `js_regex`'s proven subset is emitted only when the standard literal grammar (`oxc_regular_expression`, already built as `oxc_parser`'s default feature) accepts its serialized body, and only for ES2018+ output. An invalid pattern stays a constructor, so it still throws when evaluated rather than failing the module at load. markedlil's `\p{…}`, named-group and lookbehind patterns all become literals.
+- **Self-named functions for the raw objective.** A naming plan may print each exact-named function that is not an arrow as `function name(){…}`, reserving the name, so the binding holding it takes a short name. That is always fewer raw bytes: jquerylil −3,437, posthoglil −661. Under a codec a repeated long name is nearly free, and the two measured Brotli +187 and +166. So the policy's own objective decides, and the search schedule is unchanged.
+
+| Brotli (compiler output) | posthoglil | markedlil | zodlil | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Before (`577d472d`) | 5,952 | 9,397 | 28,326 | 65,727 | 33,593 |
+| **After** | **5,907** | **9,288** | **28,145** | **65,494** | **33,507** |
+
+| Raw objective | posthoglil | markedlil |
+|---|---|---|
+| Before | 19,750 | 39,687 |
+| **After** | **18,580** | **37,071** (Oxc bar 37,022) |
+
+**Measured and not adopted as rules:** `x=x+y` to `x+=y`, `if(a)return b;return c` to a conditional, and negated-comparison spellings each cut raw bytes and, as edits to finished text, raised Brotli by 4–233 bytes. Part of that is the lost naming optimum: 16 size-preserving name swaps on katexlil's output all measure 36–145 bytes above the compiler's own naming. So such spellings are judged inside the compiler, under the objective, never by editing its output.
+
+**Verification.** 3,037 unit tests pass, including `redundant_operators_and_conversions_leave_no_residue`, `constant_regex_constructors_become_literals_only_when_valid`, `a_raw_plan_names_functions_themselves_and_keeps_their_names_exact` and the regex grammar test. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21. [posthoglil.patch](../../finer/port-migrations/posthoglil.patch) gains the same export-spelling assertion fix as markedlil's: every public name is still exported exactly.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

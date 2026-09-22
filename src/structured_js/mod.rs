@@ -43,6 +43,7 @@ mod output_policy_tests;
 mod plan;
 mod print;
 mod rewrite;
+mod simplify;
 pub(crate) use rewrite::literal_array_projection;
 #[cfg(test)]
 mod string_recipe_tests;
@@ -275,6 +276,9 @@ pub enum Expr {
         value: ExprId,
         delegate: bool,
     },
+    /// A regular-expression literal, its complete source text (`/p/f`). Each
+    /// evaluation creates a fresh `RegExp`, so it is never copied or shared.
+    Regex(String),
     /// `import()` of source module `module`: a promise of its namespace. A
     /// module delivered in its own lazy chunk loads that file; otherwise the
     /// namespace is an object of `members`, built a turn later, once every
@@ -391,6 +395,7 @@ impl Expr {
             Self::Literal(_)
             | Self::Binding(_)
             | Self::Host(_)
+            | Self::Regex(_)
             | Self::This
             | Self::Function(_) => {}
         }
@@ -403,6 +408,7 @@ impl Expr {
             Self::Literal(_)
             | Self::Binding(_)
             | Self::Host(_)
+            | Self::Regex(_)
             | Self::This
             | Self::Function(_) => {}
             Self::Unary { value, .. }

@@ -39,6 +39,10 @@ oxc_span = "=0.143.0"
 # Foreign host modules (TypeScript or JavaScript) are type-stripped from their
 # ESTree form's spans before delivery; no transformer or code generator.
 oxc_ast = { version = "=0.143.0", features = ["serialize"] }
+# The standard regular-expression grammar (already built as oxc_parser's default
+# feature) decides when a constructor pattern outside js_regex's proven subset
+# can be a literal: an invalid literal would be an early error.
+oxc_regular_expression = "=0.143.0"
 
 [dev-dependencies]
 oxc_ast = "=0.143.0"

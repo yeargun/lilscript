@@ -19,6 +19,38 @@ pub(crate) fn literal_from_decoded(pattern: &str, flags: &str) -> Option<String>
     Some(format!("/{body}/{flags}"))
 }
 
+/// `literal_from_decoded`, extended to the complete pattern grammar of an
+/// ES2018 or later output: named groups, lookbehind and property escapes.
+/// Outside the proven subset a literal is emitted only when the standard
+/// literal grammar accepts its serialized body. Serializing changes only `/`
+/// and raw line terminators into escapes of the same characters, so an
+/// accepted literal means what the constructor would have built, and a
+/// pattern the constructor rejects never becomes an early error.
+pub(crate) fn literal_from_decoded_checked(
+    pattern: &str,
+    flags: &str,
+    es2018: bool,
+) -> Option<String> {
+    if let Some(literal) = literal_from_decoded(pattern, flags) {
+        return Some(literal);
+    }
+    if !es2018 {
+        return None;
+    }
+    RegexFlags::parse(flags)?;
+    let body = serialize_literal_body(pattern);
+    let allocator = oxc_allocator::Allocator::default();
+    oxc_regular_expression::LiteralParser::new(
+        &allocator,
+        &body,
+        Some(flags),
+        oxc_regular_expression::Options::default(),
+    )
+    .parse()
+    .ok()?;
+    Some(format!("/{body}/{flags}"))
+}
+
 #[derive(Debug, Clone, Copy)]
 struct RegexFlags {
     unicode: bool,
@@ -449,6 +481,27 @@ fn serialize_literal_body(pattern: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::literal_from_decoded;
+    use super::literal_from_decoded_checked;
+
+    #[test]
+    fn the_checked_form_accepts_es2018_grammar_and_refuses_invalid_patterns() {
+        let checked = |pattern: &str, flags: &str| literal_from_decoded_checked(pattern, flags, true);
+        assert_eq!(checked(r"[\p{L}\p{N}]", "u").as_deref(), Some(r"/[\p{L}\p{N}]/u"));
+        assert_eq!(
+            checked(r"(?<a>`+)[^`]+\k<a>(?!`)", "").as_deref(),
+            Some(r"/(?<a>`+)[^`]+\k<a>(?!`)/")
+        );
+        assert_eq!(checked(r"(?<!a)b", "").as_deref(), Some(r"/(?<!a)b/"));
+        assert_eq!(checked(r"a\:b", "").as_deref(), Some(r"/a\:b/"));
+        assert_eq!(checked("a/b", "g").as_deref(), Some(r"/a\/b/g"));
+        // Invalid in every mode: the constructor must keep throwing at run time.
+        assert_eq!(checked("(", ""), None);
+        assert_eq!(checked(r"\p{Nope}", "u"), None);
+        assert_eq!(checked(r"a\:b", "u"), None);
+        assert_eq!(checked("a", "gg"), None);
+        // An older output keeps the proven subset only.
+        assert_eq!(literal_from_decoded_checked(r"(?<!a)b", "", false), None);
+    }
 
     fn literal(pattern: &str, flags: &str) -> Option<String> {
         literal_from_decoded(pattern, flags)
