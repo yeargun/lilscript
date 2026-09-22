@@ -44,6 +44,7 @@ mod plan;
 mod print;
 mod rewrite;
 mod simplify;
+mod blocks;
 pub(crate) use rewrite::literal_array_projection;
 #[cfg(test)]
 mod string_recipe_tests;

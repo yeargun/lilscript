@@ -19,27 +19,33 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 7) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`) | 65,727 | 64,874 | 63,044 | +1,830 |
-| markedlil (`marked.raw.js`) | 9,397 | 9,290 | 10,092 | **win −802** |
+| katexlil (complete `katex.esm.js`) | 65,727 | 64,886 | 63,044 | +1,842 |
+| markedlil (`marked.raw.js`) | 9,397 | 9,300 | 10,092 | **win −792** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,620 | 5,622 | level (−2) |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 32,167 | 27,445 | +4,722 |
-| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,699 | 51,948 | **win −6,249** |
-| motionlil (`full.js`) | does not build | 52,080 | 41,032 | +11,048 |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 31,373 | 27,445 | +3,928 |
+| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,720 | 51,948 | **win −6,228** |
+| motionlil (`full.js`) | does not build | 52,080 (batch 4) | 41,032 | +11,048 |
 
-| Raw objective | Start | Now | Bar | Gap |
+| Raw objective | Start | Now (batch 7) | Bar | Gap |
 |---|---|---|---|---|
-| markedlil (`marked.bytes.js`) | 39,687 | 36,583 | 37,022 | **win −439** |
-| posthoglil (`posthog.bytes.js`) | 19,750 | 18,465 | 16,123 | +2,342 |
-| zodlil (complete package, as above) | open | 252,517 | 274,999 | **win −22,482** |
+| markedlil (`marked.bytes.js`) | 39,687 | 36,460 | 37,022 | **win −562** |
+| posthoglil (`posthog.bytes.js`) | 19,750 | 18,350 | 16,123 | +2,227 |
+| zodlil (complete package, built with the raw objective) | open | 250,283 | 274,999 | **win −24,716** |
 | katexlil, jquerylil, motionlil | no raw configuration yet | | | |
+
+Until batch 7 the zodlil raw row showed 252,517, which was the raw size of the Brotli-objective package. The row now uses a raw-objective build.
 
 The default route, for reference with the same binary: posthoglil 5,602 (it also loses once its `esm.js` banner is counted), katexlil 64,620–64,907, jquerylil 28,764. motionlil's committed `full.js` is 50,526.
 
 ## Known causes, by port
 
-- **jquerylil:** 16,254 bytes of long binding names, against 1,113 on the default route. They come from the carried `js-host.ts` module, which is only whitespace-compacted (minifying it alone is worth −492 Brotli), and from escaping functions that keep their exact source `.name` (`fnLoad`, `queueHooks`). Statement-heavy spelling is another cause: 1,224 `if(` against 303.
+- **jquerylil:** measured against the default route's 28,764 with the same binary, and estimated by editing our output (batch 7 in `docs/migration/index.md`):
+  - The carried `js-host.ts` is 9.1 KB raw and 2,189 Brotli on its own. Only 41 of its 102 functions are used, and each call spells the long host name. Pruning and minifying the block is worth −1,204 Brotli.
+  - The methods pass through `this` adapters at 117 sites (`function(a){return function(){return a(this,arguments)}}`), and their bodies read arguments by position.
+  - The output is statement-heavy: 1,224 `if(` against 303, and 957 `let` against 28.
+  - The 65 single-use struct encoders are gone in batch 7 (−794).
 - **motionlil:** 12 class names are declared in two modules (`JSAnimation`, `GroupAnimation`). The semantic checker keys classes and enums by bare name (`Type::Class(&str)`), which rejects that; the default route's linker qualifies them. Owed as a language fix; a rename patch unblocks measurement.
 - **katexlil:** the port is an untyped transliteration (3,990 `JsValue`, 394 `toNum`, no `pure`). Terser still finds 1.7% in our output, mostly single-use functions.
 - **posthoglil:** string arrays are not packed, small `JsValue` wrappers are not inlined, and the port declares builtins through `JsValue` (`JS.number(JS.invoke(Math,"trunc",x))`).

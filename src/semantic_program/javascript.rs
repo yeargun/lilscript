@@ -361,6 +361,7 @@ pub(super) fn lower_admitted(
         contract,
         mode,
         compact,
+        false,
         ResourceView::Whole,
         budget,
     )
@@ -373,6 +374,7 @@ pub(super) fn lower_resource_admitted(
     contract: &JavaScriptCompilationContract,
     mode: DemandMode,
     compact: bool,
+    raw_structure: bool,
     resource: ResourceView<'_>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
@@ -388,7 +390,15 @@ pub(super) fn lower_resource_admitted(
             ledger,
         )
     })?;
-    let result = form_with_demand(program, Some(uses), contract, &demand, compact, &mut phase);
+    let result = form_with_demand(
+        program,
+        Some(uses),
+        contract,
+        &demand,
+        compact,
+        raw_structure,
+        &mut phase,
+    );
     let discarded = phase.with_ledger(|ledger| demand.discard(ledger.map(|(ledger, _)| ledger)));
     match (result, discarded) {
         (Ok(module), Ok(())) => {
@@ -429,6 +439,7 @@ fn form(
         contract,
         &demand,
         false,
+        false,
         &mut AllocationBudget::new(None),
     );
     demand
@@ -449,6 +460,7 @@ fn form_with_demand(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    raw_structure: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
@@ -772,11 +784,20 @@ fn form_with_demand(
             }
         }
         let edited = Ok::<_, AllocationError>(()).and_then(|()| {
-                if prunes {
-                    formation.module.drop_unreferenced_functions(formation.budget)?;
+            if raw_structure {
+                // Functions with one call, as statements, take its place;
+                // their parameters are then copies to forward.
+                if formation.module.inline_single_calls(strict, formation.budget)? != 0 {
+                    formation.module.eliminate_aliases(formation.budget)?;
+                    formation.module.forward_single_uses(formation.budget)?;
                 }
-                Ok(0)
-            });
+                formation.module.flatten_blocks(formation.budget)?;
+            }
+            if prunes {
+                formation.module.drop_unreferenced_functions(formation.budget)?;
+            }
+            Ok(0)
+        });
         if let Err(error) = edited {
             drop(formation);
             return Err(error.into());

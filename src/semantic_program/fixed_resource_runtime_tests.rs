@@ -31,6 +31,7 @@ fn choices(compact: bool) -> OutputTactics {
         } else {
             LiteralOutput::Original
         },
+        raw_structure: false,
     }
 }
 

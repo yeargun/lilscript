@@ -26,6 +26,11 @@ pub struct OutputTactics {
     pub dead_code_elimination: bool,
     pub target_compaction: bool,
     pub literals: LiteralOutput,
+    /// Compaction shaped for raw bytes: a function called once becomes a
+    /// block at its call, and nested blocks flatten. Both cut raw bytes and
+    /// break the repetition a codec matches (measured mixed under Brotli), so
+    /// only a raw objective chooses them.
+    pub raw_structure: bool,
 }
 
 impl OutputTactics {
@@ -40,12 +45,16 @@ impl OutputTactics {
             } else {
                 LiteralOutput::Original
             },
+            raw_structure: target_compaction
+                && policy.objective().is_some_and(|objective| {
+                    objective.codec == crate::structured_js::selection::Objective::Raw
+                }),
         }
     }
 
     /// Permission only; artifact admission separately checks cost evidence.
     pub fn check_policy(self, policy: &ResolvedPolicy) -> Result<(), AdmissionError> {
-        if self.literals == LiteralOutput::Observed && !self.target_compaction {
+        if (self.literals == LiteralOutput::Observed || self.raw_structure) && !self.target_compaction {
             return Err(AdmissionError::ForbiddenTactic(TacticId::TargetCompaction));
         }
         for (selected, tactic) in [
@@ -341,6 +350,7 @@ mod tests {
         literals: LiteralOutput::Original,
         dead_code_elimination: false,
         target_compaction: false,
+        raw_structure: false,
     };
     const WORK: u64 = 100_000;
     const MEMORY: u64 = 100_000;

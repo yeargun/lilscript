@@ -2130,6 +2130,7 @@ impl<'src> Compilation<'src> {
             target.language(),
             demand,
             choices.target_compaction,
+            choices.raw_structure,
             resource,
             &mut budget,
         )

@@ -1636,6 +1636,44 @@ What remains of Terser's `reduce_vars` gain is chiefly functions called once fro
 
 **Verification.** 3,040 unit tests pass, including `a_function_read_once_takes_its_later_reference`. `readonly_forwarding_keeps_private_path_slots_and_empty_roots_need_no_schema_support` now accepts a path read once taking its use. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21.
 
+### 013 batch 7: once-called functions as blocks under a raw objective; fresh structs as literals (2026-09-22)
+
+- **Block inlining (013-T2's first slice).** `inline_single_calls` in [blocks.rs](../../src/structured_js/blocks.rs) handles `let f=(p)=>{…}` called once, as `f(a);`, `let x=f(a);`, `x=f(a);` or `return f(a);`. The call becomes `{let p=a;…}`, which is Closure's `FunctionInjector` block mode without its labels. The conditions:
+  - The arguments evaluate once, in order, before the body, as the call evaluated them.
+  - For `return f(a)`, the body's returns stay returns. For the other sites every return must be in tail position and stores its value (`x=v`), so the block ends right after it.
+  - `x=f(a)` needs a body that cannot reach its end, since the call would store `undefined` there.
+  - An early return would need a one-iteration loop to leave (`for(;;){…x=v;break…}`). That costs more than the call it replaces (`a_raw_objective_inlines_functions_called_once_as_blocks` measured it), so such functions stay.
+  - The body has no `this`, `arguments` or `super` of its own, does not suspend, and has no strict frame a script could see.
+  - The call stands in a statement after the declaration that is not a hoisted function, and a `let x=f(a)` whose body or arguments read `x` stays a call: inlined, they would read `undefined` where the call throws.
+  - Its scopes are renewed under the call's.
+- **Block flattening.** `flatten_blocks` splices a nested block into its region unless it declares a function or a pinned name, or is a `for` head (`{let i=v;for(;c;u)b}`).
+- **Both are the raw objective's.** They cut raw bytes and break repetition a codec matches:
+
+  | Measured on batch 6's binary | markedlil | posthoglil | zodlil | katexlil (`esm`) | jquerylil (`esm`) |
+  |---|---|---|---|---|---|
+  | Brotli, inlining only | +101 | −1 | +9 | +73 | −23 |
+  | Brotli, both | +159 | 0 | +106 | +12 | −22 |
+  | Raw objective, both | −54 | −99 | −259 | | |
+
+  The new output tactic `raw_structure` in `OutputTactics` carries the choice to formation. It is derived from the policy's objective, which chooses among admitted programs and cannot change the contract.
+- **Every reference counts.** The candidate count missed a reference standing as a statement's own value (`let process=mightThrow` in jquerylil's `Deferred`), and the inliner deleted a live declaration. The verifier caught it.
+- **`===` between one primitive type is `==`.** `typeof x==="string"` becomes `typeof x=="string"`, as formation already prints typed operands (Terser's `comparisons`). This covers 65 comparisons on jquerylil.
+- **A fresh struct meets its public shape as a literal.** A value struct reaching a `JsValue` position is encoded to its D2 public object. When that value is a fresh product, formation now writes `{k0:e0,…}` instead of `encode([e0,…])`. Fields evaluate in declaration order either way, and a nested encoder only reads an immutable product. jquerylil builds its API objects this way (`CallbacksApi{add:JS.methodRest(…),…}`), through 65 single-use encoders. The test is `a_fresh_struct_meets_its_public_shape_as_a_literal`.
+
+| | posthoglil (`raw.js`) | markedlil (`raw.js`) | zodlil | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Brotli, batch 6 | 5,620 | 9,290 | 28,018 | 64,874 | 32,167 |
+| **Brotli, after** | **5,620** | **9,300** | **28,015** | **64,886** | **31,373** |
+| Raw objective, batch 6 | 18,465 | 36,577 | 123,925 | | |
+| **Raw objective, after** | **18,350** | **36,460** | **123,167** | | |
+
+**Verification.** 3,046 unit tests pass, including `a_raw_objective_inlines_functions_called_once_as_blocks`, `a_function_also_read_as_a_value_keeps_its_declaration`, `a_function_called_once_becomes_a_block_at_its_call`, `a_call_initializing_a_binding_its_function_reads_stays_a_call`, `comparisons_between_one_primitive_type_are_loose` and `a_fresh_struct_meets_its_public_shape_as_a_literal`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7, posthoglil 21/21 and motionlil 9/9. The same five suites also pass on raw-objective builds, which exercise the block inliner.
+
+**Where jquerylil's remaining gap is.** The default route prints 28,764 with the same binary. A token census against it, and estimates made by editing our output:
+- The host module `js-host.ts` is carried whole: 9.1 KB raw and 2,189 Brotli on its own. Only 41 of its 102 functions are used, and their long names are spelled at every call. Pruning to the used exports and minifying the block is worth −1,204 Brotli. Terser's full compression on top finds only −246 more, and mangling −390, mostly the 41 host names. So the carried host module is the largest single cause. Its fix is to lower host JavaScript into the target tree, so pruning, inlining and naming reach it, with text delivery as the fallback.
+- Methods pass through `this` adapters: `function(a){return function(){return a(this,arguments)}}` and three siblings, at 117 sites. Each body reads its arguments by position (`c[0]`). The default route prints `function(){…this…arguments…}`.
+- The default route prints expressions where we print statements (`if(` 303 against 1,224, `?` 331 against 64), and merges declarations (`let` 28 against 957).
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

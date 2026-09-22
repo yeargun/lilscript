@@ -530,6 +530,7 @@ fn final_package_cost_uses_merged_risk_and_never_fabricates_unknown_runtime_evid
         dead_code_elimination: false,
         target_compaction: false,
         literals: LiteralOutput::Original,
+        raw_structure: false,
     };
     let (consumer, producer) = {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));

@@ -67,9 +67,9 @@ struct Template {
 
 /// Every expression and region that can run, with each expression's depth as
 /// the verifier counts it.
-struct Reach {
-    expressions: Vec<(ExprId, usize)>,
-    regions: Vec<RegionId>,
+pub(super) struct Reach {
+    pub(super) expressions: Vec<(ExprId, usize)>,
+    pub(super) regions: Vec<RegionId>,
     /// Bindings mentioned by a function other than the one declaring them:
     /// a call can reach such a binding, and may write it.
     captured: Vec<bool>,
@@ -660,7 +660,7 @@ impl Module {
 
     /// Every expression and region reachable from the root, each expression
     /// with its depth as the verifier counts it.
-    fn reach(&self, budget: &mut AllocationBudget<'_>) -> Result<Reach, AllocationError> {
+    pub(super) fn reach(&self, budget: &mut AllocationBudget<'_>) -> Result<Reach, AllocationError> {
         let mut seen_regions = vec![false; self.regions.len()];
         let mut seen = vec![false; self.expressions.len()];
         let mut reach = Reach {

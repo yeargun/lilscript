@@ -5313,3 +5313,114 @@ fn single_statement_ifs_print_as_logical_expressions_where_shorter() {
     assert_eq!(execute(&build(true, false), "globalThis.flag=false;", policy), "[7]");
     assert_eq!(execute(&build(false, false), "globalThis.flag=false;", policy), "[]");
 }
+
+/// `let f=()=>x;let x=f();` reads `x` before its declaration completes and
+/// throws. Moved under `let x;`, the body would read `undefined` instead, so
+/// the call stays.
+#[test]
+fn a_call_initializing_a_binding_its_function_reads_stays_a_call() {
+    let mut module = Module::default();
+    let root = RegionId::new(0);
+    let root_scope = module.regions[root.index()].scope;
+    let f = binding(&mut module, root, 1, "f");
+    let x = binding(&mut module, root, 2, "x");
+    let body = module.region(root_scope);
+    let read = expr(&mut module, Expr::Binding(x));
+    module.regions[body.index()].statements = vec![Statement::Return(Some(read))];
+    let function = FunctionId::new(module.functions.len());
+    module.functions.push(Function {
+        parameters: vec![],
+        body,
+        arrow: true,
+        name: FunctionName::Unobserved,
+        strict: false,
+        length: None,
+        suspension: Suspension::None,
+    });
+    let created = expr(&mut module, Expr::Function(function));
+    let callee = expr(&mut module, Expr::Binding(f));
+    let called = call(&mut module, callee, vec![], Invocation::Value);
+    let result = expr(&mut module, Expr::Binding(x));
+    let output = host(&mut module, "capture");
+    let captured = call(&mut module, output, vec![result], Invocation::Value);
+    module.regions[root.index()].statements = vec![
+        Statement::Let { binding: f, value: Some(created) },
+        Statement::Let { binding: x, value: Some(called) },
+        Statement::Evaluate(captured),
+    ];
+    module.root_modules = vec![0; 3];
+    module.verify().unwrap();
+    let mut budget = AllocationBudget::new(None);
+    assert_eq!(module.inline_single_calls(true, &mut budget).unwrap(), 0);
+    module.verify().unwrap();
+}
+
+/// A function called once, as a statement, becomes a block there; its tail
+/// returns store the call's result. One that returns early stays.
+#[test]
+fn a_function_called_once_becomes_a_block_at_its_call() {
+    let mut module = Module::default();
+    let root = RegionId::new(0);
+    let root_scope = module.regions[root.index()].scope;
+    let f = binding(&mut module, root, 1, "f");
+    let result = binding(&mut module, root, 2, "result");
+    let body = module.region(root_scope);
+    let body_scope = module.regions[body.index()].scope;
+    let parameter = binding(&mut module, body, 3, "p");
+    // (p)=>{capture(p);if(p)return 1;else return 2}
+    let yes = module.region(body_scope);
+    let one = number(&mut module, 1.0);
+    module.regions[yes.index()].statements = vec![Statement::Return(Some(one))];
+    let no = module.region(body_scope);
+    let two = number(&mut module, 2.0);
+    module.regions[no.index()].statements = vec![Statement::Return(Some(two))];
+    let test = expr(&mut module, Expr::Binding(parameter));
+    let seen = expr(&mut module, Expr::Binding(parameter));
+    let output = host(&mut module, "capture");
+    let captured = call(&mut module, output, vec![seen], Invocation::Value);
+    module.regions[body.index()].statements = vec![
+        Statement::Evaluate(captured),
+        Statement::If { condition: test, yes, no: Some(no) },
+    ];
+    let function = FunctionId::new(module.functions.len());
+    module.functions.push(Function {
+        parameters: vec![parameter],
+        body,
+        arrow: true,
+        name: FunctionName::Unobserved,
+        strict: false,
+        length: None,
+        suspension: Suspension::None,
+    });
+    let created = expr(&mut module, Expr::Function(function));
+    let callee = expr(&mut module, Expr::Binding(f));
+    let argument = host(&mut module, "flag");
+    let called = call(&mut module, callee, vec![argument], Invocation::Value);
+    let read = expr(&mut module, Expr::Binding(result));
+    let output = host(&mut module, "capture");
+    let reported = call(&mut module, output, vec![read], Invocation::Value);
+    module.regions[root.index()].statements = vec![
+        Statement::Let { binding: f, value: Some(created) },
+        Statement::Let { binding: result, value: Some(called) },
+        Statement::Evaluate(reported),
+    ];
+    module.root_modules = vec![0; 3];
+    module.verify().unwrap();
+    let before = [
+        execute(&module, "const flag=0;", PrintPolicy { mangle_bindings: false }),
+        execute(&module, "const flag=1;", PrintPolicy { mangle_bindings: false }),
+    ];
+    // The early form, `if(p)return 1;…`, would need a loop to leave.
+    let mut early = module.clone();
+    early.regions[body.index()].statements.swap(0, 1);
+    let mut budget = AllocationBudget::new(None);
+    assert_eq!(early.inline_single_calls(true, &mut budget).unwrap(), 0);
+    assert_eq!(module.inline_single_calls(true, &mut budget).unwrap(), 1);
+    module.verify().unwrap();
+    let javascript = module.render(PrintPolicy { mangle_bindings: false }).unwrap();
+    assert!(!javascript.contains("for(;;)") && !javascript.contains("=>"), "{javascript}");
+    assert_eq!(before[0], "[0,2]");
+    assert_eq!(before[1], "[1,1]");
+    assert_eq!(execute(&module, "const flag=0;", PrintPolicy { mangle_bindings: false }), before[0]);
+    assert_eq!(execute(&module, "const flag=1;", PrintPolicy { mangle_bindings: false }), before[1]);
+}

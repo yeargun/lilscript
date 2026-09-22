@@ -660,3 +660,104 @@ fn an_inert_single_use_literal_moves_into_the_store_that_reads_it() {
         "{\"output\":{\"type\":\"string\",\"cli\":\"-F\"},\"strict\":{\"type\":\"boolean\"}}\n"
     );
 }
+
+#[test]
+fn a_raw_objective_inlines_functions_called_once_as_blocks() {
+    let source = r#"
+        extern void show(JsValue value);
+        JsValue classify(int value) {
+            show(value);
+            if (value < 0) { return "negative"; } else if (value == 0) { return "zero"; } else { return "positive"; }
+        }
+        JsValue early(int value) {
+            if (value < 0) { return "below"; }
+            show("early");
+            return "above";
+        }
+        void report(int value) {
+            show(value * 2);
+            show(value * 3);
+        }
+        export void run(int value) {
+            JsValue label = classify(value);
+            show(label);
+            report(value);
+            show(early(value));
+        }
+        run(-1);
+        run(0);
+        run(5);
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let coded = compile_with(source, PRISTINE);
+    // `classify` returns only in tail position: its body stores the label
+    // in place. `early` would need a loop to leave, so it stays a function.
+    // A codec objective keeps both, whose repetition it can match.
+    assert_eq!(raw.matches("=>").count(), 1, "{raw}");
+    assert!(!raw.contains("for(;;)"), "{raw}");
+    assert_eq!(coded.matches("=>").count(), 2, "{coded}");
+    assert!(raw.len() < coded.len(), "{raw}\n{coded}");
+    let expected = "-1\n\"negative\"\n-2\n-3\n\"below\"\n0\n\"zero\"\n0\n0\n\"early\"\n\"above\"\n5\n\"positive\"\n10\n15\n\"early\"\n\"above\"\n";
+    assert_eq!(run(&raw, SHOW), expected);
+    assert_eq!(run(&coded, SHOW), expected);
+}
+
+#[test]
+fn a_function_also_read_as_a_value_keeps_its_declaration() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue pick(bool special) {
+            func()->JsValue attempt = () => { show("attempt"); return 1; };
+            JsValue chosen = attempt;
+            if (!special) { attempt(); }
+            return chosen;
+        }
+        show(JS.typeOf(pick(false)));
+        show(JS.typeOf(pick(true)));
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    // One call, but `chosen` reads the function too: it stays declared.
+    assert!(raw.contains("=>"), "{raw}");
+    assert_eq!(run(&raw, SHOW), "\"attempt\"\n\"function\"\n\"function\"\n");
+}
+
+#[test]
+fn comparisons_between_one_primitive_type_are_loose() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export JsValue kinds(JsValue value) {
+            return JS.array(JS.typeOf(value) == "number", JS.typeOf(value) != "string");
+        }
+        show(kinds(1));
+        show(kinds("a"));
+        "#,
+        PRISTINE,
+    );
+    // `typeof` is a string, so it compares with a string the same loosely.
+    assert!(!javascript.contains("===") && !javascript.contains("!=="), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "[true,true]\n[false,false]\n");
+}
+
+#[test]
+fn a_fresh_struct_meets_its_public_shape_as_a_literal() {
+    let javascript = compile(
+        r#"
+        extern void show(JsValue value);
+        extern int seed();
+        struct Point { int x; int y; }
+        struct Segment { Point from; Point to; string label; }
+        JsValue segment = Segment{Point{1, 2}, Point{seed(), 4}, "s"};
+        show(segment);
+        "#,
+    );
+    // Every field is written in place: no encoder is needed.
+    assert!(
+        javascript.contains("{from:{x:1,y:2},to:{x:seed(),y:4},label:\"s\"}") && !javascript.contains("function"),
+        "{javascript}"
+    );
+    assert_eq!(
+        run(&javascript, "globalThis.seed=()=>3;globalThis.show=v=>console.log(JSON.stringify(v));"),
+        "{\"from\":{\"x\":1,\"y\":2},\"to\":{\"x\":3,\"y\":4},\"label\":\"s\"}\n"
+    );
+}

@@ -173,6 +173,23 @@ impl Module {
                 left,
                 right,
             } => self.nullish_pair(*op, *left, *right),
+            // Operands of one primitive type compare alike either way:
+            // `typeof x==="string"` is `typeof x=="string"`.
+            Expr::Binary {
+                op: op @ (Binary::StrictEqual | Binary::StrictNotEqual),
+                left,
+                right,
+            } if self.known(*left).is_some() && self.known(*left) == self.known(*right) => {
+                Some(Expr::Binary {
+                    op: if *op == Binary::StrictEqual {
+                        Binary::Equal
+                    } else {
+                        Binary::NotEqual
+                    },
+                    left: *left,
+                    right: *right,
+                })
+            }
             Expr::Binary {
                 op: Binary::Add,
                 left,

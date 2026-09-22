@@ -311,6 +311,35 @@ impl Formation<'_, '_, '_, '_, '_> {
         };
         let schema = schema_of(self.program, structure.identity, self.budget)?
             .ok_or_else(|| self.error(Span::default(), "missing value-struct schema"))?;
+        // A fresh product meets its public shape field by field: `{k:e,…}`,
+        // not `encode([e,…])`. The fields evaluate in declaration order
+        // either way; a nested encoder moves before the later fields, but
+        // it only reads an immutable product and allocates.
+        let program = self.program;
+        let fields = &program.fields[program.structs[schema].fields.clone()];
+        let expressions = &self.module.expressions;
+        let fresh = !incoming
+            && matches!(&expressions[value.index()], js::Expr::Array(elements)
+                if elements.len() == fields.len()
+                    && elements
+                        .iter()
+                        .all(|element| !matches!(expressions[element.index()], js::Expr::Spread(_))));
+        if fresh {
+            self.work(fields.len())?;
+            let mut remaining = self.budget.vector(AllocationClass::Scratch, fields.len())?;
+            if let js::Expr::Array(elements) = &self.module.expressions[value.index()] {
+                self.budget
+                    .extend_copy(AllocationClass::Scratch, &mut remaining, elements)?;
+            }
+            let mut entries = self.budget.vector(AllocationClass::Retained, fields.len())?;
+            for (field, &element) in fields.iter().zip(&remaining) {
+                let value = self.public_value(&program.types[field.ty.index()], element, false)?;
+                let key = self.public_key(&field.name)?;
+                self.append(&mut entries, (key, value))?;
+            }
+            self.drop_scratch(remaining)?;
+            return self.expression(js::Expr::Object(entries));
+        }
         let codec = self.public_codec(schema, incoming)?;
         let callee = self.reference(codec)?;
         let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
