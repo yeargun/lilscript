@@ -208,6 +208,50 @@ impl Module {
             Expr::Construct { callee, arguments } if self.pristine_builtins => {
                 self.regex_literal(*callee, arguments, es2018)
             }
+            // `o["name"]` is `o.name`: one spelling for every rule that reads a
+            // property by name.
+            Expr::Member {
+                object,
+                property: Property::Computed(key),
+            } => self.identifier_key(*key).map(|name| Expr::Member {
+                object: *object,
+                property: Property::Named(name),
+            }),
+            // In a literal, `__proto__:` sets the prototype while
+            // `["__proto__"]:` defines a property, so that key stays computed.
+            Expr::Object(entries)
+                if entries.iter().any(|(key, _)| {
+                    matches!(key, Property::Computed(key)
+                        if self.identifier_key(*key).is_some_and(|name| name != "__proto__"))
+                }) =>
+            {
+                Some(Expr::Object(
+                    entries
+                        .iter()
+                        .map(|(key, value)| {
+                            let key = match key {
+                                Property::Computed(id) => match self.identifier_key(*id) {
+                                    Some(name) if name != "__proto__" => Property::Named(name),
+                                    _ => key.clone(),
+                                },
+                                Property::Named(_) => key.clone(),
+                            };
+                            (key, *value)
+                        })
+                        .collect(),
+                ))
+            }
+            _ => None,
+        }
+    }
+
+    /// The name a literal string key spells, when it is an IdentifierName.
+    fn identifier_key(&self, key: ExprId) -> Option<String> {
+        match &self.expressions[key.index()] {
+            Expr::Literal(Literal::String(value)) => value
+                .as_unicode()
+                .filter(|name| identifier_name(name))
+                .map(str::to_owned),
             _ => None,
         }
     }

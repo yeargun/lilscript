@@ -315,7 +315,9 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, AllocationError> {
         budget.work(Analysis, 1)?;
-        if events.len() > 64 {
+        // A bound on the walk, which is linear: a single-use body moves whole
+        // (a kernel's default object literal has sixty entries).
+        if events.len() > 1024 {
             return Ok(false);
         }
         let expression = &self.expressions[root.index()];
@@ -518,6 +520,16 @@ impl Module {
                 op: Binary::StrictEqual | Binary::StrictNotEqual,
                 ..
             } => true,
+            // A fresh literal of inert parts runs no code and cannot fail
+            // (resource exhaustion aside, D3.10); a spread would iterate.
+            Expr::Array(elements) => elements.iter().all(|element| {
+                !matches!(self.expressions[element.index()], Expr::Spread(_))
+                    && self.inert(*element, parameters)
+            }),
+            Expr::Object(entries) => entries
+                .iter()
+                .all(|(key, value)| self.literal_key(key) && self.inert(*value, parameters)),
+            Expr::Regex(_) => true,
             _ => false,
         }
     }

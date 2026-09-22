@@ -167,7 +167,7 @@ impl ArtifactProvenance {
             naming: Plan {
                 style: naming.style,
                 source_names,
-                self_named: naming.self_named,
+                raw_spelling: naming.raw_spelling,
             },
             naming_origin,
             output,
@@ -522,7 +522,7 @@ mod tests {
         let mut plan = Plan {
             style: Style::Global,
             source_names: vec![BindingId::new(8), BindingId::new(2), BindingId::new(8)],
-            self_named: false,
+            raw_spelling: false,
         };
         let first = build(
             owner,
@@ -752,7 +752,7 @@ mod tests {
         let plan = Plan {
             style: Style::Global,
             source_names: vec![BindingId::new(1), BindingId::new(2)],
-            self_named: false,
+            raw_spelling: false,
         };
         for domain in [WorkDomain::Baseline, WorkDomain::Optional] {
             let mut ledger = ledger(WORK, MEMORY);

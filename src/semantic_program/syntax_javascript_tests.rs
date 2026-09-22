@@ -413,7 +413,7 @@ fn a_raw_plan_names_functions_themselves_and_keeps_their_names_exact() {
         show(describeTwice(3));
         show(JS.array(nameOf(describeTheValue), nameOf(describeTwice)));
     "#;
-    let named = compile_plan(source, PRISTINE, Plan::with_self_named(Style::Global, true));
+    let named = compile_plan(source, PRISTINE, Plan::spelled(Style::Global, true));
     // The binding takes a short name; the exact name is spelled once.
     assert!(named.contains("function describeTheValue("), "{named}");
     assert_eq!(named.matches("describeTheValue").count(), 2, "{named}");
@@ -425,6 +425,36 @@ fn a_raw_plan_names_functions_themselves_and_keeps_their_names_exact() {
     let bound = compile_plan(source, PRISTINE, Plan::new(Style::Global));
     assert!(!bound.contains("function describeTheValue("), "{bound}");
     assert_eq!(run(&bound, host), run(&named, host));
+}
+
+#[test]
+fn a_raw_plan_spells_statements_in_their_shortest_exact_forms() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue pick(bool flag, int limit) {
+            float total = 0.0;
+            int index = 0;
+            while (index < limit) {
+                total = total + 1.5;
+                index = index + 1;
+            }
+            string label = "none";
+            if (flag) { label = "yes"; } else { label = "no"; }
+            if (total > 3.0) { return JS.array(label, total); }
+            return JS.array(label, 0);
+        }
+        show(pick(true, 3));
+        show(pick(false, 1));
+    "#;
+    let raw = compile_plan(source, PRISTINE, Plan::spelled(Style::Global, true));
+    let coded = compile_plan(source, PRISTINE, Plan::new(Style::Global));
+    // `total+=1.5`, `label=flag?…:…` and `return total>3?…:…`.
+    assert!(raw.contains("+=1.5"), "{raw}");
+    assert!(!raw.contains("else"), "{raw}");
+    assert!(raw.len() < coded.len(), "{raw}\n{coded}");
+    let expected = "[\"yes\",4.5]\n[\"no\",0]\n";
+    assert_eq!(run(&raw, SHOW), expected);
+    assert_eq!(run(&coded, SHOW), expected);
 }
 
 #[test]
@@ -528,8 +558,9 @@ fn a_reset_method_and_its_stores_fold_into_the_constructed_literal() {
         PRISTINE,
     );
     // `reset` inlines at its one call, its stores replace the literal's own
-    // entries in place, and the literal is returned directly.
-    assert!(javascript.contains("=>({kind:"), "{javascript}");
+    // entries in place, and the constructor, now `()=>({…})` with one call,
+    // inlines too: the token is the literal itself.
+    assert!(javascript.contains("{kind:3,raw:\"x\",text:\"\",task:!1}"), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "3\n\"x\"\nfalse\n");
 }
 

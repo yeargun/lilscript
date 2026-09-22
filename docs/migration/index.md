@@ -1592,6 +1592,32 @@ The owner set the six-port goal the same day: katexlil, markedlil, motionlil, zo
 
 **Verification.** 3,038 unit tests pass. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7, posthoglil 21/21 and motionlil 9/9. The config schema is regenerated (`finer/tools/config-schema.mjs --check`).
 
+### 013 batch 5: inlining reaches builders; shorthand; raw-plan statements (2026-09-22)
+
+- **Inert literals may run before an argument.** The inliner's `inert` accepts fresh object and array literals of inert parts (no spread) and regex literals. They run no code and cannot fail, resource exhaustion aside (D3.10). posthoglil's `l=a=>Object.assign({},a)` now inlines.
+- **Exact folds also run before inlining, and `o["k"]` is `o.k`.** A candidate is judged by its size, so `!!Number.isInteger(v)` should already read `Number.isInteger(v)`. Literal identifier keys become named members, and `__proto__` stays computed in literals.
+- **A second inlining round after store folds.** A builder written `let o={};o.k=v;…;return o` is several statements when inlining first runs and `()=>({k:v,…})` after the store fold. The second round takes it. posthoglil's 60-entry default-export object is now a literal where it is used. The evaluation walk's bound rises from 64 to 1,024 events, since the walk is linear and a single-use body only moves. The constructor test now expects the token to be the literal itself.
+- **Shorthand properties.** `{k:k}` prints as `{k}` when the value is a reference printed with the key's spelling. `__proto__` is excluded, since the two forms mean different things there.
+- **Raw-plan statement spellings.** Under the raw objective's plan:
+  - `x=x op y` becomes `x op=y` for a binding or a named member of a binding or `this`.
+  - `if(c)return a;return b` (or `…else return b`) becomes `return c?a:b`.
+  - `if(c)x=a;else x=b` becomes `x=c?a:b`.
+  - `if(c)e` becomes `c&&e`.
+
+| | posthoglil (`raw.js`) | markedlil (`raw.js`) | zodlil | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Batch 4 | 5,884 | 9,293 | 28,060 | 65,131 | 32,558 |
+| **After** | **5,620** (Oxc 5,622) | **9,278** | **28,018** | **65,104** | **32,397** |
+
+| Raw objective | posthoglil | markedlil |
+|---|---|---|
+| Batch 4 | 18,580 | 37,071 |
+| **After** | **18,465** (Oxc 16,123) | **36,583** (Oxc 37,022: **win**) |
+
+markedlil now wins both objectives. posthoglil is level with Oxc under Brotli, still short of D4's provisional strict-win margin (100 bytes or 1%).
+
+**Verification.** 3,039 unit tests pass, including `a_raw_plan_spells_statements_in_their_shortest_exact_forms`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

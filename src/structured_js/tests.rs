@@ -1236,7 +1236,7 @@ fn scoped_names_constrain_references_across_each_intervening_scope() {
                 .render(&selection::Plan {
                     style: selection::Style::Scoped,
                     source_names,
-                    self_named: false,
+                    raw_spelling: false,
                 })
                 .unwrap();
             let result = Command::new("node")

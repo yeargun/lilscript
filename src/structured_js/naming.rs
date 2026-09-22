@@ -19,24 +19,25 @@ pub struct Plan {
     pub style: Style,
     /// Lexical names retained as a compression choice, not a semantic pin.
     pub source_names: Vec<BindingId>,
-    /// Print each function that is not an arrow and has an exact name as
-    /// `function name(){…}`, so the binding holding it takes a short name.
-    /// The name then costs once instead of at every reference: always fewer
-    /// raw bytes, but a repeated long name is nearly free under a codec, so it
-    /// is a choice rather than a rule.
-    pub self_named: bool,
+    /// Spell for raw bytes. Each function that is not an arrow and has an
+    /// exact name prints as `function name(){…}`, so the binding holding it
+    /// takes a short name, and statements take their shortest exact forms
+    /// (`x+=y`, `return c?a:b`, `c&&e`). Always fewer raw bytes, but a
+    /// repeated long name or statement shape is nearly free under a codec, so
+    /// it is a choice rather than a rule.
+    pub raw_spelling: bool,
 }
 
 impl Plan {
     pub fn new(style: Style) -> Self {
-        Self::with_self_named(style, false)
+        Self::spelled(style, false)
     }
 
-    pub fn with_self_named(style: Style, self_named: bool) -> Self {
+    pub fn spelled(style: Style, raw_spelling: bool) -> Self {
         Self {
             style,
             source_names: vec![],
-            self_named,
+            raw_spelling,
         }
     }
 
@@ -527,7 +528,7 @@ impl<'a> Basis<'a> {
                 return Err("naming choice conflicts with required spelling".into());
             }
         }
-        let (hosts, preferred_names) = if plan.self_named {
+        let (hosts, preferred_names) = if plan.raw_spelling {
             (&self.hosts_self, &self.preferred_self)
         } else {
             (&self.hosts, &self.preferred)
@@ -559,13 +560,14 @@ impl<'a> Basis<'a> {
             bindings.push(String::new());
         }
         let mut self_named = budget.vector(Scratch, self.self_named.len())?;
-        if plan.self_named {
+        if plan.raw_spelling {
             budget.extend_copy(Scratch, &mut self_named, &self.self_named)?;
         }
         let mut names = Names {
             bindings,
             by_scope: NameIndex::new(module.bindings.len(), budget)?,
             self_named,
+            raw: plan.raw_spelling,
         };
         let mut global = if scoped.is_none() {
             Some(NameIndex::new(module.bindings.len(), budget)?)
@@ -817,6 +819,7 @@ pub(super) struct Names {
     bindings: Vec<String>,
     by_scope: NameIndex,
     self_named: Vec<bool>,
+    raw: bool,
 }
 impl Names {
     pub fn new(module: &Module, policy: PrintPolicy) -> Result<Self, String> {
@@ -837,6 +840,10 @@ impl Names {
     }
     pub fn get(&self, id: BindingId) -> &str {
         &self.bindings[id.index()]
+    }
+    /// Whether the plan spells for raw bytes.
+    pub fn raw(&self) -> bool {
+        self.raw
     }
     /// Whether this function prints as `function name(){…}`.
     pub fn self_named(&self, function: FunctionId) -> bool {

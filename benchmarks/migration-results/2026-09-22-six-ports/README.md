@@ -21,17 +21,17 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 
 | Port | Start (`577d472d`) | Now | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`) | 65,727 | 65,131 | 63,044 | +2,087 |
-| markedlil (`marked.raw.js`) | 9,397 | 9,293 | 10,092 | **win −799** |
-| posthoglil (`posthog.raw.js`) | 5,952 | 5,884 | 5,622 | +262 |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 32,558 | 27,445 | +5,113 |
-| zodlil (`zod.core.js`) | 28,326 | 28,060 | open | – |
+| katexlil (complete `katex.esm.js`) | 65,727 | 65,104 | 63,044 | +2,060 |
+| markedlil (`marked.raw.js`) | 9,397 | 9,278 | 10,092 | **win −814** |
+| posthoglil (`posthog.raw.js`) | 5,952 | 5,620 | 5,622 | level (−2) |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 32,397 | 27,445 | +4,952 |
+| zodlil (`zod.core.js`) | 28,326 | 28,018 | open | – |
 | motionlil (`full.js`) | does not build | 52,080 | 41,032 | +11,048 |
 
 | Raw objective | Start | Now | Bar | Gap |
 |---|---|---|---|---|
-| markedlil (`marked.bytes.js`) | 39,687 | 37,071 | 37,022 | +49 |
-| posthoglil (`posthog.bytes.js`) | 19,750 | 18,580 | 16,123 | +2,457 |
+| markedlil (`marked.bytes.js`) | 39,687 | 36,583 | 37,022 | **win −439** |
+| posthoglil (`posthog.bytes.js`) | 19,750 | 18,465 | 16,123 | +2,342 |
 | katexlil, jquerylil, zodlil, motionlil | no raw configuration yet | | | |
 
 The default route, for reference with the same binary: posthoglil 5,602 (it also loses once its `esm.js` banner is counted), katexlil 64,620–64,907, jquerylil 28,764. motionlil's committed `full.js` is 50,526.

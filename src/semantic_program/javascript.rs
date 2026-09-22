@@ -647,6 +647,23 @@ fn form_with_demand(
         // Bodies up to six nodes: measured best on the reference ports (a
         // limit of 3 keeps markedlil 97 bytes larger; 10 and 20 add nothing).
         let strict = formation.contract.execution.guarantees_strict_execution();
+        // Exact folds first: an inlining candidate is judged by its size, so
+        // `!!Number.isInteger(v)` should already read `Number.isInteger(v)`.
+        let numeric_lengths = formation.contract.assumptions.numeric_lengths;
+        let es2018 = formation.contract.ecmascript.year() >= 2018;
+        let early: Vec<js::ExprId> = formation
+            .literal_alternatives
+            .iter()
+            .map(|alternative| alternative.expression())
+            .collect();
+        if let Err(error) =
+            formation
+                .module
+                .simplify_operators(numeric_lengths, es2018, &early, formation.budget)
+        {
+            drop(formation);
+            return Err(error.into());
+        }
         let inlined = formation
             .module
             .inline_expression_functions(6, strict, formation.budget);
@@ -691,8 +708,6 @@ fn form_with_demand(
             .iter()
             .map(|alternative| alternative.expression())
             .collect();
-        let numeric_lengths = formation.contract.assumptions.numeric_lengths;
-        let es2018 = formation.contract.ecmascript.year() >= 2018;
         let inlined = inlined.and_then(|()| {
             formation
                 .module
@@ -729,6 +744,34 @@ fn form_with_demand(
                 formation
                     .module
                     .simplify_operators(numeric_lengths, es2018, &protected, formation.budget)?;
+                Ok(0)
+            });
+        if let Err(error) = edited {
+            drop(formation);
+            return Err(error.into());
+        }
+        // Store folds and forwarding leave single-expression functions that
+        // were several statements when inlining first ran: a builder's
+        // `let o={};o.k=v;return o` is now `()=>({k:v})`.
+        match formation
+            .module
+            .inline_expression_functions(6, strict, formation.budget)
+        {
+            Ok((_, Some(map))) => {
+                formation
+                    .literal_alternatives
+                    .retain_mut(|alternative| alternative.remap(&map));
+                formation
+                    .literal_alternatives
+                    .sort_unstable_by_key(|alternative| alternative.expression());
+            }
+            Ok((_, None)) => {}
+            Err(error) => {
+                drop(formation);
+                return Err(error.into());
+            }
+        }
+        let edited = Ok::<_, AllocationError>(()).and_then(|()| {
                 if prunes {
                     formation.module.drop_unreferenced_functions(formation.budget)?;
                 }

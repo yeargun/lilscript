@@ -752,7 +752,7 @@ impl JavaScriptSearch<'_, '_> {
             // Self-named functions trade raw bytes for repeated names, which a
             // codec compresses almost for free: the policy's own objective
             // decides, so the schedule is the same for every objective.
-            let self_named = objective.codec == Objective::Raw;
+            let raw_spelling = objective.codec == Objective::Raw;
             for (ordinal, &style) in styles.iter().enumerate() {
                 if baseline && ordinal != 0 {
                     break;
@@ -771,7 +771,7 @@ impl JavaScriptSearch<'_, '_> {
                         .retained_candidate_bytes
                         .max(portfolio.baseline_capacity)
                 };
-                let plan = Plan::with_self_named(style, self_named);
+                let plan = Plan::spelled(style, raw_spelling);
                 counters.renders += 1;
                 let before_render = output.with_allocation_budget(|budget| {
                     budget.with_ledger(|ledger| ledger.unwrap().0.work_by_kind(WorkKind::Render))
