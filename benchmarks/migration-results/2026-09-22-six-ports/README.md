@@ -12,7 +12,7 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 | markedlil | 10,092 | 37,022 | marked@18.0.10 parse-only sources (the port's surface), Vite 8 Oxc mangle |
 | posthoglil | 5,622 | 16,123 | posthog-js@1.418.10 kernel modules, Vite 8 Oxc mangle |
 | jquerylil | 27,445 | 87,151 | official `jquery.min.js` 3.7.1 for Brotli; Oxc on the ESM for raw (Terser 27,613 / 87,239; Oxc 27,751 / 87,151) |
-| zodlil | open | open | the port publishes 2 names against zod/v4's 240: needs the restricted recipe (plan 013-T5) |
+| zodlil | 51,948 | 274,999 | zod@4 restricted to the 181 `z` members the port shares ([entry](zodlil/restricted-entry.mjs): each imported by name, so the bundler keeps only what they reach), esbuild bundle, Terser mangle. Unrestricted: 52,440 |
 | motionlil | 41,032 | 137,455 | `motion` npm, esbuild bundle: Terser for Brotli, Oxc for raw (Oxc 41,246 Brotli). Surface 326 names against 312: to be matched |
 
 ## Standing (semantic route)
@@ -21,18 +21,19 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 
 | Port | Start (`577d472d`) | Now | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`) | 65,727 | 65,104 | 63,044 | +2,060 |
-| markedlil (`marked.raw.js`) | 9,397 | 9,278 | 10,092 | **win −814** |
+| katexlil (complete `katex.esm.js`) | 65,727 | 64,874 | 63,044 | +1,830 |
+| markedlil (`marked.raw.js`) | 9,397 | 9,290 | 10,092 | **win −802** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,620 | 5,622 | level (−2) |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 32,397 | 27,445 | +4,952 |
-| zodlil (`zod.core.js`) | 28,326 | 28,018 | open | – |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 32,167 | 27,445 | +4,722 |
+| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,699 | 51,948 | **win −6,249** |
 | motionlil (`full.js`) | does not build | 52,080 | 41,032 | +11,048 |
 
 | Raw objective | Start | Now | Bar | Gap |
 |---|---|---|---|---|
 | markedlil (`marked.bytes.js`) | 39,687 | 36,583 | 37,022 | **win −439** |
 | posthoglil (`posthog.bytes.js`) | 19,750 | 18,465 | 16,123 | +2,342 |
-| katexlil, jquerylil, zodlil, motionlil | no raw configuration yet | | | |
+| zodlil (complete package, as above) | open | 252,517 | 274,999 | **win −22,482** |
+| katexlil, jquerylil, motionlil | no raw configuration yet | | | |
 
 The default route, for reference with the same binary: posthoglil 5,602 (it also loses once its `esm.js` banner is counted), katexlil 64,620–64,907, jquerylil 28,764. motionlil's committed `full.js` is 50,526.
 
@@ -42,3 +43,7 @@ The default route, for reference with the same binary: posthoglil 5,602 (it also
 - **motionlil:** 12 class names are declared in two modules (`JSAnimation`, `GroupAnimation`). The semantic checker keys classes and enums by bare name (`Type::Class(&str)`), which rejects that; the default route's linker qualifies them. Owed as a language fix; a rename patch unblocks measurement.
 - **katexlil:** the port is an untyped transliteration (3,990 `JsValue`, 394 `toNum`, no `pure`). Terser still finds 1.7% in our output, mostly single-use functions.
 - **posthoglil:** string arrays are not packed, small `JsValue` wrappers are not inlined, and the port declares builtins through `JsValue` (`JS.number(JS.invoke(Math,"trunc",x))`).
+
+## zodlil's boundary (013-T5)
+
+The port's `z` has 191 members, against zod@4's 238, with the same 52 locales. It lacks the string-format classes (`ZodEmail`, `ZodURL` and the rest) and the check helpers (`gt`, `lte`, `length`, `includes`), and adds 10 of its own. The bar is therefore upstream restricted to the 181 shared members. Our side is everything `import { z } from "@itslil/zod"` loads, bundled by esbuild with nothing minified: the compiled `zod.core.js` plus the port's hand-written JavaScript (`compat.js`, `visit.js`, `async-api.js`, `official-json-schema.js`, `regexes.js`), and upstream's `zod/v4/locales`, which `compat.js` requires. Counting unminified hand-written code against us makes this bound conservative.

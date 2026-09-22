@@ -1618,6 +1618,24 @@ markedlil now wins both objectives. posthoglil is level with Oxc under Brotli, s
 
 **Verification.** 3,039 unit tests pass, including `a_raw_plan_spells_statements_in_their_shortest_exact_forms`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21.
 
+### 013 batch 6: single-use values and functions take their one reference (2026-09-22)
+
+Terser's leave-one-out on our jquerylil output put almost all of its remaining gain in `unused` + `reduce_vars` (+1,164 and +1,145 when removed). With only those options and no mangling, it removes 226 of our 656 top-level bindings. Most were functions and inert values read once, moved to where they are read. Forwarding now does the same, generically:
+- A `let` whose value is inert may take its one reference in the first later statement of its region that mentions it. Inert means literals and functions (creating either runs and reads nothing), and arrays or objects of them. Before, it could move only into the next statement, and functions were excluded.
+- The reference must be evaluated once per execution of that statement: not in a loop's test or update, and not in a nested function, since either would create the value again, with a new identity each time.
+- Functions move only when nothing observes their name, since a new position would infer another one.
+- A value that creates a function never moves into a `for (let k in/of …)` head. That head runs with `k` in scope and in its TDZ, so a function created there closes over `k`: `generators_yield_delegate_and_drive_for_of` caught exactly that capture.
+- A function never becomes its own call's callee, because a call is the inliners' to take, and an IIFE would block them. `a_reset_method_and_its_stores_fold_into_the_constructed_literal` and the script-frame test caught that.
+
+| Brotli | posthoglil (`raw.js`) | markedlil (`raw.js`) | zodlil | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Batch 5 | 5,620 | 9,278 | 28,018 | 65,104 | 32,397 |
+| **After** | **5,620** | **9,290** | **28,018** | **64,874** | **32,167** |
+
+What remains of Terser's `reduce_vars` gain is chiefly functions called once from inside another function: jquerylil has 55 (10.7 KB) and katexlil 30 (13.7 KB), many with early returns. Those need block inlining (the next batch), not forwarding.
+
+**Verification.** 3,040 unit tests pass, including `a_function_read_once_takes_its_later_reference`. `readonly_forwarding_keeps_private_path_slots_and_empty_roots_need_no_schema_support` now accepts a path read once taking its use. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

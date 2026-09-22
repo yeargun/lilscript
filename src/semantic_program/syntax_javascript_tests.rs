@@ -458,6 +458,31 @@ fn a_raw_plan_spells_statements_in_their_shortest_exact_forms() {
 }
 
 #[test]
+fn a_function_read_once_takes_its_later_reference() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern void register(JsValue key, JsValue handler);
+        JsValue handler = (JsValue value) => { return JS.add(value, 1); };
+        show(1);
+        show(2);
+        register("key", handler);
+        "#,
+        PRISTINE,
+    );
+    // Creating the arrow runs nothing and nothing else reads it: it is
+    // created where its one reference is, and the binding goes.
+    assert!(
+        javascript.contains("register(\"key\",") && !javascript.contains("let "),
+        "{javascript}"
+    );
+    assert_eq!(
+        run(&javascript, "globalThis.show=v=>console.log(v);globalThis.register=(k,h)=>console.log(k,h(41));"),
+        "1\n2\nkey 42\n"
+    );
+}
+
+#[test]
 fn a_store_whose_value_may_read_the_object_stays_a_store() {
     let javascript = compile_with(
         r#"

@@ -1642,6 +1642,48 @@ impl Module {
         Ok(first)
     }
 
+    /// Whether evaluating `root` creates a function (or class) anywhere.
+    fn creates_function(&self, root: ExprId) -> bool {
+        let mut pending = vec![root];
+        while let Some(id) = pending.pop() {
+            let expression = &self.expressions[id.index()];
+            if expression.created_function().is_some() {
+                return true;
+            }
+            let _ = expression.visit_children(|child| {
+                pending.push(child);
+                Ok::<_, ()>(())
+            });
+        }
+        false
+    }
+
+    /// Whether the reference to `binding` under `leaf` is a callee.
+    fn calls_reference(&self, leaf: Leaf, binding: BindingId) -> bool {
+        let Leaf::Child(parent) = leaf else {
+            return false;
+        };
+        match &self.expressions[parent.index()] {
+            Expr::Call { callee, .. } | Expr::Construct { callee, .. } => {
+                matches!(self.expressions[callee.index()], Expr::Binding(found) if found == binding)
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether `statement` mentions `binding` anywhere: its own expressions,
+    /// nested blocks and the bodies of functions it creates or declares.
+    fn statement_mentions(&self, statement: &Statement, binding: BindingId) -> bool {
+        let mut expressions = Vec::new();
+        statement.visit_expressions(|root| expressions.push(root));
+        let mut regions = Vec::new();
+        statement.visit_regions(|child| regions.push(child));
+        if let Statement::Function { function, .. } = statement {
+            regions.push(self.functions[function.index()].body);
+        }
+        self.mentions(&regions, &expressions, binding, false)
+    }
+
     /// Whether the code under `root` mentions `binding`.
     fn mentions_within(
         &self,
@@ -1737,36 +1779,72 @@ impl Module {
                     index += 1;
                     continue;
                 };
+                // A function whose name nothing observes is created the same
+                // way wherever it stands; one with an exact name would print
+                // a wrapper at a position that infers another name.
+                let function = match self.expressions[value.index()] {
+                    Expr::Function(function) => Some(function),
+                    _ => None,
+                };
                 let movable = references[binding.index()] == 1
                     && !self.bindings[binding.index()].pinned
-                    && !matches!(
-                        self.expressions[value.index()],
-                        Expr::Function(_) | Expr::Class { .. }
-                    )
-                    && (!root
-                        || self.root_modules.get(index) == self.root_modules.get(index + 1));
-                let leaf = if movable {
+                    && !matches!(self.expressions[value.index()], Expr::Class { .. })
+                    && function.is_none_or(|function| {
+                        matches!(self.functions[function.index()].name, FunctionName::Unobserved)
+                    });
+                let same_module = |at: usize| {
+                    !root || self.root_modules.get(index) == self.root_modules.get(at)
+                };
+                let leaf = if movable && function.is_none() && same_module(index + 1) {
                     self.first_leaf(&self.regions[region].statements[index + 1], binding)
+                        .map(|leaf| (leaf, index + 1))
                 } else {
                     None
                 };
-                // An inert value (literals, and arrays or objects of them)
-                // can be created later without any observer seeing it: it
-                // may take its one reference anywhere the next statement
-                // evaluates once.
+                // An inert value (literals and functions, and arrays or objects
+                // of them) can be created later without any observer seeing
+                // it: nothing else reads the binding, and creating it runs no
+                // code. It may take its one reference in the first later
+                // statement that mentions it, where that statement evaluates
+                // it once (not a loop's test or update, nor a nested function:
+                // those would create it again).
                 let leaf = match leaf {
                     Some(leaf) => Some(leaf),
                     None if movable && self.inert_value(value, budget)? => {
-                        self.single_evaluation_reference(
-                            &self.regions[region].statements[index + 1],
-                            binding,
-                        )
+                        let mut found = None;
+                        for later in index + 1..self.regions[region].statements.len() {
+                            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                            let statement = &self.regions[region].statements[later];
+                            if !self.statement_mentions(statement, binding) {
+                                continue;
+                            }
+                            // A value that creates a function keeps out of a
+                            // `for (let k of …)` head, which runs with `k` in
+                            // scope (and in its TDZ): a function created there
+                            // closes over it. Nor does it become a callee: a
+                            // call is the inliners' to take, not an IIFE.
+                            let creates = self.creates_function(value);
+                            let head = matches!(
+                                statement,
+                                Statement::ForIn { .. } | Statement::ForOf { .. }
+                            );
+                            if same_module(later) && !(creates && head) {
+                                found = self
+                                    .single_evaluation_reference(statement, binding)
+                                    .filter(|(leaf, _)| {
+                                        !creates || !self.calls_reference(*leaf, binding)
+                                    })
+                                    .map(|leaf| (leaf, later));
+                            }
+                            break;
+                        }
+                        found
                     }
                     None => None,
                 };
                 // Children precede their parents in the arena, and the moved
                 // value's deepest point must stay within the nesting limit.
-                let fits = leaf.is_some_and(|(leaf, path)| {
+                let fits = leaf.is_some_and(|((leaf, path), _)| {
                     let ordered = match leaf {
                         Leaf::Root => true,
                         Leaf::Child(parent) => value.index() < parent.index(),
@@ -1776,12 +1854,12 @@ impl Module {
                             <= verify::MAX_NESTING
                 });
                 budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
-                let Some((leaf, _)) = leaf.filter(|_| fits) else {
+                let Some(((leaf, _), target_statement)) = leaf.filter(|_| fits) else {
                     index += 1;
                     continue;
                 };
                 match leaf {
-                    Leaf::Root => self.regions[region].statements[index + 1]
+                    Leaf::Root => self.regions[region].statements[target_statement]
                         .replace_root(value),
                     Leaf::Child(parent) => {
                         let target = binding;
