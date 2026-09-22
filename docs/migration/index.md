@@ -1298,6 +1298,31 @@ markedlil is now 38 bytes (0.4%) above the default route.
 - `a_reset_method_and_its_stores_fold_into_the_constructed_literal`
 - `inlined_statements_never_repeat_an_argument_with_effects`, which covers an argument with effects and an alias whose source is assigned again.
 
+### 009 ablation, re-run after batch 5 (2026-09-22)
+
+The same method as the first ablation, on the batch 5 build. Cells give the Brotli bytes added by switching each family off.
+
+| Family off | probelil (1,872) | markedlil (9,398) | zodlil (28,326) | katexlil (57,622) |
+|---|---|---|---|---|
+| target compaction | +2,311 | +10,587 | +41,626 | +82,338 |
+| naming search | +559 | +1,882 | +10,484 | +11,595 |
+| dead-code elimination | +166 | +140 | +1,641 | +3,766 |
+| constant folding | 0 | 0 | +15 | +48 |
+| leaf-helper inlining | 0 | +3 | 0 | 0 |
+| scalar replacement | +8 | 0 | 0 | 0 |
+| call specialization | refused* | 0 | refused* | 0 |
+| string pooling | refused* | refused* | refused* | 0 |
+
+\* The port's config pins the tactic.
+
+The batch work lives in target compaction and dead-code elimination, where it belongs: it edits the finished program. The proof-heavy families still add 0–8 bytes on the reference ports. They cost no measurable compile time either: katexlil takes 3.6 s with or without them.
+
+**Recommendation, not yet acted on:** keep them until 013 ablates the whole fleet. Four ports are too narrow to justify deleting tested subsystems whose value may lie in typed ports outside this set. If the fleet agrees they are zero, 013 removes them.
+
+**Two gated spellings, measured.** Loop-head declarations (`for(let i=0;…)`) are never larger: katexlil −33, the others 0. They are now on under target compaction. `&&`/`||` statements for one-statement `if`s lose on three ports (markedlil +9, zodlil +67, katexlil +22) and stay off.
+
+**Where katexlil's remaining gap is.** Terser's leave-one-out on the current output still puts most of it in `unused` and `reduce_vars` (+1,245 and +1,150 when removed). That is single-use multi-statement functions moved into their call sites as IIFEs: `sqrtPath`, `tallDelim`, the console helpers and the surrogate-pair decoder. An IIFE allocates a closure every time its enclosing code runs. That is a runtime cost 012's speed gates would have to accept, so it is not taken here.
+
 
 ## 010 Bounded Codec Search
 
