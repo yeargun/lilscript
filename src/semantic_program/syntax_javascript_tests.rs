@@ -268,7 +268,7 @@ fn a_closure_only_invoked_through_its_cell_loses_its_name() {
     );
     // Every read of `twice` calls it; `shown` escapes into an exported object.
     assert!(!javascript.contains("twice"), "{javascript}");
-    assert!(javascript.contains(";shown="), "{javascript}");
+    assert!(javascript.contains("let shown="), "{javascript}");
     assert_eq!(run(&javascript, ""), "42\nshown\n");
 }
 
@@ -323,4 +323,32 @@ fn a_store_whose_value_may_read_the_object_stays_a_store() {
     // `seen` reads `o` while `o.x` is evaluated: a literal would still be
     // in its temporal dead zone.
     assert_eq!(run(&javascript, SHOW), "{\"y\":2}\n");
+}
+
+#[test]
+fn single_expression_helpers_inline_only_where_the_arguments_keep_their_order() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        int count = 0;
+        JsValue next() { count = count + 1; return count; }
+        int len(JsValue value) { return JS.number(value["length"]).toInt(); }
+        JsValue twice(JsValue x) { return JS.add(x, x); }
+        JsValue pair(JsValue a, JsValue b) { return JS.array(a, b); }
+        JsValue lengthFirst(JsValue a, JsValue b) { return JS.add(a["length"], b); }
+        show(len("abcd"));
+        show(twice(next()));
+        show(pair(next(), next()));
+        show(lengthFirst("xy", next()));
+        show(count);
+        "#,
+        PRISTINE,
+    );
+    // `len` and `pair` take their arguments in place. `twice` reads its
+    // parameter twice, and `lengthFirst` reads `a.length` (a getter) before
+    // `b`, which the call evaluated first: both stay calls.
+    assert!(javascript.contains("\"abcd\".length"), "{javascript}");
+    assert!(javascript.contains("show(["), "{javascript}");
+    assert!(javascript.matches("=>").count() >= 3, "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "4\n2\n[2,3]\n6\n4\n");
 }

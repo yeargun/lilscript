@@ -230,3 +230,27 @@ fn script_still_admits_a_helper_with_proved_primitive_inputs() {
         },
     );
 }
+
+#[test]
+fn a_script_keeps_the_frame_of_a_coercing_forwarding_function() {
+    // `+value` runs `valueOf` inside `helper` in a sloppy script, where the
+    // hook sees that frame as its caller: the call stays. A module's strict
+    // frames hide their callers, so there the call becomes `+opaque()`.
+    let source = "extern JsValue opaque();number helper(JsValue value){return JS.number(value);}print(helper(opaque()));";
+    compiled(source, false, |compiler, direct, _, policy| {
+        let javascript = render(compiler, direct, policy);
+        assert!(javascript.contains("helper("), "{javascript}");
+        assert_eq!(
+            execute(&javascript, false, true),
+            json!([["caller-visible", true], ["value", 4]])
+        );
+    });
+    compiled(source, true, |compiler, direct, _, policy| {
+        let javascript = render(compiler, direct, policy);
+        assert!(javascript.contains("+opaque()"), "{javascript}");
+        assert_eq!(
+            execute(&javascript, true, true),
+            json!([["caller-visible", false], ["value", 4]])
+        );
+    });
+}

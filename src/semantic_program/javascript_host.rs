@@ -323,6 +323,16 @@ impl Formation<'_, '_, '_, '_, '_> {
             {
                 self.module.expressions[argument(0).index()].clone()
             }
+            // `+5` is `5`: converting a number returns it unchanged.
+            B::JsNumber
+                if count == 1
+                    && matches!(
+                        self.module.expressions[argument(0).index()],
+                        js::Expr::Literal(js::Literal::Number(_))
+                    ) =>
+            {
+                self.module.expressions[argument(0).index()].clone()
+            }
             B::JsNumber if count == 1 => js::Expr::Unary {
                 op: js::Unary::Plus,
                 value: argument(0),

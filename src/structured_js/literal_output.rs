@@ -29,6 +29,21 @@ impl LiteralAlternative {
             observation,
         }
     }
+
+    pub(crate) fn expression(&self) -> ExprId {
+        self.expression
+    }
+
+    /// Follow a renumbered arena; false when the literal no longer exists.
+    pub(crate) fn remap(&mut self, map: &[Option<ExprId>]) -> bool {
+        match map.get(self.expression.index()).copied().flatten() {
+            Some(expression) => {
+                self.expression = expression;
+                true
+            }
+            None => false,
+        }
+    }
 }
 
 /// Borrow the verifier's existing liveness before its temporary Structure drops.

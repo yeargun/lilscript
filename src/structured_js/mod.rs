@@ -29,6 +29,7 @@ pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
 mod flow;
 #[cfg(test)]
 mod imports_tests;
+mod inline;
 #[cfg(test)]
 mod literal_output_tests;
 mod naming;
@@ -1038,6 +1039,133 @@ impl Module {
             }
         }
         Ok(elided)
+    }
+
+    /// `let x;…;x=v` becomes `…;let x=v` when that assignment is the first
+    /// code of the region to mention `x` and `v` does not: nothing before it
+    /// can read `x`, and no hoisted declaration of the region mentions it, so
+    /// no read meets the later declaration's temporal dead zone. A bare
+    /// statement whose value is only a literal, a function or a literal of
+    /// those has no effect and goes. Returns the number of edits.
+    pub(crate) fn merge_declarations(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let mut edits = 0;
+        for region in 0..self.regions.len() {
+            budget.work(Analysis, 1 + self.regions[region].statements.len() as u64)?;
+            let root = region == self.root.index();
+            let mut index = 0;
+            while index < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                if let Statement::Evaluate(value) = self.regions[region].statements[index] {
+                    if self.inert_value(value, budget)? {
+                        self.regions[region].statements.remove(index);
+                        if root && index < self.root_modules.len() {
+                            self.root_modules.remove(index);
+                        }
+                        edits += 1;
+                        continue;
+                    }
+                }
+                index += 1;
+            }
+            let declared: Vec<BindingId> = self.regions[region]
+                .statements
+                .iter()
+                .filter_map(|statement| match statement {
+                    Statement::Let {
+                        binding,
+                        value: None,
+                    } => Some(*binding),
+                    _ => None,
+                })
+                .collect();
+            if declared.is_empty() {
+                continue;
+            }
+            let first = self.first_mentions(RegionId::new(region), &declared, budget)?;
+            let mut merges = Vec::new();
+            for (index, statement) in self.regions[region].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let Statement::Let {
+                    binding,
+                    value: None,
+                } = *statement
+                else {
+                    continue;
+                };
+                let Some(&target) = first.get(&binding) else {
+                    continue;
+                };
+                if target <= index
+                    || (root && self.root_modules.get(index) != self.root_modules.get(target))
+                {
+                    continue;
+                }
+                let Statement::Evaluate(store) = self.regions[region].statements[target] else {
+                    continue;
+                };
+                let Expr::Assign { target: place, value } = self.expressions[store.index()] else {
+                    continue;
+                };
+                if matches!(self.expressions[place.index()], Expr::Binding(found) if found == binding)
+                    && !self.mentions_within(value, binding, budget)?
+                {
+                    merges.push((index, target, binding, value));
+                }
+            }
+            for &(_, target, binding, value) in &merges {
+                self.regions[region].statements[target] = Statement::Let {
+                    binding,
+                    value: Some(value),
+                };
+            }
+            for &(index, ..) in merges.iter().rev() {
+                self.regions[region].statements.remove(index);
+                if root && index < self.root_modules.len() {
+                    self.root_modules.remove(index);
+                }
+            }
+            edits += merges.len();
+        }
+        Ok(edits)
+    }
+
+    /// Whether evaluating `value` only creates literals and functions.
+    fn inert_value(
+        &self,
+        value: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+        Ok(match &self.expressions[value.index()] {
+            Expr::Literal(_) | Expr::Function(_) => true,
+            Expr::Array(items) => {
+                let mut inert = true;
+                for item in items {
+                    inert = inert && self.inert_value(*item, budget)?;
+                }
+                inert
+            }
+            Expr::Object(entries) => {
+                let mut inert = true;
+                for (key, item) in entries {
+                    inert = inert
+                        && match key {
+                            Property::Named(_) => true,
+                            Property::Computed(key) => matches!(
+                                self.expressions[key.index()],
+                                Expr::Literal(Literal::String(_) | Literal::Number(_))
+                            ),
+                        }
+                        && self.inert_value(*item, budget)?;
+                }
+                inert
+            }
+            _ => false,
+        })
     }
 
     /// A function that no code references, bound by `let` or declared, is

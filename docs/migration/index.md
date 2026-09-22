@@ -1199,6 +1199,27 @@ probelil is unchanged at 1,905. katexlil's raw size falls from 257,809 to 242,76
 
 The first needs a target-level inliner with an arena renumbering pass, so edits can splice subtrees. The second is the default route's native-array proof (`call_array_methods_directly`). The third belongs to 010's codec alternatives.
 
+### 009 batch 2: inlining single-expression functions (2026-09-22)
+
+- **Inlining single-expression arrows** ([inline.rs](../../src/structured_js/inline.rs)). A `let`-bound arrow `(a,b)=>E` that nothing reassigns or exports is replaced at every call that passes its parameters, if `E` has at most six nodes or the arrow has only that one call. The call evaluates its arguments first, then `E`. So `E` must read each parameter once, in parameter order, outside any branch. Before its last parameter read, `E` may evaluate only literals, other parameters and, with pristine builtins, standard globals and their named properties. `E` creates no function, reads no `this` or `arguments`, has no `delete` and does not come from a strict body. Six nodes measured best: a limit of three leaves markedlil 97 bytes larger, and ten or twenty add nothing.
+- **Arena renumbering.** Edits may now splice a subtree anywhere. `renumber` rebuilds the expression arena in postorder from the code that can run. Observed-literal alternatives follow their literals and stay sorted, which their binary search needs.
+- **Frames in classic scripts.** In a sloppy script, user code run from a function (a `valueOf`, a getter, a called function) sees that frame as `arguments.callee.caller`. Removing the frame is observable there, as `script_keeps_a_coercing_private_helper_frame_and_rejects_its_inline_candidate` shows. So the inliner, and batch 1's forwarding-function substitution, remove a frame in a script only when the body runs no user code: literals, strict equality, `typeof`, `!`, literals built from those, and standard library paths. Modules run strict, and a strict frame hides its caller. Batch 1 shipped the substitution without this gate. No reference port runs as a script except probelil, whose probe does not read `caller`. The new test `a_script_keeps_the_frame_of_a_coercing_forwarding_function` covers both execution modes.
+- **Declarations meet their first assignment.** `let x;…;x=v` becomes `…;let x=v` when that assignment is the first code of the region to mention `x` and `v` does not. No hoisted declaration of the region mentions it either, so no read meets the later declaration's temporal dead zone. katexlil's transliterated `JsValue x = undef(); … x = …` pairs merge wherever that holds.
+- **Inert statements go.** A bare statement whose value only creates literals and functions has no effect. One example is the `({});` left where `emptyObject()` became `{}`.
+- **`JS.number` of a number literal** is that literal, so the ports' `toNum(0)-toNum(1)` spelling no longer prints `+0-+1`.
+
+| Step | probelil | markedlil | zodlil | katexlil |
+|---|---|---|---|---|
+| Batch 1 | 1,905 | 9,632 | 28,640 | 58,804 |
+| Inlining single-expression arrows | −23 | −135 | −206 | −28 |
+| Script frame gates, declaration merge, inert statements, number literals | −3 | +2 | −4 | −659 |
+| **After** | **1,879** | **9,499** | **28,430** | **58,117** |
+| Default route | 1,492 | 9,360 | 29,682 | 55,404 |
+
+markedlil is now 1.5% above the default route, katexlil 4.9% and probelil 25.9%, while zodlil is 4.2% below. probelil's gap is structural. The default route inlines each once-called probe function into the script body, while in a script the frame rule keeps any body that can run user code.
+
+**Verification.** The unit suite passes (3,025 tests, plus the frame test), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions.
+
 
 ## 010 Bounded Codec Search
 

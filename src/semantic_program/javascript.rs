@@ -203,6 +203,27 @@ fn operands_first(builtin: BuiltinCall) -> bool {
     )
 }
 
+/// Builtins whose evaluation runs no user code once their operands are
+/// values: no conversion hook, getter or call. In a sloppy script, user code
+/// run from a forwarding function sees that frame as `arguments.callee.caller`;
+/// only these keep it unobservable when the frame goes.
+fn runs_no_user_code(builtin: BuiltinCall) -> bool {
+    use BuiltinCall as B;
+    matches!(
+        builtin,
+        B::JsArray
+            | B::JsObject
+            | B::JsUndefined
+            | B::JsAssume
+            | B::JsTypeOf
+            | B::JsIsNullish
+            | B::JsIsFalse
+            | B::JsIsUndefined
+            | B::JsStrictEqual
+            | B::JsStrictNotEqual
+    )
+}
+
 /// `JS.call`, `JS.apply` and `JS.construct` only invoke their first operand;
 /// none reads its name.
 fn invokes_argument(target: &CallTarget) -> bool {
@@ -615,6 +636,30 @@ fn form_with_demand(
     // of target compaction.
     if formation.compact {
         let pristine = formation.contract.assumptions.pristine_builtins;
+        // Bodies up to six nodes: measured best on the reference ports (a
+        // limit of 3 keeps markedlil 97 bytes larger; 10 and 20 add nothing).
+        let strict = formation.contract.execution.guarantees_strict_execution();
+        let inlined = formation
+            .module
+            .inline_expression_functions(6, strict, formation.budget);
+        let inlined = match inlined {
+            Ok((_, Some(map))) => {
+                // Renumbering reorders ids; lookups need them ascending.
+                formation
+                    .literal_alternatives
+                    .retain_mut(|alternative| alternative.remap(&map));
+                formation
+                    .literal_alternatives
+                    .sort_unstable_by_key(|alternative| alternative.expression());
+                Ok(())
+            }
+            Ok((_, None)) => Ok(()),
+            Err(error) => Err(error),
+        };
+        if let Err(error) = inlined {
+            drop(formation);
+            return Err(error.into());
+        }
         let edited = formation
             .module
             .forward_single_uses(formation.budget)
@@ -623,6 +668,7 @@ fn form_with_demand(
                     formation.module.fold_object_stores(formation.budget)?;
                 }
                 formation.module.elide_undefined(formation.budget)?;
+                formation.module.merge_declarations(formation.budget)?;
                 formation.module.drop_unreferenced_functions(formation.budget)
             });
         if let Err(error) = edited {
@@ -2565,6 +2611,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             crate::primitive::host_builtin(builtin)
                                 && (self.contract.assumptions.pristine_builtins
                                     || operands_first(builtin))
+                                && (self.contract.execution.guarantees_strict_execution()
+                                    || runs_no_user_code(builtin))
                                 && (builtin != BuiltinCall::JsObject
                                     || arguments.len() % 2 == 0
                                         && arguments
