@@ -1146,6 +1146,15 @@ Each run switches one tactic off with `[policy.tactics] <tactic> = "off"`. Every
 
 **009's first family task:** inlining that admits real helper bodies, while keeping the frame-elision and observation proofs the helper family already owns. Next come folding and propagation on its results, then a decision on the families that stay at zero.
 
+**First attempt, measured and reverted.** Under strict (module) execution, a host cannot observe a missing frame (`caller` is null either way). So the leaf-helper family was widened to admit bodies that call builtins, primitive intrinsics or host functions, plus intrinsic reads, templates and type tests, all with coercion behavior. Source-function calls stayed out, so an inlined leaf cannot recurse.
+
+- katexlil's publishable proposals rose from 5 to 23, and the search combined them into 8 structures.
+- A 40× larger search budget explored exactly the same 23 proposals and 8 structures.
+- Not one byte moved on any reference port.
+- Compile time rose from 0.8 s to 11 s on markedlil, and from 3 s to 10.5 s on zodlil.
+
+It is reverted as unproductive complexity. The default route's inlining lead on katexlil comes from inlining a wider class than function-typed private cells, including `JsValue` variables holding functions (`defineSymbol = (...) => ...`), and from simplifying afterwards (`"M95,"+str(x)` becomes `"M95,"+x`). That needs whole-program substitution with follow-on folding, not more proposals from this family.
+
 **Prior art** (from `finer/refs/competitor-techniques.md`, §D):
 - Terser inlines small non-recursive bodies at call sites (`compress/inline.js`, gated 0–3) and collapses single-use declarators (`tighten-body.js`).
 - oxc does single-use substitution only (`peephole/minimize_statements.rs:1137-1330`) and no general function inlining.
