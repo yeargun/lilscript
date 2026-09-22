@@ -61,6 +61,18 @@ pub enum AggregateLayout {
 pub struct CompilerConfig {
     /// Worker threads and codec workers the compiler may use; the CLI flags `--jobs` and `--codec-jobs` override these.
     pub resources: CompilerResourceConfig,
+    /// The compiler route a build takes: `legacy` (the default) or
+    /// `semantic`. The CLI flag `--backend` overrides it.
+    pub backend: CompilerBackend,
+}
+
+/// The migration's explicit route selection.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompilerBackend {
+    #[default]
+    Legacy,
+    Semantic,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -4092,5 +4104,17 @@ optimization_level = 15
         assert!(!options.specialize_tagged_constants);
         assert!(!config.js_profile_guided_optimization());
         assert!(!config.native_profile_guided_optimization());
+    }
+
+    /// The migration route is an explicit per-project choice; an unknown
+    /// route is refused rather than silently taking the default.
+    #[test]
+    fn the_compiler_backend_is_selected_explicitly_and_defaults_to_legacy() {
+        let default: ProjectConfig = toml::from_str("").unwrap();
+        assert_eq!(default.compiler.backend, CompilerBackend::Legacy);
+        let semantic: ProjectConfig =
+            toml::from_str("[compiler]\nbackend = \"semantic\"\n").unwrap();
+        assert_eq!(semantic.compiler.backend, CompilerBackend::Semantic);
+        assert!(toml::from_str::<ProjectConfig>("[compiler]\nbackend = \"fast\"\n").is_err());
     }
 }

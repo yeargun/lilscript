@@ -90,7 +90,7 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | implemented. Every delivery mode: single, preserve-modules, split, lazy `import()` and carried host modules. Liveness is verified across modules, and six compaction batches landed. Real libraries run unchanged in multi-file delivery. Semantic Brotli is now below the default route on zodlil and within 3% on markedlil. Codec alternatives (for-head, logical ifs) and per-stream scoring go to 010. | [then vs now](../../benchmarks/migration-results/2026-09-22-then-vs-now/README.md) |
 | [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | implemented. Five batches of generic target edits: unobserved function names, forwarding-builtin substitution, single-expression and statement inlining with arena renumbering, literal and store folds, spellings. Brotli since the milestone began: katexlil 61,391 → 57,589, zodlil 29,580 → 28,326 (below the default route's 29,682), markedlil 9,641 → 9,398 (default route 9,360), probelil 1,905 → 1,872. No runtime regression. The proof-heavy families measure 0–8 bytes and are kept until 013's fleet ablation. | [009 sections](#009-batch-1-substitution-and-folding-on-the-finished-program-2026-09-22) |
 | [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | implemented. Every exit item is covered by a named test or measurement. Real libraries replay byte-identically across effort levels and thread counts. The search is saturated there: the winner never moves, because the families propose almost nothing. Codec-scored spellings measured, and only `for(let …)` heads kept. Scheduler heuristics 3–6 wait for opportunities to schedule. | [010 status](#010-status-2026-09-22-exit-evidence-mapped-search-measured-saturated-on-real-libraries) |
-| [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | waiting | None |
+| [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | partial. `[compiler] backend` selects the route explicitly, and the backend and policy are recorded on every build. Reference-port suites pass through public entrypoints: katexlil, zodlil, markedlil (29/29 with a representation patch) and jquerylil. Compression losses recorded for 013. The full-fleet suites wait for a worker pool. | [011 status](#011-status-2026-09-22-route-selection-reference-suites-through-public-entrypoints) |
 | [ ] | [012 Compilation speed and resource gates](#012-compilation-speed-and-resource-gates) | 011 | waiting; phase telemetry, production-slice cost and probe ablations pass | None |
 | [ ] | [013 Compression qualification](#013-compression-qualification) | 011, 012 | waiting | None |
 | [ ] | [014 Retirement and final certification](#014-retirement-and-final-certification) | 001-013 | waiting | None |
@@ -1393,6 +1393,30 @@ Complete every required build/test adapter and immutable case inventory. Execute
 Cover every public flag and high-risk intersections of objective, effort, assumptions, family vetoes, runtime constraints, syntax, delivery and native settings. Record backend and resolved policy on every build. Preserve supported LSP, formatting and diagnostics when shared frontend changes affect them.
 
 **Exit:** repository-required checks and complete required library/native suites through public entrypoints, verifying APIs, function/property observations, errors, callbacks and value/reference behavior. Missing/failed cases keep the gate open. Hidden old-route fallback, package settings, narrowed APIs or post-score minification cannot pass. Record compression losses for 013; close semantic losses here.
+
+### 011 status (2026-09-22): route selection, reference suites through public entrypoints
+
+**Explicit selection.** `lilscript.toml` now takes `[compiler] backend = "legacy" | "semantic"`. The default stays `legacy` until the gate closes, and `--backend` overrides the key. An unknown route is refused (`the_compiler_backend_is_selected_explicitly_and_defaults_to_legacy`). The resolved backend appears in `--print-policy`, and the semantic service report records `"backend":"semantic"` with the resolved policy on every build.
+
+**Reference suites through public entrypoints.** Each port's own build script ran through the CLI with the semantic route:
+
+| Port | Result |
+|---|---|
+| katexlil | 21/21 and 1,230/1,230 |
+| zodlil | passes |
+| markedlil | 29/29 |
+| jquerylil | 7/7 |
+
+The census (72/72/72, no miscompiles) and probelil (both lanes) pass on the same binary. markedlil needed a migration patch, [markedlil.patch](../../finer/port-migrations/markedlil.patch), for two assertions about the default route's representation. Neither is a behavior difference:
+- **Export form.** The test required `binding as parse` in the export clause. The semantic route names the binding `parse` and exports it directly. The patched check still requires every public name to be exported under its exact name.
+- **Closed-lane keys.** The closed lane (`extern_fields = false`) expected renamed option keys. The semantic route does not yet rename closed-world fields, so the keys keep their names. The patched test keeps the behavior check (`parse` matches marked).
+
+**Compression losses recorded for 013.**
+- Closed-world field renaming: markedlil's closed lane. The default route renames non-public class and extern fields there.
+- katexlil's 43 `{name:f}.name` wrappers for escaping functions whose names the semantic route keeps exact.
+- probelil's structural gap. The default route inlines each once-called probe function into the script body, which a classic script's observable frames forbid here.
+
+**What keeps the gate open.** The full-fleet suites have not run. The worker pool this repository uses (`finer/tools/workers.mjs`, scale set `lilscript-workers-v7`) no longer exists in `lilscript-build-farm`, and creating machines needs the owner's approval. The standing directive limits builds on this host to the reference ports. Until the fleet runs, 011 is delivered for the reference ports and open for the rest.
 
 ## 012 Compilation Speed and Resource Gates
 

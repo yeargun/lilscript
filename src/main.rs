@@ -37,7 +37,7 @@ enum ExplainFormat {
     Json,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Backend {
     Legacy,
     Semantic,
@@ -59,9 +59,10 @@ struct Args {
     #[arg(long, value_enum, default_value_t = Target::Js)]
     target: Target,
 
-    /// Explicit migration backend. The semantic backend diagnoses unsupported input.
-    #[arg(long, value_enum, default_value_t = Backend::Legacy)]
-    backend: Backend,
+    /// Explicit migration backend, overriding `[compiler] backend`. The
+    /// semantic backend diagnoses unsupported input.
+    #[arg(long, value_enum)]
+    backend: Option<Backend>,
 
     /// Explicit config path. Otherwise `lilscript.toml` is discovered from the input directory.
     #[arg(long)]
@@ -149,7 +150,7 @@ fn run() -> Result<(), String> {
     if args.print_policy {
         return print_policy(&args, &loaded);
     }
-    if matches!(args.backend, Backend::Semantic) {
+    if backend(&args, &loaded.config) == Backend::Semantic {
         return run_semantic(&args, &loaded.config);
     }
     if let Some(output) = &args.profile_template {
@@ -266,6 +267,14 @@ fn run() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+/// The command line's backend, else the configuration's.
+fn backend(args: &Args, config: &ProjectConfig) -> Backend {
+    args.backend.unwrap_or(match config.compiler.backend {
+        lilscript::config::CompilerBackend::Legacy => Backend::Legacy,
+        lilscript::config::CompilerBackend::Semantic => Backend::Semantic,
+    })
 }
 
 fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
@@ -452,7 +461,7 @@ fn print_policy(args: &Args, loaded: &lilscript::config::LoadedConfig) -> Result
             "threads": resources.threads.map(|threads| threads.get()),
             "codec_workers": resources.codec_workers.get(),
             "mode": format!("{:?}", args.mode),
-            "backend": format!("{:?}", args.backend),
+            "backend": format!("{:?}", backend(args, &loaded.config)),
             "target": format!("{:?}", args.target),
         },
         "fingerprint": fingerprint,
