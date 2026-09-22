@@ -460,3 +460,26 @@ fn a_constant_namespace_object_reads_as_its_members() {
     assert!(javascript.contains("show(10)"), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "2\n7\n10\n");
 }
+
+#[test]
+fn an_inert_single_use_literal_moves_into_the_store_that_reads_it() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        JsValue schema = JS.object();
+        JsValue output = JS.object("type", "string", "cli", "-F");
+        schema["output"] = output;
+        JsValue strict = JS.object("type", "boolean");
+        schema["strict"] = strict;
+        show(schema);
+        "#,
+        PRISTINE,
+    );
+    // Creating an inert literal later is unobservable: each takes its one
+    // reader's place, and the stores then fold into `schema`'s literal.
+    assert!(javascript.contains("{output:{type:"), "{javascript}");
+    assert_eq!(
+        run(&javascript, SHOW),
+        "{\"output\":{\"type\":\"string\",\"cli\":\"-F\"},\"strict\":{\"type\":\"boolean\"}}\n"
+    );
+}
