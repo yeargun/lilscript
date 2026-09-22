@@ -488,6 +488,7 @@ fn form_with_demand(
         compact,
         module,
         literal_alternatives: Vec::new(),
+        string_sums: Vec::new(),
         contexts,
         entry_depths,
         records,
@@ -656,6 +657,17 @@ fn form_with_demand(
             Ok((_, None)) => Ok(()),
             Err(error) => Err(error),
         };
+        let protected: Vec<js::ExprId> = formation
+            .literal_alternatives
+            .iter()
+            .map(|alternative| alternative.expression())
+            .collect();
+        let inlined = inlined.and_then(|()| {
+            formation
+                .module
+                .fold_literal_operations(&protected, formation.budget)
+                .map(|_| ())
+        });
         if let Err(error) = inlined {
             drop(formation);
             return Err(error.into());
@@ -668,6 +680,7 @@ fn form_with_demand(
                     formation.module.fold_object_stores(formation.budget)?;
                 }
                 formation.module.elide_undefined(formation.budget)?;
+                formation.module.drop_double_negations(formation.budget)?;
                 formation.module.merge_declarations(formation.budget)?;
                 formation.module.drop_unreferenced_functions(formation.budget)
             });
@@ -762,6 +775,9 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     foreign_bindings: Vec<(CellId, js::BindingId)>,
     /// Per cell: 0 unknown, 1 nothing writes it after initialization, 2 written.
     stable_cells: Vec<u8>,
+    /// Sums formed for `JS.add`, ascending: their literal operands may join
+    /// the next literal added to them.
+    string_sums: Vec<js::ExprId>,
     /// Whether any unit reads `arguments`, computed on first need.
     arguments_read: Option<bool>,
     /// Per cell, whether every write is an int32 Number; built on first need.
@@ -2621,7 +2637,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         })
                     {
                         let expression = self.host_builtin(builtin, arguments, operation.span)?;
+                        let sum = builtin == BuiltinCall::JsAdd
+                            && matches!(expression, js::Expr::Binary { op: js::Binary::Add, .. });
                         let expression = self.expression(expression)?;
+                        if sum {
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut self.string_sums,
+                                expression,
+                            )?;
+                        }
                         return self.save(unit, &operation, expression);
                     }
                 }
@@ -3263,7 +3288,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             }
             _ => return Err(self.error(span, "semantic JavaScript call implementation")),
         };
-        Ok(self.expression(node)?)
+        let sum = matches!(node, js::Expr::Binary { op: js::Binary::Add, .. })
+            && matches!(
+                self.data(unit).calls[call.index()].target,
+                CallTarget::Builtin(BuiltinCall::JsAdd)
+            );
+        let id = self.expression(node)?;
+        if sum {
+            self.budget
+                .push(AllocationClass::Scratch, &mut self.string_sums, id)?;
+        }
+        Ok(id)
     }
 
     /// `Math.abs`, `Object.prototype.hasOwnProperty.call`: one host lookup

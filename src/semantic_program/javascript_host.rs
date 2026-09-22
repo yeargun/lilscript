@@ -162,6 +162,102 @@ impl Formation<'_, '_, '_, '_, '_> {
         }
     }
 
+    /// `JS.add` of two string literals is their concatenation. A `JS.add`
+    /// sum ending with a literal takes the next added literal into it, and
+    /// one starting with a literal takes the previous one: a sum with a string
+    /// operand is a string, and concatenation associates, so the one
+    /// conversion of the other operand still happens once, in order. Only
+    /// literals formed for `JS.add` operands change; a typed string recipe
+    /// stays the string family's choice, and an observed literal stays.
+    fn fold_string_sum(
+        &mut self,
+        left: js::ExprId,
+        right: js::ExprId,
+    ) -> Result<Option<js::Expr>, FormationError> {
+        let string = |this: &Self, id: js::ExprId| match &this.module.expressions[id.index()] {
+            js::Expr::Literal(js::Literal::String(value))
+                if this
+                    .literal_alternatives
+                    .binary_search_by_key(&id, |alternative| alternative.expression())
+                    .is_err() =>
+            {
+                Some(value.clone())
+            }
+            _ => None,
+        };
+        let joined = |a: &crate::literal::StringValue, b: &crate::literal::StringValue| {
+            let mut units: Vec<u16> = a.code_units().collect();
+            units.extend(b.code_units());
+            crate::literal::StringValue::from_utf16(units)
+        };
+        self.work(1)?;
+        if let (Some(a), Some(b)) = (string(self, left), string(self, right)) {
+            return Ok(Some(js::Expr::Literal(js::Literal::String(joined(&a, &b)))));
+        }
+        let sum = |this: &Self, id: js::ExprId| {
+            this.string_sums.binary_search(&id).is_ok().then(|| {
+                match this.module.expressions[id.index()] {
+                    js::Expr::Binary {
+                        op: js::Binary::Add,
+                        left,
+                        right,
+                    } => Some((left, right)),
+                    _ => None,
+                }
+            })?
+        };
+        if let (Some((head, tail)), Some(b)) = (sum(self, left), string(self, right)) {
+            if let Some(a) = string(self, tail) {
+                self.module.expressions[tail.index()] =
+                    js::Expr::Literal(js::Literal::String(joined(&a, &b)));
+                return Ok(Some(js::Expr::Binary {
+                    op: js::Binary::Add,
+                    left: head,
+                    right: tail,
+                }));
+            }
+        }
+        if let (Some(a), Some((head, rest))) = (string(self, left), sum(self, right)) {
+            if let Some(b) = string(self, head) {
+                self.module.expressions[head.index()] =
+                    js::Expr::Literal(js::Literal::String(joined(&a, &b)));
+                return Ok(Some(js::Expr::Binary {
+                    op: js::Binary::Add,
+                    left: head,
+                    right: rest,
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Whether `value` always evaluates to a number (never a BigInt): a
+    /// number literal, `+x`, or arithmetic whose operands are numbers.
+    fn numeric(&self, value: js::ExprId) -> bool {
+        match &self.module.expressions[value.index()] {
+            js::Expr::Literal(js::Literal::Number(_)) => true,
+            js::Expr::Unary {
+                op: js::Unary::Plus,
+                ..
+            } => true,
+            js::Expr::Unary {
+                op: js::Unary::Negate,
+                value,
+            } => self.numeric(*value),
+            js::Expr::Binary {
+                op:
+                    js::Binary::Subtract
+                    | js::Binary::Multiply
+                    | js::Binary::Divide
+                    | js::Binary::Remainder
+                    | js::Binary::Add,
+                left,
+                right,
+            } => self.numeric(*left) && self.numeric(*right),
+            _ => false,
+        }
+    }
+
     /// One host builtin call with its already formed argument expressions.
     pub(super) fn host_builtin(
         &mut self,
@@ -250,6 +346,11 @@ impl Formation<'_, '_, '_, '_, '_> {
             }
             return self.host_call(callee, forwarded, Invocation::Reference);
         }
+        if builtin == B::JsAdd && count == 2 {
+            if let Some(folded) = self.fold_string_sum(argument(0), argument(1))? {
+                return Ok(folded);
+            }
+        }
         let binary = |op| (op, 2usize);
         let comparison = match builtin {
             B::JsAdd => Some(binary(js::Binary::Add)),
@@ -323,14 +424,9 @@ impl Formation<'_, '_, '_, '_, '_> {
             {
                 self.module.expressions[argument(0).index()].clone()
             }
-            // `+5` is `5`: converting a number returns it unchanged.
-            B::JsNumber
-                if count == 1
-                    && matches!(
-                        self.module.expressions[argument(0).index()],
-                        js::Expr::Literal(js::Literal::Number(_))
-                    ) =>
-            {
+            // `+5` and `+(+a*2)` are their operands: converting a number
+            // returns it unchanged.
+            B::JsNumber if count == 1 && self.numeric(argument(0)) => {
                 self.module.expressions[argument(0).index()].clone()
             }
             B::JsNumber if count == 1 => js::Expr::Unary {

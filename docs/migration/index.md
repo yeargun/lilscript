@@ -1220,6 +1220,38 @@ markedlil is now 1.5% above the default route, katexlil 4.9% and probelil 25.9%,
 
 **Verification.** The unit suite passes (3,025 tests, plus the frame test), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions.
 
+### 009 batch 3: spellings and literal folds (2026-09-22)
+
+Found by ablating Terser's compressor on our own output, one option at a time and leave-one-out, then keeping only what is sound for us:
+- **Double negations.** `!!x` is `x` where only its truth matters: conditions, `!` operands, discarded values, and `&&`/`||` operands whose own truth is all that matters. katexlil had 476 `if(!!` and 167 `!!!`.
+- **Quoted keys.** A literal string key that is not an identifier prints `">":`, the same own data property as `[">"]:`. `__proto__` and observed literals keep the computed form.
+- **Numbers.** `.5`, not `0.5`, and `1e3`, not `1000`. The shortest round-trip digits, then plain or exponent form, whichever is shorter. A test checks every spelling reads back as the same double.
+- **Literal arithmetic.** Number operations on literals take their result when it is no longer: exact binary64 arithmetic, and the language's int32 contract for integer operations. `JS.number` of an operand that is already a number (a literal, `+x`, or arithmetic on numbers, never a BigInt) is the operand. `toNum(0)-toNum(1)` is now `-1`.
+- **`JS.add` string chains.** `JS.add` of two literals is their concatenation. A `JS.add` sum ending (or starting) with a literal takes the next literal into it, since a sum with a string is a string and concatenation associates. Typed string sums stay the string family's codec choice among computed, literal and shared spellings. An earlier version folded every literal sum at the target and removed that choice. Three string-family tests caught it, and the fold moved into `JS.add` formation.
+- **Exact-name wrappers.** Where a binding, target or key would name the value, `{htmlBuilder:f}.htmlBuilder` needs no `(0,…)`. That position is never a callee, a statement start or an arrow body.
+- **Dead declarations.** A `let` nothing reachable references goes when its value only creates literals and functions.
+
+| Step | probelil | markedlil | zodlil | katexlil |
+|---|---|---|---|---|
+| Batch 2 | 1,879 | 9,499 | 28,430 | 58,117 |
+| Double negations, quoted keys | 0 | −3 | −58 | −176 |
+| Numbers, literal arithmetic, `JS.add` chains, bare name wrappers | −2 | 0 | +27 | −198 |
+| **After** | **1,877** | **9,496** | **28,399** | **57,743** |
+| Default route | 1,492 | 9,360 | 29,682 | 55,404 |
+
+**Measured and not adopted.** Each saves raw bytes and loses Brotli, because the longer spelling repeats across the file:
+
+| Change | Brotli |
+|---|---|
+| Loose `typeof` comparisons | markedlil +5, katexlil +6 |
+| `else` removed after a `return` (95 sites) | katexlil +5 at −475 raw |
+| `x.push(v)` instead of `Array.prototype.push.call(x,v)` (59 sites) | katexlil +21 at −1,239 raw |
+| Terser's `join_vars`, `loops`, `conditionals`, `sequences` | negative on our output |
+
+**What remains.** Terser's full compressor still takes katexlil from 57,743 to 56,313. Leave-one-out puts most of it in `unused` with `reduce_vars`. That is single-use function inlining: `sqrtPath`'s one call receives each SVG path builder as an IIFE with the constant `Ma` substituted, and the definitions go. Next is target-level inlining of single-use functions, where arguments that are literals or never-written bindings may be read more than once.
+
+**Verification.** The unit suite passes (3,027 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions.
+
 
 ## 010 Bounded Codec Search
 

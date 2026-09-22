@@ -1168,10 +1168,199 @@ impl Module {
         })
     }
 
-    /// A function that no code references, bound by `let` or declared, is
-    /// never called, and creating it has no effect: its statement goes. A
-    /// call spelled as the builtin it forwards to leaves such functions.
-    /// Returns the number of dropped statements.
+    /// Number operations on literals become their results where the result
+    /// is no longer: exact binary64 arithmetic, as in JavaScript, and the
+    /// language's int32 contract for integer operations. String sums stay:
+    /// computed, literal and shared spellings are the string family's choice
+    /// for each codec. `protected` (ascending) lists literals with an
+    /// observed alternative, left alone. Returns the number of folds.
+    pub(crate) fn fold_literal_operations(
+        &mut self,
+        protected: &[ExprId],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let free = |id: ExprId| protected.binary_search(&id).is_err();
+        let number = |module: &Self, id: ExprId| match module.expressions[id.index()] {
+            Expr::Literal(Literal::Number(value)) if free(id) => Some(value),
+            _ => None,
+        };
+        let int32 = |value: f64| {
+            (value.fract() == 0.0 && value >= f64::from(i32::MIN) && value <= f64::from(i32::MAX))
+                .then(|| value as i32)
+        };
+        let spelled = |value: f64| print::number_spelling(value).len();
+        let mut folds = 0;
+        budget.work(Analysis, self.expressions.len() as u64)?;
+        for index in 0..self.expressions.len() {
+            let id = ExprId::new(index);
+            let folded = match &self.expressions[index] {
+                Expr::Binary {
+                    op: Binary::Add,
+                    left,
+                    right,
+                } => {
+                    let (left, right) = (*left, *right);
+                    match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+                        _ => match (number(self, left), number(self, right)) {
+                            (Some(a), Some(b)) => Some(a + b)
+                                .filter(|r| r.is_finite() && spelled(*r) <= spelled(a) + spelled(b) + 1)
+                                .map(|r| Expr::Literal(Literal::Number(r))),
+                            _ => None,
+                        },
+                    }
+                }
+                Expr::Binary { op, left, right }
+                    if matches!(
+                        op,
+                        Binary::Subtract | Binary::Multiply | Binary::Divide | Binary::Remainder
+                    ) =>
+                {
+                    match (number(self, *left), number(self, *right)) {
+                        (Some(a), Some(b)) => Some(match op {
+                            Binary::Subtract => a - b,
+                            Binary::Multiply => a * b,
+                            Binary::Divide => a / b,
+                            _ => a % b,
+                        })
+                        .filter(|r| r.is_finite() && spelled(*r) <= spelled(a) + spelled(b) + 1)
+                        .map(|r| Expr::Literal(Literal::Number(r))),
+                        _ => None,
+                    }
+                }
+                Expr::IntBinary { op, left, right } if *op != IntBinary::UnsignedShiftRight => {
+                    match (
+                        number(self, *left).and_then(int32),
+                        number(self, *right).and_then(int32),
+                    ) {
+                        (Some(a), Some(b)) => Some(Expr::Literal(Literal::Number(f64::from(
+                            op.evaluate(a, b),
+                        )))),
+                        _ => None,
+                    }
+                }
+                Expr::ToInt32(value) => number(self, *value)
+                    .and_then(int32)
+                    .map(|a| Expr::Literal(Literal::Number(f64::from(a)))),
+                Expr::Unary {
+                    op: Unary::Plus,
+                    value,
+                } => number(self, *value).map(|a| Expr::Literal(Literal::Number(a))),
+                _ => None,
+            };
+            if let Some(folded) = folded {
+                self.expressions[id.index()] = folded;
+                folds += 1;
+            }
+        }
+        Ok(folds)
+    }
+
+    /// `!!x` is `x` where only its truth matters: a condition, an operand of
+    /// `!`, a discarded value, or an operand of `&&`/`||` whose own truth is
+    /// all that matters. Converting to a boolean runs no code. Returns the
+    /// number of removed double negations.
+    pub(crate) fn drop_double_negations(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let mut edits = 0;
+        let mut regions = vec![self.root];
+        let mut seen = vec![false; self.regions.len()];
+        let mut pending: Vec<(ExprId, bool)> = Vec::new();
+        while let Some(region) = regions.pop() {
+            budget.work(Analysis, 1)?;
+            if std::mem::replace(&mut seen[region.index()], true) {
+                continue;
+            }
+            for index in 0..self.regions[region.index()].statements.len() {
+                budget.work(Analysis, 1)?;
+                let statement = &self.regions[region.index()].statements[index];
+                match statement {
+                    Statement::If { condition, .. } => pending.push((*condition, true)),
+                    Statement::Loop {
+                        condition, update, ..
+                    } => {
+                        if let Some(condition) = condition {
+                            pending.push((*condition, true));
+                        }
+                        if let Some(update) = update {
+                            pending.push((*update, true));
+                        }
+                    }
+                    Statement::Evaluate(value) => pending.push((*value, true)),
+                    other => other.visit_expressions(|root| pending.push((root, false))),
+                }
+                statement.visit_regions(|child| regions.push(child));
+                if let Statement::Function { function, .. } = statement {
+                    regions.push(self.functions[function.index()].body);
+                }
+                while let Some((id, truth)) = pending.pop() {
+                    budget.work(Analysis, 1)?;
+                    if truth {
+                        while let Expr::Unary {
+                            op: Unary::Not,
+                            value: once,
+                        } = self.expressions[id.index()]
+                        {
+                            let Expr::Unary {
+                                op: Unary::Not,
+                                value: twice,
+                            } = self.expressions[once.index()]
+                            else {
+                                break;
+                            };
+                            self.expressions[id.index()] = self.expressions[twice.index()].clone();
+                            edits += 1;
+                        }
+                    }
+                    let expression = &self.expressions[id.index()];
+                    if let Some(function) = expression.created_function() {
+                        regions.push(self.functions[function.index()].body);
+                    }
+                    match *expression {
+                        Expr::Unary {
+                            op: Unary::Not,
+                            value,
+                        } => pending.push((value, true)),
+                        Expr::Binary {
+                            op: Binary::And | Binary::Or,
+                            left,
+                            right,
+                        } => {
+                            pending.push((left, truth));
+                            pending.push((right, truth));
+                        }
+                        Expr::Conditional { condition, yes, no } => {
+                            pending.push((condition, true));
+                            pending.push((yes, truth));
+                            pending.push((no, truth));
+                        }
+                        Expr::Sequence(ref items) => {
+                            let last = items.len().saturating_sub(1);
+                            for (position, item) in items.iter().enumerate() {
+                                pending.push((*item, position != last || truth));
+                            }
+                        }
+                        _ => {
+                            let _ = expression.visit_children(|child| {
+                                pending.push((child, false));
+                                Ok::<_, ()>(())
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        Ok(edits)
+    }
+
+    /// A declaration that no code references goes when evaluating it has no
+    /// effect: no value, or a value that only creates literals and functions
+    /// (a function no code references is never called). A call spelled as the
+    /// builtin it forwards to leaves such functions, and folds leave such
+    /// declarations. Returns the number of dropped statements.
     pub(crate) fn drop_unreferenced_functions(
         &mut self,
         budget: &mut AllocationBudget<'_>,
@@ -1215,10 +1404,11 @@ impl Module {
                     Statement::Let {
                         binding,
                         value: Some(value),
-                    } => {
-                        unused(*binding)
-                            && matches!(self.expressions[value.index()], Expr::Function(_))
-                    }
+                    } => unused(*binding) && self.inert_value(*value, budget)?,
+                    Statement::Let {
+                        binding,
+                        value: None,
+                    } => unused(*binding),
                     Statement::Function { binding, .. } => unused(*binding),
                     _ => false,
                 };

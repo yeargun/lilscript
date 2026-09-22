@@ -840,6 +840,20 @@ impl<'a> Printer<'a, '_, '_> {
         Some(name)
     }
 
+    /// A literal string key without an observed alternative, other than
+    /// `__proto__`, with its text as a function name.
+    fn string_key(&mut self, key: ExprId) -> Option<(&'a StringValue, &'a str)> {
+        let module = self.module;
+        let Expr::Literal(Literal::String(value)) = &module.expressions[key.index()] else {
+            return None;
+        };
+        let name = value.as_unicode().filter(|name| *name != "__proto__")?;
+        if self.observed_literal(key).is_some() || !self.output.work(name.len()) {
+            return None;
+        }
+        Some((value, name))
+    }
+
     fn receiver(&mut self, value: ExprId) {
         let force = self.observed_literal(value).is_some()
             || matches!(
@@ -900,7 +914,14 @@ impl<'a> Printer<'a, '_, '_> {
                 if !matches {
                     // A sequence suppresses accidental named evaluation and
                     // produces a value, never a property reference receiver.
-                    self.text("(0,");
+                    // Where a binding, target or key would name the value, the
+                    // position is an initializer or entry, never a callee, a
+                    // statement start or an arrow body: `{name:f}.name`, a
+                    // member access, is already a value there.
+                    let bare = !name.is_empty() && !matches!(inferred, InferredName::None);
+                    if !bare {
+                        self.text("(0,");
+                    }
                     if name.is_empty() {
                         self.function_expression(*function);
                     } else {
@@ -927,7 +948,9 @@ impl<'a> Printer<'a, '_, '_> {
                             self.text("]");
                         }
                     }
-                    self.text(")");
+                    if !bare {
+                        self.text(")");
+                    }
                     return;
                 }
             }
@@ -948,6 +971,9 @@ impl<'a> Printer<'a, '_, '_> {
                 Literal::Number(value) => {
                     if *value == 0.0 && value.is_sign_negative() {
                         self.text("-0");
+                    } else if value.is_finite() {
+                        let spelling = number_spelling(*value);
+                        self.text(&spelling);
                     } else {
                         let _ = write!(self.output, "{value}");
                     }
@@ -1218,8 +1244,17 @@ impl<'a> Printer<'a, '_, '_> {
                             .filter(|name| *name != "__proto__"),
                         Property::Named(_) => None,
                     };
+                    // Any other literal string key is `"s":`, the same own
+                    // data property as `["s"]:`.
+                    let quoted = match (key, literal) {
+                        (Property::Computed(key), None) => self.string_key(*key),
+                        _ => None,
+                    };
                     match (key, literal) {
                         (_, Some(name)) => self.text(name),
+                        (Property::Computed(_), None) if quoted.is_some() => {
+                            self.string(quoted.unwrap().0)
+                        }
                         (Property::Named(name), None) => self.text(name),
                         // A computed key is an AssignmentExpression, so a
                         // sequence needs parentheses: `{[(a,b)]:v}`.
@@ -1232,6 +1267,9 @@ impl<'a> Printer<'a, '_, '_> {
                     self.text(":");
                     let inferred = match (key, literal) {
                         (_, Some(name)) => InferredName::Known(name),
+                        (Property::Computed(_), None) if quoted.is_some() => {
+                            InferredName::Known(quoted.unwrap().1)
+                        }
                         (Property::Named(name), None) if name == "__proto__" => InferredName::None,
                         (Property::Named(name), None) => InferredName::Known(name),
                         (Property::Computed(_), None) => InferredName::Computed,
@@ -1673,3 +1711,75 @@ impl<'a> Printer<'a, '_, '_> {
 #[cfg(test)]
 #[path = "print_budget_tests.rs"]
 mod budget_tests;
+
+/// The shortest JavaScript spelling of a finite number: the shortest
+/// round-trip digits, as a plain decimal without a leading zero (`.5`) or
+/// with a decimal exponent (`1e3`, `15e-5`), whichever is shorter.
+pub(super) fn number_spelling(value: f64) -> String {
+    let sign = if value < 0.0 { "-" } else { "" };
+    // `{:e}` gives the shortest round-trip digits: `d.ddde±x`.
+    let scientific = format!("{:e}", value.abs());
+    let (mantissa, exponent) = scientific.split_once('e').expect("LowerExp has an exponent");
+    let exponent: i32 = exponent.parse().expect("LowerExp exponent is an integer");
+    let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
+    let digits = digits.trim_end_matches('0');
+    let digits = if digits.is_empty() { "0" } else { digits };
+    // Value = 0.DIGITS × 10^(exponent + 1).
+    let point = exponent + 1;
+    let count = digits.len() as i32;
+    let plain = if point <= 0 {
+        format!(".{}{digits}", "0".repeat((-point) as usize))
+    } else if point >= count {
+        format!("{digits}{}", "0".repeat((point - count) as usize))
+    } else {
+        format!("{}.{}", &digits[..point as usize], &digits[point as usize..])
+    };
+    // DIGITS × 10^(point - count), for integers with trailing zeros and
+    // for small fractions.
+    let shift = point - count;
+    let exponential = format!("{digits}e{shift}");
+    let spelling = if shift != 0 && exponential.len() < plain.len() {
+        exponential
+    } else {
+        plain
+    };
+    format!("{sign}{spelling}")
+}
+
+#[cfg(test)]
+mod number_spelling_tests {
+    use super::number_spelling;
+
+    #[test]
+    fn numbers_take_their_shortest_exact_spelling() {
+        for (value, spelling) in [
+            (0.0, "0"),
+            (1.0, "1"),
+            (0.5, ".5"),
+            (0.16, ".16"),
+            (-0.7, "-.7"),
+            (1000.0, "1e3"),
+            (100.0, "100"),
+            (400000.0, "4e5"),
+            (1200.0, "1200"),
+            (12000.0, "12e3"),
+            (0.0001, "1e-4"),
+            (0.00015, "15e-5"),
+            (0.001, ".001"),
+            (1.00375, "1.00375"),
+            (2147483647.0, "2147483647"),
+            (1e21, "1e21"),
+            (123456789012.0, "123456789012"),
+            (5e-324, "5e-324"),
+            (1.7976931348623157e308, "17976931348623157e292"),
+        ] {
+            assert_eq!(number_spelling(value), spelling, "{value}");
+            // The spelling reads back as the same double.
+            let read: f64 = spelling
+                .strip_prefix('-')
+                .map(|rest| -format!("0{rest}").parse::<f64>().unwrap())
+                .unwrap_or_else(|| format!("0{spelling}").parse().unwrap());
+            assert_eq!(read.to_bits(), value.to_bits(), "{spelling}");
+        }
+    }
+}

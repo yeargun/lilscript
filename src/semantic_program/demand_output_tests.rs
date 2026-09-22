@@ -334,7 +334,12 @@ fn output_respects_dead_code_permission_on_the_same_semantic_candidate() {
                 .unwrap()
                 .unwrap();
             assert_eq!(output.contains("discardedProduct"), keep_unused, "{output}");
-            assert_eq!(output.contains("7919"), keep_unused, "{output}");
+            // Kept, the product may be spelled folded.
+            assert_eq!(
+                output.contains("7919") || output.contains("134623"),
+                keep_unused,
+                "{output}"
+            );
             assert_eq!(compilation.ledger().retained_bytes(), retained);
             artifacts.push(output);
         }
